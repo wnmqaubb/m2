@@ -1,0 +1,329 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\src\client\network_mgr.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\anticheat.cpp" />
+    <ClCompile Include="..\..\src\client\dllmain.cpp" />
+    <ClCompile Include="..\..\src\client\task_mgr.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_heartbeat.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_screenshot.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\api_resolver.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\screenshot.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\crypto.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_example.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\lightbone\LDasm.c">
+      <Filter>3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\lightbone\lighthook.cpp">
+      <Filter>3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\anti_virtual_machine.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_process_info.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_hardware.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\hardware.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\shellcode.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_shellcode.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\log.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\assembler.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\codegen.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\compiler.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\constpool.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\containers.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\context.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\cpuinfo.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\cputicks.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\error.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\globals.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\intutil.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\logger.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\operand.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\runtime.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\string.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\vmem.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\base\zone.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86assembler.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86compiler.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86context.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86cpuinfo.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86inst.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86operand.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86operand_regs.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\AsmJit\x86\x86scheduler.cpp">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\windows.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_judgment.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\rewolf-wow64ext\src\wow64ext.cpp">
+      <Filter>3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_policy.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\pe_scan.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\player.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_api_hook.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\cheat.cpp" />
+    <ClCompile Include="..\..\src\client\game_local_funtion.cpp">
+      <Filter>game_hook</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\memory.cpp">
+      <Filter>game_hook</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\image_protect.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\client\network_mgr.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\client\anticheat.h" />
+    <ClInclude Include="..\..\src\client\task_mgr.h">
+      <Filter>task</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\client\task\task.h">
+      <Filter>task</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\utils\api_resolver.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\utils\utils.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\lightbone\lighthook.h">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\utils\windows_internal.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\ApiBegin.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\ApiEnd.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\AsmJit.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\assembler.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\codegen.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\compiler.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\constpool.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\containers.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\context_p.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\cpuinfo.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\cputicks.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\error.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\globals.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\intutil.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\lock.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\logger.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\operand.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\runtime.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\string.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\vectypes.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\vmem.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base\zone.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\base.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\Build.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\Config.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\host.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86assembler.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86compiler.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86context_p.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86cpuinfo.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86inst.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86operand.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86\x86scheduler_p.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\AsmJit\x86.h">
+      <Filter>3rdparty\asmjit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\lightbone\pattern.hpp">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\client\cheat.h" />
+    <ClInclude Include="..\..\src\client\game_local_funtion.h">
+      <Filter>game_hook</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\client\memory.h">
+      <Filter>game_hook</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="network">
+      <UniqueIdentifier>{16aa811a-cfd4-4614-8e5e-f1be5d7468de}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{7ded8534-fb86-4a58-9ad6-998b3c94fa8f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="task">
+      <UniqueIdentifier>{dc7f8118-451b-41f0-8499-27abf8a5aef6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{4ae67637-b185-4d89-a837-11e8fcee326d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\asmjit">
+      <UniqueIdentifier>{9847e961-ce96-421b-91d4-05aa134f23c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game_hook">
+      <UniqueIdentifier>{08b3aa08-b55b-41a2-a4d1-2002c1086edb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="export.def" />
+  </ItemGroup>
+</Project>

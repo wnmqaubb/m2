@@ -1,0 +1,179 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="mfc">
+      <UniqueIdentifier>{0f551de0-117d-4ca5-b244-88673e58cc6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mfc\资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="task">
+      <UniqueIdentifier>{456b4058-2164-4245-aad6-b0b198cc667e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{010d17a8-c2ac-4cab-b26f-38aa3f75cbaa}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="targetver.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="agentDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="agent.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="..\..\src\client\task\task.h">
+      <Filter>task</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\client\task_mgr.h">
+      <Filter>task</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\utils\utils.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="processInfoDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="MFCUtil.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="ruleDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="processDirectoryDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="screenShotDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="processThreadDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="processModuleDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="clientWindowDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="shellManagerDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="LogDlg.h">
+      <Filter>mfc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\global_string.h" />
+    <ClInclude Include="..\..\src\utils\thread_queue.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="agent.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="agentDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol.cpp" />
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="..\..\src\client\task\task_screenshot.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_heartbeat.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task_mgr.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\crypto.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_example.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_process_info.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_hardware.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_shellcode.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="processInfoDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="MFCUtil.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="ruleDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\log.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="processDirectoryDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="screenShotDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="processThreadDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="processModuleDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="clientWindowDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_judgment.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="shellManagerDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="LogDlg.cpp">
+      <Filter>mfc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_policy.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\utils\async_execute.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\client\task\task_api_hook.cpp">
+      <Filter>task</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="agent.rc">
+      <Filter>mfc\资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\agent.rc2">
+      <Filter>mfc\资源文件</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\agent.ico">
+      <Filter>mfc\资源文件</Filter>
+    </Image>
+    <Image Include="res\icon1.ico">
+      <Filter>mfc\资源文件</Filter>
+    </Image>
+    <Image Include="D:\tool\12.ico">
+      <Filter>mfc\资源文件</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

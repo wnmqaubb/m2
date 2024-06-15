@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document Version="2">
+    <Protection InputFileName="build\bin\Release\Win32\Gate.exe" Options="759752" LicenseDataFileName="ServiceLicense.vmp" OutputFileName="build\bin\Gate.exe">
+        <Messages />
+        <Folders />
+        <Procedures>
+        </Procedures>
+        <Objects />
+    </Protection>
+    <Script />
+</Document>

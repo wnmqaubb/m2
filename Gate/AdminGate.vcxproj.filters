@@ -1,0 +1,596 @@
+<<<<<<< HEAD
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="ClientView.cpp">
+      <Filter>MFC\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientViewList.cpp">
+      <Filter>MFC\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="OutputDlg.cpp">
+      <Filter>MFC\Output</Filter>
+    </ClCompile>
+    <ClCompile Include="Gate.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="MainFrm.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="ObserverClientGroupImpl.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="ObserverClientImpl.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ChildFrm.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="CmdView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingChildFrm.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingSubView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="DriverDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="DriverView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessChildFrm.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessSubView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="MainBar.cpp">
+      <Filter>MFC\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewList.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
+    <ClCompile Include="SearchBar.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
+    <ClCompile Include="PropEditFormView.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
+    <ClCompile Include="CConfig.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ClientView.h">
+      <Filter>MFC\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientViewList.h">
+      <Filter>MFC\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="OutputDlg.h">
+      <Filter>MFC\Output</Filter>
+    </ClInclude>
+    <ClInclude Include="Gate.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="MainFrm.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="ObserverClientGroupImpl.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="ObserverClientImpl.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ChildFrm.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="CmdView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingChildFrm.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingSubView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="DriverDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="DriverView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessChildFrm.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessSubView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="MainBar.h">
+      <Filter>MFC\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewList.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
+    <ClInclude Include="SearchBar.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
+    <ClInclude Include="PropEditFormView.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
+    <ClInclude Include="CConfig.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\explorer.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\explorer_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\file_view.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\file_view_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\fileview.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\fileview_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\Gate.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\GateDoc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\menuimages.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\menuimages_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\output_wnd.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\output_wnd_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties_wnd.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties_wnd_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\sort.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\sort_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\Toolbar.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\toolbar1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\Toolbar256.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\userimages.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\bitmap1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\class_view.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\class_view_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\classview.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\classview_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{9e4e94d9-e075-450b-a758-ab1c0e03f633}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC">
+      <UniqueIdentifier>{3274612e-b381-4014-9d51-f803ec054fd0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\Client">
+      <UniqueIdentifier>{23c56b73-7077-4833-8b33-1a7740fe2623}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\ChildFrame">
+      <UniqueIdentifier>{4391bb85-d2d4-47df-9833-c9e182cfc2ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\Widget">
+      <UniqueIdentifier>{4ce608f2-3632-46ea-b2b1-2b517d6b8c0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\Output">
+      <UniqueIdentifier>{a027dc6b-6e94-4290-afb2-378f076822d6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Gate.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\Gate.rc2">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
+=======
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="ClientView.cpp">
+      <Filter>MFC\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientViewList.cpp">
+      <Filter>MFC\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="OutputDlg.cpp">
+      <Filter>MFC\Output</Filter>
+    </ClCompile>
+    <ClCompile Include="Gate.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="MainFrm.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="ObserverClientGroupImpl.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="ObserverClientImpl.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ChildFrm.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="CmdView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingChildFrm.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingSubView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigSettingView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="DriverDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="DriverView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessChildFrm.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessSubView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowDoc.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowView.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="MainBar.cpp">
+      <Filter>MFC\Client</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewList.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
+    <ClCompile Include="SearchBar.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
+    <ClCompile Include="PropEditFormView.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
+    <ClCompile Include="CConfig.cpp">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ClientView.h">
+      <Filter>MFC\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientViewList.h">
+      <Filter>MFC\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="OutputDlg.h">
+      <Filter>MFC\Output</Filter>
+    </ClInclude>
+    <ClInclude Include="Gate.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="MainFrm.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="ObserverClientGroupImpl.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="ObserverClientImpl.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ChildFrm.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="CmdView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingChildFrm.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingSubView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigSettingView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="DriverDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="DriverView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessChildFrm.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessSubView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowDoc.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowView.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+    <ClInclude Include="MainBar.h">
+      <Filter>MFC\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewList.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
+    <ClInclude Include="SearchBar.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
+    <ClInclude Include="PropEditFormView.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
+    <ClInclude Include="CConfig.h">
+      <Filter>MFC\ChildFrame</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\explorer.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\explorer_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\file_view.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\file_view_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\fileview.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\fileview_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\Gate.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\GateDoc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\menuimages.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\menuimages_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\output_wnd.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\output_wnd_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties_wnd.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\properties_wnd_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\sort.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\sort_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\Toolbar.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\toolbar1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\Toolbar256.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\userimages.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\bitmap1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\class_view.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\class_view_hc.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\classview.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\classview_hc.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{9e4e94d9-e075-450b-a758-ab1c0e03f633}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC">
+      <UniqueIdentifier>{3274612e-b381-4014-9d51-f803ec054fd0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\Client">
+      <UniqueIdentifier>{23c56b73-7077-4833-8b33-1a7740fe2623}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\ChildFrame">
+      <UniqueIdentifier>{4391bb85-d2d4-47df-9833-c9e182cfc2ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\Widget">
+      <UniqueIdentifier>{4ce608f2-3632-46ea-b2b1-2b517d6b8c0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MFC\Output">
+      <UniqueIdentifier>{a027dc6b-6e94-4290-afb2-378f076822d6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Gate.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\Gate.rc2">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
+>>>>>>> 31e167db06d1caa1061611bc914b44d6767746d9
+</Project>
