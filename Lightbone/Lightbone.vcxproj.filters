@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
@@ -34,41 +33,4 @@
     <ClCompile Include="peloader.cpp" />
     <ClCompile Include="..\3rdparty\rewolf-wow64ext\src\wow64ext.cpp" />
   </ItemGroup>
-=======
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup>
-    <ClInclude Include="framework.h" />
-    <ClInclude Include="pch.h" />
-    <ClInclude Include="LDasm.h" />
-    <ClInclude Include="lighthook.h" />
-    <ClInclude Include="pattern.hpp" />
-    <ClInclude Include="pointer.hpp" />
-    <ClInclude Include="shared_memory.hpp" />
-    <ClInclude Include="singleton.hpp" />
-    <ClInclude Include="utils.h" />
-    <ClInclude Include="windows_internal.h" />
-    <ClInclude Include="xorstr.hpp" />
-    <ClInclude Include="api_resolver.h" />
-    <ClInclude Include="code_verify.h" />
-    <ClInclude Include="core.hpp" />
-    <ClInclude Include="dump.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="pch.cpp" />
-    <ClCompile Include="hardware.cpp" />
-    <ClCompile Include="image_protect.cpp" />
-    <ClCompile Include="LDasm.c" />
-    <ClCompile Include="lighthook.cpp" />
-    <ClCompile Include="log.cpp" />
-    <ClCompile Include="pe_scan.cpp" />
-    <ClCompile Include="screenshot.cpp" />
-    <ClCompile Include="shellcode.cpp" />
-    <ClCompile Include="windows.cpp" />
-    <ClCompile Include="api_resolver.cpp" />
-    <ClCompile Include="code_verify.cpp" />
-    <ClCompile Include="peloader.cpp" />
-    <ClCompile Include="..\3rdparty\rewolf-wow64ext\src\wow64ext.cpp" />
-  </ItemGroup>
->>>>>>> 31e167db06d1caa1061611bc914b44d6767746d9
 </Project>
