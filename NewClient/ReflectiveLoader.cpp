@@ -1,4 +1,4 @@
-#include "Tools/Packer/loader.h"
+#include "loader.h"
 #include "Lightbone/peloader.cpp"
 
 void __stdcall reflective_load(share_data_ptr_t param) noexcept

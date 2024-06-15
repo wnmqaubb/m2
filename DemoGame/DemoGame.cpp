@@ -8,7 +8,7 @@
 #include "Lightbone/utils.h"
 #include "Service/SubServicePackage.h"
 #include "Service/NetUtils.h"
-#include "Tools/Packer/loader.h"
+#include "NewClient/loader.h"
 
 using client_entry_t = decltype(&client_entry);
 namespace fs = std::filesystem;

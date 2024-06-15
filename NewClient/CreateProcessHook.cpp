@@ -4,7 +4,7 @@
 #include <Lightbone/utils.h>
 #include <Lightbone/lighthook.h>
 #include "Lightbone/LDasm.h"
-#include "Tools/Packer/loader.h"
+#include "loader.h"
 
 using namespace ApiResolver;
 extern HINSTANCE dll_base;

@@ -2,7 +2,7 @@
 #include "pch.h"
 #include <iostream>
 #include "ClientImpl.h"
-#include "Tools/Packer/loader.h"
+#include "loader.h"
 #include "CreateProcessHook.h"
 #include "WndProcHook.h"
 #include "version.build"
