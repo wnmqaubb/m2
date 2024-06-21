@@ -72,6 +72,8 @@
 #define IDC_REFRESH_LICENSE_BUTTON      1013
 #define IDC_CHECK_BACK                  1013
 #define IDC_EDIT_BACK                   1014
+#define IDC_REFRESH_LICENSE_BUTTON2     1014
+#define IDC_PROCESS_BUTTON              1014
 #define IDC_CHECK_EXIT                  1015
 #define IDC_EDIT_EXIT                   1016
 #define IDC_CHECK_SPEED_WALK            1017

@@ -316,6 +316,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\111.ico" />
+    <Image Include="..\guard.ico" />
     <Image Include="C:\Users\wnmqaubb08\Downloads\111.ico" />
     <Image Include="res\bitmap1.bmp" />
     <Image Include="res\classview.bmp" />
