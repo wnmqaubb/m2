@@ -53,6 +53,8 @@
 #define IDR_MENU_WINDOW                 319
 #define IDD_OUTPUT_DIALOG               323
 #define IDD_CONFIG_DIALOG               325
+#define IDI_ICON1                       328
+#define IDI_ICON_GUARD                  328
 #define IDC_ABOUT_VERSION               1000
 #define IDC_EDIT_POLICY_ID              1001
 #define IDC_EDIT_POLICY_CONFIG          1002
@@ -137,7 +139,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        327
+#define _APS_NEXT_RESOURCE_VALUE        329
 #define _APS_NEXT_COMMAND_VALUE         32828
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           312

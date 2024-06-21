@@ -315,6 +315,8 @@
     <ResourceCompile Include="Gate.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\111.ico" />
+    <Image Include="C:\Users\wnmqaubb08\Downloads\111.ico" />
     <Image Include="res\bitmap1.bmp" />
     <Image Include="res\classview.bmp" />
     <Image Include="res\classview_hc.bmp" />
