@@ -121,7 +121,7 @@ private:
     int32_t old_move_speed_interval_;
     int32_t old_hit_speed_interval_;
     int32_t old_spell_speed_interval_;
-    const uint32_t old_speed_xor_key = 0x3EB765A;
+    const uint32_t old_speed_xor_key = 0x3FA795C;
 
     uint32_t exit_game_call_addr_;
     uint32_t action_call_addr_;

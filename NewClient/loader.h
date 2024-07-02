@@ -2,7 +2,7 @@
 #include <stdint.h>
 #pragma pack(push)
 #pragma pack(1)
-const uint32_t kShareDateMagicKey = 0xCAFEBABE;
+const uint32_t kShareDateMagicKey = 0xABFEBCBE;
 typedef struct _ShareData
 {
     uint32_t magic;

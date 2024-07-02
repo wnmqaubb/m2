@@ -29,7 +29,7 @@ class RawProtocolBody;
 const unsigned char kRawProtocolHeadVersion = 1;
 const unsigned int kRawProtocolMaxSize = (std::numeric_limits<unsigned int>::max)();
 const size_t kCompressBound = 1024 * 10;
-const unsigned int kProtocolXorKey[4] = { 0x3821AB14, 0x997ACF22, 0x65DE3964, 0xCC038726 };
+const unsigned int kProtocolXorKey[4] = { 0x6431A2DF, 0xE6A953B6, 0x6F64F83C, 0x8A7BEFA4 };
 
 class RawProtocolHead
 {

@@ -67,7 +67,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
     notify_mgr_.register_handler(SERVER_START_NOTIFY_ID, [this]() {
         io().context().post(std::bind(&VmpSerialValidator::validate_timer, vmp, false));
         start_timer(AUTH_CHECK_TIMER_ID, auth_check_timer_, std::bind(&VmpSerialValidator::validate_timer, vmp, true));
-        connect_to_logic_server("127.0.0.1", kDefaultLogicServicePort);
+        connect_to_logic_server(kDefaultLocalhost, kDefaultLogicServicePort);
     });
     package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 #if _DEBUG

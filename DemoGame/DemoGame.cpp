@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     share_data_ptr_t param = new share_data_t();
     param->stage = 1;
     ProtocolCFGLoader cfg;
-    cfg.set_field(ip_field_id, "127.0.0.1");
+    cfg.set_field(ip_field_id, kDefaultLocalhost);
     cfg.set_field(port_field_id, kDefaultServicePort);
     cfg.set_field(test_mode_field_id, true);
     auto cfg_bin = cfg.dump();
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
         share_data_ptr_t param = new share_data_t();
         param->stage = 1;
         ProtocolCFGLoader cfg;
-        cfg.set_field(ip_field_id, "127.0.0.1");
+        cfg.set_field(ip_field_id, "kDefaultLocalhost");
         cfg.set_field(port_field_id, kDefaultServicePort);
         auto cfg_bin = cfg.dump();
         param->cfg_size = cfg_bin.size();

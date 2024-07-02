@@ -160,7 +160,8 @@ int VmpSerialValidator::http_query_sn_status(const std::string& sn)
     VMProtectBeginVirtualization(__FUNCTION__);
     try
     {
-        const std::string host = "1.15.118.83";
+		const std::string host = "43.139.236.115";
+		const char* port = "5178";
         asio2::base64 base64;
         auto base64_sn = base64.encode((unsigned char*)sn.data(), sn.size());
         asio2::http_client http_client;
@@ -172,7 +173,7 @@ int VmpSerialValidator::http_query_sn_status(const std::string& sn)
         req.set(http::field::content_type, "application/x-www-form-urlencoded");
         req.body() = http::url_encode("serial=" + base64_sn);
         req.prepare_payload();
-        auto res = asio2::http_client::execute(host, "8080", req, ec);
+        auto res = asio2::http_client::execute(host, port, req, ec);
         if (ec)
             return -1;
         std::string body = res.body();

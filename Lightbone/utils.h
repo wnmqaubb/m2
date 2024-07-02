@@ -47,7 +47,7 @@ namespace Utils
         LIGHT_BONE_API void print_pe_section_info(void* image, PIMAGE_NT_HEADERS nt_headers, PIMAGE_SECTION_HEADER section_header);
         LIGHT_BONE_API void* map_image();
         LIGHT_BONE_API void unmap_image(void* image);
-		const uint32_t kXorKey = 0x20210205;
+		const uint32_t kXorKey = 0x20240702;
 		const uint32_t kPageSize = 0x1000;
 	private:
 		bool self_remap_is_init_;

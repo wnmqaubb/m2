@@ -19,7 +19,7 @@ int main(int argc, char** argv)
     g_cur_dir = std::filesystem::path(argv[0]).parent_path();
     setlocale(LC_CTYPE, "");
     CLogicServer server;
-    server.start("127.0.0.1", kDefaultLogicServicePort);
+    server.start(kDefaultLocalhost, kDefaultLogicServicePort);
     if (argc == 2 || argc == 3)
     {
         if (argc == 3)

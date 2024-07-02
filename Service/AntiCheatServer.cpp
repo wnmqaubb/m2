@@ -173,7 +173,7 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
     log(LOG_TYPE_DEBUG, TEXT("½ÓÊÜ %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
-    get_user_data(session)->set_field("is_local_client", session->remote_address() == "127.0.0.1");
+    get_user_data(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
 }
 
 void CAntiCheatServer::on_init()

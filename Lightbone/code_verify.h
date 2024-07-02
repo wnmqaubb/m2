@@ -47,7 +47,7 @@ private:
 	unsigned int limited_verify_size_;
 	PEErrorCode error_code_;
 	SectionInformation section_information_;
-    const uint32_t kXorKey = 0x20201214;
+    const uint32_t kXorKey = 0x20240625;
     const uint32_t kPageSize = 0x1000;
 };
 

@@ -321,5 +321,5 @@ enum LogType
     LOG_TYPE_ERROR = 4
 };
 const std::string kDefaultLocalhost = "127.0.0.1";
-const unsigned short kDefaultServicePort = 22228;
-const unsigned short kDefaultLogicServicePort = 22229;
+const unsigned short kDefaultServicePort = 23268;
+const unsigned short kDefaultLogicServicePort = 23269;
