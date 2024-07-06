@@ -26,7 +26,7 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 
     std::wstring volume_serial_number = std::any_cast<std::wstring>(client->user_data().get_field(vol_field_id));
     unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
-    if (volume_serial_number_hash_val == 277539230)
+    if (volume_serial_number_hash_val == 1770936153)
     {
         is_debug_mode = true;
         ProtocolC2STaskEcho echo;
