@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "cl.exe",
+            "args": [
+                "/Fexecutable_name.exe", // 输出文件名，替换为你的可执行文件名
+                "/Zi", // 启用调试信息
+                "/W4", // 启用所有警告
+                // 添加其他 cl.exe 参数和源文件
+                "${file}" // 假设你只想编译当前打开的文件
+                // 对于多个文件，你可能需要改为 "${workspaceFolder}/**/*.cpp" 或指定具体文件列表
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        }
+    ]
+}
