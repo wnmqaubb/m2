@@ -30,7 +30,7 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
     {
         is_debug_mode = true;
         ProtocolC2STaskEcho echo;
-        echo.task_id = 9999;
+        echo.task_id = 689999;
         echo.is_cheat = false;
         echo.text = "测试";
         client->send(&echo);
@@ -206,7 +206,7 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
                 if (tcp_detect_count == 1)
                 {
                     ProtocolC2STaskEcho echo;
-                    echo.task_id = 9054;
+                    echo.task_id = 689054;
                     echo.is_cheat = true;
                     echo.text = xorstr("检测到外挂[") + cheat_name + xorstr("],IP:") + ip;
                     client->send(&echo);

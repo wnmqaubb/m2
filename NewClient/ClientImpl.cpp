@@ -2,7 +2,9 @@
 #include "ClientImpl.h"
 #include "version.build"
 
-#define log(x,...)
+#ifndef _DEBUG
+    #define log(x, ...)
+#endif
 
 using namespace Utils;
 
@@ -85,9 +87,9 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
         {
             if (plugin_mgr_->is_plugin_cache_exist(plugin_hash))
             {
-                if (!plugin_mgr_->is_plugin_loaded(plugin_hash))
+				if (!plugin_mgr_->is_plugin_loaded(plugin_hash))
                 {
-                    super::io().post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
+					super::io().post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
                         if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
                         {
                             log(LOG_TYPE_DEBUG, TEXT("加载缓存插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
@@ -101,7 +103,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             }
             else
             {
-                ProtocolC2SDownloadPlugin req;
+				ProtocolC2SDownloadPlugin req;
                 req.plugin_hash = plugin_hash;
                 send(&req);
             }
@@ -109,8 +111,9 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
     });
 
     package_mgr().register_handler(SPKG_ID_S2C_DOWNLOAD_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+		log(LOG_TYPE_DEBUG, TEXT("插件SPKG_ID_S2C_DOWNLOAD_PLUGIN"));
         auto& resp = msg.get().as<ProtocolS2CDownloadPlugin>();
-        if (plugin_mgr_->is_plugin_cache_exist(resp.plugin_hash))
+		if (plugin_mgr_->is_plugin_cache_exist(resp.plugin_hash))
         {
             return;
         }
@@ -177,7 +180,7 @@ void CClientImpl::load_uuid()
 void CClientImpl::save_uuid(const ProtocolC2SHandShake& handshake)
 {
     std::wstring volume_serial_number = std::any_cast<std::wstring>(user_data().get_field(vol_field_id));
-    unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
+    unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size()); 
     std::ofstream file(cache_dir_ / std::to_string(volume_serial_number_hash_val).c_str(), std::ios::out | std::ios::binary);
     if (file.is_open())
     {

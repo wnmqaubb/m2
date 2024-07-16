@@ -1,8 +1,8 @@
 #pragma once
-template <unsigned short pkg_id = 0>
+template <unsigned int pkg_id = 0>
 struct ProtocolBase
 {
-    unsigned short package_id = pkg_id;
+    unsigned int package_id = pkg_id;
 };
 
 enum PackageId

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "LogicServer.h"
 #include "../version.build"
+#include "vmprotect/VMProtectSDK.h"
 std::filesystem::path g_cur_dir;
 
 #if 1
@@ -11,6 +12,7 @@ std::filesystem::path g_cur_dir;
 
 int main(int argc, char** argv)
 {
+	VMProtectBeginVirtualization(__FUNCTION__);
     CreateMutex(NULL, FALSE, TEXT("mtx_logic_server"));
     if (GetLastError() == ERROR_ALREADY_EXISTS)
     {
@@ -39,7 +41,8 @@ int main(int argc, char** argv)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    return 0;
+	return 0;
+	VMProtectEnd();
 }
 #define REGISTER_TRANSPORT(PKG_ID) \
 ob_pkg_mgr_.register_handler(PKG_ID, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {\
@@ -56,6 +59,7 @@ enum LogicTimerId {
 
 void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp_session_shared_ptr_t& session, unsigned int session_id)
 {
+	VMProtectBeginVirtualization(__FUNCTION__);
 #if defined(ENABLE_POLICY_TIMEOUT_CHECK)
     if (!user_data->policy_recv_timeout_timer_)
     {
@@ -90,13 +94,15 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
         });
     } while (0);
 #endif
+	VMProtectEnd();
 }
 CLogicServer::CLogicServer()
 {
+	VMProtectBeginVirtualization(__FUNCTION__);
     is_logic_server_ = true;
     set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(1), [this]() {
-        try {
+		try {
             plugin_mgr_.reload_all_plugin();
             policy_mgr_.reload_all_policy();
         }
@@ -194,20 +200,20 @@ CLogicServer::CLogicServer()
                 {
 					
 
-					if (user_data->pkg_id_time_map().count(9060) == 0)
+					if (user_data->pkg_id_time_map().count(689060) == 0)
 					{
 						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("水仙超时:%d"), user_data->session_id);
 						//write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
 					}
 					else
 					{
-						auto dura_9060 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[9060];
-						if (dura_9060 > std::chrono::minutes(5))
+						auto dura_689060 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[689060];
+						if (dura_689060 > std::chrono::minutes(5))
 						{
-							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("9060超时:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_9060).count());
+							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689060超时:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689060).count());
 						}
 					}
-					if (user_data->pkg_id_time_map().count(9051) == 0)
+					if (user_data->pkg_id_time_map().count(689051) == 0)
 					{
 						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("机器码收到超时:%d"), user_data->session_id);
 						close_socket(session, user_data->session_id);
@@ -216,10 +222,10 @@ CLogicServer::CLogicServer()
 					}
 					else
 					{
-						auto dura_9051 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[9051];
-						if (dura_9051 > std::chrono::minutes(5))
+						auto dura_689051 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[689051];
+						if (dura_689051 > std::chrono::minutes(5))
 						{
-							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("9051超时:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_9051).count());
+							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689051超时:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689051).count());
 							std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
 						}
 					}
@@ -302,10 +308,10 @@ CLogicServer::CLogicServer()
         {
             std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
             std::wstring reason = Utils::c2w(req.text);
-            bool gm_show = 8000 < req.task_id && req.task_id < 9051;
+            bool gm_show = 688000 < req.task_id && req.task_id < 689051;
             bool silence = req.task_id != 0;
 
-			if (req.task_id == 9999 && req.is_cheat)
+			if (req.task_id == 689999 && req.is_cheat)
 			{
 				write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name))); 
 				user_log(LOG_TYPE_EVENT, silence, false, user_data->get_uuid().str(), TEXT("玩家:%s 策略ID:%d 日志:多次脚本错误定性为外挂,已写入恶性名单!"), usr_name.c_str(), req.task_id, reason.c_str());
@@ -392,7 +398,8 @@ CLogicServer::CLogicServer()
     ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_CLEAR_LIST, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto& req = msg.get().as<ProtocolOBC2LSClearList>();
 		clear_txt(req.file_name);
-    });
+		});
+	VMProtectEnd();
 }
 
 void CLogicServer::clear_txt(const std::string& file_name)
@@ -526,6 +533,7 @@ void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const 
 
 void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2)
 {
+	VMProtectBeginVirtualization(__FUNCTION__);
     static std::map<PunishType, wchar_t*> punish_type_str = {
        {ENM_PUNISH_TYPE_KICK,TEXT("退出游戏")},
        {ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
@@ -547,7 +555,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
         {ENM_POLICY_TYPE_THREAD_START,TEXT("线程特征")}
     };
     auto user_data = usr_sessions_mgr().get_user_data(session_id);
-    bool gm_show = 8000 < policy.policy_id && policy.policy_id < 9051;
+    bool gm_show = 688000 < policy.policy_id && policy.policy_id < 689051;
     if (user_data)
     {
         std::string ip = user_data->json.find("ip") != user_data->json.end() ? user_data->json.at("ip").get<std::string>() : "(NULL)";
@@ -690,11 +698,13 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
     else
     {
         log(LOG_TYPE_ERROR, TEXT("处罚玩家失败"));
-    }
+	}
+	VMProtectEnd();
 }
 
 void CLogicServer::detect(tcp_session_shared_ptr_t& session, unsigned int session_id)
 {
+	VMProtectBeginVirtualization(__FUNCTION__);
     auto user_data = usr_sessions_mgr().get_user_data(session_id);
     if (user_data)
     {
@@ -716,14 +726,17 @@ void CLogicServer::detect(tcp_session_shared_ptr_t& session, unsigned int sessio
         {
             punish(session, session_id, policy, L"封机器码", mac);
         }
-    }
+	}
+	VMProtectEnd();
 }
 
 void CLogicServer::close_socket(tcp_session_shared_ptr_t& session, unsigned int session_id)
 {
+	VMProtectBeginVirtualization(__FUNCTION__);
 	ProtocolLS2LCKick req;
 	req.session_id = session_id;
 	super::send(session, &req);
+	VMProtectEnd();
 }
 std::string CLogicServer::trim_user_name(const std::string& username_)
 {
@@ -738,10 +751,12 @@ std::string CLogicServer::trim_user_name(const std::string& username_)
 		username.replace(pos, 3, "-");
 	}
 	return username;
+	VMProtectEnd();
 }
 
 void CLogicServer::OnlineCheck()
-{    
+{
+	VMProtectBeginVirtualization(__FUNCTION__);
     try
     {
         std::filesystem::path online_path = g_cur_dir;
@@ -771,4 +786,5 @@ void CLogicServer::OnlineCheck()
     {
         log(LOG_TYPE_ERROR, TEXT("---网关在线玩家写入出错,请检测文件是否存在!"));
     }
+    VMProtectEnd();
 }

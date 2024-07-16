@@ -161,8 +161,8 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
     });
     client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         wchar_t file_name[255];
-        _snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.jpg"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_SCREENSHOT);
-        std::filesystem::path filepath(theApp.m_ExeDir);
+		_snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.jpg"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_SCREENSHOT);
+		std::filesystem::path filepath(theApp.m_ExeDir);
         filepath /= "Íæ¼Ò½ØÍ¼";
         if (!std::filesystem::exists(filepath))
         {

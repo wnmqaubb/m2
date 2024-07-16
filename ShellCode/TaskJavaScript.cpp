@@ -391,11 +391,11 @@ void report_js_context_exception(uint32_t identify)
 	if (ANONYMOUS_COUNT >= 10)
 	{
 		ANONYMOUS_COUNT = 0;
-		report(9999, true, ss.str());
+		report(689999, true, ss.str());
 	}
 	else
 	{
-		report(9999, false, ss.str());
+		report(689999, false, ss.str());
 	}
 }
 
@@ -551,11 +551,11 @@ void async_execute_javascript(const std::string& sv, uint32_t script_id)
         }
         catch (CSehException seh_exception)
         {
-            report(9999, false, std::to_string(script_id) + ":seh error " + std::to_string(seh_exception.m_exception_code));
+            report(689999, false, std::to_string(script_id) + ":seh error " + std::to_string(seh_exception.m_exception_code));
         }
         catch (...)
         {
-            report(9999, false, std::to_string(script_id) + ":unknown error");
+            report(689999, false, std::to_string(script_id) + ":unknown error");
         }
     });
 }

@@ -263,8 +263,7 @@
     <Image Include="res\classview_hc.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="C:\Users\wnmqaubb08\Downloads\111.ico" />
-    <Image Include="..\111.ico" />
+    <Image Include="..\guard.ico" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="资源文件">

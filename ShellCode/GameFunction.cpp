@@ -487,7 +487,7 @@ void GameLocalFuntion::decode_message_packet_before(LightHook::Context& ctx)
     if (is_cheat_ && action_speed)
     {
         ProtocolC2STaskEcho resp;
-        resp.task_id = 9024;
+        resp.task_id = 689024;
         resp.text = resp_text + xorstr(",ËÙ¶È:[") + std::to_string(old_action_speed) + " >> " + std::to_string(action_speed) + "]";
         resp.is_cheat = true;
         client_->send(&resp);
