@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="lib_reader.cpp" />
+    <ClCompile Include="coff_reader.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="packer.cpp" />
+    <ClCompile Include="loader.cpp" />
+    <ClCompile Include="exe_packer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="lib_reader.h" />
+    <ClInclude Include="pe.h" />
+    <ClInclude Include="coff_reader.h" />
+    <ClInclude Include="packer.h" />
+    <ClInclude Include="loader.h" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\src\client\shellcode\task_1_hide_process_detect.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_2_static_detect.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_3_static_detect2.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_4_speed_detect.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_5_debugview.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_6_eyuyan_kill.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_7_admin_device_name.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_8_eyuyan_noaccess_kill.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_9_show_window_hook.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_10_handle_detect.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_11_hide_process_handle.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_13_hidden_process_detect.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_14_test.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_20_script_monitor.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_21_static_detect3.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_32_vmware_detect.cpp" />
+    <ClCompile Include="task_31_hide_process_handle_detect.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_80_ad_messagebox.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_15_heartbeat_.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_rmc.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_16_machine_id_and_window_text2.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_13_hidden_process_detect_test.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_12_machine_id_and_window_text.cpp" />
+    <ClCompile Include="..\..\src\client\shellcode\task_52_walk_call_addr.cpp" />
+    <ClCompile Include="task_53_code_verify.cpp" />
+  </ItemGroup>
+</Project>

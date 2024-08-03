@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document>
+	<Protection 
+	InputFileName="build\bin\Release\Win32\NewClient.dll"
+	Options="0">
+		<Messages
+		/>
+		<Folders
+		/>
+		<Procedures>
+		</Procedures>
+	</Protection>
+	<Script
+	/>
+</Document>

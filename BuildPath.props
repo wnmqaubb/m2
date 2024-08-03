@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)build\bin\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)build\intdir\$(ProjectName)\$(Configuration)\$(Platform)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <ProgramDatabaseFile>$(SolutionDir)build\pdb\$(TargetName)_$(Platform).pdb</ProgramDatabaseFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>

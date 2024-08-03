@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="GameFunction.cpp" />
+    <ClCompile Include="TaskBasic.cpp" />
+    <ClCompile Include="TaskRmc.cpp" />
+    <ClCompile Include="TaskSpeedDetect.cpp">
+      <Filter>shellcode</Filter>
+    </ClCompile>
+    <ClCompile Include="TaskTimeoutCheck.cpp" />
+    <ClCompile Include="TaskHideProcessDetect.cpp">
+      <Filter>shellcode</Filter>
+    </ClCompile>
+    <ClCompile Include="TaskShowWindowHook.cpp">
+      <Filter>shellcode</Filter>
+    </ClCompile>
+    <ClCompile Include="TaskTimeoutCheck.cpp" />
+    <ClCompile Include="TaskJavaScript.cpp">
+      <Filter>shellcode</Filter>
+    </ClCompile>
+    <ClCompile Include="BasicUtils.cpp" />
+    <ClCompile Include="TaskMiniDump.cpp">
+      <Filter>shellcode</Filter>
+    </ClCompile>
+    <ClCompile Include="TaskImageProtectCheck.cpp">
+      <Filter>shellcode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\wmic\wmic.cpp">
+      <Filter>3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="UnitPunish.cpp" />
+    <ClCompile Include="ModuleCheckSum.cpp">
+      <Filter>3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\wmic\dnscache.cpp">
+      <Filter>3rdparty</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GameFunction.h" />
+    <ClInclude Include="BasicUtils.h" />
+    <ClInclude Include="..\3rdparty\wmic\wmic.h">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="TaskBasic.h" />
+    <ClInclude Include="ModuleCheckSum.h">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\wmic\dnscache.h">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="export.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="shellcode">
+      <UniqueIdentifier>{09af3671-753b-4ed8-aa03-734ccb5d0a1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{83509bc8-4f2a-466e-a37e-b95ddee4c69a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

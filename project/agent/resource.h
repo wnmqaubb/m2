@@ -1,0 +1,120 @@
+﻿//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ 生成的包含文件。
+// 供 agent.rc 使用
+//
+#define IDM_ABOUTBOX                    0x0010
+#define IDD_ABOUTBOX                    100
+#define IDS_ABOUTBOX                    101
+#define IDD_AGENT_DIALOG                102
+#define IDR_MAINFRAME                   128
+#define IDR_MENU1                       130
+#define IDR_MENU_GAMER                  130
+#define IDD_PROCESS_INFO                131
+#define IDR_MENU_MODULE                 131
+#define IDR_MENU_PROCESS                132
+#define IDD_MODULE_INFO_DLG             133
+#define IDR_MENU_PROCESS1               133
+#define IDR_MENU_WINDOW                 133
+#define IDD_THREAD_INFO_DLG             134
+#define IDR_MENU_MODULE1                134
+#define IDR_MENU_DIRECTORY              134
+#define IIDD_DIRECTORY_INFO_DLG         135
+#define IID_DIRECTORY_INFO_DLG          135
+#define IDD_SCREENSHOT_DLG              136
+#define IDD_RULE_LIST_DLG               137
+#define IDD_CLIENT_WINDOW_DLG           138
+#define IDD_SHELL_MANAGER_DLG           139
+#define IDD_DIALOG_LOG                  141
+#define IDC_IPADDRESS_SERVER            1000
+#define IDC_BUTTON_LISTEN               1001
+#define IDC_EDIT_PORT                   1002
+#define IDC_EDIT_LOG                    1003
+#define IDC_BUTTON2                     1004
+#define IDC_BUTTON_CONNECT              1004
+#define IDC_BUTTON1                     1005
+#define IDC_BUTTON_SCREENSHOT           1005
+#define IDC_BUTTON3                     1006
+#define IDC_BUTTON4                     1007
+#define IDC_BUTTON13                    1008
+#define IDC_BUTTON_ONLINE_GAMER_SEARCH  1008
+#define IDC_BUTTON6                     1009
+#define IDC_BUTTON7                     1010
+#define IDC_BUTTON8                     1011
+#define IDC_BUTTON9                     1012
+#define IDC_BUTTON_WEBSITE              1012
+#define IDC_BUTTON10                    1013
+#define IDC_BUTTON11                    1014
+#define IDC_BUTTON12                    1015
+#define IDC_LIST2                       1016
+#define IDC_LIST1                       1019
+#define IDC_EDIT1                       1021
+#define IDC_TAB1                        1022
+#define IDC_EDIT3                       1022
+#define IDC_MODULE_LIST                 1023
+#define IDC_THREAD_LIST                 1024
+#define IDC_DIRECTORY_LIST              1025
+#define IDC_STATIC_SCREENSHOT           1029
+#define IDC_STATIC_SCREENSHOT_PATH      1030
+#define IDC_CLIENT_WINDOW_LIST          1031
+#define IDC_MFCLINK_WEBSITE             1034
+#define IDC_CHECK1                      1035
+#define IDC_CHECK2                      1036
+#define IDC_SHELL_FILE_LIST             1037
+#define IDC_MFCLINK_WEBSITE2            1037
+#define IDC_CHECK3                      1038
+#define IDC_EDIT2                       1041
+#define IDC_RICHEDIT21                  1042
+#define IDC_BUTTON5                     1043
+#define IDC_LIST_CONFIG                 1044
+#define IDC_COMBO_POLICY_TYPE           1045
+#define IDC_COMBO_PUNISH_TYPE           1046
+#define IDC_EDIT_CONFIG                 1047
+#define IDC_BUTTON_ADD                  1048
+#define IDC_BUTTON_EDIT                 1049
+#define IDC_STATIC_ONLINE_COUNT         1049
+#define IDC_BUTTON_REMOVE               1050
+#define IDC_BUTTON_SHELL_ACTION         1050
+#define IDC_STATIC_SHELLCODE_ACTION_COUNT 1050
+#define IDC_CHECK_VERBOSE               1051
+#define IDC_EDIT_COMMENT                1051
+#define IDC_BUTTON_CLEAR_LOG            1052
+#define IDC_EDIT_ONLINE_GAMER_SEARCH    1053
+#define IDC_EXPDATE_STATIC              1054
+#define IDC_EDIT_RULE_SEARCH            1055
+#define IDC_CHECK_SHELLCODE_HEARTBEAT   1056
+#define ID_32771                        32771
+#define ID_32772                        32772
+#define ID_32773                        32773
+#define ID_32774                        32774
+#define ID_MENU_EXIT_GAME               32775
+#define ID_32776                        32776
+#define ID_COPY_M                       32777
+#define ID_COPY_MACHINEID               32778
+#define ID_32779                        32779
+#define ID_ADD_BLACKLIST                32780
+#define ID_32781                        32781
+#define ID_32782                        32782
+#define ID_32783                        32783
+#define ID_MODULE_NAME                  32784
+#define ID_MODULE_PATH                  32785
+#define ID_MODULE_BOTH                  32786
+#define ID_PROCESS_BOTH                 32787
+#define ID_PROCESS_PATH                 32788
+#define ID_POCESS_NAME                  32789
+#define ID_WINDOW_TITLE                 32790
+#define ID_WINDOW_CLASS_NAME            32791
+#define ID_WINDOW_BOTH                  32792
+#define ID_DIRECTORY_NAME               32793
+#define ID_32794                        32794
+#define ID_RMENU_SHELLCODE_ACTION       32795
+
+// Next default values for new objects
+// 
+#ifdef APSTUDIO_INVOKED
+#ifndef APSTUDIO_READONLY_SYMBOLS
+#define _APS_NEXT_RESOURCE_VALUE        144
+#define _APS_NEXT_COMMAND_VALUE         32796
+#define _APS_NEXT_CONTROL_VALUE         1057
+#define _APS_NEXT_SYMED_VALUE           101
+#endif
+#endif

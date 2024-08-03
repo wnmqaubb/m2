@@ -1,0 +1,351 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{18409C9D-9CC1-425A-AA09-9D4AD25F0111}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>TaskBasic</RootNamespace>
+    <WindowsTargetPlatformVersion>7.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DisableAdvancedSupport>true</DisableAdvancedSupport>
+    <SupportWinXP>true</SupportWinXP>
+    <msvcp60_static_library>false</msvcp60_static_library>
+    <SupportLTL>true</SupportLTL>
+    <CLRSupport>false</CLRSupport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+    <DisableAdvancedSupport>true</DisableAdvancedSupport>
+    <SupportWinXP>true</SupportWinXP>
+    <msvcp60_static_library>false</msvcp60_static_library>
+    <SupportLTL>true</SupportLTL>
+    <CLRSupport>false</CLRSupport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DisableAdvancedSupport>true</DisableAdvancedSupport>
+    <SupportWinXP>true</SupportWinXP>
+    <msvcp60_static_library>false</msvcp60_static_library>
+    <SupportLTL>true</SupportLTL>
+    <CLRSupport>false</CLRSupport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+    <DisableAdvancedSupport>true</DisableAdvancedSupport>
+    <SupportWinXP>true</SupportWinXP>
+    <msvcp60_static_library>false</msvcp60_static_library>
+    <SupportLTL>true</SupportLTL>
+    <CLRSupport>false</CLRSupport>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\VC-LTL helper for Visual Studio.props" />
+    <Import Project="..\BuildPath.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\VC-LTL helper for Visual Studio.props" />
+    <Import Project="..\BuildPath.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\VC-LTL helper for Visual Studio.props" />
+    <Import Project="..\BuildPath.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\VC-LTL helper for Visual Studio.props" />
+    <Import Project="..\BuildPath.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>_HAS_SHARED_MUTEX=1;WIN32;_DEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <CompileAsManaged>false</CompileAsManaged>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\breakpad\debug\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+      <ForceFileOutput>
+      </ForceFileOutput>
+      <ForceSymbolReferences>
+      </ForceSymbolReferences>
+      <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <GenerateMapFile>true</GenerateMapFile>
+    </Link>
+    <PostBuildEvent>
+      <Command>mkdir $(TargetDir)\plugin
+del /f /s /q $(TargetDir)\plugin\*
+$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\TaskBasic.vmp
+del /f /s /q $(TargetPath)
+copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
+$(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\
+</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>_HAS_SHARED_MUTEX=1;_DEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <CompileAsManaged>false</CompileAsManaged>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\breakpad\debug\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+      <ForceFileOutput>
+      </ForceFileOutput>
+      <ForceSymbolReferences>
+      </ForceSymbolReferences>
+      <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <GenerateMapFile>true</GenerateMapFile>
+    </Link>
+    <PostBuildEvent>
+      <Command>mkdir $(TargetDir)\plugin
+del /f /s /q $(TargetDir)\plugin\*
+$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\TaskBasic.vmp
+del /f /s /q $(TargetPath)
+copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
+$(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\
+</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>_HAS_SHARED_MUTEX=1;WIN32;NDEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <CompileAsManaged>false</CompileAsManaged>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>Async</ExceptionHandling>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\breakpad\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+      <ForceFileOutput>
+      </ForceFileOutput>
+      <ForceSymbolReferences>
+      </ForceSymbolReferences>
+      <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <GenerateMapFile>true</GenerateMapFile>
+    </Link>
+    <PostBuildEvent>
+      <Command>mkdir $(TargetDir)\plugin
+del /f /s /q $(TargetDir)\plugin\*
+$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\TaskBasic.vmp
+del /f /s /q $(TargetPath)
+copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
+$(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\
+</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>_HAS_SHARED_MUTEX=1;NDEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <CompileAsManaged>false</CompileAsManaged>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>Async</ExceptionHandling>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\breakpad\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+      <ForceFileOutput>
+      </ForceFileOutput>
+      <ForceSymbolReferences>
+      </ForceSymbolReferences>
+      <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <GenerateMapFile>true</GenerateMapFile>
+    </Link>
+    <PostBuildEvent>
+      <Command>mkdir $(TargetDir)\plugin
+del /f /s /q $(TargetDir)\plugin\*
+$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\TaskBasic.vmp
+del /f /s /q $(TargetPath)
+copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
+$(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\
+</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NewClient\NewClient.vcxproj">
+      <Project>{5e50dede-27f8-4c1d-b973-0598e3142787}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Tools\Packer\packer.vcxproj">
+      <Project>{0cba32e9-1567-4b37-bd0b-4145ea2701bc}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="export.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\3rdparty\wmic\dnscache.cpp" />
+    <ClCompile Include="..\3rdparty\wmic\wmic.cpp" />
+    <ClCompile Include="GameFunction.cpp" />
+    <ClCompile Include="TaskBasic.cpp" />
+    <ClCompile Include="ModuleCheckSum.cpp" />
+    <ClCompile Include="TaskHideProcessDetect.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="TaskImageProtectCheck.cpp" />
+    <ClCompile Include="TaskJavaScript.cpp" />
+    <ClCompile Include="TaskMiniDump.cpp" />
+    <ClCompile Include="TaskRmc.cpp" />
+    <ClCompile Include="TaskShowWindowHook.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="TaskSpeedDetect.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="TaskTimeoutCheck.cpp" />
+    <ClCompile Include="BasicUtils.cpp" />
+    <ClCompile Include="UnitPunish.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\3rdparty\wmic\dnscache.h" />
+    <ClInclude Include="..\3rdparty\wmic\wmic.h" />
+    <ClInclude Include="BasicUtils.h" />
+    <ClInclude Include="GameFunction.h" />
+    <ClInclude Include="TaskBasic.h" />
+    <ClInclude Include="ModuleCheckSum.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>
