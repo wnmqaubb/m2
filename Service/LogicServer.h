@@ -6,7 +6,7 @@
 #include "ObserverServer.h"
 #include "ServerPluginMgr.h"
 
-#define CONFIG_APP_NAME "╫Урбню"
+#define CONFIG_APP_NAME "YK"
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr

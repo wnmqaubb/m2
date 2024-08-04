@@ -282,7 +282,7 @@ void GameLocalFuntion::back_game_notice_countdown(unsigned char tick, std::funct
             return;
         }
         strings msg = { -1, 27, "" };
-        snprintf(msg.text, sizeof(msg.text) - 1, "锦衣卫封挂提示游戏即将退出%d", tick);
+        snprintf(msg.text, sizeof(msg.text) - 1, "YK封挂提示游戏即将退出%d", tick);
         notice(msg);
         if (tick - 1 == 0)
         {

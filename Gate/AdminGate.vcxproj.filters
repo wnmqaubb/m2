@@ -263,7 +263,9 @@
     <Image Include="res\classview_hc.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="..\guard.ico" />
+    <Image Include="res\guard.ico" />
+    <Image Include="res\icon2.ico" />
+    <Image Include="..\..\M2\Gate\res\gate.ico" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="资源文件">

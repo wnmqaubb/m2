@@ -2,9 +2,9 @@
 #include "TaskBasic.h"
 
 #define LOG(x,...) 
-#define CONFIG_APP_NAME "┣┫==============锦衣卫封挂加载成功==============┣┫"
+#define CONFIG_APP_NAME "┣┫==============YK封挂加载成功==============┣┫"
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
-#define CONFIG_TITLE    "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码蓝屏风险┣┫"
+#define CONFIG_TITLE    "┣┫YK封挂提示:勿开挂!有封号、封机器码蓝屏风险┣┫"
 
 bool is_debug_mode = false;
 void* plugin_base = nullptr;

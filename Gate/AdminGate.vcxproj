@@ -327,6 +327,7 @@
     <ResourceCompile Include="Gate.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\M2\Gate\res\gate.ico" />
     <Image Include="res\guard.ico" />
     <Image Include="res\bitmap1.bmp" />
     <Image Include="res\classview.bmp" />
@@ -341,6 +342,7 @@
     <Image Include="res\file_view_hc.ico" />
     <Image Include="res\Gate.ico" />
     <Image Include="res\GateDoc.ico" />
+    <Image Include="res\icon2.ico" />
     <Image Include="res\menuimages.bmp" />
     <Image Include="res\menuimages_hc.bmp" />
     <Image Include="res\output_wnd.ico" />
