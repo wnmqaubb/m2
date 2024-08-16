@@ -101,36 +101,36 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
             TRACE("解析Service日志失败");
         }
     });
-    client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
-        if (msg.plugin_list.empty())
-        {
-            log(LOG_TYPE_DEBUG, _T("未拉起任何云代码"));
-            return;
-        }
-        for (auto&[plugin_hash, module_info] : msg.plugin_list)
-        {
-            log(LOG_TYPE_DEBUG, _T("云代码:%08X %s 0x%llX 0x%08X"), plugin_hash,
-                module_info.module_name.c_str(),
-                module_info.base,
-                module_info.size_of_image);
-        }
-    });
-    client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
-        if (msg.plugin_list.empty())
-        {
-            log(LOG_TYPE_DEBUG, _T("未拉起任何云代码"));
-            return;
-        }
-        for (auto&[plugin_hash, module_info] : msg.plugin_list)
-        {
-            log(LOG_TYPE_DEBUG, _T("云代码:%08X %s 0x%llX 0x%08X"), plugin_hash,
-                module_info.module_name.c_str(),
-                module_info.base,
-                module_info.size_of_image);
-        }
-    });
+    //client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+    //    auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
+    //    if (msg.plugin_list.empty())
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("未拉起任何云代码"));
+    //        return;
+    //    }
+    //    for (auto&[plugin_hash, module_info] : msg.plugin_list)
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("云代码:%08X %s 0x%llX 0x%08X"), plugin_hash,
+    //            module_info.module_name.c_str(),
+    //            module_info.base,
+    //            module_info.size_of_image);
+    //    }
+    //});
+    //client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+    //    auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
+    //    if (msg.plugin_list.empty())
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("未拉起任何云代码"));
+    //        return;
+    //    }
+    //    for (auto&[plugin_hash, module_info] : msg.plugin_list)
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("云代码:%08X %s 0x%llX 0x%08X"), plugin_hash,
+    //            module_info.module_name.c_str(),
+    //            module_info.base,
+    //            module_info.size_of_image);
+    //    }
+    //});
 
     client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PROCESS, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         wchar_t file_name[255];

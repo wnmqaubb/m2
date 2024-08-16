@@ -114,6 +114,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
         HMODULE import_module_handle = GetModuleHandleA(import_module_name);
         if (!import_module_handle)
         {
+            OutputDebugStringA(import_module_name);
             if (instance && *instance && ApiResolver::hash(import_module_name) == CT_HASH("NewClient.dll"))
             {
                 import_module_handle = *instance;
@@ -151,6 +152,9 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             }
             if (iat->u1.Function == NULL)
             {
+                OutputDebugStringA("function_name================");
+                OutputDebugStringA(function_name);
+                OutputDebugStringA("function_name================");
                 VirtualFree(image_base, nt_header->OptionalHeader.SizeOfImage, MEM_RELEASE);
                 return ERROR_FUNCTION_NOT_CALLED;
             }

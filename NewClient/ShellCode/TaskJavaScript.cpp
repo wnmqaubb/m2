@@ -1,11 +1,11 @@
-#include "NewClient/pch.h"
+#include "../pch.h"
 #include <Lightbone/utils.h>
 #include <Lightbone/pattern.hpp>
 #include "Service/AntiCheatClient.h"
 #include "BasicUtils.h"
 #include <iostream>
-#include "3rdparty/wmic/wmic.h"
-#include "3rdparty/wmic/dnscache.h"
+#include "wmic/wmic.h"
+#include "wmic/dnscache.h"
 #include <asio2/util/base64.hpp>
 #include "ModuleCheckSum.h"
 

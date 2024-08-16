@@ -2,7 +2,7 @@
 #include <Windows.h>
 #include <stdint.h>
 #include <vector>
-#define LIGHT_BONE_API __declspec(dllexport)
+#define LIGHT_BONE_API //__declspec(dllexport)
 #define CODE_CACHE_SIZE 0x1000
 namespace LightHook
 {

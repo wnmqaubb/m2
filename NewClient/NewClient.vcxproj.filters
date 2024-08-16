@@ -4,22 +4,41 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ClientImpl.h" />
-    <ClInclude Include="ClientPluginMgr.h" />
-    <ClInclude Include="CreateProcessHook.h" />
     <ClInclude Include="WndProcHook.h" />
     <ClInclude Include="qjs.h" />
+    <ClInclude Include="lf_plug_sdk.h" />
+    <ClInclude Include="ShellCode\BasicUtils.h" />
+    <ClInclude Include="ShellCode\GameFunction.h" />
+    <ClInclude Include="ShellCode\ModuleCheckSum.h" />
+    <ClInclude Include="ShellCode\TaskBasic.h" />
+    <ClInclude Include="..\3rdparty\wmic\dnscache.h" />
+    <ClInclude Include="..\3rdparty\wmic\wmic.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="ClientImpl.cpp" />
-    <ClCompile Include="ClientPluginMgr.cpp" />
-    <ClCompile Include="CreateProcessHook.cpp" />
-    <ClCompile Include="ReflectiveLoader.cpp" />
     <ClCompile Include="WndProcHook.cpp" />
     <ClCompile Include="..\3rdparty\quickjs\quickjs-one.c" />
+    <ClCompile Include="ShellCode\BasicUtils.cpp" />
+    <ClCompile Include="ShellCode\GameFunction.cpp" />
+    <ClCompile Include="ShellCode\ModuleCheckSum.cpp" />
+    <ClCompile Include="ShellCode\TaskBasic.cpp" />
+    <ClCompile Include="ShellCode\TaskHideProcessDetect.cpp" />
+    <ClCompile Include="ShellCode\TaskImageProtectCheck.cpp" />
+    <ClCompile Include="ShellCode\TaskJavaScript.cpp" />
+    <ClCompile Include="ShellCode\TaskMiniDump.cpp" />
+    <ClCompile Include="ShellCode\TaskRmc.cpp" />
+    <ClCompile Include="ShellCode\TaskShowWindowHook.cpp" />
+    <ClCompile Include="ShellCode\TaskSpeedDetect.cpp" />
+    <ClCompile Include="ShellCode\TaskTimeoutCheck.cpp" />
+    <ClCompile Include="ShellCode\UnitPunish.cpp" />
+    <ClCompile Include="..\3rdparty\wmic\dnscache.cpp" />
+    <ClCompile Include="..\3rdparty\wmic\wmic.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />
+    <None Include="ShellCode\ClassDiagram.cd" />
+    <None Include="ShellCode\export.def" />
   </ItemGroup>
 </Project>

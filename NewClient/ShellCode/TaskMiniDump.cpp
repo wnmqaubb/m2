@@ -1,4 +1,4 @@
-#include "NewClient/pch.h"
+#include "../pch.h"
 #if 0
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
@@ -54,12 +54,12 @@ bool ShowDumpResults(const wchar_t* dump_path,
 
 void InitMiniDump()
 {
-    static auto handler = new ExceptionHandler(L".\\cache\\",
-        NULL,
-        ShowDumpResults,
-        NULL,
-        ExceptionHandler::HANDLER_ALL,
-        MiniDumpValidTypeFlags,
-        (HANDLE)NULL,
-        NULL);
+	static auto handler = new ExceptionHandler(L".\\cache\\",
+		NULL,
+		ShowDumpResults,
+		NULL,
+		ExceptionHandler::HANDLER_ALL,
+		MiniDumpValidTypeFlags,
+		(HANDLE)NULL,
+		NULL);
 }

@@ -345,7 +345,7 @@ void ImageProtect::register_callback(image_protect_callback_t cb)
 
 void ImageProtect::install()
 {
-	VMP_VIRTUALIZATION_BEGIN();
+	//VMP_VIRTUALIZATION_BEGIN();
 	static bool is_remapped = false;
 
 #ifdef _RTEST
@@ -371,7 +371,7 @@ void ImageProtect::install()
 			}
 		}
 	});
-	VMP_VIRTUALIZATION_END();
+	//VMP_VIRTUALIZATION_END();
 }
 
 void ImageProtect::print_pe_section_info(void* image, PIMAGE_NT_HEADERS nt_headers, PIMAGE_SECTION_HEADER section_header)

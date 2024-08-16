@@ -112,13 +112,13 @@ static CString ConvertToString(PunishType type)
 {
     std::map<PunishType, LPCTSTR> mPunishType = {
         {ENM_PUNISH_TYPE_KICK,TEXT("退出游戏")},
-        {ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
+        //{ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
         {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("不处理")},
         {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("白名单")},
         {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("封机器")},
         {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("截图")},
         {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("截图+退出游戏")},
-        {ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("截图+蓝屏")},
+        //{ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("截图+蓝屏")},
         {ENM_PUNISH_TYPE_ENABLE,TEXT("启用")},
         {ENM_PUNISH_TYPE_DISABLE,TEXT("禁用")},
     };
@@ -136,13 +136,13 @@ static PunishType ConvertToPunishType(CString punishname)
 {
     std::map<CString, PunishType> mPunishType = {
         { TEXT("退出游戏"), ENM_PUNISH_TYPE_KICK },
-        { TEXT("蓝屏"), ENM_PUNISH_TYPE_BSOD },
+        //{ TEXT("蓝屏"), ENM_PUNISH_TYPE_BSOD },
         { TEXT("不处理"), ENM_PUNISH_TYPE_NO_OPEARATION },
         { TEXT("白名单"), ENM_PUNISH_TYPE_SUPER_WHITE_LIST },
         { TEXT("封机器"), ENM_PUNISH_TYPE_BAN_MACHINE },
         { TEXT("截图"), ENM_PUNISH_TYPE_SCREEN_SHOT },
         { TEXT("截图+退出游戏"), ENM_PUNISH_TYPE_SCREEN_SHOT_KICK },
-        { TEXT("截图+蓝屏"), ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD },
+        //{ TEXT("截图+蓝屏"), ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD },
         { TEXT("启用"), ENM_PUNISH_TYPE_ENABLE },
         { TEXT("禁用"), ENM_PUNISH_TYPE_DISABLE },
     };

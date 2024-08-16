@@ -28,7 +28,10 @@ public:
         if (is_connect_)
         {
             is_connect_ = false;
+            socket_.shutdown(socket_t::shutdown_send);
             socket_.close();
+			io_.stop();
+			stop_all_timer();
         }
 	}
 	virtual void send(const char* buf, std::size_t size)

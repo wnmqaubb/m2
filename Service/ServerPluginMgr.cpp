@@ -2,162 +2,162 @@
 #include "LogicServer.h"
 #include "ServerPluginMgr.h"
 
-RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash)
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
-    for (auto[file_hash, data] : plugin_cache_)
-    {
-        if (data.second.plugin_hash == plugin_hash)
-        {
-            return data.first;
-        }
-    }
-    return RawProtocolImpl();
-}
+//RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash)
+//{
+//    std::shared_lock<std::shared_mutex> lck(mtx_);
+//    for (auto[file_hash, data] : plugin_cache_)
+//    {
+//        if (data.second.plugin_hash == plugin_hash)
+//        {
+//            return data.first;
+//        }
+//    }
+//    return RawProtocolImpl();
+//}
+//
+//bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash)
+//{
+//    std::shared_lock<std::shared_mutex> lck(mtx_);
+//    return plugin_cache_.find(file_hash) != plugin_cache_.end();
+//}
 
-bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash)
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
-    return plugin_cache_.find(file_hash) != plugin_cache_.end();
-}
+//void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin)
+//{
+//    std::unique_lock<std::shared_mutex> lck(mtx_);
+//    if (plugin_cache_.find(file_hash) == plugin_cache_.end())
+//    {
+//        msgpack::sbuffer buffer;
+//        msgpack::pack(buffer, plugin);
+//        RawProtocolImpl raw_package;
+//        raw_package.encode(buffer.data(), buffer.size());
+//        plugin.data.clear();
+//        plugin_cache_.emplace(std::make_pair(file_hash, std::make_pair(raw_package, plugin)));
+//        printf("¼ÓÔØ²å¼þ:%s\n", plugin.plugin_name.c_str());
+//    }
+//}
 
-void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin)
-{
-    std::unique_lock<std::shared_mutex> lck(mtx_);
-    if (plugin_cache_.find(file_hash) == plugin_cache_.end())
-    {
-        msgpack::sbuffer buffer;
-        msgpack::pack(buffer, plugin);
-        RawProtocolImpl raw_package;
-        raw_package.encode(buffer.data(), buffer.size());
-        plugin.data.clear();
-        plugin_cache_.emplace(std::make_pair(file_hash, std::make_pair(raw_package, plugin)));
-        printf("¼ÓÔØ²å¼þ:%s\n", plugin.plugin_name.c_str());
-    }
-}
+//void CServerPluginMgr::remove_plugin(unsigned int file_hash)
+//{
+//    std::unique_lock<std::shared_mutex> lck(mtx_);
+//    if (plugin_cache_.find(file_hash) != plugin_cache_.end())
+//    {
+//        printf("Ð¶ÔØ²å¼þ:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
+//        plugin_cache_.erase(file_hash);
+//    }
+//}
+//
+//void CServerPluginMgr::reload_all_plugin()
+//{
+//    namespace fs = std::filesystem;
+//    std::error_code ec;
+//    fs::path dir = g_cur_dir / "plugin";
+//    if (fs::is_directory(dir, ec))
+//    {
+//        std::map<unsigned int, fs::path> new_plugin_list;
+//        for (auto& file_path : std::filesystem::directory_iterator(dir))
+//        {
+//            if (file_path.path().extension() != ".dll")
+//                continue;
+//            std::ifstream file(file_path, std::ios::in | std::ios::binary);
+//            if (file.is_open())
+//            {
+//                file.seekg(sizeof(RawProtocolHead), file.beg);
+//                unsigned int file_hash = 0;
+//                file.read((char*)&file_hash, sizeof(file_hash));
+//                file.close();
+//                new_plugin_list.emplace(std::make_pair(file_hash, file_path));
+//            }
+//        }
+//
+//        for (auto loaded_plugin_file_hash : get_plugin_file_hash_set())
+//        {
+//            if (new_plugin_list.find(loaded_plugin_file_hash) == new_plugin_list.end())
+//            {
+//                remove_plugin(loaded_plugin_file_hash);
+//            }
+//        }
+//        for (auto[file_hash, plugin_path] : new_plugin_list)
+//        {
+//            if (!is_plugin_file_hash_exist(file_hash))
+//            {
+//                std::ifstream file(plugin_path, std::ios::in | std::ios::binary);
+//                if (file.is_open())
+//                {
+//                    RawProtocolImpl package;
+//                    std::stringstream ss;
+//                    ss << file.rdbuf();
+//                    file.close();
+//                    auto str = ss.str();
+//                    std::string_view sv(str.data(), str.size());
+//                    package.decode(sv);
+//                    try
+//                    {
+//                        auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
+//                        add_plugin(file_hash, msg.get().as<ProtocolS2CDownloadPlugin>());
+//                    }
+//                    catch (...)
+//                    {
+//                        fs::remove(plugin_path);
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
+//
+//void CServerPluginMgr::create_plugin_file(const std::string& file_name, std::vector<uint8_t>& data)
+//{
+//    std::filesystem::path path = g_cur_dir / "plugin";
+//    std::error_code ec;
+//    if (std::filesystem::is_directory(path, ec) == false)
+//    {
+//        std::filesystem::create_directory(path, ec);
+//    }
+//    path = path / file_name;
+//    if (path.extension() == ".dll")
+//    {
+//        std::ofstream output(path, std::ios::out | std::ios::binary);
+//        output.write((char*)data.data(), data.size());
+//        output.close();
+//    }
+//}
+//
+//void CServerPluginMgr::remove_plugin_file(const std::string& file_name)
+//{
+//    std::filesystem::path path = g_cur_dir / "plugin";
+//    std::error_code ec;
+//    if (std::filesystem::is_directory(path, ec) == false)
+//    {
+//        std::filesystem::create_directory(path, ec);
+//    }
+//    path = path / file_name;
+//    if (path.extension() == ".dll")
+//    {
+//        std::filesystem::remove(path);
+//    }
+//}
+//
+//std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set()
+//{
+//    std::shared_lock<std::shared_mutex> lck(mtx_);
+//    std::set<unsigned int> result;
+//    for (auto itor : plugin_cache_)
+//    {
+//        result.emplace(itor.first);
+//    }
+//    return result;
+//}
 
-void CServerPluginMgr::remove_plugin(unsigned int file_hash)
-{
-    std::unique_lock<std::shared_mutex> lck(mtx_);
-    if (plugin_cache_.find(file_hash) != plugin_cache_.end())
-    {
-        printf("Ð¶ÔØ²å¼þ:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
-        plugin_cache_.erase(file_hash);
-    }
-}
-
-void CServerPluginMgr::reload_all_plugin()
-{
-    namespace fs = std::filesystem;
-    std::error_code ec;
-    fs::path dir = g_cur_dir / "plugin";
-    if (fs::is_directory(dir, ec))
-    {
-        std::map<unsigned int, fs::path> new_plugin_list;
-        for (auto& file_path : std::filesystem::directory_iterator(dir))
-        {
-            if (file_path.path().extension() != ".dll")
-                continue;
-            std::ifstream file(file_path, std::ios::in | std::ios::binary);
-            if (file.is_open())
-            {
-                file.seekg(sizeof(RawProtocolHead), file.beg);
-                unsigned int file_hash = 0;
-                file.read((char*)&file_hash, sizeof(file_hash));
-                file.close();
-                new_plugin_list.emplace(std::make_pair(file_hash, file_path));
-            }
-        }
-
-        for (auto loaded_plugin_file_hash : get_plugin_file_hash_set())
-        {
-            if (new_plugin_list.find(loaded_plugin_file_hash) == new_plugin_list.end())
-            {
-                remove_plugin(loaded_plugin_file_hash);
-            }
-        }
-        for (auto[file_hash, plugin_path] : new_plugin_list)
-        {
-            if (!is_plugin_file_hash_exist(file_hash))
-            {
-                std::ifstream file(plugin_path, std::ios::in | std::ios::binary);
-                if (file.is_open())
-                {
-                    RawProtocolImpl package;
-                    std::stringstream ss;
-                    ss << file.rdbuf();
-                    file.close();
-                    auto str = ss.str();
-                    std::string_view sv(str.data(), str.size());
-                    package.decode(sv);
-                    try
-                    {
-                        auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
-                        add_plugin(file_hash, msg.get().as<ProtocolS2CDownloadPlugin>());
-                    }
-                    catch (...)
-                    {
-                        fs::remove(plugin_path);
-                    }
-                }
-            }
-        }
-    }
-}
-
-void CServerPluginMgr::create_plugin_file(const std::string& file_name, std::vector<uint8_t>& data)
-{
-    std::filesystem::path path = g_cur_dir / "plugin";
-    std::error_code ec;
-    if (std::filesystem::is_directory(path, ec) == false)
-    {
-        std::filesystem::create_directory(path, ec);
-    }
-    path = path / file_name;
-    if (path.extension() == ".dll")
-    {
-        std::ofstream output(path, std::ios::out | std::ios::binary);
-        output.write((char*)data.data(), data.size());
-        output.close();
-    }
-}
-
-void CServerPluginMgr::remove_plugin_file(const std::string& file_name)
-{
-    std::filesystem::path path = g_cur_dir / "plugin";
-    std::error_code ec;
-    if (std::filesystem::is_directory(path, ec) == false)
-    {
-        std::filesystem::create_directory(path, ec);
-    }
-    path = path / file_name;
-    if (path.extension() == ".dll")
-    {
-        std::filesystem::remove(path);
-    }
-}
-
-std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set()
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
-    std::set<unsigned int> result;
-    for (auto itor : plugin_cache_)
-    {
-        result.emplace(itor.first);
-    }
-    return result;
-}
-
-ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set()
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
-    ProtocolS2CQueryPlugin result;
-    for (auto[file_hash, data] : plugin_cache_)
-    {
-        result.plugin_list.push_back(std::make_pair(data.second.plugin_hash, data.second.plugin_name));
-    }
-    return result;
-}
+//ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set()
+//{
+//    std::shared_lock<std::shared_mutex> lck(mtx_);
+//    ProtocolS2CQueryPlugin result;
+//    for (auto[file_hash, data] : plugin_cache_)
+//    {
+//        result.plugin_list.push_back(std::make_pair(data.second.plugin_hash, data.second.plugin_name));
+//    }
+//    return result;
+//}
 
 ProtocolS2CPolicy CServerPolicyMgr::get_policy()
 {

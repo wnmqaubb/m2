@@ -1,4 +1,4 @@
-#include "NewClient/pch.h"
+ï»¿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include <Lightbone/windows_internal.h>
 #include <fstream>
@@ -129,7 +129,7 @@ namespace BasicUtils
             }
         }
 
-        //ÖØ¶¨Î»ÐÞÕý
+        //é‡å®šä½ä¿®æ­£
         if (get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_BASERELOC).Size)
         {
             ULONG_PTR dist = 0;
@@ -170,7 +170,7 @@ namespace BasicUtils
             }
         }
 
-        //ÐÞÕýImageBase
+        //ä¿®æ­£ImageBase
         get_image_nt_header(image_base)->OptionalHeader.ImageBase = (ULONG_PTR)image_base;
 
         *instance = (HINSTANCE)image_base;
@@ -509,4 +509,3 @@ namespace BasicUtils
 
 	}
 }
-

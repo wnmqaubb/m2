@@ -1,12 +1,14 @@
 #include "pch.h"
 #include "ClientImpl.h"
 #include "version.build"
-
-#ifndef _DEBUG
-    #define log(x, ...)
-#endif
+#include "TaskBasic.h"
 
 using namespace Utils;
+#ifndef _DEBUG
+#define log(x, fmt , ...) log(x, fmt, __VA_ARGS__)
+#else 
+#define LOG(x,...)
+#endif
 
 CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
 {
@@ -19,9 +21,6 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
     {
         fs::create_directory(cache_dir_, ec);
     }
-    plugin_mgr_ = std::make_unique<CClientPluginMgr>(cache_dir_);
-    plugin_mgr_->set_client_instance(this);
-
     notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("失去连接"));
     });
@@ -48,26 +47,24 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             heartbeat.tick = time(0);
             send(&heartbeat);
             log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
-        });
+		});
+		super::io().post([this]() {			
+		    LoadPlugin(this);
+		});
     });
-    notify_mgr().register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
-        ProtocolC2SQueryPlugin req;
-        send(&req);
-        log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
-    });
-    notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("接收心跳"));
-#if 0
-        ProtocolC2SQueryPlugin req;
-        send(&req);
-        log(Debug, TEXT("查询插件列表"));
-#endif
-    });
-    start_timer(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
-        ProtocolC2SQueryPlugin req;
-        send(&req);
-        log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
-    });
+//    notify_mgr().register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
+//        ProtocolC2SQueryPlugin req;
+//        send(&req);
+//        log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
+//    });
+	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
+		log(LOG_TYPE_DEBUG, TEXT("接收心跳"));
+		});
+//    start_timer(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
+//        ProtocolC2SQueryPlugin req;
+//        send(&req);
+//        log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
+//    });
     notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("客户端初始化成功"));
         user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
@@ -79,70 +76,72 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
         user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
         this->load_uuid();
     });
-    package_mgr().register_handler(SPKG_ID_S2C_QUERY_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        auto msg = raw_msg.get().as<ProtocolS2CQueryPlugin>();
-        log(LOG_TYPE_DEBUG, TEXT("收到插件列表：%d"), msg.plugin_list.size());
-        auto& resp = raw_msg.get().as<ProtocolS2CQueryPlugin>();
-        for (auto[plugin_hash, plugin_name] : resp.plugin_list)
-        {
-            if (plugin_mgr_->is_plugin_cache_exist(plugin_hash))
-            {
+	/*package_mgr().register_handler(SPKG_ID_S2C_QUERY_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+		auto msg = raw_msg.get().as<ProtocolS2CQueryPlugin>();
+		log(LOG_TYPE_DEBUG, TEXT("收到插件列表：%d"), msg.plugin_list.size());
+		auto& resp = raw_msg.get().as<ProtocolS2CQueryPlugin>();
+		for (auto[plugin_hash, plugin_name] : resp.plugin_list)
+		{
+			if (plugin_mgr_->is_plugin_cache_exist(plugin_hash))
+			{
 				if (!plugin_mgr_->is_plugin_loaded(plugin_hash))
-                {
+				{
 					super::io().post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
-                        if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
-                        {
-                            log(LOG_TYPE_DEBUG, TEXT("加载缓存插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
-                        }
-                        else
-                        {
-                            log(LOG_TYPE_DEBUG, TEXT("加载缓存插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
-                        }
-                    });
-                }
-            }
-            else
-            {
+						if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
+						{
+							log(LOG_TYPE_DEBUG, TEXT("加载缓存插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
+						}
+						else
+						{
+							log(LOG_TYPE_DEBUG, TEXT("加载缓存插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
+						}
+					});
+				}
+			}
+			else
+			{
 				ProtocolC2SDownloadPlugin req;
-                req.plugin_hash = plugin_hash;
-                send(&req);
-            }
-        }
-    });
+				req.plugin_hash = plugin_hash;
+				send(&req);
+			}
+		}
+	});
 
-    package_mgr().register_handler(SPKG_ID_S2C_DOWNLOAD_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+	package_mgr().register_handler(SPKG_ID_S2C_DOWNLOAD_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		log(LOG_TYPE_DEBUG, TEXT("插件SPKG_ID_S2C_DOWNLOAD_PLUGIN"));
-        auto& resp = msg.get().as<ProtocolS2CDownloadPlugin>();
+		auto& resp = msg.get().as<ProtocolS2CDownloadPlugin>();
 		if (plugin_mgr_->is_plugin_cache_exist(resp.plugin_hash))
-        {
-            return;
-        }
-        plugin_mgr_->save_plugin(package, resp);
-        super::io().post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
-            if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
-            {
-                log(LOG_TYPE_DEBUG, TEXT("加载远程插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
-            }
-            else
-            {
-                log(LOG_TYPE_DEBUG, TEXT("加载远程插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
-            }
-        });
-    });
+		{
+			return;
+		}
+		plugin_mgr_->save_plugin(package, resp);
+		log(LOG_TYPE_DEBUG, TEXT("SPKG_ID_S2C_DOWNLOAD_PLUGIN>>>>"));
+		super::io().post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
+			log(LOG_TYPE_DEBUG, TEXT("SPKG_ID_S2C_DOWNLOAD_PLUGIN>>>>11"));
+			if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
+			{
+				log(LOG_TYPE_DEBUG, TEXT("加载远程插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
+			}
+			else
+			{
+				log(LOG_TYPE_DEBUG, TEXT("加载远程插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
+			}
+		});
+	});
 
-    package_mgr().register_handler(SPKG_ID_S2C_CHECK_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        ProtocolC2SCheckPlugin resp;
-        resp.plugin_list = plugin_mgr_->get_plugin_list();
-        send(&resp, package.head.session_id);
-    });
+	package_mgr().register_handler(SPKG_ID_S2C_CHECK_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+		ProtocolC2SCheckPlugin resp;
+		resp.plugin_list = plugin_mgr_->get_plugin_list();
+		send(&resp, package.head.session_id);
+	});*/
 
     package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         switch (msg.get().as<ProtocolS2CPunish>().type)
         {
         case PunishType::ENM_PUNISH_TYPE_BSOD:
-            stop();
-            Utils::CWindows::instance().bsod();
-            break;
+            //stop();
+            //Utils::CWindows::instance().bsod();
+            //break;
         case PunishType::ENM_PUNISH_TYPE_KICK:
             stop();
             Utils::CWindows::instance().exit_process();
@@ -150,7 +149,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
         default:
             break;
         }
-    });
+	});
 }
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)

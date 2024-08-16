@@ -49,48 +49,48 @@ struct ProtocolS2CScript : ProtocolBase<SPKG_ID_S2C_SCRIPT>
     std::string code;
     MSGPACK_DEFINE(package_id, code);
 };
-struct ProtocolC2SQueryPlugin : ProtocolBase<SPKG_ID_C2S_QUERY_PLUGIN>
-{
-    MSGPACK_DEFINE(package_id);
-};
-
-struct ProtocolS2CCheckPlugin : ProtocolBase<SPKG_ID_S2C_CHECK_PLUGIN>
-{
-    MSGPACK_DEFINE(package_id);
-};
-
-struct ProtocolC2SCheckPlugin : ProtocolBase<SPKG_ID_C2S_CHECK_PLUGIN>
-{
-    std::map<unsigned int, ProtocolModuleInfo> plugin_list;
-    MSGPACK_DEFINE(package_id, plugin_list);
-};
-
-struct ProtocolS2CQueryPlugin : ProtocolBase<SPKG_ID_S2C_QUERY_PLUGIN>
-{
-    std::vector<std::pair<unsigned int, std::string>> plugin_list;
-    MSGPACK_DEFINE(package_id, plugin_list);
-};
-
-struct ProtocolC2SDownloadPlugin : ProtocolBase<SPKG_ID_C2S_DOWNLOAD_PLUGIN>
-{
-    unsigned int plugin_hash;
-    MSGPACK_DEFINE(package_id, plugin_hash);
-};
-
-struct ProtocolS2CDownloadPlugin : ProtocolBase<SPKG_ID_S2C_DOWNLOAD_PLUGIN>
-{
-    unsigned int plugin_hash;
-    std::string plugin_name;
-    char is_crypted;
-    std::vector<unsigned char> data;
-    MSGPACK_DEFINE(package_id, plugin_hash, plugin_name, is_crypted, data);
-};
-
-struct ProtocolC2SLoadedPlugin : ProtocolBase<SPKG_ID_S2C_LOADED_PLUGIN>
-{
-    bool loaded;
-    MSGPACK_DEFINE(package_id, loaded);
-};
+//struct ProtocolC2SQueryPlugin : ProtocolBase<SPKG_ID_C2S_QUERY_PLUGIN>
+//{
+//    MSGPACK_DEFINE(package_id);
+//};
+//
+//struct ProtocolS2CCheckPlugin : ProtocolBase<SPKG_ID_S2C_CHECK_PLUGIN>
+//{
+//    MSGPACK_DEFINE(package_id);
+//};
+//
+//struct ProtocolC2SCheckPlugin : ProtocolBase<SPKG_ID_C2S_CHECK_PLUGIN>
+//{
+//    std::map<unsigned int, ProtocolModuleInfo> plugin_list;
+//    MSGPACK_DEFINE(package_id, plugin_list);
+//};
+//
+//struct ProtocolS2CQueryPlugin : ProtocolBase<SPKG_ID_S2C_QUERY_PLUGIN>
+//{
+//    std::vector<std::pair<unsigned int, std::string>> plugin_list;
+//    MSGPACK_DEFINE(package_id, plugin_list);
+//};
+//
+//struct ProtocolC2SDownloadPlugin : ProtocolBase<SPKG_ID_C2S_DOWNLOAD_PLUGIN>
+//{
+//    unsigned int plugin_hash;
+//    MSGPACK_DEFINE(package_id, plugin_hash);
+//};
+//
+//struct ProtocolS2CDownloadPlugin : ProtocolBase<SPKG_ID_S2C_DOWNLOAD_PLUGIN>
+//{
+//    unsigned int plugin_hash;
+//    std::string plugin_name;
+//    char is_crypted;
+//    std::vector<unsigned char> data;
+//    MSGPACK_DEFINE(package_id, plugin_hash, plugin_name, is_crypted, data);
+//};
+//
+//struct ProtocolC2SLoadedPlugin : ProtocolBase<SPKG_ID_S2C_LOADED_PLUGIN>
+//{
+//    bool loaded;
+//    MSGPACK_DEFINE(package_id, loaded);
+//};
 
 struct ProtocolCFGLoader : ProtocolBase<SPKG_ID_CFG_LOADER>
 {

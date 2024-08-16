@@ -134,7 +134,7 @@ private:
     void OnlineCheck();
 protected:
     using observer_package_type = std::function<void(tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
-    CServerPluginMgr plugin_mgr_;
+    //CServerPluginMgr plugin_mgr_;
     CServerPolicyMgr policy_mgr_;
     NetUtils::EventMgr<observer_package_type> ob_pkg_mgr_;
     NetUtils::EventMgr<observer_package_type> policy_pkg_mgr_;

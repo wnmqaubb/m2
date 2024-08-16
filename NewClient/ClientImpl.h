@@ -1,7 +1,7 @@
 #pragma once
 #include "Service/AntiCheatClient.h"
-#include "ClientPluginMgr.h"
-
+#include <filesystem>
+namespace fs = std::filesystem;
 class CClientImpl : public CAntiCheatClient
 {
     using super = CAntiCheatClient;
@@ -12,5 +12,4 @@ public:
     virtual void save_uuid(const ProtocolC2SHandShake& handshake);
     fs::path exe_path_;
     fs::path cache_dir_;
-    std::unique_ptr<CClientPluginMgr> plugin_mgr_;
 };

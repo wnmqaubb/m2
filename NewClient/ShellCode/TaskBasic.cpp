@@ -1,15 +1,29 @@
-﻿#include "NewClient/pch.h"
+﻿#include "../pch.h"
 #include "TaskBasic.h"
 
-#define LOG(x,...) 
+#ifdef _DEBUG
+    #define LOG(x,...) log(x, __VA_ARGS__)
+#else 
+    #define LOG(x,...)
+#endif
+
 #define CONFIG_APP_NAME "┣┫========锦衣卫封挂加载成功========┣┫"
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
-#define CONFIG_TITLE  "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码蓝屏风险┣┫"
+#define CONFIG_TITLE  "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
 
 bool is_debug_mode = false;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
-
+void log(const TCHAR* format, ...)
+{
+	TCHAR buffer[1024];
+	va_list ap;
+	va_start(ap, format);
+	_vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+	va_end(ap);
+	wprintf(TEXT("%s\n"), buffer);
+	OutputDebugStringW(buffer);
+}
 void NotifyHook(CAntiCheatClient* client)
 {
     auto client_connect_success_handler = client->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
@@ -18,12 +32,12 @@ void NotifyHook(CAntiCheatClient* client)
         client->notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
 }
-void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
+void LoadPlugin(CAntiCheatClient* client)
 {
+    LOG(TEXT("加载插件成功---"));
     VMP_VIRTUALIZATION_BEGIN();
     srand(time(0));
     InitMiniDump();
-
     std::wstring volume_serial_number = std::any_cast<std::wstring>(client->user_data().get_field(vol_field_id));
     unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
     if (volume_serial_number_hash_val == 1770936153)
@@ -78,18 +92,18 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
         {
             on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
         }
-    });
-	
+    });	
+  
     client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
         static asio::steady_timer usrname_resend_timer(g_io);
         //防止重启服务器的时候过于集中发包
 		reconnect_count++;
-        usrname_resend_timer.expires_after(std::chrono::seconds(std::rand() % 10));
-        usrname_resend_timer.async_wait([client](std::error_code){
-            ProtocolC2SUpdateUsername req;
-            req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-            client->send(&req);
-        });
+		usrname_resend_timer.expires_after(std::chrono::seconds(std::rand() % 10));
+		usrname_resend_timer.async_wait([client](std::error_code) {
+			ProtocolC2SUpdateUsername req;
+			req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
+			client->send(&req);
+			});
     });
     client->start_timer(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
         if (client->cfg()->get_field<bool>(test_mode_field_id))
@@ -221,20 +235,17 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 #endif
 
     NotifyHook(client);
-    InitRmc(client);
-    InitTimeoutCheck(client);
-    InitJavaScript(client);
+	InitRmc(client);
+	InitTimeoutCheck(client);
+	InitJavaScript(client);
 
     if (is_debug_mode == false)
     {
         InitHideProcessDetect(client);
         InitSpeedDetect(client);
         InitShowWindowHookDetect(client);
-    }
-    
-    ProtocolC2SLoadedPlugin req;
-    req.loaded = true;
-    client->send(&req);
+    }   
+
     VMP_VIRTUALIZATION_END();
 }
 
@@ -245,7 +256,8 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	case PunishType::ENM_PUNISH_TYPE_BSOD:
 	{
 		std::error_code ec;
-		UnitPunishBsod(ec);
+		UnitPunishKick(ec);
+		//UnitPunishBsod(ec);
 		break;
 	}
 	case PunishType::ENM_PUNISH_TYPE_KICK:
@@ -477,26 +489,3 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     });
     client->send(&resp);
 }
-
-
-void __declspec(dllexport) UnLoadPlugin(CAntiCheatClient* client)
-{
-}
-//
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
-{
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-		plugin_base = hModule;
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    }
-    return TRUE;
-}
-

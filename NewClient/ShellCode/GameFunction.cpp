@@ -1,4 +1,4 @@
-#include "NewClient/pch.h"
+#include "../pch.h"
 #include "GameFunction.h"
 #include "BasicUtils.h"
 
@@ -522,4 +522,3 @@ void GameLocalFuntion::decode_message_packet_after(LightHook::Context& ctx)
     set_old_spell_speed_interval(t6);
     VMP_VIRTUALIZATION_END();
 }
-

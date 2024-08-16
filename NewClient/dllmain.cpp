@@ -1,113 +1,112 @@
 ﻿// dllmain.cpp : 定义 DLL 应用程序的入口点。
 #include "pch.h"
-#include <iostream>
 #include "ClientImpl.h"
-#include "loader.h"
-#include "CreateProcessHook.h"
 #include "WndProcHook.h"
 #include "version.build"
-#include <regex>
+#include "lf_plug_sdk.h"
 
-__declspec(dllexport) HINSTANCE dll_base = NULL;
-share_data_ptr_t share_data = nullptr;
+#define RUNGATE_API void __stdcall
 
-__declspec(dllexport) asio::io_service g_io;
-__declspec(dllexport) asio::io_service g_game_io;
-__declspec(dllexport) asio::detail::thread_group g_thread_group;
-__declspec(dllexport) int g_client_rev_version = REV_VERSION;
-__declspec(dllexport) NetUtils::CTimerMgr g_game_timer_mgr(g_game_io);
+lfengine::client::TAppFuncDefExt g_AppFunc;
 
-void __declspec(dllexport) reference_to_api()
+HINSTANCE dll_base = NULL;
+
+asio::io_service g_io;
+asio::io_service g_game_io;
+asio::detail::thread_group g_thread_group;
+int g_client_rev_version = REV_VERSION;
+NetUtils::CTimerMgr g_game_timer_mgr(g_game_io);
+std::shared_ptr<CClientImpl> client_ = nullptr;
+VOID DbgPrint(const char* fmt, ...)
 {
-    std::set<void*> ref;
-    ref.emplace(get_ptr(&Utils::CWindows::instance));
-    ref.emplace(get_ptr(&Utils::get_screenshot));
-    ref.emplace(get_ptr(&Utils::PEScan::calc_pe_ico_hash));
+	char    buf[1024];
+	va_list args;
+	va_start(args, fmt);
+	vsprintf_s(buf, fmt, args);
+	va_end(args);
+	OutputDebugStringA(buf);
 }
 
-void client_start_routine(std::shared_ptr<CClientImpl> client)
+void client_start_routine()
 {
-    WndProcHook::install_hook();
-    std::string ip = client->cfg()->get_field<std::string>(ip_field_id);
-    std::transform(ip.begin(), ip.end(), ip.begin(), ::tolower);
-    if (ip[0] == '0' && ip[1] == 'x')
-    {
-        char* ip_ptr = NULL;
-        sscanf_s(ip.c_str(), "0x%x", &ip_ptr);
-        g_thread_group.create_thread([ip_ptr, client]() {
-			std::regex ip_regex(R"((\d{1,3}\.){3}\d{1,3})");
-			while (!(!IsBadReadPtr(ip_ptr, 1) && *ip_ptr != 0 && std::regex_match(std::string(ip_ptr), ip_regex)))
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(200));
-			}
-            client->cfg()->set_field<std::string>(ip_field_id, ip_ptr);
-            client->start(client->cfg()->get_field<std::string>(ip_field_id), client->cfg()->get_field<unsigned int>(port_field_id));
-            auto work_guard = asio::make_work_guard(g_io);
-            g_io.run();
-        });
-    }
-    else
-    {
-        client->start(client->cfg()->get_field<std::string>(ip_field_id), client->cfg()->get_field<unsigned int>(port_field_id));
-        g_thread_group.create_thread([]() {
-            auto work_guard = asio::make_work_guard(g_io);
-            g_io.run();
-        });
-    }
-    
-#if 0
-    g_thread_group.create_thread([client](){
-        static std::vector<std::shared_ptr<CClientImpl>> client_vec;
-        for (int i = 0; i < 200; i++)
-        {
-            auto client_ = std::make_shared<CClientImpl>(g_io);
-            client_->cfg_ = std::make_unique<ProtocolCFGLoader>();
-            client_->cfg_->data = client->cfg_->data;
-            client_->cfg_->json = client_->cfg_->json;/*
-            std::this_thread::sleep_for(std::chrono::seconds(1));*/
-            client_->start(client->cfg_->get_field<std::string>(ip_field_id), client->cfg_->get_field<unsigned int>(port_field_id));
-            client_vec.push_back(std::move(client_));
-        }
-    });
-    g_thread_group.create_thread([]() {
-        auto work_guard = asio::make_work_guard(g_io);
-        g_io.run();
-    });
+    //WndProcHook::install_hook();
+    auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
+    //std::string ip = "43.139.236.115";
+	auto port = client_->cfg()->get_field<int>(port_field_id);
+	client_->start(ip, port);
+	DbgPrint("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+	g_thread_group.create_thread([]() {
+		auto work_guard = asio::make_work_guard(g_io);
+		g_io.run();
+	});
+}
+#ifdef _DEBUG
+#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXXZ")
 #endif
+RUNGATE_API client_entry() noexcept
+{
+	VMP_VIRTUALIZATION_BEGIN();
+	setlocale(LC_CTYPE, "");
+	ProtocolCFGLoader cfg;
+	cfg.set_field<std::string>(ip_field_id, "127.0.0.1");
+	cfg.set_field<int>(port_field_id, 23268);
+	client_ = std::make_shared<CClientImpl>(g_io);
+	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
+	client_->cfg()->set_field<bool>(test_mode_field_id, false);
+	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+#if defined(_DEBUG)
+	client_->cfg()->set_field<bool>(test_mode_field_id, true);
+	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+#endif
+	if (client_->cfg()->get_field<bool>(sec_no_change_field_id))
+	{
+		DbgPrint("启用安全模式1");
+		Utils::ImageProtect::instance().register_callback(&client_start_routine);
+		Utils::ImageProtect::instance().install();
+	}
+	else
+	{
+		DbgPrint("启用安全模式2");
+		client_start_routine();
+	}
+	VMP_VIRTUALIZATION_END();
 }
 
-void __stdcall client_entry(share_data_ptr_t param) noexcept
+RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)
 {
-    VMP_VIRTUALIZATION_BEGIN();
-    if (!param)
-        return;
-    if (param->stage == 0)
-    {
-        share_data = param;
-        HookProc::init_create_process_hook();
-    }
-    else if (param->stage == 1)
-    {
-        share_data = param;
-        setlocale(LC_CTYPE, "");
-        std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-        client->cfg() = ProtocolCFGLoader::load((char*)param->cfg, param->cfg_size);
-        if (client->cfg()->get_field<bool>(test_mode_field_id))
-        {
-            ::MessageBoxA(NULL, "test mode", "test", MB_OK);
-        }
+	using namespace lfengine::client;
+	g_AppFunc.AddChatText = AppFunc->AddChatText;
+	g_AppFunc.SendSocket = AppFunc->SendSocket;
 
-        if (client->cfg()->get_field<bool>(sec_no_change_field_id))
-        {
-            Utils::ImageProtect::instance().register_callback(std::bind(&client_start_routine, std::move(client)));
-            Utils::ImageProtect::instance().install();
-        }
-        else
-        {
-            client_start_routine(std::move(client));
-        }
-    }
-    VMP_VIRTUALIZATION_END();
+	AddChatText = AppFunc->AddChatText;
+	SendSocket = AppFunc->SendSocket;
+	AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
+	TDefaultMessage initok(0, 10000, 0, 0, 0);
+	SendSocket(&initok, 0, 0);
+
+	client_entry();
+}
+
+
+RUNGATE_API HookRecv(lfengine::client::PTDefaultMessage defMsg, char* lpData, int dataLen)
+{
+	using namespace lfengine::client;
+	if (defMsg->ident == 10000)
+	{
+		AddChatText("这个没什么用，只是测试下网关插件返回数据", 0x0000ff, 0);
+	}
+
+}
+
+RUNGATE_API UnInit()
+{
+	//DbgPrint("插件管理器卸载开始");
+	client_->stop();
+	//g_io.stop();
+	//g_game_io.stop();
+	//g_game_timer_mgr.stop_all_timer();
+	//client_ = nullptr;
+	//DbgPrint("插件管理器卸载成功");
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
@@ -120,6 +119,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_PROCESS_ATTACH:
         dll_base = hModule;
     case DLL_THREAD_ATTACH:
+        break;
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:
         break;

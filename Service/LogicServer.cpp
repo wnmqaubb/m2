@@ -103,7 +103,7 @@ CLogicServer::CLogicServer()
     set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(1), [this]() {
 		try {
-            plugin_mgr_.reload_all_plugin();
+            //plugin_mgr_.reload_all_plugin();
             policy_mgr_.reload_all_policy();
         }
         catch (...)
@@ -182,7 +182,7 @@ CLogicServer::CLogicServer()
             ob_pkg_mgr_.dispatch(package_id, session, package.head.session_id, req, raw_msg);
     });
     
-    REGISTER_TRANSPORT(SPKG_ID_C2S_CHECK_PLUGIN);
+    //REGISTER_TRANSPORT(SPKG_ID_C2S_CHECK_PLUGIN);
     REGISTER_TRANSPORT(SPKG_ID_C2S_QUERY_PROCESS);
     REGISTER_TRANSPORT(SPKG_ID_C2S_QUERY_DRIVERINFO);
     REGISTER_TRANSPORT(SPKG_ID_C2S_QUERY_WINDOWSINFO);
@@ -251,27 +251,27 @@ CLogicServer::CLogicServer()
         }
         
     });
-    ob_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        auto& resp = plugin_mgr_.get_plugin_hash_set();
-        send(session, package.head.session_id, &resp);
-    });
-    ob_pkg_mgr_.register_handler(SPKG_ID_C2S_DOWNLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        auto& req = msg.get().as<ProtocolC2SDownloadPlugin>();
-        auto resp = plugin_mgr_.get_plugin(req.plugin_hash);
-        if (!resp.body.buffer.empty())
-        {
-            send(session, package.head.session_id, plugin_mgr_.get_plugin(req.plugin_hash));
-        }
-    });
-    ob_pkg_mgr_.register_handler(SPKG_ID_S2C_LOADED_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
-        if (user_data)
-        {
-            user_data->set_loaded_plugin(true);
-            detect(session, package.head.session_id);
-            send_policy(user_data, session, package.head.session_id);
-        }
-    });
+    //ob_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    //    auto& resp = plugin_mgr_.get_plugin_hash_set();
+    //    send(session, package.head.session_id, &resp);
+    //});
+    //ob_pkg_mgr_.register_handler(SPKG_ID_C2S_DOWNLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    //    auto& req = msg.get().as<ProtocolC2SDownloadPlugin>();
+    //    auto resp = plugin_mgr_.get_plugin(req.plugin_hash);
+    //    if (!resp.body.buffer.empty())
+    //    {
+    //        send(session, package.head.session_id, plugin_mgr_.get_plugin(req.plugin_hash));
+    //    }
+    //});
+    //ob_pkg_mgr_.register_handler(SPKG_ID_S2C_LOADED_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    //    auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
+    //    if (user_data)
+    //    {
+    //        user_data->set_loaded_plugin(true);
+    //        detect(session, package.head.session_id);
+    //        send_policy(user_data, session, package.head.session_id);
+    //    }
+    //});
     ob_pkg_mgr_.register_handler(SPKG_ID_C2S_UPDATE_USER_NAME, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto& req = msg.get().as<ProtocolC2SUpdateUsername>();
         auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
@@ -381,16 +381,16 @@ CLogicServer::CLogicServer()
         policy_mgr_.remove_policy_file(req.file_name);
         log(LOG_TYPE_EVENT, TEXT("Ð¶ÔØ²ßÂÔ:%s"), Utils::c2w(req.file_name).c_str());
     });
-    ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_UPLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        auto& req = msg.get().as<ProtocolOBC2LSUploadPlugin>();
-        plugin_mgr_.create_plugin_file(req.file_name, req.data);
-        log(LOG_TYPE_EVENT, TEXT("¸üÐÂ²å¼þ:%s"), Utils::c2w(req.file_name).c_str());
-    });
-    ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_REMOVE_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        auto& req = msg.get().as<ProtocolOBC2LSRemovePlugin>();
-        plugin_mgr_.remove_plugin_file(req.file_name);
-        log(LOG_TYPE_EVENT, TEXT("Ð¶ÔØ²å¼þ:%s"), Utils::c2w(req.file_name).c_str());
-    });
+    //ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_UPLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    //    auto& req = msg.get().as<ProtocolOBC2LSUploadPlugin>();
+    //    plugin_mgr_.create_plugin_file(req.file_name, req.data);
+    //    log(LOG_TYPE_EVENT, TEXT("¸üÐÂ²å¼þ:%s"), Utils::c2w(req.file_name).c_str());
+    //});
+    //ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_REMOVE_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    //    auto& req = msg.get().as<ProtocolOBC2LSRemovePlugin>();
+    //    plugin_mgr_.remove_plugin_file(req.file_name);
+    //    log(LOG_TYPE_EVENT, TEXT("Ð¶ÔØ²å¼þ:%s"), Utils::c2w(req.file_name).c_str());
+    //});
     ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_ADD_LIST, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto& req = msg.get().as<ProtocolOBC2LSAddList>();
 		write_txt(req.file_name, req.text, true);
@@ -536,13 +536,13 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 	VMProtectBeginVirtualization(__FUNCTION__);
     static std::map<PunishType, wchar_t*> punish_type_str = {
        {ENM_PUNISH_TYPE_KICK,TEXT("ÍË³öÓÎÏ·")},
-       {ENM_PUNISH_TYPE_BSOD,TEXT("À¶ÆÁ")},
+       //{ENM_PUNISH_TYPE_BSOD,TEXT("À¶ÆÁ")},
        {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("²»´¦Àí")},
        {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("°×Ãûµ¥")},
        {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("·â»úÆ÷")},
        {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("½ØÍ¼")},
        {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("½ØÍ¼+ÍË³öÓÎÏ·")},
-       {ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("½ØÍ¼+À¶ÆÁ")},
+       //{ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("½ØÍ¼+À¶ÆÁ")},
     };
     static std::map<PolicyType, wchar_t*> policy_type_str = {
         {ENM_POLICY_TYPE_MODULE_NAME,TEXT("Ä£¿éÃû¼ì²â")},

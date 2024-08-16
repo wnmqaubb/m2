@@ -40,7 +40,7 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
     ON_COMMAND(ID_DRIVER_VIEW, &CClientView::OnQueryDrivers)
     ON_COMMAND(ID_REFRESH_USERS, &CClientView::OnRefreshUsers)
     ON_COMMAND(ID_SCREENSHOT_VIEW, &CClientView::OnQueryScreenShot)
-    ON_COMMAND(ID_SHELLCODE_VIEW, &CClientView::OnQueryShellCode)
+    //ON_COMMAND(ID_SHELLCODE_VIEW, &CClientView::OnQueryShellCode)
     ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CClientView::OnQueryScreenShot)
     ON_COMMAND(IDC_BUTTON_SEARCH, &CClientView::OnBnClickedOnlineGamerSearch)
 	ON_COMMAND(IDC_REFRESH_USERS_BUTTON, &CClientView::OnRefreshUsers)
@@ -52,7 +52,7 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
     ON_COMMAND(ID_JS_QUERY_DEVICE_ID, &CClientView::OnJsQueryDeviceId)
     ON_COMMAND(ID_JS_EXECUTE, &CClientView::OnJsExecute)
     ON_BN_CLICKED(IDC_REFRESH_LICENSE_BUTTON, &CClientView::OnBnClickedRefreshLicenseButton)
-    ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
+    //ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
 #endif
     ON_COMMAND(ID_EXIT_GAME, &CClientView::OnExitGame)
     ON_COMMAND(ID_BSOD, &CClientView::OnBsod)
@@ -366,11 +366,11 @@ void CClientView::OnQueryDrivers()
     SendCurrentSelectedUserCommand(&msg);
 }
 
-void CClientView::OnQueryShellCode()
-{
-    ProtocolS2CCheckPlugin msg;
-    SendCurrentSelectedUserCommand(&msg);
-}
+//void CClientView::OnQueryShellCode()
+//{
+//    ProtocolS2CCheckPlugin msg;
+//    SendCurrentSelectedUserCommand(&msg);
+//}
 void CClientView::OnQueryScreenShot()
 {
     ProtocolS2CQueryScreenShot msg;
@@ -994,60 +994,60 @@ void CClientView::OnServiceClearList()
 }
 
 
-void CClientView::OnServiceS2CPlugin()
-{
-
-	CString gReadFilePathName;
-	CFileDialog fileDlg(true, _T("dll"), _T("*.dll"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("dll Files (*.dll)|*.dll"), NULL);
-	if (fileDlg.DoModal() != IDOK)    //弹出对话框  
-	{
-        return;
-	}
-	
-	std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-	if (file.is_open() == false)
-	{
-        return;
-		
-	}
-
-	std::stringstream ss;
-	ss << file.rdbuf();
-	std::string buffer = ss.str();
-
-    ProtocolS2CDownloadPlugin package;
-	
-    if (*(uint16_t*)buffer.data() != 0x5A4D)
-    {
-        RawProtocolImpl raw_package;
-        if (!raw_package.decode(buffer))
-        {
-            AfxMessageBox(L"Decode Error");
-            return;
-        }
-
-        auto raw_msg = msgpack::unpack((char*)raw_package.body.buffer.data(), raw_package.body.buffer.size());
-        package = raw_msg.get().as<ProtocolS2CDownloadPlugin>();
-    }
-    else
-    {
-		std::copy(buffer.begin(), buffer.end(), std::back_inserter(package.data));
-		xor_buffer(package.data.data(), package.data.size(), kProtocolXorKey);
-		package.is_crypted = 1;
-		package.plugin_hash = NetUtils::aphash((unsigned char*)buffer.data(), buffer.size());
-		package.plugin_name = "TaskBasic.dll";
-    }
-
-
-    if (m_wndTabs.GetActiveTab() == 1) {
-		//服务列表
-		BroadCastCurrentSelectedServiceCommand(&package);
-    }
-    else {
-		//用户列表
-        SendCurrentSelectedUserCommand(&package);
-    }
-}
+//void CClientView::OnServiceS2CPlugin()
+//{
+//
+//	CString gReadFilePathName;
+//	CFileDialog fileDlg(true, _T("dll"), _T("*.dll"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("dll Files (*.dll)|*.dll"), NULL);
+//	if (fileDlg.DoModal() != IDOK)    //弹出对话框  
+//	{
+//        return;
+//	}
+//	
+//	std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
+//	if (file.is_open() == false)
+//	{
+//        return;
+//		
+//	}
+//
+//	std::stringstream ss;
+//	ss << file.rdbuf();
+//	std::string buffer = ss.str();
+//
+//    ProtocolS2CDownloadPlugin package;
+//	
+//    if (*(uint16_t*)buffer.data() != 0x5A4D)
+//    {
+//        RawProtocolImpl raw_package;
+//        if (!raw_package.decode(buffer))
+//        {
+//            AfxMessageBox(L"Decode Error");
+//            return;
+//        }
+//
+//        auto raw_msg = msgpack::unpack((char*)raw_package.body.buffer.data(), raw_package.body.buffer.size());
+//        package = raw_msg.get().as<ProtocolS2CDownloadPlugin>();
+//    }
+//    else
+//    {
+//		std::copy(buffer.begin(), buffer.end(), std::back_inserter(package.data));
+//		xor_buffer(package.data.data(), package.data.size(), kProtocolXorKey);
+//		package.is_crypted = 1;
+//		package.plugin_hash = NetUtils::aphash((unsigned char*)buffer.data(), buffer.size());
+//		package.plugin_name = "TaskBasic.dll";
+//    }
+//
+//
+//    if (m_wndTabs.GetActiveTab() == 1) {
+//		//服务列表
+//		BroadCastCurrentSelectedServiceCommand(&package);
+//    }
+//    else {
+//		//用户列表
+//        SendCurrentSelectedUserCommand(&package);
+//    }
+//}
 
 
 template<typename T>

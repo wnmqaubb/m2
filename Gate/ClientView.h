@@ -49,7 +49,7 @@ public:
     afx_msg void OnRefreshUsers();
     afx_msg void OnRefreshServices();
     afx_msg void OnQueryDrivers();
-    afx_msg void OnQueryShellCode();
+    //afx_msg void OnQueryShellCode();
     afx_msg void OnQueryScreenShot();
     afx_msg void OnBnClickedOnlineGamerSearch();
     afx_msg void OnUpdateLogic();
@@ -72,7 +72,7 @@ public:
     afx_msg void OnBnClickedRefreshLicenseButton();
     afx_msg void OnServiceAddList();
     afx_msg void OnServiceClearList();
-    afx_msg void OnServiceS2CPlugin();
+    //afx_msg void OnServiceS2CPlugin();
     template<typename T> void BroadCastCurrentSelectedServiceCommand(T* package);
 };
 

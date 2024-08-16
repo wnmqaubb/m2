@@ -8,12 +8,12 @@
 #include "BasicUtils.h"
 #include "version.build"
 
-__declspec(dllimport) asio::io_service g_game_io;
-__declspec(dllimport) asio::io_service g_io;
-__declspec(dllimport) int g_client_rev_version;
-__declspec(dllimport) asio::detail::thread_group g_thread_group;
+extern asio::io_service g_game_io;
+extern asio::io_service g_io;
+extern int g_client_rev_version;
+extern asio::detail::thread_group g_thread_group;
 
-
+void LoadPlugin(CAntiCheatClient* client);
 void InitRmc(CAntiCheatClient* client);
 void InitJavaScript(CAntiCheatClient* client);
 void InitTimeoutCheck(CAntiCheatClient* client);
