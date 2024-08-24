@@ -2,15 +2,15 @@
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
 
-CObserverServer::CObserverServer(asio::io_service& io_)
+CObserverServer::CObserverServer()
 {
     static VmpSerialValidator vmp(this);
-    logic_client_ = std::make_shared<CLogicClient>(io_);
+    logic_client_ = std::make_shared<CLogicClient>();
     is_observer_server_ = true;
     set_log_cb(std::bind(&CObserverServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     logic_client_->sub_notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         foreach_session([this](tcp_session_shared_ptr_t& session) {
-            auto user_data = get_user_data(session);
+            auto user_data = get_user_data_(session);
             if (user_data->has_handshake && user_data->get_field<bool>("is_observer_client"))
             {
                 ProtocolLC2LSAddObsSession req;
@@ -43,8 +43,8 @@ CObserverServer::CObserverServer(asio::io_service& io_)
         auto session = sessions().find(param.session_id);
         if (session)
         {
-            get_user_data(session)->set_field(param.key, param.val);
-            if (get_user_data(session)->get_field<bool>("is_observer_client"))
+            get_user_data_(session)->set_field(param.key, param.val);
+            if (get_user_data_(session)->get_field<bool>("is_observer_client"))
             {
                 ProtocolOBS2OBCSetField req;
                 req.session_id = param.session_id;
@@ -71,7 +71,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
     });
     package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 #if _DEBUG
-        get_user_data(session)->set_field("is_observer_client", true);
+        get_user_data_(session)->set_field("is_observer_client", true);
         log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
             session->remote_port());
         ProtocolLC2LSAddObsSession req;
@@ -86,10 +86,10 @@ CObserverServer::CObserverServer(asio::io_service& io_)
         return;
 #else
         auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
-        get_user_data(session)->set_field("auth_key", auth_key);
+        get_user_data_(session)->set_field("auth_key", auth_key);
         if (auth_key == auth_ticket_)
         {
-            get_user_data(session)->set_field("is_observer_client", true);
+            get_user_data_(session)->set_field("is_observer_client", true);
             log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                 session->remote_port());
             ProtocolLC2LSAddObsSession req;
@@ -104,7 +104,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
         }
         else
         {
-            get_user_data(session)->set_field("is_observer_client", false);
+            get_user_data_(session)->set_field("is_observer_client", false);
             log(LOG_TYPE_ERROR, TEXT("observer client auth fail:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                 session->remote_port());
             ProtocolOBS2OBCAuth auth;
@@ -112,7 +112,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
             send(session, &auth);
         }
         std::wstring username = TEXT("(NULL)");
-        get_user_data(session)->set_field("usrname", username);
+        get_user_data_(session)->set_field("usrname", username);
 #endif
     });
 
@@ -130,7 +130,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
         ProtocolOBS2OBCQueryUsers resp;
         foreach_session([&resp](tcp_session_shared_ptr_t& session) {
             ProtocolUserData _userdata;
-            auto user_data = get_user_data(session);
+            auto user_data = get_user_data_(session);
             if (user_data->has_handshake)
             {
                 _userdata.session_id = session->hash_key();
@@ -147,7 +147,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
         auto buf = raw_msg.get().as<ProtocolOBC2OBSUpdateLogic>().data;
         ProtocolLC2LSClose req;
         logic_client_->send(&req);
-        while (logic_client_->is_connected())
+        while (logic_client_->is_started())
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
@@ -185,7 +185,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
     });
     user_notify_mgr_.register_handler(CLIENT_HANDSHAKE_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
         ProtocolLC2LSAddUsrSession req;
-        auto user_data = get_user_data(session);
+        auto user_data = get_user_data_(session);
         ProtocolUserData& _userdata = req.data;
         if (user_data->has_handshake)
         {
@@ -199,7 +199,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
         
     });
     user_notify_mgr_.register_handler(CLIENT_HEARTBEAT_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
-        if (get_user_data(session)->get_field<bool>("is_observer_client"))
+        if (get_user_data_(session)->get_field<bool>("is_observer_client"))
             return;
         ProtocolLC2LSSend req;
         ProtocolC2SHeartBeat heartbeat;
@@ -218,7 +218,7 @@ CObserverServer::CObserverServer(asio::io_service& io_)
 void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
     super::on_post_disconnect(session);
-    if (get_user_data(session)->get_field<bool>("is_observer_client"))
+    if (get_user_data_(session)->get_field<bool>("is_observer_client"))
     {
         ProtocolLC2LSRemoveObsSession req;
         req.session_id = session->hash_key();
@@ -245,7 +245,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     }
     else if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END)
     {
-        if (get_user_data(session)->get_field<bool>("is_observer_client") == false)
+        if (get_user_data_(session)->get_field<bool>("is_observer_client") == false)
         {
             log(LOG_TYPE_ERROR, TEXT("未授权Service调用"));
             return false;
@@ -255,7 +255,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     }
     else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END)
     {
-        if (get_user_data(session)->get_field<bool>("is_observer_client") == false)
+        if (get_user_data_(session)->get_field<bool>("is_observer_client") == false)
         {
             log(LOG_TYPE_ERROR, TEXT("未授权LogicServer调用"));
             return false;
@@ -282,7 +282,7 @@ void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, con
     log.silence = silence;
     log.gm_show = gm_show;
     foreach_session([this, &log](tcp_session_shared_ptr_t& session){
-        if (get_user_data(session)->get_field<bool>("is_observer_client"))
+        if (get_user_data_(session)->get_field<bool>("is_observer_client"))
         {
             send(session, &log);
         }

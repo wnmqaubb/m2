@@ -22,8 +22,8 @@ public:
     virtual void on_init();
     virtual void on_post_connect(tcp_session_shared_ptr_t& session);
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
-    virtual void on_start(error_code_t ec);
-    virtual void on_stop(error_code_t ec);
+    virtual void on_start();
+    virtual void on_stop();
     virtual void on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
     virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
     virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
@@ -157,16 +157,16 @@ struct AntiCheatUserData
     }
 };
 
-inline AntiCheatUserData* get_user_data(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
+inline AntiCheatUserData* get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
 {
-    auto userdata = session->user_data<AntiCheatUserData*>();
+    auto userdata = session->get_user_data<AntiCheatUserData*>();
     if (userdata == nullptr)
     {
         userdata = new AntiCheatUserData();
 #if ENABLE_PROXY_TUNNEL
         userdata->game_proxy_tunnel = std::make_shared<GameProxyTunnel>(session->io().context());
 #endif
-        session->user_data<AntiCheatUserData*>(std::move(userdata));
+        session->set_user_data<AntiCheatUserData*>(std::move(userdata));
     }
     return userdata;
 }

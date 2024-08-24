@@ -95,7 +95,6 @@ private:
 #endif
 
 
-
 CAntiCheatServer::CAntiCheatServer()
 	: super()
 {
@@ -126,7 +125,7 @@ bool CAntiCheatServer::start(const std::string& listen_addr, int port)
 #else
 	enable_proxy_tunnel(false);
 #endif
-	if (super::super::start(listen_addr, port, RawProtocolImpl()))
+	if (super::super::start(listen_addr, port, &RawProtocolImpl::match_role))
 	{
 		return true;
 	}
@@ -173,7 +172,7 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
     log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
-    get_user_data(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
+    get_user_data_(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
 }
 
 void CAntiCheatServer::on_init()
@@ -189,44 +188,32 @@ void CAntiCheatServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 	if (is_enable_proxy_tunnel())
 	{
 #if ENABLE_PROXY_TUNNEL
-		get_user_data(session).game_proxy_tunnel->stop();
+		get_user_data_(session).game_proxy_tunnel->stop();
 #endif
 	}
 }
 
-void CAntiCheatServer::on_start(error_code_t ec)
+void CAntiCheatServer::on_start()
 {
-	if (!ec)
-	{
-		log(LOG_TYPE_EVENT, TEXT("开始监听:%s:%d %s"),
-			Utils::c2w(listen_address()).c_str(),
-			listen_port(),
-			Utils::c2w(ec.message()).c_str());
-        notify_mgr_.dispatch(SERVER_START_NOTIFY_ID);
-	}
-	else
-	{
-		log(LOG_TYPE_EVENT, TEXT("监听失败:%s:%d %s"),
-			Utils::c2w(listen_address()).c_str(),
-			listen_port(),
-			Utils::c2w(ec.message()).c_str());
-	}
+	log(LOG_TYPE_EVENT, TEXT("开始监听:%s:%d "),
+		Utils::c2w(listen_address()).c_str(),
+		listen_port());
+	notify_mgr_.dispatch(SERVER_START_NOTIFY_ID);
 }
 
-void CAntiCheatServer::on_stop(error_code_t ec)
+void CAntiCheatServer::on_stop()
 {
     log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d %s"),
         Utils::c2w(listen_address()).c_str(),
-        listen_port(),
-        Utils::c2w(ec.message()).c_str());
+        listen_port());
 }
 
 
 void CAntiCheatServer::start_timer(unsigned int timer_id, std::chrono::system_clock::duration duration, std::function<void()> handler)
 {
-    super::start_timer(timer_id, duration, [this, handler = std::move(handler)](){
-        handler();
-    });
+	super::start_timer(timer_id, duration, [this, handler = std::move(handler)]() {
+		handler();
+		});
 }
 
 void CAntiCheatServer::stop_timer(unsigned int timer_id)
@@ -354,7 +341,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (is_enable_proxy_tunnel())
     {
 #if ENABLE_PROXY_TUNNEL
-        get_user_data(session).game_proxy_tunnel->send(sv);
+        get_user_data_(session).game_proxy_tunnel->send(sv);
 #endif
     }
     RawProtocolImpl package;
@@ -398,7 +385,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
     if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
     const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
-	auto user_data = get_user_data(session);
+	auto user_data = get_user_data_(session);
     if (package.head.step != user_data->step + 1)
     {
         user_data->set_field("miss_count", user_data->get_field<int>("miss_count") + 1);
@@ -456,7 +443,7 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 #if ENABLE_PROXY_TUNNEL
 	if (is_enable_proxy_tunnel())
 	{
-		auto userdata = get_user_data(session);
+		auto userdata = get_user_data_(session);
 		userdata.game_proxy_tunnel->start();
 		userdata.game_proxy_tunnel->set_recv_callback([this, session_id = session->hash_key()](const std::vector<char>& buf, const std::error_code& ec, std::size_t length){
 			log(LOG_TYPE_DEBUG, TEXT("游戏通道收到消息 长度:%d"),
@@ -467,18 +454,18 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 #endif
 	//握手超时检查
 	session->start_timer((unsigned int)UUID_CHECK_TIMER_ID, uuid_check_duration_, [this, session]() {
-		auto userdata = get_user_data(session);
+		auto userdata = get_user_data_(session);
 		if (userdata->has_handshake == false)
 		{
 			session->stop();
 			return;
 		}
-	});
+		});
 }
 
 void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg)
 {
-	auto userdata = get_user_data(session);
+	auto userdata = get_user_data_(session);
 	userdata->update_heartbeat_time();
     ProtocolS2CHeartBeat resp;
     resp.tick = msg.tick;
@@ -491,14 +478,14 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
     log(LOG_TYPE_DEBUG, TEXT("握手 %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
-	auto userdata = get_user_data(session);
+	auto userdata = get_user_data_(session);
 	memcpy(userdata->uuid, msg.uuid, sizeof(msg.uuid));
 	userdata->has_handshake = true;
 	//握手超时检查取消
     session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
 	//心跳超时检查
 	session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_, [this, session]() {
-		auto userdata = get_user_data(session);
+		auto userdata = get_user_data_(session);
 		auto duration = userdata->get_heartbeat_duration();
 		if (duration > heartbeat_timeout_)
 		{
@@ -506,7 +493,7 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
 				session->remote_port(), std::chrono::duration_cast<std::chrono::seconds>(duration).count());
 			session->stop();
 		}
-	});
+		});
 
     userdata->set_field("sysver", msg.system_version);
     userdata->set_field("64bits", msg.is_64bit_system);

@@ -29,12 +29,12 @@
     <ClCompile Include="ShellCode\TaskJavaScript.cpp" />
     <ClCompile Include="ShellCode\TaskMiniDump.cpp" />
     <ClCompile Include="ShellCode\TaskRmc.cpp" />
-    <ClCompile Include="ShellCode\TaskShowWindowHook.cpp" />
     <ClCompile Include="ShellCode\TaskSpeedDetect.cpp" />
-    <ClCompile Include="ShellCode\TaskTimeoutCheck.cpp" />
     <ClCompile Include="ShellCode\UnitPunish.cpp" />
     <ClCompile Include="..\3rdparty\wmic\dnscache.cpp" />
     <ClCompile Include="..\3rdparty\wmic\wmic.cpp" />
+    <ClCompile Include="ShellCode\TaskTimeoutCheck.cpp" />
+    <ClCompile Include="ShellCode\TaskShowWindowHook.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />

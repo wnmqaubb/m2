@@ -10,9 +10,9 @@
 #define PROTOCOL_EXPORT
 #endif
 #else
-#ifndef ASIO_HPP
-#include <asio/asio.hpp>
-#endif
+//#ifndef ASIO_HPP
+//#include <asio/asio.hpp>
+//#endif
 #ifndef MSGPACK_OBJECT_HPP
 #include <msgpack.hpp>
 #endif
@@ -24,6 +24,9 @@ using json = nlohmann::json;
 #define PROTOCOL_EXPORT
 #define PROTOCOL_IMPL
 #endif
+#include <asio/buffers_iterator.hpp>
+#include <asio/streambuf.hpp>
+#include <asio/basic_streambuf.hpp>
 class RawProtocolHead;
 class RawProtocolBody;
 const unsigned char kRawProtocolHeadVersion = 1;
@@ -378,8 +381,9 @@ public:
         ;
 #endif
 	
-	template <typename Iterator>
-	std::pair<Iterator, bool> operator()(Iterator begin, Iterator end) const
+	//template <typename Iterator>
+	using buffer_iterator = asio::buffers_iterator<asio::streambuf::const_buffers_type>;
+	static std::pair<buffer_iterator, bool> match_role(buffer_iterator begin, buffer_iterator end)
 	{
 		do
 		{
@@ -388,13 +392,13 @@ public:
 				break;
 			HeadType head_;
 			std::copy(begin, begin + sizeof(HeadType), (unsigned char*)&head_);
-            
-            if constexpr (EnableCrypt)
-            {
-                xor_buffer(&head_, sizeof(HeadType), kProtocolXorKey);
-            }
-            if (head_.tag != kRawProtocolHeadVersion)
-                return std::pair(begin, true);
+
+			if constexpr (EnableCrypt)
+			{
+				xor_buffer(&head_, sizeof(HeadType), kProtocolXorKey);
+			}
+			if (head_.tag != kRawProtocolHeadVersion)
+				return std::pair(begin, true);
 			if (head_.sz == sizeof(HeadType))
 				return std::pair(begin + sizeof(HeadType), true);
 			if (end - begin < head_.sz)
@@ -405,6 +409,7 @@ public:
 		} while (0);
 		return std::pair(begin, false);
 	}
+
 	HeadType head;
 	BodyType body;
 };
@@ -414,9 +419,9 @@ using RawProtocolImplNoCompress = RawProtocol<RawProtocolHead, RawProtocolBody, 
 using RawProtocolImplNoValidate = RawProtocol<RawProtocolHead, RawProtocolBody, true, true, false>;
 using RawProtocolImplBase = RawProtocol<RawProtocolHead, RawProtocolBody, false, false, false>;
 
-namespace asio
-{
-	template <> struct is_match_condition<RawProtocolImpl> : public std::true_type {};
-}
+//namespace asio
+//{
+//	template <> struct is_match_condition<RawProtocolImpl> : public std::true_type {};
+//}
 
 #include "Package.h"

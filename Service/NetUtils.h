@@ -4,7 +4,7 @@
 
 namespace NetUtils
 {
-
+    /*
     class CTimerMgr
     {
     public:
@@ -35,12 +35,14 @@ namespace NetUtils
         }
         virtual void stop_timer(unsigned int timer_id)
         {
-            asio::post(io_, [this, timer_id]() {
-                std::unique_lock<std::shared_mutex> lck(mtx_);
-                if (timers_.find(timer_id) == timers_.end())
-                    return;
-                timers_[timer_id]->timer.cancel();
-                timers_.erase(timer_id);
+			asio::post(io_, [this, timer_id]() {
+				std::unique_lock<std::shared_mutex> lck(mtx_);
+				auto it = timers_.find(timer_id);
+				if (it != timers_.end())
+				{
+					it->second->timer.cancel();
+					timers_.erase(it);
+				}
             });
         }
 
@@ -75,7 +77,7 @@ namespace NetUtils
         std::unordered_map<unsigned int, std::shared_ptr<TimerInfo>> timers_;
         asio::io_service& io_;
     };
-
+    */
 
     template <typename event_handler_type>
     class EventMgr
@@ -284,7 +286,7 @@ enum FieldId
 enum TimerId
 {
     DEFINE_TIMER_ID(CLIENT_HEARTBEAT_TIMER_ID),
-    DEFINE_TIMER_ID(CLIENT_RECONNECT_TIMER_ID),
+    //DEFINE_TIMER_ID(CLIENT_RECONNECT_TIMER_ID),
     DEFINE_TIMER_ID(AUTH_CHECK_TIMER_ID),
     DEFINE_TIMER_ID(UUID_CHECK_TIMER_ID),
     DEFINE_TIMER_ID(HEARTBEAT_CHECK_TIMER_ID),

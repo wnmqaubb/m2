@@ -19,7 +19,6 @@ echo ***************Shell打包完成***************
 
 
 echo ***************执行网关加壳开始***************
-VMProtect_con.exe agent_Release2.vmp
 VMProtect_Con.exe %ReleaseDir%\Service.exe %bin_Dir%\gm_server\Service.exe -pf ServiceRelease.vmp
 VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %bin_Dir%\gm_server\LogicServer.exe -pf LogicRelease.vmp
 VMProtect_Con.exe %ReleaseDir%\Gate.exe %bin_Dir%\gm_server\Gate.exe -pf GateRelease.vmp

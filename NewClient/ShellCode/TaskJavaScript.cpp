@@ -10,11 +10,11 @@
 #include "ModuleCheckSum.h"
 
 
-__declspec(dllimport) asio::detail::thread_group g_thread_group;
-asio::io_service g_js_io;
+extern asio::detail::thread_group g_thread_group;
+//asio::io_service g_js_io;
 qjs::Runtime g_runtime;
 qjs::Context g_context(g_runtime);
-NetUtils::CTimerMgr g_js_timer(g_js_io);
+//NetUtils::CTimerMgr g_js_timer(g_js_io);
 static CAntiCheatClient* g_client = nullptr;
 static uint8_t ANONYMOUS_COUNT = 0;
 
@@ -540,7 +540,7 @@ private:
 
 void async_execute_javascript(const std::string& sv, uint32_t script_id)
 {
-    g_js_io.post([sv = sv, script_id]() {
+    g_client->post([sv = sv, script_id]() {
         try 
         {
             g_context.eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
@@ -643,7 +643,8 @@ static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_
 void InitJavaScript(CAntiCheatClient* client)
 {
     g_client = client;
-    g_thread_group.create_thread([]() {
+    //g_thread_group.create_thread([]() {
+    g_client->post([&](){
         _set_se_translator(&translate_seh_to_ce);
         JS_SetModuleLoaderFunc(g_runtime.rt, NULL, js_module_loader, NULL);
         js_std_add_helpers(g_context.ctx, NULL, NULL);
@@ -738,9 +739,15 @@ void InitJavaScript(CAntiCheatClient* client)
             "import * as os from 'os';\n"
             "globalThis.std = std;\n"
             "globalThis.os = os;\n", "<GINIT>", JS_EVAL_TYPE_MODULE);
-        auto guard = asio::make_work_guard(g_js_io);
-        g_js_io.run();
+		/*auto guard = asio::make_work_guard(g_js_io);
+		g_js_io.run();*/
         js_std_free_handlers(g_runtime.rt);
     });
-    g_js_timer.start_timer(0, std::chrono::milliseconds(100), std::bind(&js_std_loop, g_context.ctx));
+	/*asio::steady_timer g_js_timer(g_js_io);
+	g_js_timer.expires_after(std::chrono::milliseconds(100));
+	g_js_timer.async_wait(std::bind(&js_std_loop, g_context.ctx));*/
+    //g_js_timer.start_timer(0, std::chrono::milliseconds(100), std::bind(&js_std_loop, g_context.ctx));
+	g_client->start_timer(0, std::chrono::milliseconds(100), []() {
+		js_std_loop(g_context.ctx);
+		});
 }

@@ -10,12 +10,10 @@
 lfengine::client::TAppFuncDefExt g_AppFunc;
 
 HINSTANCE dll_base = NULL;
-
-asio::io_service g_io;
+//asio::io_service g_io;
 asio::io_service g_game_io;
 asio::detail::thread_group g_thread_group;
 int g_client_rev_version = REV_VERSION;
-NetUtils::CTimerMgr g_game_timer_mgr(g_game_io);
 std::shared_ptr<CClientImpl> client_ = nullptr;
 VOID DbgPrint(const char* fmt, ...)
 {
@@ -27,22 +25,22 @@ VOID DbgPrint(const char* fmt, ...)
 	OutputDebugStringA(buf);
 }
 
-void client_start_routine()
+void client_start_routine(/*std::shared_ptr<CClientImpl> client_*/)
 {
-    //WndProcHook::install_hook();
+    WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
     //std::string ip = "43.139.236.115";
 	auto port = client_->cfg()->get_field<int>(port_field_id);
-	client_->start(ip, port);
+	client_->async_start(ip, port);
 	DbgPrint("client_start_routine ip:%s, port:%d", ip.c_str(), port);
-	g_thread_group.create_thread([]() {
+	/*g_thread_group.create_thread([]() {
 		auto work_guard = asio::make_work_guard(g_io);
 		g_io.run();
-	});
+	});*/
 }
-#ifdef _DEBUG
+//#ifdef _DEBUG
 #pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXXZ")
-#endif
+//#endif
 RUNGATE_API client_entry() noexcept
 {
 	VMP_VIRTUALIZATION_BEGIN();
@@ -50,7 +48,7 @@ RUNGATE_API client_entry() noexcept
 	ProtocolCFGLoader cfg;
 	cfg.set_field<std::string>(ip_field_id, "127.0.0.1");
 	cfg.set_field<int>(port_field_id, 23268);
-	client_ = std::make_shared<CClientImpl>(g_io);
+	/*std::shared_ptr<CClientImpl> */client_ = std::make_shared<CClientImpl>(/*g_io*/);
 	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
 	client_->cfg()->set_field<bool>(test_mode_field_id, false);
 	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
@@ -61,13 +59,13 @@ RUNGATE_API client_entry() noexcept
 	if (client_->cfg()->get_field<bool>(sec_no_change_field_id))
 	{
 		DbgPrint("启用安全模式1");
-		Utils::ImageProtect::instance().register_callback(&client_start_routine);
+		Utils::ImageProtect::instance().register_callback(&client_start_routine/*bind(&client_start_routine, client_)*/);
 		Utils::ImageProtect::instance().install();
 	}
 	else
 	{
 		DbgPrint("启用安全模式2");
-		client_start_routine();
+		client_start_routine(/*std::move(client_)*/);
 	}
 	VMP_VIRTUALIZATION_END();
 }
@@ -98,15 +96,21 @@ RUNGATE_API HookRecv(lfengine::client::PTDefaultMessage defMsg, char* lpData, in
 
 }
 
-RUNGATE_API UnInit()
+RUNGATE_API DoUnInit()//DoUnInit
 {
-	//DbgPrint("插件管理器卸载开始");
+	//extern asio::io_service g_js_io;
+	DbgPrint("锦衣卫插件管理器卸载开始");
+	if (!g_game_io.stopped()) {
+		g_game_io.stop();
+		g_game_io.reset();
+	}
+
+	//client_->stop_all_timers();
+	//client_->stop_all_timed_tasks();
 	client_->stop();
-	//g_io.stop();
-	//g_game_io.stop();
-	//g_game_timer_mgr.stop_all_timer();
-	//client_ = nullptr;
-	//DbgPrint("插件管理器卸载成功");
+	client_->destroy();
+	DbgPrint("锦衣卫插件管理器卸载完成1");
+
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
@@ -122,6 +126,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         break;
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:
+		//DoUnInit();
         break;
     }
     return TRUE;

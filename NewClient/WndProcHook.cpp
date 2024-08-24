@@ -3,9 +3,9 @@
 #include <algorithm>
 
 extern asio::io_service g_game_io;
-
 namespace WndProcHook
 {
+    //asio::steady_timer restore_hook_timer(g_game_io);
     LightHook::ContextHook* set_window_long_hook = nullptr;
     WNDPROC old_wnd_proc = nullptr;
 	std::set<uint32_t> main_hwnd;
@@ -41,15 +41,20 @@ namespace WndProcHook
 					}
                 }
             }, NULL);
-
-			static asio::steady_timer restore_hook_timer(g_game_io);
-			restore_hook_timer.expires_after(std::chrono::seconds(10));
+            asio2::timer restore_hook_timer;
+			restore_hook_timer.start_timer("restore_hook_timer", std::chrono::seconds(10), []() {
+				if (set_window_long_hook != nullptr) {
+					set_window_long_hook->restore();
+					delete set_window_long_hook;
+				}
+				});
+			/*restore_hook_timer.expires_after(std::chrono::seconds(10));
 			restore_hook_timer.async_wait([](std::error_code ec) {
 				if (set_window_long_hook != nullptr) {
 					set_window_long_hook->restore();
 					delete set_window_long_hook;
 				}
-			});
+				});*/
         }
     }
 }

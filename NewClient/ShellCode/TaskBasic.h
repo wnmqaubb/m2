@@ -9,7 +9,7 @@
 #include "version.build"
 
 extern asio::io_service g_game_io;
-extern asio::io_service g_io;
+//extern asio::io_service g_io;
 extern int g_client_rev_version;
 extern asio::detail::thread_group g_thread_group;
 

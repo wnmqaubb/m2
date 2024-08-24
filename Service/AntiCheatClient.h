@@ -1,73 +1,86 @@
 #pragma once
 
-#include "TcpClient.h"
+#include "NetUtils.h"
 #include "Protocol.h"
 #include "ServicePackage.h"
 #include "SubServicePackage.h"
 #include <filesystem>
 #include <fstream>
-
-using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
-
-class CAntiCheatClient : public CTcpClientImpl
+//using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
+class CAntiCheatClient : public asio2::tcp_client
 {
 public:
-	using super = CTcpClientImpl;
-	using timer_mgr_t = NetUtils::CTimerMgr;
+	using super = asio2::tcp_client;
+	//using timer_mgr_t = NetUtils::CTimerMgr;
     using package_handler_t = std::function<void(const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
     using notify_handler_t = std::function<void()>;
-    CAntiCheatClient(asio::io_service& io) : super(io) 
+    CAntiCheatClient() : super()
     {
+        bind_recv(&CAntiCheatClient::on_recv,this);
+        bind_connect(&CAntiCheatClient::on_connect,this);
+        bind_disconnect(&CAntiCheatClient::on_disconnect,this);
         heartbeat_duration_ = std::chrono::seconds(10);
-        reconnect_duration_ = std::chrono::seconds(5);
+        //reconnect_duration_ = std::chrono::seconds(5);
+        auto_reconnect(true, std::chrono::seconds(5));
         package_mgr_.register_handler(PKG_ID_S2C_HANDSHAKE, std::bind(&CAntiCheatClient::on_recv_handshake, this, std::placeholders::_1, std::placeholders::_2));
         package_mgr_.register_handler(PKG_ID_S2C_HEARTBEAT, std::bind(&CAntiCheatClient::on_recv_heartbeat, this, std::placeholders::_1, std::placeholders::_2));
     }
     virtual void start(const std::string& ip, unsigned short port)
     {
         is_stop_ = false;
+		ip_ = ip;
+		port_ = port;
         notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-        super::start(ip, port);
-    }
+        super::start(ip, port, &RawProtocolImpl::match_role);
+	}
+	virtual void async_start(const std::string& ip, unsigned short port)
+	{
+		is_stop_ = false;
+		ip_ = ip;
+		port_ = port;
+		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+		super::async_start(ip, port, &RawProtocolImpl::match_role);
+	}
     virtual void stop()
-    {
+    {        
         super::stop();
-        stop_timer(CLIENT_RECONNECT_TIMER_ID);
-        is_stop_ = true;
+		is_stop_ = true;
+        notify_mgr_.clear_handler();
+        package_mgr_.clear_handler();
     }
-	virtual void on_connect(const std::error_code& ec)
+	virtual void on_connect()
     {
-        if (!ec)
+        if (!asio2::get_last_error())
         {
-            stop_timer(CLIENT_RECONNECT_TIMER_ID);
+            //stop_timer(CLIENT_RECONNECT_TIMER_ID);
             notify_mgr_.dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
         }
         else
         {
             notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-            auto self(shared_from_this());
-            start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [self, this]() {
+            /*auto self(shared_from_this());
+            start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [this]() {
                 super::start(get_address(), get_port());
-            });
+            });*/
         }
     }
-	virtual void on_disconnect(const std::error_code& ec)
+	virtual void on_disconnect()
     {
-        auto self(shared_from_this());
+        //auto self(shared_from_this());
         if (is_stop_ == false)
         {
-            stop_timer(CLIENT_HEARTBEAT_TIMER_ID);
-            start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [self, this]() {
-                super::start(get_address(), get_port());
-            });
+            stop_timer<int>(CLIENT_HEARTBEAT_TIMER_ID);
+			/* start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [this]() {
+				 super::start(get_address(), get_port());
+			 });*/
         }
         notify_mgr_.dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
     }
-	virtual void on_recv(asio::streambuf& buf, const std::error_code& ec, std::size_t length)
+	virtual void on_recv(std::string_view sv)
     {
         notify_mgr_.dispatch(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
         RawProtocolImpl package;
-        std::string_view sv((const char*)buf.data().data(), length);
+        //std::string_view sv((const char*)buf.data().data(), length);
         if (package.decode(sv) == false)
         {
             notify_mgr_.dispatch(PACKAGE_DECODE_ERROR_NOTIFY_ID);
@@ -78,10 +91,11 @@ public:
         if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
         if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
         const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
-        if (!package_mgr_.dispatch(package_id, package, raw_msg))
-            on_recv(package_id, package, raw_msg);
+        package_mgr_.dispatch(package_id, package, raw_msg);
+        //if (!package_mgr_.dispatch(package_id, package, raw_msg))
+            //on_recv(package_id, package, raw_msg);
     }
-    virtual void on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&) {};
+    //virtual void on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&) {};
     virtual void on_send(const std::error_code& ec, std::size_t length)
     {
         notify_mgr_.dispatch(CLIENT_ON_SEND_PACKAGE_NOTIFY_ID);
@@ -198,7 +212,7 @@ public:
         send(buffer, session_id);
 	}
 
-    inline std::chrono::system_clock::duration& reconnect_duration() { return reconnect_duration_; }
+    //inline std::chrono::system_clock::duration& reconnect_duration() { return reconnect_duration_; }
     inline std::chrono::system_clock::duration& heartbeat_duration() { return heartbeat_duration_; }
     inline std::chrono::system_clock::time_point& last_recv_hearbeat_time() { return last_recv_hearbeat_time_; }
     inline bool has_handshake() { return has_handshake_; }
@@ -208,9 +222,11 @@ public:
     inline std::unique_ptr<ProtocolCFGLoader>& cfg() { return cfg_; }
     inline NetUtils::EventMgr<package_handler_t>& package_mgr() { return package_mgr_; }
     inline NetUtils::EventMgr<notify_handler_t>& notify_mgr() { return notify_mgr_; }
-    inline unsigned char step() { return step_; }
+	inline unsigned char step() { return step_; }
+	const std::string& get_address() { return ip_; }
+	unsigned short get_port() { return port_; }
 protected:
-    std::chrono::system_clock::duration reconnect_duration_;
+    //std::chrono::system_clock::duration reconnect_duration_;
 	std::chrono::system_clock::duration heartbeat_duration_;
 	std::chrono::system_clock::time_point last_recv_hearbeat_time_;
     bool has_handshake_ = false;
@@ -220,5 +236,7 @@ protected:
     NetUtils::EventMgr<package_handler_t> package_mgr_;
     NetUtils::EventMgr<notify_handler_t> notify_mgr_;
     std::unique_ptr<ProtocolCFGLoader> cfg_;
-    unsigned char step_ = 0;
+	unsigned char step_ = 0;
+	std::string ip_;
+	unsigned short port_;
 };

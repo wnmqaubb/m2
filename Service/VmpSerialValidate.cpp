@@ -4,8 +4,6 @@
 #include <asio2/util/base64.hpp>
 #include <asio2/util/sha1.hpp>
 
-extern asio::detail::thread_group g_thread_group;
-extern asio::io_service io;
 VmpSerialValidator::VmpSerialValidator(CObserverServer* ac_server)
 {
     server_ = ac_server;
@@ -27,7 +25,6 @@ void VmpSerialValidator::validate_timer(bool slience)
         MessageBox(NULL, TEXT("授权文件不存在,请联系客服!"), TEXT("提示"), MB_ICONERROR | MB_SYSTEMMODAL);
         server()->logic_client_stop();
         server()->stop();
-        io.stop();
         return;
     }
     auto sn = read_license(file.string());
@@ -67,6 +64,8 @@ void VmpSerialValidator::validate_timer(bool slience)
 #endif;
     VMProtectEnd();
 }
+
+
 bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::string& ticket)
 {
     VMProtectBeginVirtualization(__FUNCTION__);
@@ -112,11 +111,14 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
     // 验证绑定的IP是否与序列号的IP一致
     VMProtectSerialNumberData sd = { 0 };
     VMProtectGetSerialNumberData(&sd, sizeof(sd));
-    auto sn_sha1 = asio2::sha1(asio2::base64().decode(sn));
-    ticket = asio2::base64().encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
+    asio2::base64 base64;
+    auto sn_sha1 = asio2::sha1(base64.decode(sn));
+    ticket = base64.encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
     server()->log(LOG_TYPE_DEBUG, nullptr, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
+
+    // 验证序列号是否已冻结
     int status = http_query_sn_status(sn);
-    if (http_query_sn_status(sn) == -1)
+    if (status == -1)
     {
         server()->log(LOG_TYPE_ERROR, TEXT("网络异常,验证序列号失败!"));
         return false;
@@ -153,38 +155,38 @@ std::string VmpSerialValidator::read_license(const std::string& path)
     return serial;
 }
 
-
-
 int VmpSerialValidator::http_query_sn_status(const std::string& sn)
 {
-    VMProtectBeginVirtualization(__FUNCTION__);
-    try
-    {
+	VMProtectBeginVirtualization(__FUNCTION__);
+	try
+	{
 		const std::string host = "43.139.236.115";
-		const char* port = "5178";
-        asio2::base64 base64;
-        auto base64_sn = base64.encode((unsigned char*)sn.data(), sn.size());
+		const int port = 5178;
+		asio2::base64 base64;
         asio2::http_client http_client;
-        std::error_code ec;
-        http::request_t<http::string_body> req;
-        req.method(http::verb::post);
-        req.target("/serialstatus.php");
-        req.set(http::field::host, host);
-        req.set(http::field::content_type, "application/x-www-form-urlencoded");
-        req.body() = http::url_encode("serial=" + base64_sn);
-        req.prepare_payload();
-        auto res = asio2::http_client::execute(host, port, req, ec);
-        if (ec)
-            return -1;
-        std::string body = res.body();
-        return atoi(body.c_str());
-    }
-    catch (...)
-    {
-        return -1;
-    }
-    VMProtectEnd();
+		auto base64_sn = base64.encode((const unsigned char*)sn.data(), sn.size());
+		http::web_request req;
+		req.method(http::verb::post);
+		req.target("/serialstatus.php");
+		req.set(http::field::user_agent, "Chrome");
+		req.set(http::field::content_type, "application/x-www-form-urlencoded");
+		req.body() = http::url_encode("serial=" + base64_sn);
+		req.prepare_payload();
+		auto rep = asio2::http_client::execute(host, port, req);
+		if (asio2::get_last_error()) {
+			return -1;
+		}
+		else {
+			return atoi(rep.body().c_str());
+		}
+	}
+	catch (...)
+	{
+		return -1;
+	}
+	VMProtectEnd();
 }
+//#pragma optimize( "", on )
 
 void VmpSerialValidator::write_hwid()
 {

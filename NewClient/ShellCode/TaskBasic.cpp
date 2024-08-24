@@ -7,9 +7,9 @@
     #define LOG(x,...)
 #endif
 
-#define CONFIG_APP_NAME "┣┫========锦衣卫封挂加载成功========┣┫"
+#define CONFIG_APP_NAME "    ┣┫========锦衣卫封挂加载成功========┣┫"
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
-#define CONFIG_TITLE  "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
+#define CONFIG_TITLE    "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
 
 bool is_debug_mode = false;
 void* plugin_base = nullptr;
@@ -94,18 +94,18 @@ void LoadPlugin(CAntiCheatClient* client)
         }
     });	
   
-    client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
-        static asio::steady_timer usrname_resend_timer(g_io);
-        //防止重启服务器的时候过于集中发包
-		reconnect_count++;
-		usrname_resend_timer.expires_after(std::chrono::seconds(std::rand() % 10));
-		usrname_resend_timer.async_wait([client](std::error_code) {
-			ProtocolC2SUpdateUsername req;
-			req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-			client->send(&req);
-			});
-    });
-    client->start_timer(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
+  //  client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
+  //      //static asio::steady_timer usrname_resend_timer(g_io);
+  //      //防止重启服务器的时候过于集中发包
+		//reconnect_count++;
+		//usrname_resend_timer.expires_after(std::chrono::seconds(std::rand() % 10));
+		//usrname_resend_timer.async_wait([client](std::error_code) {
+		//	ProtocolC2SUpdateUsername req;
+		//	req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
+		//	client->send(&req);
+		//	});
+  //  });
+    client->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
         if (client->cfg()->get_field<bool>(test_mode_field_id))
         {
             static bool is_already_send = false;
@@ -145,12 +145,17 @@ void LoadPlugin(CAntiCheatClient* client)
                         {
                             GameLocalFuntion::instance().call_sig_pattern();
                             GameLocalFuntion::instance().hook_init(client);
-                            static asio::steady_timer welcome_message_timer(g_io);
+                            /*static asio::steady_timer welcome_message_timer(g_io);
                             welcome_message_timer.expires_after(std::chrono::seconds(20));
                             welcome_message_timer.async_wait([](std::error_code ec) {
                                 GameLocalFuntion::instance().notice({ (DWORD)-1, 41, CONFIG_APP_NAME });
                                 GameLocalFuntion::instance().notice({ (DWORD)-1, 60, CONFIG_TITLE });
-                            });
+                            });*/
+                            
+                            client->post([]() {
+                                GameLocalFuntion::instance().notice({ (DWORD)-1, 61, CONFIG_APP_NAME });
+                                GameLocalFuntion::instance().notice({ (DWORD)-1, 76, CONFIG_TITLE });
+                                }, std::chrono::seconds(10));
                         }
                         client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                     }
@@ -213,7 +218,7 @@ void LoadPlugin(CAntiCheatClient* client)
             { xorstr("123.99.192.124"), xorstr("定制大漠") },
         };
         static uint8_t tcp_detect_count = 1;
-        client->start_timer(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [client, black_ip_table]() {
+        client->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [client, black_ip_table]() {
             auto&[ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
             if (!ip.empty())
             {            
@@ -234,7 +239,7 @@ void LoadPlugin(CAntiCheatClient* client)
     }
 #endif
 
-    NotifyHook(client);
+    //NotifyHook(client);
 	InitRmc(client);
 	InitTimeoutCheck(client);
 	InitJavaScript(client);

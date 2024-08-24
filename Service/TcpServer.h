@@ -1,13 +1,13 @@
 #pragma once
+#include <asio2/tcp/tcp_session.hpp>
 
-template <class SessionType>
-class CTcpServer : public asio2::tcp_server_t<SessionType>
+class CTcpServer : public asio2::tcp_server
 {
 public:
-	using tcp_session_t = SessionType;
-	using tcp_session_shared_ptr_t = std::shared_ptr<SessionType>;
+	using tcp_session_t = session_type;
+	using tcp_session_shared_ptr_t = std::shared_ptr<session_type>;
 	using error_code_t = asio2::error_code;
-    using super = asio2::tcp_server_t<SessionType>;
+    using super = asio2::tcp_server;
 
     CTcpServer() 
         : super(asio2::detail::tcp_frame_size)
@@ -27,9 +27,9 @@ public:
     virtual void on_init() {};
     virtual void on_post_connect(tcp_session_shared_ptr_t& session) {};
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session) {};
-    virtual void on_start(error_code_t ec) {};
-    virtual void on_stop(error_code_t ec) {};
+    virtual void on_start() {};
+    virtual void on_stop() {};
 };
 
-using CTcpServerImpl = CTcpServer<asio2::tcp_session>;
+using CTcpServerImpl = CTcpServer;
 using CTcpSessionSharedPtr = CTcpServerImpl::tcp_session_shared_ptr_t;

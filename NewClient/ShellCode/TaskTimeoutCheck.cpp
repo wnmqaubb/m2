@@ -5,7 +5,7 @@
 #include <filesystem>
 #include "GameFunction.h"
 
-__declspec(dllimport) NetUtils::CTimerMgr g_game_timer_mgr;
+//__declspec(dllimport) NetUtils::CTimerMgr g_game_timer_mgr;
 __declspec(dllimport) asio::io_service g_game_io;
 std::chrono::system_clock::time_point last_send_timepoint = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point last_recv_timepoint = std::chrono::system_clock::now();
@@ -39,13 +39,11 @@ void TimeOutCheckRoutine()
         )
     {
         GameLocalFuntion::instance().messagebox_call(xorstr("与服务器断开连接"));
-        static asio::steady_timer exit_game_delay(g_game_io);
-        exit_game_delay.expires_after(std::chrono::seconds(10));
-        exit_game_delay.async_wait([](std::error_code ec) {
+		_client->post([]() {
             auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
             char ntdll_name[] = { 'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l' ,0 };
             Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(ntdll_name));
-        });
+        },std::chrono::seconds(10));
     }
     VMP_VIRTUALIZATION_END()
 }
@@ -69,14 +67,14 @@ void InitTimeoutCheck(CAntiCheatClient* client)
 {
     _client = client;
 #if 0
-    g_game_timer_mgr.start_timer(CLIENT_TIMEOUT_CHECK_TIMER_ID, client->heartbeat_duration(), []() {
+    g_game_timer_mgr.start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client->heartbeat_duration(), []() {
         TimeOutCheckRoutine();
     });
 #endif
 	client->cfg()->set_field<bool>(hack_type_version_dll_field_id, false);
 	hack_check(client);
 
-	client->start_timer(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
+	client->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
 		reconnect_count = 0;
 	});
     static auto last_recv_package_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);

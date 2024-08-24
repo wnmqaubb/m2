@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "xstddef": "cpp",
+        "xstring": "cpp",
+        "mutex": "cpp",
+        "future": "cpp",
+        "fstream": "cpp",
+        "functional": "cpp",
+        "random": "cpp",
+        "xtime": "cpp",
+        "xfacet": "cpp",
+        "xlocale": "cpp",
+        "*.ipp": "cpp"
+    }
+}

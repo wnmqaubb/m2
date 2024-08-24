@@ -571,7 +571,7 @@ void CClientView::OnRefreshServices()
         m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
         temp.Format(TEXT("%d"), client->get_port());
         m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth()&&client->is_connected() ? TEXT("是"): TEXT("否"));
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth()&&client->is_started() ? TEXT("是"): TEXT("否"));
         temp.Format(TEXT("%d"), client->get_user_count());
         m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
         std::wstring wstrLogicVersion;
