@@ -112,10 +112,11 @@ RUNGATE_API DoUnInit()//DoUnInit
 			g_game_io.reset();
 		}
 
-		//client_->stop_all_timers();
+		client_->stop_all_timers();
 		//client_->stop_all_timed_tasks();
 		client_->stop();
-		//client_->destroy();
+		Sleep(1000);
+		client_->destroy();//必须要destroy,否则会导致定时器无法销毁,导致定时器的线程还在执行,小退再开始游戏时线程还在执行之前dll的地址,会导致崩溃
 		//DbgPrint("锦衣卫插件管理器卸载完成1");
 		//FreeLibraryAndExitThread(dll_base, 0);
 	}

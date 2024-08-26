@@ -48,9 +48,9 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 			send(&heartbeat);
 			log(LOG_TYPE_DEBUG, TEXT("·¢ËÍÐÄÌø"));
             });
-        post([this]() {
+		post([this]() {
 			LoadPlugin(this);
-			});
+			},std::chrono::milliseconds(200));
     });
 
 	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {

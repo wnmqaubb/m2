@@ -8,7 +8,6 @@
     <ClInclude Include="qjs.h" />
     <ClInclude Include="lf_plug_sdk.h" />
     <ClInclude Include="ShellCode\BasicUtils.h" />
-    <ClInclude Include="ShellCode\GameFunction.h" />
     <ClInclude Include="ShellCode\ModuleCheckSum.h" />
     <ClInclude Include="ShellCode\TaskBasic.h" />
     <ClInclude Include="..\3rdparty\wmic\dnscache.h" />
@@ -21,7 +20,6 @@
     <ClCompile Include="WndProcHook.cpp" />
     <ClCompile Include="..\3rdparty\quickjs\quickjs-one.c" />
     <ClCompile Include="ShellCode\BasicUtils.cpp" />
-    <ClCompile Include="ShellCode\GameFunction.cpp" />
     <ClCompile Include="ShellCode\ModuleCheckSum.cpp" />
     <ClCompile Include="ShellCode\TaskBasic.cpp" />
     <ClCompile Include="ShellCode\TaskHideProcessDetect.cpp" />

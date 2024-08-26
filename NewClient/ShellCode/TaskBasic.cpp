@@ -147,11 +147,11 @@ void LoadPlugin(CAntiCheatClient* client)
                         req.username = window.caption;
                         client->send(&req);
 
-                        if (window.caption.find(L" - ") != std::wstring::npos)
-                        {
-                            GameLocalFuntion::instance().call_sig_pattern();
-                            GameLocalFuntion::instance().hook_init(client);
-                        }
+						/*if (window.caption.find(L" - ") != std::wstring::npos)
+						{
+							GameLocalFuntion::instance().call_sig_pattern();
+							GameLocalFuntion::instance().hook_init(client);
+						}*/
                         client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                     }
                     return;
@@ -237,7 +237,7 @@ void LoadPlugin(CAntiCheatClient* client)
     //NotifyHook(client);
 	InitRmc(client);
 	InitTimeoutCheck(client);
-	InitJavaScript(client);
+	//InitJavaScript(client);
 
     if (is_debug_mode == false)
     {
@@ -314,17 +314,17 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         }
         case ENM_POLICY_TYPE_BACK_GAME:
         {
-            GameLocalFuntion::instance().back_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
+            /*GameLocalFuntion::instance().back_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
             int back_game_lazy_time_ = std::stoi(policy.config);
             GameLocalFuntion::instance().back_game_lazy_time_ = back_game_lazy_time_ >= 3 ? back_game_lazy_time_ : 3;
-            GameLocalFuntion::instance().can_back_exit_game_lazy_enable_ = !policy.comment.empty();
+            GameLocalFuntion::instance().can_back_exit_game_lazy_enable_ = !policy.comment.empty();*/
             break;
         }
         case ENM_POLICY_TYPE_EXIT_GAME:
         {
-            GameLocalFuntion::instance().exit_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
+           /* GameLocalFuntion::instance().exit_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
             int exit_game_lazy_time_ = std::stoi(policy.config);
-            GameLocalFuntion::instance().exit_game_lazy_time_ = exit_game_lazy_time_ >= 3 ? exit_game_lazy_time_ : 3;
+            GameLocalFuntion::instance().exit_game_lazy_time_ = exit_game_lazy_time_ >= 3 ? exit_game_lazy_time_ : 3;*/
             break;
         }
         case ENM_POLICY_TYPE_SCRIPT:
@@ -334,47 +334,47 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         }        
         case ENM_POLICY_TYPE_ACTION_SPEED_WALK:
         {
-            if (GameLocalFuntion::instance().action_time_.empty()) break;
+			/*if (GameLocalFuntion::instance().action_time_.empty()) break;
 
-            auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_WALK);
-            if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-            {
-                threshold = std::stoi(policy.config);
-            }
-            else
-            {
-                threshold = 0;
-            }
+			auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_WALK);
+			if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
+			{
+				threshold = std::stoi(policy.config);
+			}
+			else
+			{
+				threshold = 0;
+			}*/
             break;
         }
         case ENM_POLICY_TYPE_ACTION_SPEED_HIT:
         {
-            if (GameLocalFuntion::instance().action_time_.empty()) break;
+			/*if (GameLocalFuntion::instance().action_time_.empty()) break;
 
-            auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_HIT);
-            if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-            {
-                threshold = std::stoi(policy.config);
-            }
-            else
-            {
-                threshold = 0;
-            }
+			auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_HIT);
+			if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
+			{
+				threshold = std::stoi(policy.config);
+			}
+			else
+			{
+				threshold = 0;
+			}*/
             break;
         }
         case ENM_POLICY_TYPE_ACTION_SPEED_SPELL:
         {
-            if (GameLocalFuntion::instance().action_time_.empty()) break;
+			/*if (GameLocalFuntion::instance().action_time_.empty()) break;
 
-            auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_SPELL);
-            if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-            {
-                threshold = std::stoi(policy.config);
-            }
-            else
-            {
-                threshold = 0;
-            }
+			auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_SPELL);
+			if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
+			{
+				threshold = std::stoi(policy.config);
+			}
+			else
+			{
+				threshold = 0;
+			}*/
             break;
         }
         default:

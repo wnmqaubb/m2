@@ -38,7 +38,8 @@ void TimeOutCheckRoutine()
 		reconnect_count >= 5
         )
     {
-        GameLocalFuntion::instance().messagebox_call(xorstr("与服务器断开连接"));
+		MessageBoxA(NULL, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK);
+		//GameLocalFuntion::instance().messagebox_call(xorstr("与服务器断开连接"));
 		_client->post([]() {
             auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
             char ntdll_name[] = { 'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l' ,0 };

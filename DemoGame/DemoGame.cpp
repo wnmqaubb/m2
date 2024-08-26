@@ -102,8 +102,8 @@ int main(int argc, char** argv)
 	//param->cfg_size = cfg_bin.size();
 	//memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));*/
 	entry(nullptr);
-	//Sleep(1000 * 15);
-	//uninit();
+	Sleep(1000 * 15);
+	uninit();
 	// 卸载DLL
 	/*BOOL result = FreeLibrary(hmodule);
 	if (!result) {
