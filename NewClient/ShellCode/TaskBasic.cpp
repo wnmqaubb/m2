@@ -1,5 +1,6 @@
 ﻿#include "../pch.h"
 #include "TaskBasic.h"
+#include "lf_plug_sdk.h"
 
 #ifdef _DEBUG
     #define LOG(x,...) log(x, __VA_ARGS__)
@@ -34,6 +35,10 @@ void NotifyHook(CAntiCheatClient* client)
 }
 void LoadPlugin(CAntiCheatClient* client)
 {
+    if (lfengine::client::AddChatText) {
+		lfengine::client::AddChatText(CONFIG_APP_NAME, 0x0000ff, 0);
+		lfengine::client::AddChatText(CONFIG_TITLE, 0x0000ff, 0);
+    }
     LOG(TEXT("加载插件成功---"));
     VMP_VIRTUALIZATION_BEGIN();
     srand(time(0));
@@ -61,6 +66,7 @@ void LoadPlugin(CAntiCheatClient* client)
         auto processes = Utils::CWindows::instance().enum_process_with_dir();
         ProtocolC2SQueryProcess resp;
         resp.data = cast(processes);
+        LOG(TEXT("返回查询进程:%d"), resp.package_id);
         client->send(&resp, package.head.session_id);
     });
     client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_DRIVERINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
@@ -145,17 +151,6 @@ void LoadPlugin(CAntiCheatClient* client)
                         {
                             GameLocalFuntion::instance().call_sig_pattern();
                             GameLocalFuntion::instance().hook_init(client);
-                            /*static asio::steady_timer welcome_message_timer(g_io);
-                            welcome_message_timer.expires_after(std::chrono::seconds(20));
-                            welcome_message_timer.async_wait([](std::error_code ec) {
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 41, CONFIG_APP_NAME });
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 60, CONFIG_TITLE });
-                            });*/
-                            
-                            client->post([]() {
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 61, CONFIG_APP_NAME });
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 76, CONFIG_TITLE });
-                                }, std::chrono::seconds(10));
                         }
                         client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                     }

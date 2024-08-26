@@ -7,6 +7,7 @@
 #if ENABLE_PROXY_TUNNEL
 #include "ProxyTunnel.h"
 #endif
+#include <functional>
 
 #if ENABLE_PROXY_TUNNEL
 //todo 析构释放
@@ -96,8 +97,16 @@ private:
 
 
 CAntiCheatServer::CAntiCheatServer()
-	: super()
+	: super(asio2::detail::tcp_frame_size)
 {
+	bind_init(&CAntiCheatServer::on_init, this);
+	bind_recv(&CAntiCheatServer::on_recv_package, this);
+	bind_accept(&CAntiCheatServer::on_accept, this);
+	bind_connect(&CAntiCheatServer::on_post_connect, this);
+	bind_disconnect(&CAntiCheatServer::on_post_disconnect, this);
+	bind_start(&CAntiCheatServer::on_start, this);
+	bind_stop(&CAntiCheatServer::on_stop, this);
+
 	//验证相关，serverless 云函数+数据库
 	auth_check_timer_ = std::chrono::minutes(24 * 60);
     auth_url_ = "";//"http://service-4v2g0j35-1305025354.sh.apigw.tencentcs.com/release/check";
@@ -125,7 +134,7 @@ bool CAntiCheatServer::start(const std::string& listen_addr, int port)
 #else
 	enable_proxy_tunnel(false);
 #endif
-	if (super::super::start(listen_addr, port, &RawProtocolImpl::match_role))
+	if (super::start(listen_addr, port, RawProtocolImpl()))
 	{
 		return true;
 	}
@@ -307,7 +316,7 @@ void CAntiCheatServer::close(unsigned int session_id)
 }
 
 
-void CAntiCheatServer::on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
+void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
 #ifdef _DEBUG
     _on_recv(session, sv);

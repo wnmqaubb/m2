@@ -31,7 +31,7 @@ public:
 		ip_ = ip;
 		port_ = port;
         notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-        super::start(ip, port, &RawProtocolImpl::match_role);
+        super::start(ip, port, RawProtocolImpl());
 	}
 	virtual void async_start(const std::string& ip, unsigned short port)
 	{
@@ -39,14 +39,12 @@ public:
 		ip_ = ip;
 		port_ = port;
 		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-		super::async_start(ip, port, &RawProtocolImpl::match_role);
+		super::async_start(ip, port, RawProtocolImpl());
 	}
     virtual void stop()
     {        
         super::stop();
 		is_stop_ = true;
-        notify_mgr_.clear_handler();
-        package_mgr_.clear_handler();
     }
 	virtual void on_connect()
     {
@@ -106,7 +104,7 @@ public:
     }
     virtual void send(const std::string& text)
     {
-        super::send(text);
+        super::async_send(std::move(text));
     }
     virtual void send(msgpack::sbuffer& buffer, unsigned int session_id)
     {
@@ -115,7 +113,7 @@ public:
         raw_package.head.session_id = session_id;
         step_++;
         raw_package.head.step = step_;
-        super::send(raw_package.release());
+        super::async_send(std::move(raw_package.release()));
     }
 
     virtual void on_recv_handshake(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
@@ -209,7 +207,7 @@ public:
 			__debugbreak();
 		msgpack::sbuffer buffer;
 		msgpack::pack(buffer, *package);
-        send(buffer, session_id);
+		send(buffer, session_id);
 	}
 
     //inline std::chrono::system_clock::duration& reconnect_duration() { return reconnect_duration_; }

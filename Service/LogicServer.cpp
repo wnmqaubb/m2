@@ -159,6 +159,7 @@ CLogicServer::CLogicServer()
         }
         usr_sessions_mgr().remove_session(req.data.session_id);
     });
+    // service ---> logic server  转发协议
     package_mgr_.register_handler(LSPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto req = msg.get().as<ProtocolLC2LSSend>().package;
         auto raw_msg = msgpack::unpack((char*)req.body.buffer.data(), req.body.buffer.size());

@@ -1,5 +1,6 @@
 ﻿
 #define WIN32_LEAN_AND_MEAN
+#include "pch.h"
 #include <windows.h>
 #include <iostream>
 #include <fstream>
@@ -10,13 +11,14 @@
 #include "Service/NetUtils.h"
 #include "asio2/http/http_client.hpp"
 #include "asio2/util/base64.hpp"
-//#include "Service/AntiCheatClient.h"
+#include "Service/AntiCheatClient.h"
+#include "NewClient/lf_plug_sdk.h"
 //#include "NewClient/loader.h"
 
-extern void __stdcall client_entry() noexcept;
-extern void __stdcall UnInit();
+extern void __stdcall client_entry(lfengine::client::PAppFuncDef AppFunc) noexcept;
+extern void __stdcall DoUnInit();
 using client_entry_t = decltype(&client_entry);
-using uninit_t = decltype(&UnInit);
+using uninit_t = decltype(&DoUnInit);
 namespace fs = std::filesystem;
 //extern void LoadPlugin(CAntiCheatClient* client);
 extern uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params);
@@ -86,7 +88,7 @@ std::unordered_map<std::string, IniSection> parseIniFile(const std::string& file
 }
 int main(int argc, char** argv)
 {
-#ifdef _DEBUG
+#ifndef _DEBUG
 	auto hmodule = LoadLibraryA("NewClient.dll");
 	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
@@ -99,18 +101,18 @@ int main(int argc, char** argv)
 	//auto cfg_bin = cfg.dump();
 	//param->cfg_size = cfg_bin.size();
 	//memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));*/
-	entry();
-	Sleep(1000 * 15);
-	uninit();
+	entry(nullptr);
+	//Sleep(1000 * 15);
+	//uninit();
 	// 卸载DLL
-	BOOL result = FreeLibrary(hmodule);
+	/*BOOL result = FreeLibrary(hmodule);
 	if (!result) {
 		result = FreeLibrary(hmodule);
 		std::cerr << "无法卸载DLL: 再次尝试" << GetLastError() << std::endl;
 	}
 	else {
 		std::cout << "卸载DLL成功\n";
-	}
+	}*/
 	//std::string_view url = R"(43.139.236.115:5178)";
 
 	//const std::string filename = "D:\\work\\Repos\\M2\\build\\bin\\Debug\\Win32\\Config.ini";

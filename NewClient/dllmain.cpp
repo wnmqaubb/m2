@@ -31,7 +31,7 @@ void client_start_routine(/*std::shared_ptr<CClientImpl> client_*/)
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
     //std::string ip = "43.139.236.115";
 	auto port = client_->cfg()->get_field<int>(port_field_id);
-	client_->async_start(ip, port);
+	client_->start(ip, port);
 	DbgPrint("client_start_routine ip:%s, port:%d", ip.c_str(), port);
 	/*g_thread_group.create_thread([]() {
 		auto work_guard = asio::make_work_guard(g_io);
@@ -39,12 +39,17 @@ void client_start_routine(/*std::shared_ptr<CClientImpl> client_*/)
 	});*/
 }
 //#ifdef _DEBUG
-#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXXZ")
+#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXPAUTAppFuncDef@client@lfengine@@@Z")
 //#endif
-RUNGATE_API client_entry() noexcept
+RUNGATE_API client_entry(lfengine::client::PAppFuncDef AppFunc) noexcept
 {
+	using namespace lfengine::client;
 	VMP_VIRTUALIZATION_BEGIN();
 	setlocale(LC_CTYPE, "");
+	if (AppFunc != nullptr) {
+		AddChatText = AppFunc->AddChatText;
+		SendSocket = AppFunc->SendSocket;
+	}
 	ProtocolCFGLoader cfg;
 	cfg.set_field<std::string>(ip_field_id, "127.0.0.1");
 	cfg.set_field<int>(port_field_id, 23268);
@@ -82,7 +87,7 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)
 	TDefaultMessage initok(0, 10000, 0, 0, 0);
 	SendSocket(&initok, 0, 0);
 
-	client_entry();
+	client_entry(AppFunc);
 }
 
 
@@ -98,19 +103,26 @@ RUNGATE_API HookRecv(lfengine::client::PTDefaultMessage defMsg, char* lpData, in
 
 RUNGATE_API DoUnInit()//DoUnInit
 {
-	//extern asio::io_service g_js_io;
-	DbgPrint("锦衣卫插件管理器卸载开始");
-	if (!g_game_io.stopped()) {
-		g_game_io.stop();
-		g_game_io.reset();
+	try
+	{
+		//extern asio::io_service g_js_io;
+		DbgPrint("锦衣卫插件管理器卸载开始");
+		if (!g_game_io.stopped()) {
+			g_game_io.stop();
+			g_game_io.reset();
+		}
+
+		//client_->stop_all_timers();
+		//client_->stop_all_timed_tasks();
+		client_->stop();
+		//client_->destroy();
+		//DbgPrint("锦衣卫插件管理器卸载完成1");
+		//FreeLibraryAndExitThread(dll_base, 0);
 	}
-
-	//client_->stop_all_timers();
-	//client_->stop_all_timed_tasks();
-	client_->stop();
-	client_->destroy();
-	DbgPrint("锦衣卫插件管理器卸载完成1");
-
+	catch (...)
+	{
+		DbgPrint("DoUnInit 异常");
+	}
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,

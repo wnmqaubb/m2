@@ -28,7 +28,7 @@ public:
     virtual void on_post_connect(tcp_session_shared_ptr_t& session) {};
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session) {};
     virtual void on_start() {};
-    virtual void on_stop() {};
+    virtual void on_stop() { OutputDebugStringA("CAntiCheatServer::on_stop"); };
 };
 
 using CTcpServerImpl = CTcpServer;

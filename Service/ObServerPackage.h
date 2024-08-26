@@ -165,6 +165,7 @@ struct ProtocolLS2LCSend : ProtocolBase<LSPKG_ID_S2C_SEND>
     RawProtocolImpl package;
     MSGPACK_DEFINE(package_id, package.head.desc, package.head.session_id, package.head.sz, package.body.hash, package.body.buffer);
 };
+// Gate to Service
 struct ProtocolOBC2OBSSend : ProtocolBase<OBPKG_ID_C2S_SEND>
 {
     RawProtocolImpl package;

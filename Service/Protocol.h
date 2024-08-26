@@ -10,9 +10,9 @@
 #define PROTOCOL_EXPORT
 #endif
 #else
-//#ifndef ASIO_HPP
-//#include <asio/asio.hpp>
-//#endif
+#ifndef __ASIO2_HPP__
+#include <asio2/asio2.hpp>
+#endif
 #ifndef MSGPACK_OBJECT_HPP
 #include <msgpack.hpp>
 #endif
@@ -23,10 +23,10 @@ using json = nlohmann::json;
 #include <zlib.h>
 #define PROTOCOL_EXPORT
 #define PROTOCOL_IMPL
-#endif
+#endif/*
 #include <asio/buffers_iterator.hpp>
 #include <asio/streambuf.hpp>
-#include <asio/basic_streambuf.hpp>
+#include <asio/basic_streambuf.hpp>*/
 class RawProtocolHead;
 class RawProtocolBody;
 const unsigned char kRawProtocolHeadVersion = 1;
@@ -381,9 +381,8 @@ public:
         ;
 #endif
 	
-	//template <typename Iterator>
-	using buffer_iterator = asio::buffers_iterator<asio::streambuf::const_buffers_type>;
-	static std::pair<buffer_iterator, bool> match_role(buffer_iterator begin, buffer_iterator end)
+	template <typename Iterator>
+	std::pair<Iterator, bool> operator()(Iterator begin, Iterator end) const
 	{
 		do
 		{
@@ -410,8 +409,15 @@ public:
 		return std::pair(begin, false);
 	}
 
+	void init(std::shared_ptr<asio2::tcp_session>& session_ptr)
+	{
+		session_ptr_ = session_ptr;
+	}
+
+
 	HeadType head;
 	BodyType body;
+    std::shared_ptr<asio2::tcp_session> session_ptr_;
 };
 
 using RawProtocolImpl = RawProtocol<RawProtocolHead, RawProtocolBody>;
@@ -419,9 +425,9 @@ using RawProtocolImplNoCompress = RawProtocol<RawProtocolHead, RawProtocolBody, 
 using RawProtocolImplNoValidate = RawProtocol<RawProtocolHead, RawProtocolBody, true, true, false>;
 using RawProtocolImplBase = RawProtocol<RawProtocolHead, RawProtocolBody, false, false, false>;
 
-//namespace asio
-//{
-//	template <> struct is_match_condition<RawProtocolImpl> : public std::true_type {};
-//}
+namespace asio
+{
+	template <> struct is_match_condition<RawProtocolImpl> : public std::true_type {};
+}
 
 #include "Package.h"

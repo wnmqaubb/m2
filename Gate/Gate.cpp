@@ -94,8 +94,8 @@ CGateApp theApp;
 BOOL CGateApp::InitInstance()
 {
 #ifndef GATE_ADMIN
-    CString strCmdLine = AfxGetApp()->m_lpCmdLine;
-    if (strCmdLine == TEXT("/StartService"))
+	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
+	if (strCmdLine == TEXT("/StartService"))
     {
         giInstancePid = GetCurrentProcessId();
         HANDLE pHandles[2] = {};
@@ -143,7 +143,7 @@ BOOL CGateApp::InitInstance()
         ExitProcess(0);
         return FALSE;
     }
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
+    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->async_start(kDefaultLocalhost, kDefaultServicePort);
     m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
     m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
@@ -532,7 +532,7 @@ void CGateApp::ConnectionLicenses()
             const std::string ip = licenses[i]["ip"];
             const std::string snhash = licenses[i]["snhash"];
             const int port = licenses[i].find("port") != licenses[i].end() ? licenses[i]["port"] : kDefaultServicePort;
-            m_ObServerClientGroup(ip, port)->start(ip, port);
+            m_ObServerClientGroup(ip, port)->async_start(ip, port);
             m_ObServerClientGroup(ip, port)->set_auth_key(snhash);
         }
     }

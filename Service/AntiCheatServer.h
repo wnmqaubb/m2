@@ -1,13 +1,15 @@
 #pragma once
-#include "TcpServer.h"
 #include "Protocol.h"
 #include "NetUtils.h"
 
-class CAntiCheatServer : public CTcpServerImpl
+class CAntiCheatServer : public asio2::tcp_server
 {
-private:
+public:
     using self = CAntiCheatServer;
-    using super = CTcpServerImpl;
+    using tcp_session_t = session_type;
+	using error_code_t = asio2::error_code;
+	using super = asio2::tcp_server;
+	using tcp_session_shared_ptr_t = std::shared_ptr<session_type>;
 protected:
     using package_handler_t = std::function<void(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
     using notify_handler_t = std::function<void()>;
@@ -24,7 +26,7 @@ public:
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
     virtual void on_start();
     virtual void on_stop();
-    virtual void on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
+    virtual void on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv);
     virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
     virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
 private:
@@ -43,7 +45,7 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            session->send(package.release());
+            session->async_send(std::move(package.release()));
         }
     }
 

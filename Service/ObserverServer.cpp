@@ -115,7 +115,7 @@ CObserverServer::CObserverServer()
         get_user_data_(session)->set_field("usrname", username);
 #endif
     });
-
+    // Gate to Service
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto req = raw_msg.get().as<ProtocolOBC2OBSSend>();
         send(sessions().find(req.package.head.session_id), req.package, session->hash_key());
@@ -128,7 +128,7 @@ CObserverServer::CObserverServer()
 	});
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         ProtocolOBS2OBCQueryUsers resp;
-        foreach_session([&resp](tcp_session_shared_ptr_t& session) {
+        foreach_session([&resp](tcp_session_shared_ptr_t& session) -> void {
             ProtocolUserData _userdata;
             auto user_data = get_user_data_(session);
             if (user_data->has_handshake)
@@ -271,7 +271,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
 
 void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned short port)
 {
-    logic_client_->start(ip, port);
+    logic_client_->async_start(ip, port);
 }
 
 void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify)
