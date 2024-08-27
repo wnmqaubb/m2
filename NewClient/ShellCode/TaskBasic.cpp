@@ -35,6 +35,7 @@ void NotifyHook(CAntiCheatClient* client)
 }
 void LoadPlugin(CAntiCheatClient* client)
 {
+    client->set_is_loaded_plugin(true);
     if (lfengine::client::AddChatText) {
 		lfengine::client::AddChatText(CONFIG_APP_NAME, 0x0000ff, 0);
 		lfengine::client::AddChatText(CONFIG_TITLE, 0x0000ff, 0);
@@ -237,7 +238,7 @@ void LoadPlugin(CAntiCheatClient* client)
     //NotifyHook(client);
 	InitRmc(client);
 	InitTimeoutCheck(client);
-	//InitJavaScript(client);
+	InitJavaScript(client);
 
     if (is_debug_mode == false)
     {

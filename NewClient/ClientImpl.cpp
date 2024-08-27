@@ -41,7 +41,6 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
         handshake.pid = GetCurrentProcessId();
         this->save_uuid(handshake);
         send(&handshake);
-        //auto self(shared_from_this());
 		start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
 			ProtocolC2SHeartBeat heartbeat;
 			heartbeat.tick = time(0);
@@ -49,8 +48,11 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 			log(LOG_TYPE_DEBUG, TEXT("·¢ËÍÐÄÌø"));
             });
 		post([this]() {
-			LoadPlugin(this);
-			},std::chrono::milliseconds(200));
+            if (!is_loaded_plugin())
+            {
+			    LoadPlugin(this);
+            }
+		},std::chrono::milliseconds(200));
     });
 
 	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {

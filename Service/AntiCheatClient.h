@@ -216,6 +216,8 @@ public:
     inline bool has_handshake() { return has_handshake_; }
     inline asio2::uuid& uuid() { return uuid_; }
     inline bool is_stop() { return is_stop_; }
+    inline bool is_loaded_plugin() { return is_loaded_plugin_; }
+    inline void set_is_loaded_plugin(bool is_loaded_plugin) { is_loaded_plugin_ = is_loaded_plugin; }
     inline NetUtils::UsersData& user_data() { return user_data_; }
     inline std::unique_ptr<ProtocolCFGLoader>& cfg() { return cfg_; }
     inline NetUtils::EventMgr<package_handler_t>& package_mgr() { return package_mgr_; }
@@ -237,4 +239,5 @@ protected:
 	unsigned char step_ = 0;
 	std::string ip_;
 	unsigned short port_;
+	bool is_loaded_plugin_ = false;
 };

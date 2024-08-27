@@ -31,7 +31,7 @@ void client_start_routine(/*std::shared_ptr<CClientImpl> client_*/)
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
     //std::string ip = "43.139.236.115";
 	auto port = client_->cfg()->get_field<int>(port_field_id);
-	client_->start(ip, port);
+	client_->async_start(ip, port);
 	DbgPrint("client_start_routine ip:%s, port:%d", ip.c_str(), port);
 	/*g_thread_group.create_thread([]() {
 		auto work_guard = asio::make_work_guard(g_io);
@@ -106,18 +106,19 @@ RUNGATE_API DoUnInit()//DoUnInit
 	try
 	{
 		//extern asio::io_service g_js_io;
-		DbgPrint("锦衣卫插件管理器卸载开始");
+		DbgPrint("插件卸载开始");
 		if (!g_game_io.stopped()) {
 			g_game_io.stop();
 			g_game_io.reset();
 		}
 
-		client_->stop_all_timers();
+		//client_->stop_all_timers();
 		//client_->stop_all_timed_tasks();
 		client_->stop();
 		Sleep(1000);
-		client_->destroy();//必须要destroy,否则会导致定时器无法销毁,导致定时器的线程还在执行,小退再开始游戏时线程还在执行之前dll的地址,会导致崩溃
-		//DbgPrint("锦衣卫插件管理器卸载完成1");
+		//必须要destroy,否则会导致定时器无法销毁,导致定时器的线程还在执行,小退再开始游戏时线程还在执行之前dll的地址,会导致崩溃
+		client_->destroy();
+		DbgPrint("插件卸载完成");
 		//FreeLibraryAndExitThread(dll_base, 0);
 	}
 	catch (...)
