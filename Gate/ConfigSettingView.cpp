@@ -68,7 +68,7 @@ void CConfigSettingView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
 {
     CMenu menu;
     menu.LoadMenu(IDR_MAINFRAME);
-    CMenu* pSumMenu = menu.GetSubMenu(4);
+    CMenu* pSumMenu = menu.GetSubMenu(2);
     theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);
 }
 
@@ -130,7 +130,7 @@ void CConfigSettingView::InitConfigSettingView()
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     int colIndex = 0;
     m_ViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
-    m_ViewList.InsertColumn(colIndex++, TEXT("策略ID"), LVCFMT_LEFT, 50);
+    m_ViewList.InsertColumn(colIndex++, TEXT("策略ID"), LVCFMT_LEFT, 60);
     m_ViewList.InsertColumn(colIndex++, TEXT("策略类型"), LVCFMT_LEFT, 80);
     m_ViewList.InsertColumn(colIndex++, TEXT("处理类型"), LVCFMT_LEFT, 110);
     m_ViewList.InsertColumn(colIndex++, TEXT("配置"), LVCFMT_LEFT, 470);
