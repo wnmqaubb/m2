@@ -323,6 +323,8 @@
     <Image Include="res\classview_hc.bmp" />
     <Image Include="res\class_view.ico" />
     <Image Include="res\class_view_hc.ico" />
+    <Image Include="res\config.ico" />
+    <Image Include="res\config.png" />
     <Image Include="res\explorer.bmp" />
     <Image Include="res\explorer_hc.bmp" />
     <Image Include="res\fileview.bmp" />
@@ -331,6 +333,7 @@
     <Image Include="res\file_view_hc.ico" />
     <Image Include="res\Gate.ico" />
     <Image Include="res\GateDoc.ico" />
+    <Image Include="res\guard.ico" />
     <Image Include="res\menuimages.bmp" />
     <Image Include="res\menuimages_hc.bmp" />
     <Image Include="res\output_wnd.ico" />

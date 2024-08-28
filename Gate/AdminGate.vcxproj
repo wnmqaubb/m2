@@ -327,6 +327,7 @@
     <ResourceCompile Include="Gate.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="res\config.ico" />
     <Image Include="res\guard.ico" />
     <Image Include="res\bitmap1.bmp" />
     <Image Include="res\classview.bmp" />

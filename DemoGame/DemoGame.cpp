@@ -88,10 +88,11 @@ std::unordered_map<std::string, IniSection> parseIniFile(const std::string& file
 }
 int main(int argc, char** argv)
 {
-#ifndef _DEBUG
 	auto hmodule = LoadLibraryA("NewClient.dll");
 	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
+	entry(nullptr);
+#ifndef _DEBUG
 	///*share_data_ptr_t param = new share_data_t();
 	//param->stage = 1;
 	//ProtocolCFGLoader cfg;
@@ -101,7 +102,6 @@ int main(int argc, char** argv)
 	//auto cfg_bin = cfg.dump();
 	//param->cfg_size = cfg_bin.size();
 	//memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));*/
-	entry(nullptr);
 	Sleep(1000 * 15);
 	//uninit();
 	// 卸载DLL
@@ -137,38 +137,38 @@ int main(int argc, char** argv)
 	
 	
 #else
-    fs::path path(argv[0]);
-    std::ifstream file(path.parent_path() / "taskbasic.dll", std::ios::in | std::ios::binary);
-    if (file.is_open())
-    {
-        std::cout << "start running\n";
-        std::stringstream ss;
-        ss << file.rdbuf();
-		xor_buffer(ss.str().data(), ss.str().size(), kProtocolXorKey);
+  //  fs::path path(argv[0]);
+  //  std::ifstream file(path.parent_path() / "taskbasic.dll", std::ios::in | std::ios::binary);
+  //  if (file.is_open())
+  //  {
+  //      std::cout << "start running\n";
+  //      std::stringstream ss;
+  //      ss << file.rdbuf();
+		//xor_buffer(ss.str().data(), ss.str().size(), kProtocolXorKey);
 
-		/*std::ofstream file1("d:\\work\\Repos\\M2\\taskbasic1.dll", std::ios::out | std::ios::binary);
-		file1.write(ss.str().data(), ss.str().size());
-		file1.close();*/
+		///*std::ofstream file1("d:\\work\\Repos\\M2\\taskbasic1.dll", std::ios::out | std::ios::binary);
+		//file1.write(ss.str().data(), ss.str().size());
+		//file1.close();*/
 
-		//plugin_handle = dll_base;
-        auto a = peload(ss.str().data(), sizeof(IMAGE_DOS_HEADER), nullptr, NULL);
-		if (a == ERROR_SUCCESS)
-		{
-        std::cout << "start running 11\n";
-			enable_seh_on_shellcode();
-			//execute_tls_callback(plugin_handle, DLL_PROCESS_ATTACH, 0);
-			//execute_entrypoint(plugin_handle, DLL_PROCESS_ATTACH, 0);
-			//instance_->log(0, TEXT("CClientPluginMgr::load_plugin 加载插件>>> 3"));
-			//decltype(&LoadPlugin) plugin_entry = (decltype(&LoadPlugin))ApiResolver::get_proc_address(plugin_handle, ApiResolver::hash("LoadPlugin"));
-			//OutputDebugStringA((std::to_string(*(int*)plugin_entry) + "<<< LoadPlugin").c_str());
-        std::cout << "start running 22\n";
-		}
-        std::cout << "start running ok\n";
-    }
-    else
-    {
-        std::cout << "client.bin not exist\n";
-    }
+		////plugin_handle = dll_base;
+  //      auto a = peload(ss.str().data(), sizeof(IMAGE_DOS_HEADER), nullptr, NULL);
+		//if (a == ERROR_SUCCESS)
+		//{
+  //      std::cout << "start running 11\n";
+		//	enable_seh_on_shellcode();
+		//	//execute_tls_callback(plugin_handle, DLL_PROCESS_ATTACH, 0);
+		//	//execute_entrypoint(plugin_handle, DLL_PROCESS_ATTACH, 0);
+		//	//instance_->log(0, TEXT("CClientPluginMgr::load_plugin 加载插件>>> 3"));
+		//	//decltype(&LoadPlugin) plugin_entry = (decltype(&LoadPlugin))ApiResolver::get_proc_address(plugin_handle, ApiResolver::hash("LoadPlugin"));
+		//	//OutputDebugStringA((std::to_string(*(int*)plugin_entry) + "<<< LoadPlugin").c_str());
+  //      std::cout << "start running 22\n";
+		//}
+  //      std::cout << "start running ok\n";
+  //  }
+  //  else
+  //  {
+  //      std::cout << "client.bin not exist\n";
+  //  }
 #endif
     getchar();
     std::cout << "Hello World!\n";

@@ -55,6 +55,7 @@
 #define IDD_CONFIG_DIALOG               325
 #define IDI_ICON1                       328
 #define IDI_ICON_GUARD                  328
+#define IDI_config                      330
 #define IDC_ABOUT_VERSION               1000
 #define IDC_EDIT_POLICY_ID              1001
 #define IDC_EDIT_POLICY_CONFIG          1002
@@ -134,6 +135,7 @@
 #define ID_WINDOW_BOTH                  32825
 #define ID_SERVICE_ALL_UPLOAD_CFG       32826
 #define ID_TOOLBAR_CONFIG               32827
+#define ID_GM32828                      32828
 #define ID_INDICATOR_SERVER_STAUS       59143
 #define ID_INDICATOR_USERS_COUNT        59144
 
@@ -141,8 +143,8 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        329
-#define _APS_NEXT_COMMAND_VALUE         32828
+#define _APS_NEXT_RESOURCE_VALUE        331
+#define _APS_NEXT_COMMAND_VALUE         32829
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           312
 #endif

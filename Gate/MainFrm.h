@@ -35,11 +35,10 @@ public:
 #endif
 protected:  // 控件条嵌入成员
 	CMFCMenuBar       m_wndMenuBar;
-	CMFCToolBar       m_wndToolBar;
+	CMFCToolBar      m_wndToolBar;
 	CMFCStatusBar     m_wndStatusBar;
 	CClientView       m_wndClientView;
 	COutputDlg        m_wndOutput;
-
 // 生成的消息映射函数
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -50,7 +49,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
     void InitStatusBar();
 	BOOL CreateDockingWindows();
-	void SetDockingWindowIcons(BOOL bHiColorIcons);
+	void SetDockingWindowIcons(BOOL bHiColorIcons); 
 public:
     afx_msg void OnTimer(UINT_PTR nIDEvent);
     afx_msg void OnClose(); 
