@@ -12,7 +12,7 @@
 #include "asio2/http/http_client.hpp"
 #include "asio2/util/base64.hpp"
 #include "Service/AntiCheatClient.h"
-#include "NewClient/lf_plug_sdk.h"
+#include "lf_rungate_server_plug/lf_plug_sdk.h"
 //#include "NewClient/loader.h"
 
 extern void __stdcall client_entry(const std::string& guard_gate_ip) noexcept;
