@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Document Version="2">
-    <Protection InputFileName="build\bin\Release\Win32\LogicServer.exe" Options="1023944" LicenseDataFileName="ServiceLicense.vmp" OutputFileName="LogicServer.exe">
+    <Protection InputFileName="build\bin\Release\Win32\LogicServer.exe" Options="1021896" LicenseDataFileName="ServiceLicense.vmp" OutputFileName="LogicServer.exe">
         <Messages />
         <Folders />
-        <Procedures/>
+        <Procedures>
+            <Procedure MapAddress='VMProtectMarker &quot;main&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CLogicServer::send_policy&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CLogicServer::CLogicServer&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CLogicServer::punish&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CLogicServer::detect&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CLogicServer::close_socket&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CLogicServer::OnlineCheck&quot;' Options="0" />
+        </Procedures>
         <Objects />
     </Protection>
     <DLLBox>
