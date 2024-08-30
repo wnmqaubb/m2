@@ -6,7 +6,6 @@
     <ClInclude Include="ClientImpl.h" />
     <ClInclude Include="WndProcHook.h" />
     <ClInclude Include="qjs.h" />
-    <ClInclude Include="lf_plug_sdk.h" />
     <ClInclude Include="ShellCode\BasicUtils.h" />
     <ClInclude Include="ShellCode\ModuleCheckSum.h" />
     <ClInclude Include="ShellCode\TaskBasic.h" />

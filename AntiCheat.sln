@@ -27,6 +27,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Client", "Client", "{9AFF9C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AdminGate", "Gate\AdminGate.vcxproj", "{9A1825A4-43C4-45F8-9D60-99883A22F797}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lf_plug", "lf_rungate_server_plug\lf_plug.vcxproj", "{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -65,6 +67,10 @@ Global
 		{9A1825A4-43C4-45F8-9D60-99883A22F797}.Debug|x86.Build.0 = Debug|Win32
 		{9A1825A4-43C4-45F8-9D60-99883A22F797}.Release|x86.ActiveCfg = Release|Win32
 		{9A1825A4-43C4-45F8-9D60-99883A22F797}.Release|x86.Build.0 = Release|Win32
+		{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848}.Debug|x86.ActiveCfg = Debug|Win32
+		{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848}.Debug|x86.Build.0 = Debug|Win32
+		{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848}.Release|x86.ActiveCfg = Release|Win32
+		{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,6 +84,7 @@ Global
 		{CD6936F7-8EE3-4631-93A4-12B808B8ED05} = {6A9415A5-342F-4BB5-89FE-C33C0ACB499C}
 		{D3BD2DAE-BDEF-493B-B372-F67EDE912DB9} = {6A9415A5-342F-4BB5-89FE-C33C0ACB499C}
 		{9A1825A4-43C4-45F8-9D60-99883A22F797} = {431125BC-35CD-422D-8143-9805AE767CC6}
+		{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848} = {9AFF9C87-E13D-436C-B089-281C615D2838}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AFCF4415-F6CD-4026-8FDF-D7F637652B3C}

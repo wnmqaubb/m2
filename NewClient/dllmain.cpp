@@ -3,14 +3,13 @@
 #include "ClientImpl.h"
 #include "WndProcHook.h"
 #include "version.build"
-#include "lf_plug_sdk.h"
+#include "../lf_rungate_server_plug/lf_plug_sdk.h"
 
 #define RUNGATE_API void __stdcall
 
 lfengine::client::TAppFuncDefExt g_AppFunc;
 
 HINSTANCE dll_base = NULL;
-//asio::io_service g_io;
 asio::io_service g_game_io;
 asio::detail::thread_group g_thread_group;
 int g_client_rev_version = REV_VERSION;
@@ -25,35 +24,27 @@ VOID DbgPrint(const char* fmt, ...)
 	OutputDebugStringA(buf);
 }
 
-void client_start_routine(/*std::shared_ptr<CClientImpl> client_*/)
+void client_start_routine()
 {
     WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
-    //std::string ip = "43.139.236.115";
 	auto port = client_->cfg()->get_field<int>(port_field_id);
 	client_->async_start(ip, port);
 	DbgPrint("client_start_routine ip:%s, port:%d", ip.c_str(), port);
-	/*g_thread_group.create_thread([]() {
-		auto work_guard = asio::make_work_guard(g_io);
-		g_io.run();
-	});*/
+	
 }
 //#ifdef _DEBUG
-#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXPAUTAppFuncDef@client@lfengine@@@Z")
+#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
 //#endif
-RUNGATE_API client_entry(lfengine::client::PAppFuncDef AppFunc) noexcept
+/*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip) noexcept
 {
 	using namespace lfengine::client;
 	VMP_VIRTUALIZATION_BEGIN();
 	setlocale(LC_CTYPE, "");
-	if (AppFunc != nullptr) {
-		AddChatText = AppFunc->AddChatText;
-		SendSocket = AppFunc->SendSocket;
-	}
 	ProtocolCFGLoader cfg;
-	cfg.set_field<std::string>(ip_field_id, "127.0.0.1");
+	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty () ? "127.0.0.1" : guard_gate_ip);
 	cfg.set_field<int>(port_field_id, 23268);
-	/*std::shared_ptr<CClientImpl> */client_ = std::make_shared<CClientImpl>(/*g_io*/);
+	client_ = std::make_shared<CClientImpl>();
 	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
 	client_->cfg()->set_field<bool>(test_mode_field_id, false);
 	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
@@ -64,13 +55,13 @@ RUNGATE_API client_entry(lfengine::client::PAppFuncDef AppFunc) noexcept
 	if (client_->cfg()->get_field<bool>(sec_no_change_field_id))
 	{
 		DbgPrint("启用安全模式1");
-		Utils::ImageProtect::instance().register_callback(&client_start_routine/*bind(&client_start_routine, client_)*/);
+		Utils::ImageProtect::instance().register_callback(&client_start_routine);
 		Utils::ImageProtect::instance().install();
 	}
 	else
 	{
 		DbgPrint("启用安全模式2");
-		client_start_routine(/*std::move(client_)*/);
+		client_start_routine();
 	}
 	VMP_VIRTUALIZATION_END();
 }
@@ -83,29 +74,27 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)
 
 	AddChatText = AppFunc->AddChatText;
 	SendSocket = AppFunc->SendSocket;
-	AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
-	TDefaultMessage initok(0, 10000, 0, 0, 0);
+	//AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
+	lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
 	SendSocket(&initok, 0, 0);
-
-	client_entry(AppFunc);
 }
 
 
-RUNGATE_API HookRecv(lfengine::client::PTDefaultMessage defMsg, char* lpData, int dataLen)
+RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
 {
 	using namespace lfengine::client;
-	if (defMsg->ident == 10000)
+	if (defMsg->ident == 10001)
 	{
-		AddChatText("这个没什么用，只是测试下网关插件返回数据", 0x0000ff, 0);
+		client_entry(lpData);
+		AddChatText(lpData, 0x0000ff, 0);
 	}
 
 }
 
-RUNGATE_API DoUnInit()//DoUnInit
+RUNGATE_API DoUnInit()
 {
 	try
 	{
-		//extern asio::io_service g_js_io;
 		DbgPrint("插件卸载开始");
 		if (!g_game_io.stopped()) {
 			g_game_io.stop();
@@ -119,7 +108,6 @@ RUNGATE_API DoUnInit()//DoUnInit
 		//必须要destroy,否则会导致定时器无法销毁,导致定时器的线程还在执行,小退再开始游戏时线程还在执行之前dll的地址,会导致崩溃
 		client_->destroy();
 		DbgPrint("插件卸载完成");
-		//FreeLibraryAndExitThread(dll_base, 0);
 	}
 	catch (...)
 	{

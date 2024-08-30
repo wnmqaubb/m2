@@ -242,7 +242,6 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
     <ClInclude Include="..\3rdparty\wmic\wmic.h" />
     <ClInclude Include="ClientImpl.h" />
     <ClInclude Include="framework.h" />
-    <ClInclude Include="lf_plug_sdk.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="qjs.h" />
     <ClInclude Include="ShellCode\BasicUtils.h" />
@@ -347,9 +346,6 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
   <ItemGroup>
     <ProjectReference Include="..\Lightbone\Lightbone.vcxproj">
       <Project>{c2580503-90fb-4ded-834f-597162126471}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Tools\Packer\packer.vcxproj">
-      <Project>{0cba32e9-1567-4b37-bd0b-4145ea2701bc}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

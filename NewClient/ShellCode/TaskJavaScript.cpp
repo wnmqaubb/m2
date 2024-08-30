@@ -9,12 +9,8 @@
 #include <asio2/util/base64.hpp>
 #include "ModuleCheckSum.h"
 
-
-extern asio::detail::thread_group g_thread_group;
-//asio::io_service g_js_io;
 qjs::Runtime g_runtime;
 qjs::Context g_context(g_runtime);
-//NetUtils::CTimerMgr g_js_timer(g_js_io);
 static CAntiCheatClient* g_client = nullptr;
 static uint8_t ANONYMOUS_COUNT = 0;
 
@@ -716,10 +712,9 @@ void InitJavaScript(CAntiCheatClient* client)
 			auto str = json(result).dump();
 			return g_context.fromJSON(str);
 				})
-			.function<>("base", []()->std::pair<uint32_t, uint32_t> {
-			__declspec(dllimport) HINSTANCE dll_base;
-			extern void* plugin_base;
-			return { dll_base == 0 ? (uint32_t)GetModuleHandleA(NULL) : (uint32_t)dll_base, (uint32_t)plugin_base };
+			.function<>("base", []()->uint32_t {
+            extern HINSTANCE dll_base;
+			return dll_base == 0 ? (uint32_t)GetModuleHandleA(NULL) : (uint32_t)dll_base;
                 })
             .function<>("query_window_info", [](uint32_t hwnd)->std::vector<std::string> {
 					std::vector<std::string> result;
@@ -739,15 +734,9 @@ void InitJavaScript(CAntiCheatClient* client)
             "import * as os from 'os';\n"
             "globalThis.std = std;\n"
             "globalThis.os = os;\n", "<GINIT>", JS_EVAL_TYPE_MODULE);
-		/*auto guard = asio::make_work_guard(g_js_io);
-		g_js_io.run();*/
         js_std_free_handlers(g_runtime.rt);
     });
-	/*asio::steady_timer g_js_timer(g_js_io);
-	g_js_timer.expires_after(std::chrono::milliseconds(100));
-	g_js_timer.async_wait(std::bind(&js_std_loop, g_context.ctx));*/
-    //g_js_timer.start_timer(0, std::chrono::milliseconds(100), std::bind(&js_std_loop, g_context.ctx));
 	g_client->start_timer(0, std::chrono::milliseconds(100), []() {
 		js_std_loop(g_context.ctx);
-		});
+	});
 }

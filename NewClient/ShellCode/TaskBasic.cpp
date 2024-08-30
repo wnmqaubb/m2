@@ -1,6 +1,6 @@
 ﻿#include "../pch.h"
 #include "TaskBasic.h"
-#include "lf_plug_sdk.h"
+#include "../../lf_rungate_server_plug/lf_plug_sdk.h"
 
 #ifdef _DEBUG
     #define LOG(x,...) log(x, __VA_ARGS__)
@@ -13,7 +13,6 @@
 #define CONFIG_TITLE    "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
 
 bool is_debug_mode = false;
-void* plugin_base = nullptr;
 int reconnect_count = 0;
 void log(const TCHAR* format, ...)
 {
