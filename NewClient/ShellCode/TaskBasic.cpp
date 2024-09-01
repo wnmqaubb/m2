@@ -2,7 +2,7 @@
 #include "TaskBasic.h"
 #include "../../lf_rungate_server_plug/lf_plug_sdk.h"
 
-#ifdef _DEBUG
+#ifdef LOG_SHOW
     #define LOG(x,...) log(x, __VA_ARGS__)
 #else 
     #define LOG(x,...)
@@ -137,10 +137,10 @@ void LoadPlugin(CAntiCheatClient* client)
                 transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
                 if (window.class_name == L"tfrmmain")
                 {
-                    if (is_debug_mode == false)
+                    /*if (is_debug_mode == false)
                     {
                         BasicUtils::init_heartbeat_check(window.hwnd);
-                    }
+                    }*/
                     if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                     {
                         ProtocolC2SUpdateUsername req;

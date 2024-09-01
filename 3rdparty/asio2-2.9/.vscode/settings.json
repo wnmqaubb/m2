@@ -10,6 +10,8 @@
         "xtime": "cpp",
         "xfacet": "cpp",
         "xlocale": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "xthread": "cpp",
+        "xutility": "cpp"
     }
 }

@@ -4,6 +4,9 @@
 #include "WndProcHook.h"
 #include "version.build"
 #include "../lf_rungate_server_plug/lf_plug_sdk.h"
+#include "asio/detail/win_thread.hpp"
+#include "BasicUtils.h"
+#include "Lightbone/lighthook.h"
 
 #define RUNGATE_API void __stdcall
 
@@ -26,7 +29,10 @@ VOID DbgPrint(const char* fmt, ...)
 
 void client_start_routine()
 {
-    WndProcHook::install_hook();
+#ifdef LOG_SHOW
+	DbgPrint("client_start_routine ");
+#endif
+    //WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
 	auto port = client_->cfg()->get_field<int>(port_field_id);
 	client_->async_start(ip, port);
@@ -66,7 +72,7 @@ void client_start_routine()
 	VMP_VIRTUALIZATION_END();
 }
 
-RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)
+RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc) noexcept
 {
 	using namespace lfengine::client;
 	g_AppFunc.AddChatText = AppFunc->AddChatText;
@@ -74,6 +80,10 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)
 
 	AddChatText = AppFunc->AddChatText;
 	SendSocket = AppFunc->SendSocket;
+
+#ifdef LOG_SHOW
+	DbgPrint("lf客户端插件拉起成功 dll_base:%p", dll_base);
+#endif
 	//AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
 	lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
 	SendSocket(&initok, 0, 0);
@@ -82,31 +92,47 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)
 
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
 {
-	using namespace lfengine::client;
+	using namespace lfengine::client; 
+#ifdef LOG_SHOW
+		DbgPrint("lf客户端插件HookRecv--defMsg->ident %d ", defMsg->ident);
+#endif
 	if (defMsg->ident == 10001)
 	{
 		client_entry(lpData);
+#ifdef LOG_SHOW
 		AddChatText(lpData, 0x0000ff, 0);
+		DbgPrint("lf客户端插件HookRecv--gate_ip: %s ", lpData);
+#endif
 	}
 
 }
 
-RUNGATE_API DoUnInit()
+RUNGATE_API DoUnInit() noexcept
 {
 	try
-	{
+	{	
 		DbgPrint("插件卸载开始");
+		LightHook::HookMgr::instance().restore();
 		if (!g_game_io.stopped()) {
 			g_game_io.stop();
 			g_game_io.reset();
 		}
-
-		//client_->stop_all_timers();
-		//client_->stop_all_timed_tasks();
+		
+		//client_->stop_timer("restore_hook_timer");
+		/*client_->stop_timer(198637177);*/
+		client_->stop_all_timers();
+		client_->stop_all_timed_tasks();
 		client_->stop();
-		Sleep(1000);
-		//必须要destroy,否则会导致定时器无法销毁,导致定时器的线程还在执行,小退再开始游戏时线程还在执行之前dll的地址,会导致崩溃
+		Sleep(500);
+		/*
+		* set_terminate_threads 强制退出asio的线程,在win7下, 否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
+		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
+		*/
+		if (Utils::CWindows::instance().get_system_version() <= Utils::CWindows::WINDOWS_7) {
+			asio::detail::win_thread::set_terminate_threads(true);
+		}
 		client_->destroy();
+		Sleep(500);
 		DbgPrint("插件卸载完成");
 	}
 	catch (...)

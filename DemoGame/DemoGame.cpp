@@ -57,7 +57,11 @@ void init_client_entry() {
 	auto hmodule = LoadLibraryA("NewClient.dll");
 	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
-	entry("");
+	entry("43.139.236.115");
+	Sleep(15000);
+	uninit();
+	/*if(FreeLibrary(hmodule))
+		std::cout << "FreeLibrary ok!\n";*/
 }
 
 void test_task_basic_dll(fs::path path) {
