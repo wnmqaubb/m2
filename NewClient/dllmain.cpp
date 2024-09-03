@@ -94,7 +94,7 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 {
 	using namespace lfengine::client; 
 #ifdef LOG_SHOW
-		DbgPrint("lf客户端插件HookRecv--defMsg->ident %d ", defMsg->ident);
+		//DbgPrint("lf客户端插件HookRecv--defMsg->ident %d ", defMsg->ident);
 #endif
 	if (defMsg->ident == 10001)
 	{
@@ -129,7 +129,7 @@ RUNGATE_API DoUnInit() noexcept
 		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
 		*/
 		if (Utils::CWindows::instance().get_system_version() <= Utils::CWindows::WINDOWS_7) {
-			asio::detail::win_thread::set_terminate_threads(true);
+			//asio::detail::win_thread::set_terminate_threads(true);
 		}
 		client_->destroy();
 		Sleep(500);

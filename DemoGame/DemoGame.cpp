@@ -32,7 +32,7 @@ void test_task_basic_dll(fs::path path);
 
 int main(int argc, char** argv)
 {	
-	init_client_entry();
+	//init_client_entry();
 
 	/*char m_ExeDir[MAX_PATH];
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
@@ -44,8 +44,26 @@ int main(int argc, char** argv)
 	else {
 		std::cout << "未找到指定键的值。" << std::endl;
 	}*/
-	
+	std::vector<Utils::CWindows::WindowInfo> windows;
+	if (Utils::CWindows::instance().get_process_main_thread_hwnd(12876, windows))
+	{
 
+		if (windows.size() > 0)
+		{
+			for (auto& window : windows)
+			{
+				transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
+				if (window.class_name == L"tfrmmain")
+				{
+					//if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+					{
+						std::cout << Utils::String::w2c(window.class_name).c_str() << "==" << Utils::String::w2c(window.caption).c_str() << "\n";
+
+					}
+				}
+			}
+		}
+	}
 
 	//fs::path path("d:\\");
 	//test_task_basic_dll(path);
