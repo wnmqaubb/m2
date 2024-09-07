@@ -44,6 +44,7 @@ CObserverServer::CObserverServer()
         if (session)
         {
             get_user_data_(session)->set_field(param.key, param.val);
+            // 发给管理员网关
             if (get_user_data_(session)->get_field<bool>("is_observer_client"))
             {
                 ProtocolOBS2OBCSetField req;
@@ -126,6 +127,7 @@ CObserverServer::CObserverServer()
 		if (session)
 			session->stop();
 	});
+    // gate to service for freshuserlist
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         ProtocolOBS2OBCQueryUsers resp;
         foreach_session([&resp](tcp_session_shared_ptr_t& session) -> void {

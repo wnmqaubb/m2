@@ -5,8 +5,8 @@
 #include <filesystem>
 #include "GameFunction.h"
 
-//__declspec(dllimport) NetUtils::CTimerMgr g_game_timer_mgr;
-__declspec(dllimport) asio::io_service g_game_io;
+//extern NetUtils::CTimerMgr g_game_timer_mgr;
+extern asio::io_service g_game_io;
 std::chrono::system_clock::time_point last_send_timepoint = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point last_recv_timepoint = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point last_recv_heartbeat_timepoint = std::chrono::system_clock::now();

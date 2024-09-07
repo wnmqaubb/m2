@@ -6,6 +6,7 @@
 #include "SubServicePackage.h"
 #include <filesystem>
 #include <fstream>
+#include "Lightbone/utils.h"
 //using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
 class CAntiCheatClient : public asio2::tcp_client
 {
@@ -30,16 +31,18 @@ public:
         is_stop_ = false;
 		ip_ = ip;
 		port_ = port;
-        notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-        super::start(ip, port, RawProtocolImpl());
+        if(super::start(ip, port, RawProtocolImpl())) {
+            notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+        }
 	}
 	virtual void async_start(const std::string& ip, unsigned short port)
 	{
 		is_stop_ = false;
 		ip_ = ip;
 		port_ = port;
-		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-		super::async_start(ip, port, RawProtocolImpl());
+		if (super::async_start(ip, port, RawProtocolImpl())) {
+			notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+		}
 	}
     virtual void stop()
     {        
@@ -194,7 +197,7 @@ public:
         result = result + "[Event]" + time_str + "|";
         std::ofstream output(file, std::ios::out | std::ios::app);
 
-        result = result + text + "\n";
+        result = result + Utils::String::to_utf8(text) + "\n";
 
         output << result;
         output.close();

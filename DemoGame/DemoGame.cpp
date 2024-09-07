@@ -13,6 +13,7 @@
 #include "asio2/util/base64.hpp"
 #include "Service/AntiCheatClient.h"
 #include "lf_rungate_server_plug/lf_plug_sdk.h"
+#include "NewClient/ShellCode/TaskBasic.h"
 //#include "NewClient/loader.h"
 
 extern void __stdcall client_entry(const std::string& guard_gate_ip) noexcept;
@@ -25,15 +26,16 @@ extern uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* par
 extern void execute_tls_callback(HINSTANCE instance, uint32_t reason, void* param);
 extern void execute_entrypoint(HINSTANCE instance, uint32_t reason, void* param);
 extern void enable_seh_on_shellcode();
-
+extern asio::io_service g_game_io;
 void init_client_entry();
 std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key);
 void test_task_basic_dll(fs::path path);
 
 int main(int argc, char** argv)
 {	
-	//init_client_entry();
+	init_client_entry();
 
+	//Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(nullptr));
 	/*char m_ExeDir[MAX_PATH];
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
@@ -44,27 +46,7 @@ int main(int argc, char** argv)
 	else {
 		std::cout << "未找到指定键的值。" << std::endl;
 	}*/
-	std::vector<Utils::CWindows::WindowInfo> windows;
-	if (Utils::CWindows::instance().get_process_main_thread_hwnd(12876, windows))
-	{
-
-		if (windows.size() > 0)
-		{
-			for (auto& window : windows)
-			{
-				transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
-				if (window.class_name == L"tfrmmain")
-				{
-					//if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
-					{
-						std::cout << Utils::String::w2c(window.class_name).c_str() << "==" << Utils::String::w2c(window.caption).c_str() << "\n";
-
-					}
-				}
-			}
-		}
-	}
-
+	
 	//fs::path path("d:\\");
 	//test_task_basic_dll(path);
     getchar();
@@ -75,9 +57,10 @@ void init_client_entry() {
 	auto hmodule = LoadLibraryA("NewClient.dll");
 	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
-	entry("43.139.236.115");
-	Sleep(15000);
-	uninit();
+	//entry("43.139.236.115");
+	entry("");
+	//Sleep(15000);
+	//uninit();
 	/*if(FreeLibrary(hmodule))
 		std::cout << "FreeLibrary ok!\n";*/
 }

@@ -640,7 +640,7 @@ void InitJavaScript(CAntiCheatClient* client)
 {
     g_client = client;
     //g_thread_group.create_thread([]() {
-    g_client->post([&](){
+    g_client->post([](){
         _set_se_translator(&translate_seh_to_ce);
         JS_SetModuleLoaderFunc(g_runtime.rt, NULL, js_module_loader, NULL);
         js_std_add_helpers(g_context.ctx, NULL, NULL);
