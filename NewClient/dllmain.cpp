@@ -32,7 +32,7 @@ void client_start_routine()
 #ifdef LOG_SHOW
 	DbgPrint("client_start_routine ");
 #endif
-    //WndProcHook::install_hook();
+    WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
 	auto port = client_->cfg()->get_field<int>(port_field_id);
 	client_->async_start(ip, port);
@@ -118,19 +118,16 @@ RUNGATE_API DoUnInit() noexcept
 			g_game_io.reset();
 		}
 		
-		//client_->stop_timer("restore_hook_timer");
-		/*client_->stop_timer(198637177);*/
 		client_->stop_all_timers();
 		client_->stop_all_timed_tasks();
 		client_->stop();
-		Sleep(500);
 		/*
 		* set_terminate_threads 强制退出asio的线程,在win7下, 否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
 		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
-		*/
 		if (Utils::CWindows::instance().get_system_version() <= Utils::CWindows::WINDOWS_7) {
 			//asio::detail::win_thread::set_terminate_threads(true);
 		}
+		*/
 		client_->destroy();
 		Sleep(500);
 		DbgPrint("插件卸载完成");

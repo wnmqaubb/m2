@@ -25,7 +25,8 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
         log(LOG_TYPE_DEBUG, TEXT("失去连接"));
     });
     notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("连接失败"));
+        auto ec = asio2::get_last_error();
+        log(LOG_TYPE_DEBUG, TEXT("连接失败: %s "), Utils::String::c2w(ec.message()).c_str());
     });
     notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("握手"));
@@ -46,13 +47,15 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 			heartbeat.tick = time(0);
 			send(&heartbeat);
 			log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
-            });
+			});
 		post([this]() {
             if (!is_loaded_plugin())
             {
 			    LoadPlugin(this);
             }
 		},std::chrono::milliseconds(200));
+        // 发送用户名 防止断开后重连时网关用户名为空
+        notify_mgr().dispatch (CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
 
 	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {

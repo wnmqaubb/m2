@@ -92,25 +92,22 @@ void LoadPlugin(CAntiCheatClient* client)
     client->package_mgr().replace_handler(SPKG_ID_S2C_SCRIPT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         async_execute_javascript(msg.get().as<ProtocolS2CScript>().code, -1);
     });
-    //
+    // 接收logic_server的GM策略列表
     client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        if (is_debug_mode == false)
+        //if (is_debug_mode == false)
         {
             on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
         }
     });	
   
-  //  client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
-  //      //static asio::steady_timer usrname_resend_timer(g_io);
-  //      //防止重启服务器的时候过于集中发包
-		//reconnect_count++;
-		//usrname_resend_timer.expires_after(std::chrono::seconds(std::rand() % 10));
-		//usrname_resend_timer.async_wait([client](std::error_code) {
-		//	ProtocolC2SUpdateUsername req;
-		//	req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-		//	client->send(&req);
-		//	});
-  //  });
+    client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
+        //防止重启服务器的时候过于集中发包
+        client->post([client]() {
+            ProtocolC2SUpdateUsername req;
+            req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
+            client->send(&req);
+         }, std::chrono::seconds(std::rand() % 10 + 1));
+    });
     client->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
         if (client->cfg()->get_field<bool>(test_mode_field_id))
         {
@@ -262,12 +259,10 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	}
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
-		g_game_io.post([]() {
-			VMP_VIRTUALIZATION_BEGIN();
-			std::error_code ec;
-			UnitPunishKick(ec);
-			VMP_VIRTUALIZATION_END();
-		});
+		VMP_VIRTUALIZATION_BEGIN();
+		std::error_code ec;
+		UnitPunishKick(ec);
+		VMP_VIRTUALIZATION_END();
 		break;
 	}
 	default:
@@ -330,6 +325,13 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         case ENM_POLICY_TYPE_SCRIPT:
         {
             async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
+#if 1
+			std::filesystem::create_directories(".\\temp_scripts");
+			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
+			script << Utils::String::w2c(policy.config);
+            script.close();
+			LOG(TEXT("ENM_POLICY_TYPE_SCRIPT--- %d %s"), policy_id, policy.comment.c_str());
+#endif
             break;
         }        
         case ENM_POLICY_TYPE_ACTION_SPEED_WALK:
