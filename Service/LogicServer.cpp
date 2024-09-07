@@ -21,7 +21,12 @@ int main(int argc, char** argv)
 	g_cur_dir = std::filesystem::path(argv[0]).parent_path();
 	setlocale(LC_CTYPE, "");
 	CLogicServer server;
-	server.start(kDefaultLocalhost, kDefaultLogicServicePort);
+	if (!server.start(kDefaultLocalhost, kDefaultLogicServicePort))
+	{
+		if (asio2::get_last_error())
+			printf("CLogicServer启动失败:错误号: %d, 错误信息: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
+		return 1;
+	}
 	if (argc == 2 || argc == 3)
 	{
 		if (argc == 3)
@@ -118,6 +123,7 @@ CLogicServer::CLogicServer()
 		this->stop();
 		exit(0);
 		});
+	// service ---> logic server连接
 	package_mgr_.register_handler(LSPKG_ID_C2S_ADD_OBS_SESSION, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto req = msg.get().as<ProtocolLC2LSAddObsSession>();
 		obs_sessions_mgr().add_session(req.session_id);
@@ -136,6 +142,7 @@ CLogicServer::CLogicServer()
 			// 延迟发送策略，防止用户连接过慢导致策略发送失败
 			post([this, user_data, session, session_id = package.head.session_id]() mutable {
 				send_policy(user_data, session, session_id);
+				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("延迟发送策略"));
 			}, std::chrono::seconds(std::rand() % 20 + 1));
 
 			std::wstring json_dump;

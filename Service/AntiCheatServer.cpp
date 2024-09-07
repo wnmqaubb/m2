@@ -212,9 +212,17 @@ void CAntiCheatServer::on_start()
 
 void CAntiCheatServer::on_stop()
 {
-    log(LOG_TYPE_EVENT, TEXT("Í£Ö¹¼àÌý:%s:%d %s"),
-        Utils::c2w(listen_address()).c_str(),
-        listen_port());
+    auto ec = asio2::get_last_error();
+    if (ec) {
+        log(LOG_TYPE_EVENT, TEXT("Í£Ö¹¼àÌý:%s:%d"),
+            Utils::c2w(listen_address()).c_str(),
+			listen_port()); 
+    }
+    else {
+		log(LOG_TYPE_EVENT, TEXT("Í£Ö¹¼àÌý:%s:%d %s"),
+			Utils::c2w(listen_address()).c_str(),
+			listen_port(),ec.message().c_str());
+    }
 }
 
 

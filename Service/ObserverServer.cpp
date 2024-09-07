@@ -273,7 +273,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
 
 void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned short port)
 {
-    logic_client_->async_start(ip, port);
+    logic_client_->start(ip, port);
 }
 
 void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify)

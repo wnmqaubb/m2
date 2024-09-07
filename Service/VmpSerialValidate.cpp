@@ -9,9 +9,10 @@ VmpSerialValidator::VmpSerialValidator(CObserverServer* ac_server)
     server_ = ac_server;
     write_hwid();
 }
-void VmpSerialValidator::validate_timer(bool slience)
+bool VmpSerialValidator::validate_timer(bool slience)
 {
     VMProtectBeginVirtualization(__FUNCTION__);
+    bool status = false;
 #ifdef _DEBUG
     server()->set_auth_ticket("");
     server()->auth_success();
@@ -25,11 +26,11 @@ void VmpSerialValidator::validate_timer(bool slience)
         MessageBox(NULL, TEXT("授权文件不存在,请联系客服!"), TEXT("提示"), MB_ICONERROR | MB_SYSTEMMODAL);
         server()->logic_client_stop();
         server()->stop();
-        return;
+        return false;
     }
     auto sn = read_license(file.string());
     std::string ticket;
-    bool status = validate(sn, slience, ticket);
+    status = validate(sn, slience, ticket);
     // 识别多个KEY~就是转发的那个功能,应用场景:多个服的网关专门放到一个服务器上,共用一个网关
     std::filesystem::path file1(std::filesystem::current_path() / "serial1.txt");
     uint8_t i = 2;
@@ -63,6 +64,7 @@ void VmpSerialValidator::validate_timer(bool slience)
     }
 #endif;
     VMProtectEnd();
+    return status;
 }
 
 
@@ -114,7 +116,7 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
     asio2::base64 base64;
     auto sn_sha1 = asio2::sha1(base64.decode(sn));
     ticket = base64.encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
-    server()->log(LOG_TYPE_DEBUG, nullptr, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
+    server()->log(LOG_TYPE_DEBUG, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
 
     // 验证序列号是否已冻结
     int status = http_query_sn_status(sn);
