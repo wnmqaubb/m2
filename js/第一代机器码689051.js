@@ -1,4 +1,4 @@
-﻿import * as api from 'api';
+import * as api from 'api';
 import * as os from 'os';
 
 //*************************** 机器码黑名单 ***************************
@@ -830,11 +830,11 @@ if (api.UnknownCheat) {
       if (task.do() == false) {
         checksum_status = false;
         if (1) {
-          api.report(689059, true, `代码篡改`)
+          api.report(689059, true, `代码篡改`);
         }
         else {
           task.detail((p, o, d) => {
-            api.report(689059, false, `${task.base().toString(16)}|${p.toString(16)}|${o.toString(16)}|${d.toString(16)}`)
+            api.report(689059, false, `${task.base().toString(16)}|${p.toString(16)}|${o.toString(16)}|${d.toString(16)}`);
           })
         }
       }

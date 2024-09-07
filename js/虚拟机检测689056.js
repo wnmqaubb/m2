@@ -30,7 +30,8 @@ if (0) {
 if (api.get_cur_module_list) {
 	let modules = api.get_cur_module_list();
 	for (let i = 0; i < modules.length; i++) {
-		let [module_name, base, size] = modules[i];
+		//let [module_name, base, size] = modules[i];
+		let module_name = modules[i][0];
 		let func_ptr = api.get_proc_address(module_name, "OpenAdapter");
 		if (func_ptr) {
 			let sig_ret = api.scan(func_ptr, 0x100, [0xe8, 0xcc, 0xcc, 0xcc, 0xcc, 0xB9, 0xcc, 0xcc, 0xcc, 0xcc, 0xe8, 0xcc, 0xcc, 0xcc, 0xcc]);
