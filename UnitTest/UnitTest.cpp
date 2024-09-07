@@ -7,31 +7,9 @@
 #include "Gate/cmdline.h"
 #include "PEScan.h"
 
-void LoadPlugin(CAntiCheatClient* client);
 void async_execute_javascript(const std::string& sv, uint32_t script_id);
 
-void client_start_routine(std::shared_ptr<CClientImpl> client);
-extern asio::io_service g_io;
-
-class CClientPluginMgrUnitTest : public CClientPluginMgr
-{
-public:
-    CClientPluginMgrUnitTest(fs::path cache_dir_) 
-       : CClientPluginMgr(cache_dir_)
-    {
-    }
-    ~CClientPluginMgrUnitTest(){}
-    bool load_plugin(plugin_hash_t plugin_hash, const std::string& filename) override
-    {
-        auto client = this->instance_;
-        LoadPlugin(client);
-        client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-            std::cout << "受到处罚" << std::endl;
-        });
-        return true;
-    }
-};
-
+void __stdcall client_entry(const std::string& ip);
 
 void hook_calc_pe_ico_hash()
 {
@@ -56,25 +34,12 @@ void dump_all_scripts()
 
 void test_connect()
 {
-    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-    client->plugin_mgr_ = std::make_unique<CClientPluginMgrUnitTest>(".\\cache");
-    client->plugin_mgr_->set_client_instance(client.get());
-    client->cfg() = std::make_unique<ProtocolCFGLoader>();
-    client->cfg()->set_field<std::string>(ip_field_id, "1.15.118.83");
-    client->cfg()->set_field<uint32_t>(port_field_id, kDefaultServicePort);
-    client_start_routine(std::move(client));
+    client_entry("127.0.0.1");
 }
 //
-CAntiCheatClient* test_javascript()
+void test_javascript()
 {
-    CAntiCheatClient* instance;
-    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-    client->cfg() = std::make_unique<ProtocolCFGLoader>();
-    client->cfg()->set_field<std::string>(ip_field_id, "127.0.0.1");
-    client->cfg()->set_field<uint32_t>(port_field_id, kDefaultServicePort);
-    instance = client.get();
-    client_start_routine(std::move(client));
-    return instance;
+    client_entry("127.0.0.1");
 }
 
 std::vector<std::string> split(const std::string &str, const std::string &pattern)
@@ -98,11 +63,9 @@ std::vector<std::string> split(const std::string &str, const std::string &patter
     return res;
 }
 
-void InitJavaScript(CAntiCheatClient* client);
-
 void InitUnitTest()
 {
-    hook_calc_pe_ico_hash();
+    //hook_calc_pe_ico_hash();
 }
 
 int main(int argc, char** argv)
@@ -130,10 +93,12 @@ int main(int argc, char** argv)
 			static bool is_init = false;
 			if (!is_init)
 			{
-				InitJavaScript(test_javascript());
+                test_javascript();
 				is_init = true;
 			}
+            std::cout << "async_execute_javascript" << std::endl;
             async_execute_javascript(ss.str(), 0);
+            std::cout << "async_execute_javascript end" << std::endl;
         }
         else if (a.get_program_name() == "connect")
         {
@@ -152,4 +117,6 @@ int main(int argc, char** argv)
     {
         cmd_handler(split(cmd, " "));
     }
+    getchar();
+    return 0;
 }

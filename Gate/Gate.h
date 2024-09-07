@@ -165,7 +165,7 @@ static CString ConvertToString(PolicyType type)
         {ENM_POLICY_TYPE_WINDOW_NAME,TEXT("窗口名")},
         {ENM_POLICY_TYPE_MACHINE,TEXT("机器码")},
         {ENM_POLICY_TYPE_MULTICLIENT,TEXT("多开限制")},
-        {ENM_POLICY_TYPE_SHELLCODE,TEXT("云代码")},
+        /*{ENM_POLICY_TYPE_SHELLCODE,TEXT("云代码")},*/
         {ENM_POLICY_TYPE_SCRIPT,TEXT("脚本")},
         {ENM_POLICY_TYPE_THREAD_START,TEXT("线程特征")},
         {ENM_POLICY_TYPE_BACK_GAME,TEXT("延时小退")},
@@ -193,7 +193,7 @@ static PolicyType ConvertToPolicyType(CString policyname)
         { TEXT("窗口名"), ENM_POLICY_TYPE_WINDOW_NAME },
         { TEXT("机器码"), ENM_POLICY_TYPE_MACHINE },
         { TEXT("多开限制"), ENM_POLICY_TYPE_MULTICLIENT },
-        { TEXT("云代码"), ENM_POLICY_TYPE_SHELLCODE },
+        /*{ TEXT("云代码"), ENM_POLICY_TYPE_SHELLCODE },*/
         { TEXT("脚本"), ENM_POLICY_TYPE_SCRIPT },
         { TEXT("线程特征"), ENM_POLICY_TYPE_THREAD_START },
         { TEXT("延时小退"), ENM_POLICY_TYPE_BACK_GAME },

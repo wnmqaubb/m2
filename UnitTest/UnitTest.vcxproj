@@ -31,6 +31,9 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141_xp</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <DisableAdvancedSupport>true</DisableAdvancedSupport>
+    <SupportWinXP>true</SupportWinXP>
+    <SupportLTL>true</SupportLTL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -38,6 +41,9 @@
     <PlatformToolset>v141_xp</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <DisableAdvancedSupport>true</DisableAdvancedSupport>
+    <SupportWinXP>true</SupportWinXP>
+    <SupportLTL>true</SupportLTL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -98,15 +104,15 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)build\intdir\NewClient\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)build\intdir\TaskBasic\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)3rdparty\breakpad\debug\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)build\intdir\NewClient\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)3rdparty\breakpad\debug\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -150,7 +156,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -160,7 +166,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)build\intdir\NewClient\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)build\intdir\TaskBasic\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)3rdparty\breakpad\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)build\intdir\NewClient\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)3rdparty\breakpad\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -210,6 +216,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PEScan.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="scripts\1.js" />
+    <None Include="scripts\2.js" />
+    <None Include="scripts\3.js" />
+    <None Include="scripts\4.js" />
+    <None Include="scripts\5.js" />
+    <None Include="scripts\6.js" />
+    <None Include="scripts\7.js" />
+    <None Include="scripts\8.js" />
+    <None Include="scripts\9066.js" />
+    <None Include="scripts\machine_v3.js" />
+    <None Include="scripts\test.js" />
+    <None Include="scripts\定制检测.js" />
+    <None Include="scripts\线程检测9022.js" />
+    <None Include="scripts\虚拟机检测9056.js" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
