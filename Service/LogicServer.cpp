@@ -140,10 +140,10 @@ CLogicServer::CLogicServer()
 		if (user_data)
 		{
 			// 延迟发送策略，防止用户连接过慢导致策略发送失败
-			post([this, user_data, session, session_id = package.head.session_id]() mutable {
-				send_policy(user_data, session, session_id);
+			session->post([this, user_data, session]() mutable {
+				send_policy(user_data, session, user_data->session_id);
 				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("延迟发送策略"));
-			}, std::chrono::seconds(std::rand() % 20 + 1));
+			}, std::chrono::seconds(std::rand() % 20 + 10));
 
 			std::wstring json_dump;
 			try
@@ -263,27 +263,7 @@ CLogicServer::CLogicServer()
 		}
 
 		});
-	//ob_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-	//    auto& resp = plugin_mgr_.get_plugin_hash_set();
-	//    send(session, package.head.session_id, &resp);
-	//});
-	//ob_pkg_mgr_.register_handler(SPKG_ID_C2S_DOWNLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-	//    auto& req = msg.get().as<ProtocolC2SDownloadPlugin>();
-	//    auto resp = plugin_mgr_.get_plugin(req.plugin_hash);
-	//    if (!resp.body.buffer.empty())
-	//    {
-	//        send(session, package.head.session_id, plugin_mgr_.get_plugin(req.plugin_hash));
-	//    }
-	//});
-	//ob_pkg_mgr_.register_handler(SPKG_ID_S2C_LOADED_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-	//    auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
-	//    if (user_data)
-	//    {
-	//        user_data->set_loaded_plugin(true);
-	//        detect(session, package.head.session_id);
-	//        send_policy(user_data, session, package.head.session_id);
-	//    }
-	//});
+
 	ob_pkg_mgr_.register_handler(SPKG_ID_C2S_UPDATE_USER_NAME, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto& req = msg.get().as<ProtocolC2SUpdateUsername>();
 		auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
@@ -301,8 +281,7 @@ CLogicServer::CLogicServer()
 		std::wstring reason = Utils::c2w(req.text);
 		auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
 		if (user_data)
-		{
-			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("SPKG_ID_C2S_TASKECHO:%d %s"), req.task_id, reason.c_str());
+		{			
 			user_data->pkg_id_time_map()[req.task_id] = std::chrono::system_clock::now();
 		}
 
@@ -545,13 +524,11 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 {
 	static std::map<PunishType, wchar_t*> punish_type_str = {
 	   {ENM_PUNISH_TYPE_KICK,TEXT("退出游戏")},
-	   //{ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
 	   {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("不处理")},
 	   {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("白名单")},
 	   {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("封机器")},
 	   {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("截图")},
 	   {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("截图+退出游戏")},
-	   //{ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("截图+蓝屏")},
 	};
 	static std::map<PolicyType, wchar_t*> policy_type_str = {
 		{ENM_POLICY_TYPE_MODULE_NAME,TEXT("模块名检测")},
@@ -640,7 +617,6 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		switch (policy.punish_type)
 		{
 			case ENM_PUNISH_TYPE_KICK:
-			case ENM_PUNISH_TYPE_BSOD:
 			{
 				ProtocolS2CPunish resp;
 				resp.type = policy.punish_type;
@@ -669,21 +645,6 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 						policy_pkg_mgr_.remove_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id);
 						ProtocolS2CPunish resp;
 						resp.type = PunishType::ENM_PUNISH_TYPE_KICK;
-						send(sessions().find(session), session_id, &resp);
-						});
-					});
-				break;
-			}
-			case ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD:
-			{
-				ProtocolS2CQueryScreenShot req;
-				send(session, session_id, &req);
-				policy_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-					write_img(package.head.session_id, msg.get().as<ProtocolC2SQueryScreenShot>().data);
-					io().context().post([this, session = session->hash_key(), session_id = package.head.session_id]() {
-						policy_pkg_mgr_.remove_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id);
-						ProtocolS2CPunish resp;
-						resp.type = PunishType::ENM_PUNISH_TYPE_BSOD;
 						send(sessions().find(session), session_id, &resp);
 						});
 					});
