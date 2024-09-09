@@ -31,18 +31,16 @@ public:
         is_stop_ = false;
 		ip_ = ip;
 		port_ = port;
-        if(super::start(ip, port, RawProtocolImpl())) {
-            notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-        }
+        notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+        super::start(ip, port, RawProtocolImpl());        
 	}
 	virtual void async_start(const std::string& ip, unsigned short port)
 	{
 		is_stop_ = false;
 		ip_ = ip;
 		port_ = port;
-		if (super::async_start(ip, port, RawProtocolImpl())) {
-			notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-		}
+		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+        super::async_start(ip, port, RawProtocolImpl());
 	}
     virtual void stop()
     {        
