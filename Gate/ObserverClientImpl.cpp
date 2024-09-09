@@ -55,25 +55,26 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         try
         {
             auto req = raw_msg.get().as<ProtocolLSLCLogPrint>();
+            auto msg = Utils::String::to_utf8(req.text);
 #ifdef GATE_ADMIN
             if (!req.silence)
             {
-                LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
+                LogPrint(LogicServerLog, TEXT("%s"), msg.c_str());
             }
             if (!req.identify.empty())
             {
-                log_to_file(req.identify, Utils::w2c(req.text));
+                log_to_file(req.identify, Utils::w2c(msg));
             }
 #else
             if (req.gm_show)
             {
                 if (!req.silence)
                 {
-                    LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
+                    LogPrint(LogicServerLog, TEXT("%s"), msg.c_str());
                 }
                 if (!req.identify.empty())
                 {
-                    log_to_file(req.identify, Utils::w2c(req.text));
+                    log_to_file(req.identify, Utils::w2c(msg));
                 }
             }
 #endif // GATE_ADMIN
@@ -86,14 +87,15 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
     package_mgr_.register_handler(OBPKG_ID_S2C_LOG, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         try
         {
-            auto req = raw_msg.get().as<ProtocolOBS2OBCLogPrint>();
+			auto req = raw_msg.get().as<ProtocolOBS2OBCLogPrint>();
+			auto msg = Utils::String::to_utf8(req.text);
             if (!req.silence)
             {
-                LogPrint(ServiceLog, TEXT("%s"), req.text.c_str());
+                LogPrint(ServiceLog, TEXT("%s"), msg.c_str());
             }
             if (!req.identify.empty())
             {
-                log_to_file(req.identify, Utils::w2c(req.text));
+                log_to_file(req.identify, Utils::w2c(msg));
             }
         }
         catch (msgpack::v1::type_error)
