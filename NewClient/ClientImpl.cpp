@@ -76,12 +76,7 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
     package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         switch (msg.get().as<ProtocolS2CPunish>().type)
         {
-        case PunishType::ENM_PUNISH_TYPE_BSOD:
-            //stop();
-            //Utils::CWindows::instance().bsod();
-            //break;
         case PunishType::ENM_PUNISH_TYPE_KICK:
-            stop();
             Utils::CWindows::instance().exit_process();
             break;
         default:
