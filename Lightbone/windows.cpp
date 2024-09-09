@@ -672,17 +672,6 @@ bool Utils::CWindows::get_process(uint32_t pid, __out ProcessInfo& process)
     return found;
 }
 
-
-void CWindows::bsod() 
-{
-    auto RtlAdjustPrivilege = IMPORT(L"ntdll.dll", RtlAdjustPrivilege);
-    auto NtRaiseHardError = IMPORT(L"ntdll.dll", NtRaiseHardError);
-    BOOLEAN was_enabled;
-    ULONG response;
-    RtlAdjustPrivilege(0x13, TRUE, FALSE, &was_enabled);
-    NtRaiseHardError(0xC000021A, 4, 1, NULL, 6, &response);
-}
-
 bool CWindows::power() 
 {
     auto GetCurrentProcess = IMPORT(L"kernel32.dll", GetCurrentProcess);

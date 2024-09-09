@@ -94,7 +94,6 @@
 #define ID_WINDOWS_VIEW                 32782
 #define ID_CLOSE_SOCKET                 32783
 #define ID_EXIT_GAME                    32784
-#define ID_BSOD                         32785
 #define ID_MAC_VIEW                     32786
 #define ID_IP_VIEW                      32787
 #define ID_MODULE_NAME                  32788

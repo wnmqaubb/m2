@@ -134,21 +134,11 @@ void LoadPlugin(CAntiCheatClient* client)
                 transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
                 if (window.class_name == L"tfrmmain")
                 {
-                    /*if (is_debug_mode == false)
-                    {
-                        BasicUtils::init_heartbeat_check(window.hwnd);
-                    }*/
                     if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                     {
                         ProtocolC2SUpdateUsername req;
                         req.username = window.caption;
                         client->send(&req);
-
-						/*if (window.caption.find(L" - ") != std::wstring::npos)
-						{
-							GameLocalFuntion::instance().call_sig_pattern();
-							GameLocalFuntion::instance().hook_init(client);
-						}*/
                         client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                     }
                     return;
@@ -248,20 +238,13 @@ void LoadPlugin(CAntiCheatClient* client)
 
 void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 {
+	LOG(L"ENM_PUNISH_TYPE 00");
 	switch (msg.get().as<ProtocolS2CPunish>().type)
 	{
-	case PunishType::ENM_PUNISH_TYPE_BSOD:
-	{
-		std::error_code ec;
-		UnitPunishKick(ec);
-		//UnitPunishBsod(ec);
-		break;
-	}
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
 		VMP_VIRTUALIZATION_BEGIN();
-		std::error_code ec;
-		UnitPunishKick(ec);
+		UnitPunishKick();
 		VMP_VIRTUALIZATION_END();
 		break;
 	}
@@ -325,12 +308,12 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         case ENM_POLICY_TYPE_SCRIPT:
         {
             async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
-#if 1
+#if 0
 			std::filesystem::create_directories(".\\temp_scripts");
 			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
 			script << Utils::String::w2c(policy.config);
             script.close();
-			LOG(TEXT("ENM_POLICY_TYPE_SCRIPT--- %d %s"), policy_id, policy.comment.c_str());
+			LOG(TEXT("ENM_POLICY_TYPE_SCRIPT--- %d"), policy_id, policy.comment.c_str());
 #endif
             break;
         }        

@@ -169,7 +169,6 @@ namespace Utils
         LIGHT_BONE_API bool detect_hide_process_handle(); 
         LIGHT_BONE_API std::unordered_map<uint32_t, std::vector<std::string>>& CWindows::find_hidden_pid_from_csrss();
         LIGHT_BONE_API void exit_process();
-        LIGHT_BONE_API void bsod();
         LIGHT_BONE_API bool power();
         LIGHT_BONE_API bool get_process_main_hwnd(uint32_t pid, WindowInfo& window_out);
         LIGHT_BONE_API bool get_process_main_thread_hwnd(uint32_t pid, std::vector<WindowInfo>& window_out);

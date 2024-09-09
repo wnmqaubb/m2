@@ -238,11 +238,6 @@ static JSValue get_hide_process_directories()
     return g_context.fromJSON(str);
 }
 
-static void bsod()
-{
-    Utils::CWindows::instance().bsod();
-}
-
 static unsigned int get_machine_id()
 {
     static uint32_t machine_id_hash = Utils::HardwareInfo::get_all_device_ids_hash();
@@ -661,7 +656,6 @@ void InitJavaScript(CAntiCheatClient* client)
 			.function<&enum_pdb>("enum_pdb")
 			.function<&enum_process_hash>("enum_process_hash")
 			.function<&get_machine_id>("get_machine_id")
-			.function<&bsod>("bsod")
 			.function<&enum_windows>("enum_windows")
 			.function<&enum_threads>("enum_threads")
 			.function<&get_process_name>("get_process_name")
