@@ -112,6 +112,7 @@ RUNGATE_API DoUnInit() noexcept
 	try
 	{	
 		DbgPrint("插件卸载开始");
+		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
 		if (!g_game_io.stopped()) {
 			g_game_io.stop();
