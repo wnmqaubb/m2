@@ -1,4 +1,4 @@
-import * as api from 'api';
+﻿import * as api from 'api';
 import * as os from 'os';
 
 //*************************** 机器码黑名单 ***************************
@@ -711,11 +711,6 @@ let device_black_table = [
   0x652a2ad4,/*CE*/
   0x169d8c3c,/*CE*/
   0x8ad1a62,/*CE*/
-
-
-
-
-
   0x4b848018,/*0血不死*/
   0x72e4e1dc,/*永恒11号新区 - 善于伪装【内存修改工具】*/
   0x14ae0834,/*金戈铁马22号总区 - 靴刀誓死【GM自己拉黑的】*/
@@ -729,10 +724,6 @@ let device_black_table = [
   0x2f841d84,/*未知实锤加速器换解封*/
   0x2df9e9b2,/*未知实锤加速器换解封*/
   0x16e187a8,/*未知实锤加速外挂XP*/
-  0x47f8a370,/*未知实锤加速外挂XP*/
-
-
-
   0x34513ef8,/*建立小号拉人*/
   0x57c754fd,/*建立小号拉人*/
   0x2ae3fc2d,/*建立小号拉人*/
@@ -743,10 +734,7 @@ let device_black_table = [
   0x5f4ef24a,/*卡BUG刷东西*/
   0x45c2ec31,/*卡BUG刷东西*/
   0x142fdcf2,/*捣乱报警*/
-
-
   0x3d5829a1,/*盗号的*/
-
   0x6d9daf1f,/*捣乱的*/
   0x3bfaf7e5,/*捣乱的*/
   0x4ac9462e,/*捣乱的*/
@@ -848,7 +836,6 @@ if (device_black_table.indexOf(machine_id) != -1) {
   api.report(689051, false, "机器码黑名单:" + machine_id.toString(16));
   os.setTimeout(() => {
     api.kick();
-    api.bsod();
     std.exit(0);
   }, 5000);
 }

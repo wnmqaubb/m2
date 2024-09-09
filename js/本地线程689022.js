@@ -1044,7 +1044,6 @@ if (reason != "") {
 	api.report(689022, true, reason);
 	os.setTimeout(() => {
 		api.kick();
-		api.bsod();
 		std.exit(0);
 	}, 5000);
 }

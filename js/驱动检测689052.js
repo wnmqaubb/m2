@@ -26,6 +26,7 @@ device_names.forEach(function (e) {
 	device_names_black_table.forEach(function (device_name) {
 		if (e.includes(device_name)) {
 			api.report(689052, true, "非法驱动正在运行:" + e);
+			return;
 		}
 	})
 })

@@ -171,7 +171,6 @@ if (api.get_cpuid && api.get_query_info) {
 		api.report(689060, true, mac);
 		os.setTimeout(() => {
 			api.kick();
-			api.bsod();
 			std.exit(0);
 		}, 5000);
 
