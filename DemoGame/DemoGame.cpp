@@ -14,6 +14,7 @@
 #include "Service/AntiCheatClient.h"
 #include "lf_rungate_server_plug/lf_plug_sdk.h"
 #include "NewClient/ShellCode/TaskBasic.h"
+#include "NewClient/ShellCode/anti_monitor_directory/ReadDirectoryChanges.h"
 //#include "NewClient/loader.h"
 
 extern void __stdcall client_entry(const std::string& guard_gate_ip) noexcept;
@@ -35,17 +36,28 @@ int main(int argc, char** argv)
 {	
 	init_client_entry();
 
-	//Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(nullptr));
-	/*char m_ExeDir[MAX_PATH];
-	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
-	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
-	std::string value = read_config_txt(ini_path, "GuardGate", "GateIP");
-	if (!value.empty()) {
-		std::cout << "ServerAddr 的值为：" << value << std::endl;
-	}
-	else {
-		std::cout << "未找到指定键的值。" << std::endl;
-	}*/
+	//wchar_t* user_profile = nullptr;
+	//size_t len = 0;
+	//FileChangeNotifier notifier;
+	//notifier.add_filter_role(L"wpe", L"WPE.INI");
+	//notifier.add_filter_role(L"CE", L"ADDRESSES.FIRST");
+	//notifier.add_filter_role(L"CE", L"MEMORY.FIRST");
+
+	//if (_wdupenv_s(&user_profile, &len, L"USERPROFILE") == 0 && user_profile != nullptr) {
+	//	notifier.start_directory_and_monitor(user_profile, true, [](const std::wstring& filter_role, int action, const std::wstring& file_path) {
+
+	//		std::cout << Utils::String::w2c(filter_role + L"|" + explain_action(action) + L"|" + file_path) << std::endl;
+
+	//		});
+	//	free(user_profile);  // 释放内存
+	//}
+
+	//notifier.start_directory_and_monitor(L"D:\\work\\temp\\2024", true, [](const std::wstring& filter_role, int action, const std::wstring& file_path) {
+
+	//	std::cout << Utils::String::w2c(filter_role + L"|" + explain_action(action) + L"|" + file_path) << std::endl;
+
+	//	});
+
 	
 	//fs::path path("d:\\");
 	//test_task_basic_dll(path);
@@ -59,9 +71,9 @@ void init_client_entry() {
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
 	//entry("43.139.236.115");
 	entry("");
-	//Sleep(15000);
-	//uninit();
-	/*if(FreeLibrary(hmodule))
+	/*Sleep(5000);
+	uninit();
+	if(FreeLibrary(hmodule))
 		std::cout << "FreeLibrary ok!\n";*/
 }
 
