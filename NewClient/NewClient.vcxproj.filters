@@ -11,6 +11,7 @@
     <ClInclude Include="ShellCode\TaskBasic.h" />
     <ClInclude Include="..\3rdparty\wmic\dnscache.h" />
     <ClInclude Include="..\3rdparty\wmic\wmic.h" />
+    <ClInclude Include="ShellCode\anti_monitor_directory\ReadDirectoryChanges.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -32,6 +33,8 @@
     <ClCompile Include="..\3rdparty\wmic\wmic.cpp" />
     <ClCompile Include="ShellCode\TaskTimeoutCheck.cpp" />
     <ClCompile Include="ShellCode\TaskShowWindowHook.cpp" />
+    <ClCompile Include="ShellCode\anti_monitor_directory_changes.cpp" />
+    <ClCompile Include="ShellCode\anti_monitor_directory\ReadDirectoryChanges.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />

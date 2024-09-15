@@ -7,8 +7,6 @@
 #include <winnt.h>
 #include <intsafe.h>
 
-#define LOG_SHOW
-
 namespace sdk::utils {
 	template<class F>
 	struct safe_api_warpper;

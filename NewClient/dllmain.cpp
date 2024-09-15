@@ -17,26 +17,17 @@ asio::io_service g_game_io;
 asio::detail::thread_group g_thread_group;
 int g_client_rev_version = REV_VERSION;
 std::shared_ptr<CClientImpl> client_ = nullptr;
-VOID DbgPrint(const char* fmt, ...)
-{
-	char    buf[1024];
-	va_list args;
-	va_start(args, fmt);
-	vsprintf_s(buf, fmt, args);
-	va_end(args);
-	OutputDebugStringA(buf);
-}
 
 void client_start_routine()
 {
 #ifdef LOG_SHOW
-	DbgPrint("client_start_routine ");
+	LOG("client_start_routine ");
 #endif
     WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
 	auto port = client_->cfg()->get_field<int>(port_field_id);
 	client_->async_start(ip, port);
-	DbgPrint("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+	LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
 	
 }
 //#ifdef _DEBUG
@@ -60,13 +51,13 @@ void client_start_routine()
 #endif
 	if (client_->cfg()->get_field<bool>(sec_no_change_field_id))
 	{
-		DbgPrint("启用安全模式1");
+		LOG("启用安全模式1");
 		Utils::ImageProtect::instance().register_callback(&client_start_routine);
 		Utils::ImageProtect::instance().install();
 	}
 	else
 	{
-		DbgPrint("启用安全模式2");
+		LOG("启用安全模式2");
 		client_start_routine();
 	}
 	VMP_VIRTUALIZATION_END();
@@ -81,9 +72,7 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc) noexcept
 	AddChatText = AppFunc->AddChatText;
 	SendSocket = AppFunc->SendSocket;
 
-#ifdef LOG_SHOW
-	DbgPrint("lf客户端插件拉起成功 dll_base:%p", dll_base);
-#endif
+	LOG("lf客户端插件拉起成功 dll_base:%p", dll_base);
 	//AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
 	lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
 	SendSocket(&initok, 0, 0);
@@ -93,16 +82,11 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc) noexcept
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
 {
 	using namespace lfengine::client; 
-#ifdef LOG_SHOW
-		//DbgPrint("lf客户端插件HookRecv--defMsg->ident %d ", defMsg->ident);
-#endif
 	if (defMsg->ident == 10001)
 	{
 		client_entry(lpData);
-#ifdef LOG_SHOW
 		AddChatText(lpData, 0x0000ff, 0);
-		DbgPrint("lf客户端插件HookRecv--gate_ip: %s ", lpData);
-#endif
+		LOG("lf客户端插件HookRecv--gate_ip: %s ", lpData);
 	}
 
 }
@@ -111,7 +95,7 @@ RUNGATE_API DoUnInit() noexcept
 {
 	try
 	{	
-		DbgPrint("插件卸载开始");
+		LOG("插件卸载开始");
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
 		if (!g_game_io.stopped()) {
@@ -131,11 +115,11 @@ RUNGATE_API DoUnInit() noexcept
 		*/
 		client_->destroy();
 		Sleep(500);
-		DbgPrint("插件卸载完成");
+		LOG("插件卸载完成");
 	}
 	catch (...)
 	{
-		DbgPrint("DoUnInit 异常");
+		LOG("DoUnInit 异常");
 	}
 }
 
