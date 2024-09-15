@@ -22,6 +22,7 @@ void InitShowWindowHookDetect(CAntiCheatClient* client);
 void InitSpeedDetect(CAntiCheatClient* client);
 void InitMiniDump();
 void InitImageProtectCheck(CAntiCheatClient* client);
+void InitDirectoryChangsDetect(CAntiCheatClient* client);
 void async_execute_javascript(const std::string& code, uint32_t script_id);
 void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg);
 void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req);

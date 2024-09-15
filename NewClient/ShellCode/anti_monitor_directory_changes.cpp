@@ -1,104 +1,52 @@
 #include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
+#include "anti_monitor_directory/ReadDirectoryChanges.h"
+extern asio::io_service g_game_io;
 
-__declspec(dllimport) asio::io_service g_game_io;
-
-void report_show_window(CAntiCheatClient* client, bool is_cheat, const std::string& reason)
+void report_monitor_directory(CAntiCheatClient* client, bool is_cheat, const std::string& reason)
 {
     VMP_VIRTUALIZATION_BEGIN();
     static uint32_t last_tick_count = NULL;
     if (GetTickCount() - last_tick_count >= 200)
     {
         ProtocolC2STaskEcho resp;
-        resp.task_id = TASK_PKG_ID_SHOW_WINDOW_HOOK_DETECT;
+        resp.task_id = 689066;
         resp.is_cheat = true;
-        resp.text = xorstr("非法窗口:") + reason;
+        resp.text = xorstr("发现外挂:") + reason;
         client->send(&resp);
         last_tick_count = GetTickCount();
     }
     VMP_VIRTUALIZATION_END();
 }
 
-const unsigned int DEFINE_TIMER_ID(kShowWindowHookTimerId);
-void InitShowWindowHookDetect(CAntiCheatClient* client)
+void InitDirectoryChangsDetect(CAntiCheatClient* client)
 {
-    auto ShowWindow = IMPORT(L"user32.dll", ShowWindow);
-    LightHook::HookMgr::instance().add_context_hook(ShowWindow, [](LightHook::Context& ctx) {
-        uintptr_t* param = (uintptr_t*)ctx.esp;
-        const uintptr_t return_address = param[0];
-        const HWND hwnd = reinterpret_cast<HWND>(param[1]);
-        const int nCmdShow = param[2];
-        auto GetModuleHandleExW = IMPORT(L"kernel32.dll", GetModuleHandleExW);
+	wchar_t* user_profile = nullptr;
+	size_t len = 0;
+	FileChangeNotifier notifier;
+	notifier.add_filter_role(L"wpe", L"WPE.INI");
+	notifier.add_filter_role(L"CE", L"ADDRESSES.FIRST");
+	notifier.add_filter_role(L"CE", L"MEMORY.FIRST");
 
-        if (return_address)
-        {
-            HMODULE thread_module = nullptr;
-            GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)return_address, &thread_module);
-            if (thread_module == nullptr)
-            {
-                report_show_window((CAntiCheatClient*)ctx.custom_param, true, xorstr("外挂窗口"));
-                return;
-            }
-            else
-            {
-                if (*(uint32_t*)return_address == 0x65399090)
-                {
-                    report_show_window((CAntiCheatClient*)ctx.custom_param, true, xorstr("外挂窗口"));
-                    return;
-                }
-            }
-        }
+	if (_wdupenv_s(&user_profile, &len, L"USERPROFILE") == 0 && user_profile != nullptr) {
+		notifier.start_directory_and_monitor(user_profile, true, [client](const std::wstring& filter_role, int action, const std::wstring& file_path) {
 
-        if (nCmdShow != SW_SHOWNORMAL)
-        {
-            return;
-        }
+			report_monitor_directory(client, true, Utils::String::w2c(filter_role + L"|" + explain_action(action) + L"|" + file_path));
 
-        auto GetClassNameW = IMPORT(L"user32.dll", GetClassNameW);
-        std::wstring class_name;
-        class_name.resize(MAX_PATH);
-        GetClassNameW(hwnd, (PWCHAR)class_name.data(), MAX_PATH);
-        if (class_name[0] == '#')
-        {
-            return;
-        }
-        for (auto& ch : class_name)
-        {
-            if ('0' <= ch && ch <= '9')
-            {
-                report_show_window((CAntiCheatClient*)ctx.custom_param, true, Utils::String::w2c(class_name));
-                break;
-            }
-        }
-    }, client);
-    auto GetDlgItem = IMPORT(L"user32.dll", GetDlgItem);
-    LightHook::HookMgr::instance().add_context_hook(GetDlgItem, [](LightHook::Context& ctx) {
-        uintptr_t* esp = (uintptr_t*)ctx.esp;
-        uintptr_t* ebp = (uintptr_t*)ctx.ebp;
-        if (!ebp) return;
-        const uintptr_t return_address = ebp[1];
-        auto GetModuleHandleExW = IMPORT(L"kernel32.dll", GetModuleHandleExW);
-        auto ExitProcess = IMPORT(L"kernel32.dll", ExitProcess);
-        HMODULE module = NULL;
-        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)return_address, &module);
-        if (module == NULL)
-        {
-            esp[0] = (uintptr_t)ExitProcess;
-        }
-    });
-    LightHook::HookMgr::instance().add_context_hook(&TrackMouseEvent, [](LightHook::Context& ctx) {
-        uintptr_t* esp = (uintptr_t*)ctx.esp;
-        uintptr_t* ebp = (uintptr_t*)ctx.ebp;
-        if (!ebp || !esp) return;
-        const uintptr_t return_address = esp[0];
-        auto GetModuleHandleExW = IMPORT(L"kernel32.dll", GetModuleHandleExW);
-        auto ExitProcess = IMPORT(L"kernel32.dll", ExitProcess);
-        HMODULE module = NULL;
-        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)return_address, &module);
-        if (module == NULL)
-        {
-            report_show_window((CAntiCheatClient*)ctx.custom_param, true, xorstr("外挂窗口2"));
-        }
-    }, client);
+		});
+		free(user_profile);  // 释放内存
+	}
+
+	notifier.start_directory_and_monitor(L"D:\\work\\temp\\2024", true, [client](const std::wstring& filter_role, int action, const std::wstring& file_path) {
+
+		report_monitor_directory(client, true, Utils::String::w2c(filter_role + L"|" + explain_action(action) + L"|" + file_path,CP_UTF8));
+
+		});
+
+	
+
+
+
+    
 }

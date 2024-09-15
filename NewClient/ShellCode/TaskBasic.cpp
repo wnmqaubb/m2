@@ -2,28 +2,13 @@
 #include "TaskBasic.h"
 #include "../../lf_rungate_server_plug/lf_plug_sdk.h"
 
-#ifdef LOG_SHOW
-    #define LOG(x,...) log(x, __VA_ARGS__)
-#else 
-    #define LOG(x,...)
-#endif
-
 #define CONFIG_APP_NAME "    ┣┫========锦衣卫封挂加载成功========┣┫"
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
 #define CONFIG_TITLE    "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
 
 bool is_debug_mode = false;
 int reconnect_count = 0;
-void log(const TCHAR* format, ...)
-{
-	TCHAR buffer[1024];
-	va_list ap;
-	va_start(ap, format);
-	_vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
-	va_end(ap);
-	wprintf(TEXT("%s\n"), buffer);
-	OutputDebugStringW(buffer);
-}
+
 void NotifyHook(CAntiCheatClient* client)
 {
     auto client_connect_success_handler = client->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
@@ -39,7 +24,7 @@ void LoadPlugin(CAntiCheatClient* client)
 		lfengine::client::AddChatText(CONFIG_APP_NAME, 0x0000ff, 0);
 		lfengine::client::AddChatText(CONFIG_TITLE, 0x0000ff, 0);
     }
-    LOG(TEXT("加载插件成功---"));
+    LOG("加载插件成功---");
     VMP_VIRTUALIZATION_BEGIN();
     srand(time(0));
     InitMiniDump();
@@ -57,16 +42,16 @@ void LoadPlugin(CAntiCheatClient* client)
 
     if(g_client_rev_version != REV_VERSION)
     {
-        LOG(TEXT("插件版本不匹配"));
+        LOG("插件版本不匹配");
     }
-    LOG(TEXT("加载插件"));
+    LOG("加载插件");
 	client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, std::bind(&on_recv_punish, client, std::placeholders::_1, std::placeholders::_2));
     client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_PROCESS,[client](const RawProtocolImpl& package, const msgpack::v1::object_handle&){
-        LOG(TEXT("查询进程:%u"), package.head.session_id);
+        LOG("查询进程:%u", package.head.session_id);
         auto processes = Utils::CWindows::instance().enum_process_with_dir();
         ProtocolC2SQueryProcess resp;
         resp.data = cast(processes);
-        LOG(TEXT("返回查询进程:%d"), resp.package_id);
+        LOG("返回查询进程:%d", resp.package_id);
         client->send(&resp, package.head.session_id);
     });
     client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_DRIVERINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
@@ -225,7 +210,7 @@ void LoadPlugin(CAntiCheatClient* client)
 	InitRmc(client);
 	InitTimeoutCheck(client);
 	InitJavaScript(client);
-
+    InitDirectoryChangsDetect(client);
     if (is_debug_mode == false)
     {
         InitHideProcessDetect(client);
@@ -238,7 +223,6 @@ void LoadPlugin(CAntiCheatClient* client)
 
 void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 {
-	LOG(L"ENM_PUNISH_TYPE 00");
 	switch (msg.get().as<ProtocolS2CPunish>().type)
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
@@ -313,7 +297,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
 			script << Utils::String::w2c(policy.config);
             script.close();
-			LOG(TEXT("ENM_POLICY_TYPE_SCRIPT--- %d"), policy_id, policy.comment.c_str());
+			LOG("ENM_POLICY_TYPE_SCRIPT--- %d"), policy_id, policy.comment.c_str());
 #endif
             break;
         }        
