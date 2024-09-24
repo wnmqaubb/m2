@@ -31,9 +31,9 @@ void CMainBar::OnInitialUpdate()
 #ifndef GATE_ADMIN
      
 #else
-     GetDlgItem(IDC_REFRESH_LICENSE_BUTTON)->ShowWindow(SW_SHOW);
+     GetDlgItem(IDC_REFRESH_LICENSE_BUTTON)->ShowWindow(SW_HIDE);
      GetDlgItem(IDC_EXPDATE_STATIC)->ShowWindow(SW_HIDE);
-     GetDlgItem(IDC_EXPDATE_TEXT_STATIC)->ShowWindow(SW_HIDE);
+	 GetDlgItem(IDC_EXPDATE_TEXT_STATIC)->ShowWindow(SW_HIDE);
 #endif
 }
 
