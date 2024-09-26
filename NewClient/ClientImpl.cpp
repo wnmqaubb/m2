@@ -46,7 +46,9 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             heartbeat.tick = time(0);
             send(&heartbeat);
             log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
-        });
+		});
+		// 发送用户名 防止断开后重连时网关用户名为空
+		notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
     notify_mgr().register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
         ProtocolC2SQueryPlugin req;

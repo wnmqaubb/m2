@@ -162,7 +162,7 @@
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>taskkill /f /fi "pid gt 0" /im Gate.exe</Command>
+      <Command>taskkill /f /fi "pid gt 0" /im AdminGate.exe</Command>
     </PreBuildEvent>
     <Manifest>
       <EnableDpiAwareness>false</EnableDpiAwareness>
@@ -249,7 +249,7 @@
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>taskkill /f /fi "pid gt 0" /im Gate.exe</Command>
+      <Command>taskkill /f /fi "pid gt 0" /im AdminGate.exe</Command>
     </PreBuildEvent>
     <Manifest>
       <EnableDpiAwareness>false</EnableDpiAwareness>
