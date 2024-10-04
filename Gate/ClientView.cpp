@@ -625,10 +625,28 @@ void CClientView::OnIpBan()
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
         unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
+        // 防止重复添加策略
+        for (auto [uiPolicyId, Policy] : Policies)
         {
-            uiLastPolicyId = uiPolicyId;
+            if(Policy.punish_type == ENM_PUNISH_TYPE_BAN_MACHINE && Policy.config == ip)
+            {
+                AfxMessageBox(TEXT("该IP已经存在黑名单中!"));
+                return;
+            }
         }
+
+        for (auto[uiPolicyId, Policy] : Policies)
+		{
+#ifndef GATE_ADMIN
+			if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
+				break;
+			}
+#endif
+			uiLastPolicyId = uiPolicyId;
+		}
+		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
+			uiLastPolicyId = GATE_POLICY_ID;
+		}
         uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
@@ -656,7 +674,7 @@ void CClientView::OnMacBan()
     else
     {
         return;
-    }
+	}
 
     std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
     if (file.is_open())
@@ -666,11 +684,29 @@ void CClientView::OnMacBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
+		unsigned int uiLastPolicyId = 0;
+		// 防止重复添加策略
+		for (auto [uiPolicyId, Policy] : Policies)
+		{
+			if (Policy.punish_type == ENM_PUNISH_TYPE_BAN_MACHINE && Policy.config == strMac)
+			{
+				AfxMessageBox(TEXT("该机器码已经存在黑名单中!"));
+				return;
+			}
+		}
+
         for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
+		{
+#ifndef GATE_ADMIN
+            if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
+                break;
+            }
+#endif
+			uiLastPolicyId = uiPolicyId;
+		}
+		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
+			uiLastPolicyId = GATE_POLICY_ID;
+		}
         uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
@@ -709,11 +745,29 @@ void CClientView::OnIpWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
+		unsigned int uiLastPolicyId = 0;
+		// 防止重复添加策略
+		for (auto [uiPolicyId, Policy] : Policies)
+		{
+			if (Policy.punish_type == ENM_PUNISH_TYPE_SUPER_WHITE_LIST && Policy.config == strIP)
+			{
+				AfxMessageBox(TEXT("该IP已经存在白名单中!"));
+				return;
+			}
+		}
+
         for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
+		{
+#ifndef GATE_ADMIN
+			if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
+				break;
+			}
+#endif
+			uiLastPolicyId = uiPolicyId;
+		}
+		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
+			uiLastPolicyId = GATE_POLICY_ID;
+		}
         uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
@@ -752,11 +806,29 @@ void CClientView::OnMacWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
+		unsigned int uiLastPolicyId = 0;
+		// 防止重复添加策略
+		for (auto [uiPolicyId, Policy] : Policies)
+		{
+			if (Policy.punish_type == ENM_PUNISH_TYPE_SUPER_WHITE_LIST && Policy.config == strMac)
+			{
+				AfxMessageBox(TEXT("该机器码已经存在白名单中!"));
+				return;
+			}
+		}
+
         for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
+		{
+#ifndef GATE_ADMIN
+			if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
+				break;
+			}
+#endif
+			uiLastPolicyId = uiPolicyId;
+		}
+		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
+			uiLastPolicyId = GATE_POLICY_ID;
+		}
         uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;

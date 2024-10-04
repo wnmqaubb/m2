@@ -296,7 +296,7 @@ CLogicServer::CLogicServer()
 		{
 			std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
 			std::wstring reason = Utils::c2w(req.text);
-			bool gm_show = 688000 < req.task_id && req.task_id < 689051;
+			bool gm_show = 688000 < req.task_id && req.task_id < 689000;
 			bool silence = req.task_id != 0;
 
 			if (req.task_id == 689999 && req.is_cheat)
@@ -542,7 +542,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		{ENM_POLICY_TYPE_THREAD_START,TEXT("Ïß³ÌÌØÕ÷")}
 	};
 	auto user_data = usr_sessions_mgr().get_user_data(session_id);
-	bool gm_show = 688000 < policy.policy_id && policy.policy_id < 689051;
+	bool gm_show = 688000 < policy.policy_id && policy.policy_id < 689000;
 	if (user_data)
 	{
 		std::string ip = user_data->json.find("ip") != user_data->json.end() ? user_data->json.at("ip").get<std::string>() : "(NULL)";

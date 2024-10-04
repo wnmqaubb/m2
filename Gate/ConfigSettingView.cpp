@@ -153,7 +153,7 @@ void CConfigSettingView::RefreshViewList()
     for (auto[uiPolicyId, Policy] : m_Policys.policies)
     {
 #ifndef GATE_ADMIN
-        if (688000 >= uiPolicyId || uiPolicyId > 689050
+        if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID
             || Policy.policy_type == ENM_POLICY_TYPE_SCRIPT 
             || Policy.policy_type == ENM_POLICY_TYPE_THREAD_START)
         {
@@ -241,19 +241,19 @@ void CConfigSettingView::OnConfigAdd()
     auto& Policies = GetDocument()->GetPolicy().policies;
     unsigned int uiLastPolicyId = 0;
 #ifdef GATE_ADMIN
-    uiLastPolicyId = 689000;
+    uiLastPolicyId = GATE_ADMIN_POLICY_ID;
 #else
-    uiLastPolicyId = 688000;
+    uiLastPolicyId = GATE_POLICY_ID;
 #endif
     for (auto [uiPolicyId, Policy] : Policies)
     {
 #ifdef GATE_ADMIN
-        if (uiPolicyId > 689000)
+        if (uiPolicyId > GATE_ADMIN_POLICY_ID)
         {
             uiLastPolicyId = uiPolicyId;
         }
 #else
-        if (688000 < uiPolicyId && uiPolicyId < 689001)
+        if (GATE_POLICY_ID < uiPolicyId && uiPolicyId < GATE_ADMIN_POLICY_ID)
         {
             uiLastPolicyId = uiPolicyId;
         }

@@ -119,20 +119,20 @@ void CConfig::OnClose()
 
     unsigned int uiLastPolicyId = 0;
 #ifdef GATE_ADMIN
-    uiLastPolicyId = 689000;
+    uiLastPolicyId = GATE_ADMIN_POLICY_ID;
 #else
-    uiLastPolicyId = 688000;
+    uiLastPolicyId = GATE_POLICY_ID;
 #endif
 
     for (auto&[uiPolicyId, Policy] : m_Policys.policies)
     {
 #ifdef GATE_ADMIN
-        if (uiPolicyId > 689000)
+        if (uiPolicyId > GATE_ADMIN_POLICY_ID)
         {
             uiLastPolicyId = uiPolicyId;
         }
 #else
-        if (688000 < uiPolicyId && uiPolicyId < 689001)
+        if (GATE_POLICY_ID < uiPolicyId && uiPolicyId < GATE_ADMIN_POLICY_ID)
         {
             uiLastPolicyId = uiPolicyId;
         }

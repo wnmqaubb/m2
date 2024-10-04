@@ -161,7 +161,7 @@ void CPropEditFormView::OnBnClickedButtonPolicyCommit()
             m_PolicyIdEdit.GetWindowText(cstrPolicyId);
             auto uiPolicyId = StrToInt(cstrPolicyId);
 #ifndef GATE_ADMIN
-            if (!m_CreateByAdmin && (688000 >= uiPolicyId || uiPolicyId > 689000))
+            if (!m_CreateByAdmin && (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID))
             {
                 AfxMessageBox(TEXT("策略ID为688001～689000之间"), MB_OK);
                 return;

@@ -85,7 +85,14 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 	using namespace lfengine::client; 
 	if (defMsg->ident == 10001)
 	{
-		client_entry(lpData);
+		try
+		{
+			client_entry(lpData);
+		}
+		catch (...)
+		{
+			LOG("client_entry 异常");
+		}
 		//AddChatText(lpData, 0x0000ff, 0);
 		LOG("lf客户端插件HookRecv--gate_ip: %s ", lpData);
 	}
@@ -140,13 +147,14 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        dll_base = hModule;
+		dll_base = hModule; LOG("DLL_PROCESS_ATTACH"); break;
     case DLL_THREAD_ATTACH:
-        break;
-    case DLL_THREAD_DETACH:
+		LOG("DLL_THREAD_ATTACH"); break;
+	case DLL_THREAD_DETACH:
+		LOG("DLL_THREAD_DETACH"); break;
     case DLL_PROCESS_DETACH:
 		//DoUnInit();
-        break;
+		LOG("DLL_PROCESS_DETACH"); break;
     }
     return TRUE;
 }
