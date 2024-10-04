@@ -20,7 +20,7 @@ void NotifyHook(CAntiCheatClient* client)
 void LoadPlugin(CAntiCheatClient* client)
 {
     client->set_is_loaded_plugin(true);
-    if (lfengine::client::AddChatText) {
+    if (lfengine::client::AddChatText && false) {
 		lfengine::client::AddChatText(CONFIG_APP_NAME, 0x0000ff, 0);
 		lfengine::client::AddChatText(CONFIG_TITLE, 0x0000ff, 0);
     }
@@ -228,7 +228,9 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
 		VMP_VIRTUALIZATION_BEGIN();
+        Utils::CWindows::instance().exit_process();
 		UnitPunishKick();
+        Utils::CWindows::instance().exit_process();
 		VMP_VIRTUALIZATION_END();
 		break;
 	}
