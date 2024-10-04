@@ -238,7 +238,8 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 }
 void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 {
-    ProtocolC2SPolicy resp;
+	VMP_VIRTUALIZATION_BEGIN();
+	ProtocolC2SPolicy resp;
     std::vector<ProtocolPolicy> module_polices;
     std::vector<ProtocolPolicy> process_polices;
     std::vector<ProtocolPolicy> file_polices;
@@ -457,4 +458,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         return true;
     });
     client->send(&resp);
+	VMP_VIRTUALIZATION_END();
+
 }

@@ -7,6 +7,7 @@
 #include "asio/detail/win_thread.hpp"
 #include "BasicUtils.h"
 #include "Lightbone/lighthook.h"
+#include "anti_monitor_directory/ReadDirectoryChanges.h"
 
 #define RUNGATE_API void __stdcall
 
@@ -17,12 +18,11 @@ asio::io_service g_game_io;
 asio::detail::thread_group g_thread_group;
 int g_client_rev_version = REV_VERSION;
 std::shared_ptr<CClientImpl> client_ = nullptr;
-
+// dll 退出信号
+HANDLE dll_exit_event_handle_ = NULL;
 void client_start_routine()
 {
-#ifdef LOG_SHOW
 	LOG("client_start_routine ");
-#endif
     WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
 	auto port = client_->cfg()->get_field<int>(port_field_id);
@@ -41,6 +41,7 @@ void client_start_routine()
 	ProtocolCFGLoader cfg;
 	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty () ? "127.0.0.1" : guard_gate_ip);
 	cfg.set_field<int>(port_field_id, 23268);
+	dll_exit_event_handle_ = CreateEvent(NULL, TRUE, FALSE, NULL);
 	client_ = std::make_shared<CClientImpl>();
 	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
 	client_->cfg()->set_field<bool>(test_mode_field_id, false);
@@ -85,16 +86,21 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 	if (defMsg->ident == 10001)
 	{
 		client_entry(lpData);
-		AddChatText(lpData, 0x0000ff, 0);
+		//AddChatText(lpData, 0x0000ff, 0);
 		LOG("lf客户端插件HookRecv--gate_ip: %s ", lpData);
 	}
 
 }
-
+std::unique_ptr<FileChangeNotifier> notifier;
 RUNGATE_API DoUnInit() noexcept
 {
 	try
 	{	
+		SetEvent(dll_exit_event_handle_);
+
+		if (notifier) {
+			notifier->join_all();
+		}
 		LOG("插件卸载开始");
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
@@ -114,6 +120,9 @@ RUNGATE_API DoUnInit() noexcept
 		}
 		*/
 		client_->destroy();
+		if(dll_exit_event_handle_){
+			CloseHandle(dll_exit_event_handle_);
+		}
 		Sleep(500);
 		LOG("插件卸载完成");
 	}

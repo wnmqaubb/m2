@@ -4,11 +4,6 @@
 #include "TaskBasic.h"
 
 using namespace Utils;
-#ifndef _DEBUG
-#define log(x, fmt , ...) log(x, fmt, __VA_ARGS__)
-#else 
-#define LOG(x,...)
-#endif
 
 CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 {
@@ -22,14 +17,14 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
         fs::create_directory(cache_dir_, ec);
     }
     notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("失去连接"));
+        LOG("失去连接");
     });
     notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
         auto ec = asio2::get_last_error();
-        log(LOG_TYPE_DEBUG, TEXT("连接失败: %s "), Utils::String::c2w(ec.message()).c_str());
+        LOG("连接失败: %s ", ec.message().c_str());
     });
     notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("握手"));
+        LOG("握手");
         ProtocolC2SHandShake handshake;
         memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
         handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
@@ -46,7 +41,7 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 			ProtocolC2SHeartBeat heartbeat;
 			heartbeat.tick = time(0);
 			send(&heartbeat);
-			log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
+			LOG("发送心跳");
 			});
 		post([this]() {
             if (!is_loaded_plugin())
@@ -59,11 +54,11 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
     });
 
 	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
-		log(LOG_TYPE_DEBUG, TEXT("接收心跳"));
+		LOG("接收心跳");
 		});
 
     notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("客户端初始化成功"));
+        LOG("客户端初始化成功");
         user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
         user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
         user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
@@ -87,7 +82,7 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)
 {
-    log(LOG_TYPE_DEBUG, TEXT("收到:%d"), package_id);
+    LOG("收到:%d", package_id);
 }
 
 void CClientImpl::load_uuid()

@@ -142,7 +142,7 @@ CLogicServer::CLogicServer()
 			// 延迟发送策略，防止用户连接过慢导致策略发送失败
 			session->post([this, user_data, session]() mutable {
 				send_policy(user_data, session, user_data->session_id);
-				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("延迟发送策略"));
+				//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("延迟发送策略"));
 			}, std::chrono::seconds(std::rand() % 20 + 10));
 
 			std::wstring json_dump;
@@ -255,7 +255,7 @@ CLogicServer::CLogicServer()
 					ProtocolS2CQueryProcess req;
 					send(session, package.head.session_id, &req);
 					user_data->has_been_check_pkg(true);
-					user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("下发查看进程:%d"), user_data->session_id);
+					//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("下发查看进程:%d"), user_data->session_id);
 				}
 
 				user_data->last_heartbeat_time = std::chrono::system_clock::now();
@@ -305,7 +305,7 @@ CLogicServer::CLogicServer()
 				user_log(LOG_TYPE_EVENT, silence, false, user_data->get_uuid().str(), TEXT("玩家:%s 策略ID:%d 日志:多次脚本错误定性为外挂,已写入恶性名单!"), usr_name.c_str(), req.task_id, reason.c_str());
 			}
 
-			user_log(LOG_TYPE_EVENT, silence, gm_show, user_data->get_uuid().str(), TEXT("玩家:%s 策略ID:%d 日志:%s"), usr_name.c_str(), req.task_id, reason.c_str());
+			//user_log(LOG_TYPE_EVENT, silence, gm_show, user_data->get_uuid().str(), TEXT("玩家:%s 策略ID:%d 日志:%s"), usr_name.c_str(), req.task_id, reason.c_str());
 #if defined(ENABLE_POLICY_TIMEOUT_CHECK)
 			if (user_data->policy_recv_timeout_timer_) user_data->policy_recv_timeout_timer_->cancel(); 
 #endif

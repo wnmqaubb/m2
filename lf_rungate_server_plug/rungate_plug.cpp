@@ -56,7 +56,7 @@ RUNGATE_API ClientStart(int clientID)
 	TRunGatePlugClientInfo clientInfo{};
 	GetClientInfo(clientID, &clientInfo);
 	//clientInfo.DataAdd.AddData1 = 1000; // 附加自己的数据
-	DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
+	//DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
 	//DbgPrint("=====客户端断开=====，ID:%d， GetClientInfo:%08X", clientID, GetClientInfo);
 
 }
@@ -65,7 +65,7 @@ RUNGATE_API ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData
 {
 	if (defMsg->ident == 10000)
 	{
-		AddShowLog("=====接收客户端数据包=====", 0);
+		//AddShowLog("=====接收客户端数据包=====", 0);
 		SetClientPlugLoad(clientID);
 		// 下发锦衣卫网关IP
 		defMsg->ident = 10001;
