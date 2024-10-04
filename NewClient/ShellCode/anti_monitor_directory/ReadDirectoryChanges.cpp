@@ -4,7 +4,7 @@
 
 // 要监控的程序名字和路径
 static std::unordered_map <std::wstring, std::unordered_set<std::wstring>> filtered_role_map_;
-
+extern HANDLE dll_exit_event_handle_;
 LPCWSTR explain_action(DWORD dwAction)
 {
 	switch (dwAction)
@@ -27,12 +27,16 @@ LPCWSTR explain_action(DWORD dwAction)
 FileChangeNotifier::FileChangeNotifier() {}
 
 FileChangeNotifier::FileChangeNotifier(const std::wstring& file_path, bool is_recursive, dectect_handler_t callback)
-	: file_path(file_path), is_recursive_(is_recursive), callback_(callback) {
+	: file_path(file_path), is_recursive_(is_recursive), callback_(callback), file_handle(INVALID_HANDLE_VALUE) {
 	start_watching();
 }
 
 FileChangeNotifier::~FileChangeNotifier() {
 	stop_watching();
+	if (file_handle && file_handle != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(file_handle);
+	}	
 }
 
 void FileChangeNotifier::start_watching() {
@@ -63,6 +67,12 @@ void FileChangeNotifier::stop_watching() {
 	}
 }
 
+void FileChangeNotifier::join_all() {
+	for (auto& fcn : notifier_map_) {
+		fcn.second->stop_watching();
+	}
+}
+
 void FileChangeNotifier::watch_files() {
 	file_handle = CreateFileW(file_path.c_str(),
 		FILE_LIST_DIRECTORY,
@@ -79,11 +89,11 @@ void FileChangeNotifier::watch_files() {
 	ZeroMemory(&overlapped, sizeof(OVERLAPPED));
 	overlapped.hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 
-
 	std::unique_lock<std::shared_mutex> lock(mutex);
-	while (!stop_requested) {
+	while (!stop_requested/* && WaitForSingleObject(dll_exit_event_handle_, 0) == WAIT_TIMEOUT*/) {
 		DWORD bytes_returned;
 		BOOL success;
+		
 		success = ReadDirectoryChangesW(file_handle, buffer, buffer_size, is_recursive_,
 			FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION | FILE_NOTIFY_CHANGE_FILE_NAME,
 			&bytes_returned, &overlapped, nullptr);

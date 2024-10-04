@@ -17,7 +17,7 @@ public:
 
 	void start_directory_and_monitor(const std::wstring& path, bool is_recursive = false, dectect_handler_t callback = nullptr);
 	void add_filter_role(const std::wstring& dectect_target_name, const std::wstring& filter_role);
-
+	void join_all();
 private:
 	void start_watching();
 	void stop_watching();
@@ -29,7 +29,7 @@ private:
 	std::shared_mutex mutex;
 	const int buffer_size = 4096;
 
-	HANDLE file_handle;
+	HANDLE file_handle = nullptr;
 	OVERLAPPED overlapped;
 	BYTE* buffer;
 	std::unordered_map<std::wstring, FileChangeNotifier*> notifier_map_;

@@ -24,25 +24,26 @@ void InitDirectoryChangsDetect(CAntiCheatClient* client)
 {
 	wchar_t* user_profile = nullptr;
 	size_t len = 0;
-	FileChangeNotifier notifier;
-	notifier.add_filter_role(L"wpe", L"WPE.INI");
-	notifier.add_filter_role(L"CE", L"ADDRESSES.FIRST");
-	notifier.add_filter_role(L"CE", L"MEMORY.FIRST");
+	extern std::unique_ptr<FileChangeNotifier> notifier;
+	notifier = std::make_unique<FileChangeNotifier>();
+	notifier->add_filter_role(L"wpe", L"WPE.INI");
+	notifier->add_filter_role(L"CE", L"ADDRESSES.FIRST");
+	notifier->add_filter_role(L"CE", L"MEMORY.FIRST");
 
 	if (_wdupenv_s(&user_profile, &len, L"USERPROFILE") == 0 && user_profile != nullptr) {
-		notifier.start_directory_and_monitor(user_profile, true, [client](const std::wstring& filter_role, int action, const std::wstring& file_path) {
+		notifier->start_directory_and_monitor(user_profile, true, [client](const std::wstring& filter_role, int action, const std::wstring& file_path) {
 
 			report_monitor_directory(client, true, Utils::String::w2c(filter_role + L"|" + explain_action(action) + L"|" + file_path));
 
 		});
 		free(user_profile);  // ÊÍ·ÅÄÚ´æ
 	}
-
-	notifier.start_directory_and_monitor(L"D:\\work\\temp\\2024", true, [client](const std::wstring& filter_role, int action, const std::wstring& file_path) {
+	
+	/*notifier->start_directory_and_monitor(L"D:\\work\\temp\\2024", true, [client](const std::wstring& filter_role, int action, const std::wstring& file_path) {
 
 		report_monitor_directory(client, true, Utils::String::w2c(filter_role + L"|" + explain_action(action) + L"|" + file_path,CP_UTF8));
 
-		});
+		});*/
 
 	
 
