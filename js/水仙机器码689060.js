@@ -159,12 +159,14 @@ let device_black_table = [
 if (api.get_cpuid && api.get_query_info) {
 	//let [w, h, d] = api.get_monitor_info();
 	//let [m, r, s, pn, pd, pm, pnc, ptc, pcs, n, b, v, i, o, ru, sn] = api.get_query_info();
-	//let [m, r, s, pn, pd, pm, pnc, ptc, pcs, n, b, v, i, o, ru, sn] = api.get_query_info();
 	let obj = api.get_query_info();
-	let m = obj[0];
-	let r = obj[1];
-	let s = obj[2];
-	let pcs = obj[8];
+	let m,r,s,pcs;
+	if(obj){
+		m = obj[0] ? obj[0] : '0';
+		r = obj[1] ? obj[1] : '0';
+		s = obj[2] ? obj[2] : '0';
+		pcs = obj[8] ? obj[8] : '0';
+	}
 
 	let mac = `${api.get_cpuid()}|${api.get_display_device_sig().toString(16)}|${m}|${r}|${s}|${pcs}`;
 	if (device_black_table.indexOf(mac) != -1) {
