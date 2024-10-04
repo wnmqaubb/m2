@@ -215,7 +215,7 @@ public:
     inline std::chrono::system_clock::duration& heartbeat_duration() { return heartbeat_duration_; }
     inline std::chrono::system_clock::time_point& last_recv_hearbeat_time() { return last_recv_hearbeat_time_; }
     inline bool has_handshake() { return has_handshake_; }
-    inline asio2::uuid& uuid() { return uuid_; }
+    inline asio2::uuid& uuid() {  return uuid_.next(); }
     inline bool is_stop() { return is_stop_; }
     inline bool is_loaded_plugin() { return is_loaded_plugin_; }
     inline void set_is_loaded_plugin(bool is_loaded_plugin) { is_loaded_plugin_ = is_loaded_plugin; }
