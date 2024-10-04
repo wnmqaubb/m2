@@ -56,6 +56,12 @@
 #define IDI_ICON1                       328
 #define IDI_ICON_GUARD                  328
 #define IDI_config                      330
+#define IDR_MENU1                       331
+#define IDR_MENU_USERS_RIGHT            331
+#define IDR_PROCESS_RIGHT_MENU          332
+#define IDR_MODULE_RIGHT_MENU           333
+#define IDR_MENU_HELP                   334
+#define IDR_SETING_RIGHT_MENU           335
 #define IDC_ABOUT_VERSION               1000
 #define IDC_EDIT_POLICY_ID              1001
 #define IDC_EDIT_POLICY_CONFIG          1002
@@ -135,6 +141,7 @@
 #define ID_SERVICE_ALL_UPLOAD_CFG       32826
 #define ID_TOOLBAR_CONFIG               32827
 #define ID_GM32828                      32828
+#define ID_VIEW                         32829
 #define ID_INDICATOR_SERVER_STAUS       59143
 #define ID_INDICATOR_USERS_COUNT        59144
 
@@ -142,8 +149,8 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        331
-#define _APS_NEXT_COMMAND_VALUE         32829
+#define _APS_NEXT_RESOURCE_VALUE        336
+#define _APS_NEXT_COMMAND_VALUE         32830
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           312
 #endif

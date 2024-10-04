@@ -181,13 +181,14 @@ void CClientView::OnContextMenu(CWnd* pWnd, CPoint point)
 	}
 
 	pWndTree->SetFocus();
-    CMenu menu;
-    menu.LoadMenu(IDR_MAINFRAME);
-    CMenu* pSumMenu = menu.GetSubMenu(1);
 
+    CMenu menu;
+	menu.LoadMenu(IDR_MENU_USERS_RIGHT);
+	CMenu* pSumMenu = menu.GetSubMenu(0);
 #ifndef GATE_ADMIN
-    pSumMenu->GetSubMenu(1)->RemoveMenu(ID_DRIVER_VIEW, MF_BYCOMMAND);
-    pSumMenu->GetSubMenu(1)->RemoveMenu(ID_SHELLCODE_VIEW, MF_BYCOMMAND);
+	//去掉无用菜单,简单化界面
+    pSumMenu->DeleteMenu(1, MF_BYPOSITION);
+	
 #endif
 #ifdef GATE_ADMIN
     CMenu ServiceMenu;

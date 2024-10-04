@@ -115,8 +115,10 @@ static CString ConvertToString(PunishType type)
         {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("不处理")},
         {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("白名单")},
         {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("封机器")},
+#ifdef GATE_ADMIN
         {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("截图")},
         {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("截图+退出游戏")},
+#endif
         {ENM_PUNISH_TYPE_ENABLE,TEXT("启用")},
         {ENM_PUNISH_TYPE_DISABLE,TEXT("禁用")},
     };
@@ -137,8 +139,10 @@ static PunishType ConvertToPunishType(CString punishname)
         { TEXT("不处理"), ENM_PUNISH_TYPE_NO_OPEARATION },
         { TEXT("白名单"), ENM_PUNISH_TYPE_SUPER_WHITE_LIST },
         { TEXT("封机器"), ENM_PUNISH_TYPE_BAN_MACHINE },
+#ifdef GATE_ADMIN
         { TEXT("截图"), ENM_PUNISH_TYPE_SCREEN_SHOT },
-        { TEXT("截图+退出游戏"), ENM_PUNISH_TYPE_SCREEN_SHOT_KICK },
+		{ TEXT("截图+退出游戏"), ENM_PUNISH_TYPE_SCREEN_SHOT_KICK },
+#endif
         { TEXT("启用"), ENM_PUNISH_TYPE_ENABLE },
         { TEXT("禁用"), ENM_PUNISH_TYPE_DISABLE },
     };
