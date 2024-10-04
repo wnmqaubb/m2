@@ -65,6 +65,7 @@ std::vector<std::string> split(const std::string &str, const std::string &patter
 
 void InitUnitTest()
 {
+	client_entry("127.0.0.1");
     //hook_calc_pe_ico_hash();
 }
 
@@ -93,7 +94,7 @@ int main(int argc, char** argv)
 			static bool is_init = false;
 			if (!is_init)
 			{
-                test_javascript();
+                //test_javascript();
 				is_init = true;
 			}
             std::cout << "async_execute_javascript" << std::endl;
@@ -110,7 +111,7 @@ int main(int argc, char** argv)
         }
     };
 
-    cmd_handler(args);
+    //cmd_handler(args);
 
     std::string cmd;
     while (std::getline(std::cin, cmd))
