@@ -29,7 +29,8 @@ BOOL CMainBar::OnCommand(WPARAM wParam, LPARAM lParam)
 void CMainBar::OnInitialUpdate()
 {
 #ifndef GATE_ADMIN
-     
+	GetDlgItem(IDC_SCREENSHOT_BUTTON)->ShowWindow(SW_HIDE);
+	GetDlgItem(IDC_PROCESS_BUTTON)->ShowWindow(SW_HIDE);
 #else
      GetDlgItem(IDC_REFRESH_LICENSE_BUTTON)->ShowWindow(SW_HIDE);
      GetDlgItem(IDC_EXPDATE_STATIC)->ShowWindow(SW_HIDE);

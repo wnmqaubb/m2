@@ -67,8 +67,8 @@ void CConfigSettingView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 void CConfigSettingView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
 {
     CMenu menu;
-    menu.LoadMenu(IDR_MAINFRAME);
-    CMenu* pSumMenu = menu.GetSubMenu(2);
+	menu.LoadMenu(IDR_SETING_RIGHT_MENU);
+	CMenu* pSumMenu = menu.GetSubMenu(0);
     theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);
 }
 

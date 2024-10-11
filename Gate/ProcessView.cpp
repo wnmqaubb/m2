@@ -66,8 +66,8 @@ void CProcessView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 void CProcessView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
 {
 	CMenu menu;
-	menu.LoadMenu(IDR_MAINFRAME);
-	CMenu* pSumMenu = menu.GetSubMenu(3);
+	menu.LoadMenu(IDR_PROCESS_RIGHT_MENU);
+	CMenu* pSumMenu = menu.GetSubMenu(0);
 	theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);
 }
 

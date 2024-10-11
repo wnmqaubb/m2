@@ -56,6 +56,11 @@
 #define IDI_ICON1                       328
 #define IDI_ICON_GUARD                  328
 #define IDI_ICON2                       330
+#define IDR_MENU_USERS_RIGHT            331
+#define IDR_PROCESS_RIGHT_MENU          332
+#define IDR_MODULE_RIGHT_MENU           333
+#define IDR_MENU_HELP                   334
+#define IDR_SETING_RIGHT_MENU           335
 #define IDC_ABOUT_VERSION               1000
 #define IDC_EDIT_POLICY_ID              1001
 #define IDC_EDIT_POLICY_CONFIG          1002
@@ -135,6 +140,7 @@
 #define ID_WINDOW_BOTH                  32825
 #define ID_SERVICE_ALL_UPLOAD_CFG       32826
 #define ID_TOOLBAR_CONFIG               32827
+#define ID_VIEW                         32829
 #define ID_INDICATOR_SERVER_STAUS       59143
 #define ID_INDICATOR_USERS_COUNT        59144
 

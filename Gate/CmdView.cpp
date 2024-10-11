@@ -70,6 +70,10 @@ void CCmdView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
     menu.LoadMenu(IDR_MAINFRAME);
     CMenu* pSumMenu = menu.GetSubMenu(2);
     theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);*/
+    CMenu menu;
+	menu.LoadMenu(IDR_MENU_OUTPUT);
+	CMenu* pSumMenu = menu.GetSubMenu(0);
+	theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);
 }
 
 
