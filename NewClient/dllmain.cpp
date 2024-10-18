@@ -33,7 +33,7 @@ void client_start_routine()
 //#ifdef _DEBUG
 #pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
 //#endif
-/*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip) noexcept
+/*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip) //noexcept
 {
 	using namespace lfengine::client;
 	VMP_VIRTUALIZATION_BEGIN();
@@ -64,7 +64,7 @@ void client_start_routine()
 	VMP_VIRTUALIZATION_END();
 }
 
-RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc) noexcept
+RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)// noexcept
 {
 	using namespace lfengine::client;
 	g_AppFunc.AddChatText = AppFunc->AddChatText;
@@ -103,14 +103,16 @@ RUNGATE_API DoUnInit() noexcept
 {
 	try
 	{	
-		SetEvent(dll_exit_event_handle_);
-
-		if (notifier) {
-			notifier->join_all();
-		}
 		LOG("插件卸载开始");
+		//SetEvent(dll_exit_event_handle_);
+
+		//if (notifier) {
+		//	notifier->join_all();
+		//}
+		LOG("插件卸载 FileChangeNotifier -- join_all ok");
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
+		LOG("插件卸载  -- restore_hook ok");
 		if (!g_game_io.stopped()) {
 			g_game_io.stop();
 			g_game_io.reset();
@@ -130,7 +132,7 @@ RUNGATE_API DoUnInit() noexcept
 		if(dll_exit_event_handle_){
 			CloseHandle(dll_exit_event_handle_);
 		}
-		Sleep(500);
+		//Sleep(500);
 		LOG("插件卸载完成");
 	}
 	catch (...)

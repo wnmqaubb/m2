@@ -5,6 +5,9 @@ const cheat_dat_set = new Set([
 	0xF99C,/*定制外挂*/
 	0x2D80,/*加速器*/
 ]);
+const cheat_dll_set = new Set([
+	0xF467,/*27代理_gameppp.dll*/
+]);
 const cheat_exe_set = new Set([
 	0x271E,/*dragon鼠标*/
 	0x9D6B,/*GEE大师*/
@@ -806,7 +809,14 @@ const cheat_set = new Set([
 	0x4A3C45,/*简单外挂*/
 	0x40148C,/*简单外挂*/
 	0x545C69,/*简单外挂*/
+	0x3498D7F,/*简单外挂*/
+	0x592B33,/*简单外挂*/
+	0x419A50,/*简单外挂*/
+	0x182DC51,/*简单外挂*/
 	0x984500,/*守望者加速*/
+	0x404270,/*二七代理*/
+	0x7363E0,/*二七代理*/
+	0x4D2E54,/*二七代理*/
 
 ]);
 // ***************无模块的加在这***************
@@ -858,6 +868,8 @@ const cheat_gee_set = new Set([
 	0x406345,/*GEE定制*/
 	0x3C7EB40,/*GEE大师*/
 	0x6841F0,/*GEE定制*/
+	0xB4010,/*简单外挂*/
+	0xB3090,/*简单外挂*/
 
 ]);
 
@@ -952,7 +964,7 @@ for (let i = 0; i < windows.length; i++) {
 			if (module_name == "") {
 				// ***************无模块的加在这***************
 				if (cheat_gee_set.has(thread_start_address & 0xFFFF) || cheat_gee_set.has(thread_start_address & 0xFFFFF)) {
-					reason = "发现GEE猎手或者荣耀外挂请封号处理【2号特征】，进程为:" + thread_processname;
+					reason = "发现GEE猎手或者荣耀,简单挂外挂请封号处理【2号特征】，进程为:" + thread_processname;
 					break;
 				}
 				continue;
@@ -1027,6 +1039,12 @@ if (reason == "") {
 		if (module_name.search(/.exe$/) > 1) {
 			if (cheat_exe_set.has(thread_start_address & 0xFFFF)) {
 				reason = "发现大师、定制类外挂，进程为:" + thread_processname;
+				break;
+			}
+		}
+		else if (module_name.search(/.dll$/) > 1) {
+			if (cheat_dll_set.has(thread_start_address & 0xFFFF)) {
+				reason = "发现定制类脱机外挂，进程为:" + thread_processname;
 				break;
 			}
 		}
