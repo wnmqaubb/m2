@@ -210,7 +210,7 @@ void LoadPlugin(CAntiCheatClient* client)
 	InitRmc(client);
 	InitTimeoutCheck(client);
 	InitJavaScript(client);
-    InitDirectoryChangsDetect(client);
+    //InitDirectoryChangsDetect(client);
     if (is_debug_mode == false)
     {
         InitHideProcessDetect(client);
