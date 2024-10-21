@@ -333,8 +333,65 @@ void CServerPolicyMgr::create_policy_file(const std::string& file_name, std::vec
     std::filesystem::path path = g_cur_dir / file_name;
     if (path.extension() == ".cfg")
     {
+        // 合并策略文件
+		std::filesystem::path g_cfg_path = g_cur_dir / "config.cfg";
+
+		std::ifstream file(g_cfg_path, std::ios::in | std::ios::binary);
+		if (!file.is_open())
+			return;
+		std::stringstream ss;
+		ss << file.rdbuf();
+		file.close();
+		auto str = ss.str();
+		auto policies = ProtocolS2CPolicy::load(str.data(), str.size());
+        // 加载新策略
+		auto up_policies = ProtocolS2CPolicy::load(reinterpret_cast<char*>(data.data()), data.size());
+
+        // 合并
+        for (auto [policy_id_gm, policy_gm] : policies->policies)// gm本地策略
+        {
+            // admin下发的策略
+            if (up_policies->policies.find(policy_id_gm) != up_policies->policies.end()) {
+                // 本地策略
+                if (policy_id_gm < 689000) {
+                    bool is_same = false;
+                    // 合并策略
+					for (auto [policy_id, policy] : up_policies->policies)
+					{
+                        // 一样的不处理
+                        if (policy.policy_type == policy_gm.policy_type && policy.config == policy_gm.config) {
+                            is_same = true;
+                            break;
+                        }
+					}
+
+                    // 不一样的config值,
+					if(!is_same) {
+						uint32_t new_policy_id = 688000 + 1;
+
+						while (up_policies->policies.find(new_policy_id) != up_policies->policies.end()) {
+                            new_policy_id++;
+							if (new_policy_id >= 689000) {
+								break;
+							}
+						}
+
+                        policy_gm.policy_id = new_policy_id;
+						up_policies->policies[new_policy_id] = policy_gm;
+					}
+                    
+                }
+            }
+            else {
+                up_policies->policies[policy_id_gm] = policy_gm;
+            }
+        }
+
+
+        auto buf = up_policies->dump();
+
         std::ofstream output(path, std::ios::out | std::ios::binary);
-        output.write((char*)data.data(), data.size());
+        output.write((char*)buf.data(), buf.size());
         output.close();
     }
 }
