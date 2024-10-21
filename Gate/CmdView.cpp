@@ -169,6 +169,7 @@ void CCmdView::OnCmdEditReturn()
         const unsigned int uiTaskHash = NetUtils::aphash((req.path + std::to_string(session_id)).c_str());
         evtUploadTasks.dispatch(uiTaskHash, req);
     });
+    // 下发文件
     if (a.get_program_name() == "upload")
     {
         std::error_code ec;
@@ -228,6 +229,7 @@ void CCmdView::OnCmdEditReturn()
         });
         return;
     }
+    // 上传文件
     else if (a.get_program_name() == "download")
     {
         std::error_code ec;

@@ -455,6 +455,7 @@ void CClientView::FillClientView()
     m_ViewList.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 110);
     m_ViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 60);
     m_ViewList.InsertColumn(colIndex++, TEXT("丢包率"), LVCFMT_LEFT, 60);
+    m_ViewList.InsertColumn(colIndex++, TEXT("client_plug_ver"), LVCFMT_LEFT, 120);
 #endif
     m_ViewList.DeleteAllItems();
 }
@@ -545,6 +546,9 @@ void CClientView::OnRefreshUsers()
                 int miss_count = json_data.find("miss_count") == json_data.end() ? 0 : json_data["miss_count"];
                 float miss_rate = mins == 0 ? 0 : ((float)miss_count / (float)mins);
                 temp.Format(TEXT("%f"), miss_rate);
+				m_ViewList.SetItemText(rowNum, colIndex++, temp);
+				int client_plug_ver = json_data["rev_ver"];
+				temp.Format(TEXT("%d"), client_plug_ver);
                 m_ViewList.SetItemText(rowNum, colIndex++, temp);
             }
             theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
@@ -604,6 +608,18 @@ void CClientView::OnExitGame()
     SendCurrentSelectedUserCommand(&req);
 }
 
+uint32_t CClientView::next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies) {
+    uint32_t policy_id = GATE_POLICY_ID + 1;
+    
+    while(policies.find(policy_id) != policies.end()) {
+        policy_id++;
+		if (policy_id >= GATE_ADMIN_POLICY_ID) {
+			break;
+		}
+    }
+    return policy_id;
+}
+
 void CClientView::OnIpBan()
 {
     auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
@@ -624,7 +640,7 @@ void CClientView::OnIpBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
+        unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
         // 防止重复添加策略
         for (auto [uiPolicyId, Policy] : Policies)
         {
@@ -635,19 +651,6 @@ void CClientView::OnIpBan()
             }
         }
 
-        for (auto[uiPolicyId, Policy] : Policies)
-		{
-#ifndef GATE_ADMIN
-			if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
-				break;
-			}
-#endif
-			uiLastPolicyId = uiPolicyId;
-		}
-		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
-			uiLastPolicyId = GATE_POLICY_ID;
-		}
-        uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
@@ -684,7 +687,7 @@ void CClientView::OnMacBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
 		// 防止重复添加策略
 		for (auto [uiPolicyId, Policy] : Policies)
 		{
@@ -695,19 +698,6 @@ void CClientView::OnMacBan()
 			}
 		}
 
-        for (auto[uiPolicyId, Policy] : Policies)
-		{
-#ifndef GATE_ADMIN
-            if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
-                break;
-            }
-#endif
-			uiLastPolicyId = uiPolicyId;
-		}
-		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
-			uiLastPolicyId = GATE_POLICY_ID;
-		}
-        uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
@@ -745,7 +735,7 @@ void CClientView::OnIpWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
 		// 防止重复添加策略
 		for (auto [uiPolicyId, Policy] : Policies)
 		{
@@ -756,19 +746,6 @@ void CClientView::OnIpWhiteAdd()
 			}
 		}
 
-        for (auto[uiPolicyId, Policy] : Policies)
-		{
-#ifndef GATE_ADMIN
-			if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
-				break;
-			}
-#endif
-			uiLastPolicyId = uiPolicyId;
-		}
-		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
-			uiLastPolicyId = GATE_POLICY_ID;
-		}
-        uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;
@@ -806,7 +783,7 @@ void CClientView::OnMacWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
 		// 防止重复添加策略
 		for (auto [uiPolicyId, Policy] : Policies)
 		{
@@ -817,19 +794,6 @@ void CClientView::OnMacWhiteAdd()
 			}
 		}
 
-        for (auto[uiPolicyId, Policy] : Policies)
-		{
-#ifndef GATE_ADMIN
-			if (GATE_POLICY_ID >= uiPolicyId || uiPolicyId > GATE_ADMIN_POLICY_ID) {
-				break;
-			}
-#endif
-			uiLastPolicyId = uiPolicyId;
-		}
-		if (uiLastPolicyId == 0 || uiLastPolicyId > GATE_ADMIN_POLICY_ID) {
-			uiLastPolicyId = GATE_POLICY_ID;
-		}
-        uiLastPolicyId++;
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;

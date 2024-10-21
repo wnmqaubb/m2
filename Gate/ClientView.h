@@ -4,6 +4,8 @@
 #include "ClientViewList.h"
 #include "SearchBar.h"
 #include "MainBar.h"
+#include <../VC-LTL/VC/14.16.27023/include/map>
+#include "Service/SubServicePackage.h"
 
 class CClientView : public CDockablePane
 {
@@ -41,6 +43,7 @@ protected:
 	afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
+    uint32_t next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies);
 
 	DECLARE_MESSAGE_MAP()
 public:
