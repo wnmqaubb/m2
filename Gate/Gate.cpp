@@ -46,7 +46,7 @@ BEGIN_MESSAGE_MAP(CGateApp, CWinAppEx)
 	ON_COMMAND(ID_SERVICE_STOP, &CGateApp::OnServiceStop)
     ON_COMMAND(ID_APP_EXIT, &CGateApp::OnAppExit)
     ON_COMMAND(ID_SERVICE_SETTINGS, &CGateApp::OnServiceSettings)
-    ON_COMMAND(ID_TOOLBAR_CONFIG, &CGateApp::OnConfig)
+    //ON_COMMAND(ID_TOOLBAR_CONFIG, &CGateApp::OnConfig)
 END_MESSAGE_MAP()
 
 // CGateApp 构造
