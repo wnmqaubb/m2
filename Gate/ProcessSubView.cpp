@@ -27,6 +27,11 @@ CProcessSubViewWnd::~CProcessSubViewWnd()
 BEGIN_MESSAGE_MAP(CProcessSubViewWnd, CDockablePane)
     ON_WM_CREATE()
     ON_WM_SIZE()
+	ON_WM_CONTEXTMENU()
+	ON_COMMAND(ID_COPY_MODULE_NAME , &CProcessSubViewWnd::OnCopyValue)
+	ON_COMMAND(ID_COPY_THREAD_ENTRY, &CProcessSubViewWnd::OnCopyValue)
+	ON_COMMAND(ID_COPY_FILE_NAME   , &CProcessSubViewWnd::OnCopyValue)
+	ON_COMMAND(ID_COPY_MODULE_PATH, &CProcessSubViewWnd::OnCopyModulePath)
 END_MESSAGE_MAP()
 
 int CProcessSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
@@ -228,4 +233,118 @@ void CProcessSubViewWnd::UpdateFonts()
     m_wndThreadInfo.SetFont(&afxGlobalData.fontRegular);
     m_wndModuleInfo.SetFont(&afxGlobalData.fontRegular);
     m_wndDirectoryInfo.SetFont(&afxGlobalData.fontRegular);
+}
+
+void CProcessSubViewWnd::OnCopyValue()
+{
+	CString cell_value;
+    int selectedRow;
+	if (m_wndTabs.GetActiveTab() == 0)
+	{
+		selectedRow = (int)m_wndModuleInfo.GetFirstSelectedItemPosition() - 1;
+        if (selectedRow != -1)
+        {
+            cell_value = m_wndModuleInfo.GetItemText(selectedRow, 3);
+        }
+	}
+	else if (m_wndTabs.GetActiveTab() == 1)
+	{
+		selectedRow = (int)m_wndThreadInfo.GetFirstSelectedItemPosition() - 1;
+		if (selectedRow != -1)
+		{
+			cell_value = m_wndThreadInfo.GetItemText(selectedRow, 2);
+		}
+	}
+	else if (m_wndTabs.GetActiveTab() == 2)
+	{
+		selectedRow = (int)m_wndDirectoryInfo.GetFirstSelectedItemPosition() - 1;
+		if (selectedRow != -1)
+		{
+			cell_value = m_wndDirectoryInfo.GetItemText(selectedRow, 2);
+		}
+	}
+    theApp.GetMainFrame()->CopyToClipboard(cell_value);
+}
+
+void CProcessSubViewWnd::OnCopyModulePath()
+{
+	CString cell_value;
+    int selectedRow;
+	if (m_wndTabs.GetActiveTab() == 0)
+	{
+		selectedRow = (int)m_wndModuleInfo.GetFirstSelectedItemPosition() - 1;
+        if (selectedRow != -1)
+        {
+            cell_value = m_wndModuleInfo.GetItemText(selectedRow, 4);
+        }
+	}
+	else if (m_wndTabs.GetActiveTab() == 1)
+	{
+		selectedRow = (int)m_wndThreadInfo.GetFirstSelectedItemPosition() - 1;
+		if (selectedRow != -1)
+		{
+			cell_value = m_wndThreadInfo.GetItemText(selectedRow, 4);
+		}
+	}
+	cell_value.Replace(_T("\\"), _T("\\\\"));
+    theApp.GetMainFrame()->CopyToClipboard(cell_value);
+}
+
+void CProcessSubViewWnd::OnContextMenu(CWnd* pWnd, CPoint point)
+{
+#ifdef GATE_ADMIN
+	CTreeCtrl* pWndTree = (CTreeCtrl*)&m_wndTabs;
+
+	ASSERT_VALID(pWndTree);
+
+	if (pWnd != pWndTree)
+	{
+		CDockablePane::OnContextMenu(pWnd, point);
+		return;
+	}
+
+	if (point != CPoint(-1, -1))
+	{
+		// 选择已单击的项: 
+		CPoint ptTree = point;
+		pWndTree->ScreenToClient(&ptTree);
+
+		UINT flags = 0;
+		HTREEITEM hTreeItem = pWndTree->HitTest(ptTree, &flags);
+		if (hTreeItem != nullptr)
+		{
+			pWndTree->SelectItem(hTreeItem);
+		}
+	}
+
+	pWndTree->SetFocus();
+	CMenu menu;
+	menu.CreatePopupMenu();
+
+	if (m_wndTabs.GetActiveTab() == 0)
+	{
+		menu.AppendMenu(MF_STRING, ID_COPY_MODULE_NAME, TEXT("复制模块名"));
+		menu.AppendMenu(MF_STRING, ID_COPY_MODULE_PATH, TEXT("复制模块路径"));
+	}
+	else if(m_wndTabs.GetActiveTab() == 1)
+	{
+		menu.AppendMenu(MF_STRING, ID_COPY_THREAD_ENTRY, TEXT("复制线程入口"));
+		menu.AppendMenu(MF_STRING, ID_COPY_MODULE_PATH, TEXT("复制模块路径"));
+	}
+    else if (m_wndTabs.GetActiveTab() == 2)
+	{
+        menu.AppendMenu(MF_STRING, ID_COPY_FILE_NAME, TEXT("复制文件名"));
+	}
+
+	if (AfxGetMainWnd()->IsKindOf(RUNTIME_CLASS(CMDIFrameWndEx)))
+	{
+		CMFCPopupMenu* pPopupMenu = new CMFCPopupMenu;
+
+		if (!pPopupMenu->Create(this, point.x, point.y, (HMENU)menu.m_hMenu, FALSE, TRUE))
+			return;
+
+		((CMDIFrameWndEx*)AfxGetMainWnd())->OnShowPopupMenu(pPopupMenu);
+		UpdateDialogControls(this, FALSE);
+	}
+#endif
 }

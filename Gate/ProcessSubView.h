@@ -12,6 +12,9 @@ public:
     CProcessSubViewWnd() noexcept;
 
     void UpdateFonts(); 
+    void OnCopyValue();
+    void OnCopyModulePath();
+    void OnContextMenu(CWnd* pWnd, CPoint point);
     void InitModuleWindowView();
     void InitThreadWindowView();
     void InitDirectoryWindowView();

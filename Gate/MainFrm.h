@@ -24,6 +24,23 @@ public:
 	virtual BOOL LoadFrame(UINT nIDResource, DWORD dwDefaultStyle = WS_OVERLAPPEDWINDOW | FWS_ADDTOTITLE, CWnd* pParentWnd = nullptr, CCreateContext* pContext = nullptr);
     virtual void SetStatusBar(UINT nIDResource, CString text);
     virtual void OnServiceCommand(UINT id);
+	inline void CopyToClipboard(CString v)
+	{
+		std::string str_value = CT2A(v.GetBuffer());
+		HGLOBAL hClip;
+		if (OpenClipboard())
+		{
+			int len = str_value.length() + 1;
+			EmptyClipboard();
+			hClip = GlobalAlloc(GMEM_MOVEABLE, len);
+			char* buff = (char*)GlobalLock(hClip);
+			strcpy_s(buff, len, str_value.c_str());
+			GlobalUnlock(hClip);
+			SetClipboardData(CF_TEXT, hClip);
+			CloseClipboard();
+			GlobalFree(hClip);
+		}
+	}
 // 实现
 public:
 	virtual ~CMainFrame();

@@ -142,6 +142,12 @@
 #define ID_TOOLBAR_CONFIG               32827
 #define ID_GM32828                      32828
 #define ID_VIEW                         32829
+#define ID_32830                        32830
+#define ID_GET_GAMEUSER_FILE            32831
+#define ID_COPY_MODULE_NAME             32832
+#define ID_COPY_THREAD_ENTRY            32833
+#define ID_COPY_FILE_NAME               32834
+#define ID_COPY_MODULE_PATH             32835
 #define ID_INDICATOR_SERVER_STAUS       59143
 #define ID_INDICATOR_USERS_COUNT        59144
 
@@ -150,7 +156,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        336
-#define _APS_NEXT_COMMAND_VALUE         32830
+#define _APS_NEXT_COMMAND_VALUE         32832
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           312
 #endif

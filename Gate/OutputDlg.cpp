@@ -202,20 +202,7 @@ void COutputList::OnEditCopy()
 
     CString strSelAll = _T("");
     GetText(nSel, strSelAll);
-    auto source = CT2A(strSelAll);
-    int len = strlen(source) + 1;
-    HGLOBAL hClip;
-    if (OpenClipboard())
-    {
-        EmptyClipboard();
-        hClip = GlobalAlloc(GMEM_MOVEABLE, len);
-        char* buff = (char*)GlobalLock(hClip);
-        strcpy_s(buff, len, source);
-        GlobalUnlock(hClip);
-        SetClipboardData(CF_TEXT, hClip);
-        CloseClipboard();
-        GlobalFree(hClip);
-    }
+	theApp.GetMainFrame()->CopyToClipboard(strSelAll);
 }
 
 void COutputList::OnEditClear()

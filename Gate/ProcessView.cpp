@@ -9,6 +9,11 @@
 #include "ProcessChildFrm.h"
 #include "ProcessDoc.h"
 #include "ProcessView.h"
+#include "CmdView.h"
+#include <atlconv.h>
+#include <filesystem>
+#include "MainFrm.h"
+#include "ClientView.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -27,6 +32,7 @@ BEGIN_MESSAGE_MAP(CProcessView, CView)
     ON_NOTIFY(LVN_ITEMCHANGED, ID_PROCESS_VIEW, &CProcessView::OnListItemChanged)
     ON_COMMAND(ID_PROCESS_NAME, &CProcessView::OnProcessNameBan)
     ON_COMMAND(ID_PROCESS_PATH, &CProcessView::OnProcessPathBan)
+    ON_COMMAND(ID_GET_GAMEUSER_FILE, &CProcessView::OnGetGameUserFile)
 END_MESSAGE_MAP()
 
 // CProcessView 构造/析构
@@ -255,7 +261,6 @@ void CProcessView::OnProcessNameBan()
     }
 }
 
-
 void CProcessView::OnProcessPathBan()
 {
     auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
@@ -294,5 +299,35 @@ void CProcessView::OnProcessPathBan()
         output.write(str.data(), str.size());
         output.close();
         theApp.OnServiceSettings();
-    }
+	}
+
+}
+
+void CProcessView::OnGetGameUserFile()
+{
+	auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
+	CString process_path;
+	if (selectedRow != -1)
+	{
+		process_path = m_ViewList.GetItemText(selectedRow, 4);
+		std::filesystem::path output(theApp.m_ExeDir);
+		output /= "gamer_files";
+		if (!std::filesystem::exists(output))
+		{
+			std::filesystem::create_directory(output);
+		}
+        std::string process_path_str = CT2A(process_path);
+        std::filesystem::path file_name(process_path_str);
+        output /= file_name.filename();
+
+        CString cmd;
+		cmd.Format(TEXT("download -p \"%s\" -o \"%s\""), process_path, CA2T(output.string().c_str()));
+        //theApp.GetMainFrame()->GetClientView().OnCmdView();
+        cmd.Replace(_T("\\"), _T("\\\\"));
+        theApp.GetMainFrame()->CopyToClipboard(cmd);
+	}
+	else
+	{
+		return;
+	}
 }

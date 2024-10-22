@@ -16,6 +16,10 @@ const cheat_exe_set = new Set([
 	0xA02F,/*开发工具*/
 ]);
 const cheat_set = new Set([
+	0xDC79F58,/*通用脚本*/
+	0x128d000,/*按键精灵*/
+	0x113F000,/*按键精灵*/
+	0xb3d000,/*按键精灵*/
 	0x509B86,/*脚本脱机*/
 	0x8AF5BC,/*脚本脱机*/
 	0x10071D8,/*脚本脱机*/

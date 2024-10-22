@@ -4,8 +4,10 @@
 #include "ClientViewList.h"
 #include "SearchBar.h"
 #include "MainBar.h"
-#include <../VC-LTL/VC/14.16.27023/include/map>
 #include "Service/SubServicePackage.h"
+#include "BaseDoc.h"
+#include <../VC-LTL/VC/14.16.27023/include/map>
+#include "CmdView.h"
 
 class CClientView : public CDockablePane
 {

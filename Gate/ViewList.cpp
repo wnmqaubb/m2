@@ -194,27 +194,7 @@ void CViewList::CListCtrlSearch(CString& search)
  */
 void CViewList::CopyText(CString& source)
 {
-    int len = source.GetLength();
-    if(len <= 0)
-    {
-        return;
-    }
-    if(!OpenClipboard())
-    {
-        return;
-    }
-    EmptyClipboard();
-    HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, (len + 1));
-    if(hglbCopy == NULL)
-    {
-        CloseClipboard();
-        return;
-    }
-    char* lptstrCopy = (char*)GlobalLock(hglbCopy);
-    strcpy_s(lptstrCopy, len + 1, (CStringA)source);
-    GlobalUnlock(hglbCopy);
-    SetClipboardData(CF_TEXT, hglbCopy);
-    CloseClipboard();
+	theApp.GetMainFrame()->CopyToClipboard(source);
 }
 
 void CViewList::SetColumnByIntSort(std::initializer_list<uint32_t> column_index_array)

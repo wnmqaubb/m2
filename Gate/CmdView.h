@@ -1,6 +1,8 @@
 #pragma once
 
 #include "OutputDlg.h"
+#include "ChildFrm.h"
+#include "BaseDoc.h"
 
 class CCmdView : public CView
 {
@@ -27,10 +29,10 @@ public:
     virtual void AssertValid() const;
     virtual void Dump(CDumpContext& dc) const;
 #endif
+    CEdit m_CmdEdit;
 
 protected:
     COutputList m_OutputList;
-    CEdit m_CmdEdit;
     void AdjustLayout();
 
     // 生成的消息映射函数
@@ -44,7 +46,8 @@ public:
     afx_msg void OnCmdEditReturn();
     virtual void OnInitialUpdate();
     afx_msg void OnSize(UINT nType, int cx, int cy);
-    void Echo(LPCTSTR text);
+	void Echo(LPCTSTR text);
+	void ActionCmd(CString ansiCmd);
 };
 
 
