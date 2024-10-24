@@ -6,7 +6,8 @@ const unsigned int DEFINE_TIMER_ID(kImageProtectCheckTimerId);
 void InitImageProtectCheck(CAntiCheatClient* client)
 {
     if (Utils::ImageProtect::instance().is_init())
-    {
+	{
+		OutputDebugStringA("InitImageProtectCheck==");
         client->start_timer(kImageProtectCheckTimerId, std::chrono::seconds(60), [client]() {
             if (IsBadWritePtr(Utils::ImageProtect::instance().get_image_base(), 1) == FALSE) {
                 ProtocolC2STaskEcho resp;

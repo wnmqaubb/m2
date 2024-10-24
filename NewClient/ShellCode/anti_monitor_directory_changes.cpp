@@ -2,7 +2,7 @@
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include "anti_monitor_directory/ReadDirectoryChanges.h"
-extern asio::io_service g_game_io;
+extern std::shared_ptr<asio::io_service> g_game_io;
 
 void report_monitor_directory(CAntiCheatClient* client, bool is_cheat, const std::string& reason)
 {

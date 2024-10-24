@@ -8,10 +8,9 @@
 #include "BasicUtils.h"
 #include "version.build"
 
-extern asio::io_service g_game_io;
-//extern asio::io_service g_io;
-extern int g_client_rev_version;
-extern asio::detail::thread_group g_thread_group;
+extern std::shared_ptr<asio::io_service> g_game_io;
+extern std::shared_ptr<asio::detail::thread_group> g_thread_group;
+extern std::shared_ptr<int> g_client_rev_version;
 
 void LoadPlugin(CAntiCheatClient* client);
 void InitRmc(CAntiCheatClient* client);

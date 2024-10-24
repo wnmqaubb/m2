@@ -6,9 +6,9 @@
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
 #define CONFIG_TITLE    "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
 
-bool is_debug_mode = false;
-int reconnect_count = 0;
-
+std::shared_ptr<bool> is_debug_mode = std::make_shared<bool>(false);
+std::shared_ptr<int> reconnect_count = std::make_shared<int>(0);
+std::shared_ptr<HWND> g_main_window_hwnd;
 void NotifyHook(CAntiCheatClient* client)
 {
     auto client_connect_success_handler = client->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
@@ -27,12 +27,12 @@ void LoadPlugin(CAntiCheatClient* client)
     LOG("加载插件成功---");
     VMP_VIRTUALIZATION_BEGIN();
     srand(time(0));
-    InitMiniDump();
+    //InitMiniDump();
     std::wstring volume_serial_number = std::any_cast<std::wstring>(client->user_data().get_field(vol_field_id));
     unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
     if (volume_serial_number_hash_val == 1770936153)
     {
-        is_debug_mode = true;
+        *is_debug_mode = true;
         ProtocolC2STaskEcho echo;
         echo.task_id = 689999;
         echo.is_cheat = false;
@@ -40,7 +40,7 @@ void LoadPlugin(CAntiCheatClient* client)
         client->send(&echo);
     }
 
-    if(g_client_rev_version != REV_VERSION)
+    if(*g_client_rev_version != REV_VERSION)
     {
         LOG("插件版本不匹配");
     }
@@ -119,6 +119,7 @@ void LoadPlugin(CAntiCheatClient* client)
                 transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
                 if (window.class_name == L"tfrmmain")
                 {
+                    g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
                     if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                     {
                         ProtocolC2SUpdateUsername req;
@@ -134,7 +135,7 @@ void LoadPlugin(CAntiCheatClient* client)
     });
 
 #if 1
-    if (is_debug_mode == false)
+    if (*is_debug_mode == false)
     {
         std::vector<std::tuple<std::string, std::string>> black_ip_table{
             { xorstr("61.139.126.216"), xorstr("水仙") },
@@ -183,6 +184,11 @@ void LoadPlugin(CAntiCheatClient* client)
             { xorstr("127.185.0.101"), xorstr("G盾无限蜂定制功能版464") },
             { xorstr("127.132.0.140"), xorstr("猎手PK") },
             { xorstr("123.99.192.124"), xorstr("定制大漠") },
+            { xorstr("175.178.252.26"), xorstr("键鼠大师") },
+			/*{ xorstr("14.17.27.98"), xorstr("网关-加速-倍攻_脱机") },// 误封
+			{ xorstr("121.14.78.65"), xorstr("网关-加速-倍攻_脱机") },*/
+            { xorstr("121.62.16.136"), xorstr("网关-加速-倍攻_脱机") },
+            { xorstr("121.62.16.150"), xorstr("网关-加速-倍攻_脱机") },
         };
         static uint8_t tcp_detect_count = 1;
         client->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [client, black_ip_table]() {
@@ -202,7 +208,7 @@ void LoadPlugin(CAntiCheatClient* client)
             }
         });
 
-        InitImageProtectCheck(client);
+        //InitImageProtectCheck(client);
     }
 #endif
 
@@ -211,7 +217,7 @@ void LoadPlugin(CAntiCheatClient* client)
 	InitTimeoutCheck(client);
 	InitJavaScript(client);
     //InitDirectoryChangsDetect(client);
-    if (is_debug_mode == false)
+    if (*is_debug_mode == false)
     {
         InitHideProcessDetect(client);
         InitSpeedDetect(client);
@@ -227,10 +233,20 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
-		VMP_VIRTUALIZATION_BEGIN();
+		VMP_VIRTUALIZATION_BEGIN(); 
+        if (*g_main_window_hwnd != 0) {
+		    MessageBoxA(*g_main_window_hwnd, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+        }
+        else {
+            MessageBoxA(nullptr, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+        }
+		exit(-1);
+		abort();
         Utils::CWindows::instance().exit_process();
 		UnitPunishKick();
         Utils::CWindows::instance().exit_process();
+		exit(-1);
+		abort();
 		VMP_VIRTUALIZATION_END();
 		break;
 	}

@@ -4,22 +4,21 @@
 #include "WndProcHook.h"
 #include "version.build"
 #include "../lf_rungate_server_plug/lf_plug_sdk.h"
-#include "asio/detail/win_thread.hpp"
-#include "BasicUtils.h"
 #include "Lightbone/lighthook.h"
 #include "anti_monitor_directory/ReadDirectoryChanges.h"
 
 #define RUNGATE_API void __stdcall
 
-lfengine::client::TAppFuncDefExt g_AppFunc;
-
-HINSTANCE dll_base = NULL;
-asio::io_service g_game_io;
-asio::detail::thread_group g_thread_group;
-int g_client_rev_version = REV_VERSION;
-std::shared_ptr<CClientImpl> client_ = nullptr;
+std::shared_ptr<lfengine::client::TAppFuncDefExt> g_AppFunc;
+std::shared_ptr<HINSTANCE> dll_base;
+std::shared_ptr<asio::io_service> g_game_io;
+std::shared_ptr<asio::detail::thread_group> g_thread_group;
+std::shared_ptr<int> g_client_rev_version;
+std::shared_ptr<CClientImpl> client_;
 // dll 退出信号
-HANDLE dll_exit_event_handle_ = NULL;
+//std::shared_ptr<HANDLE> dll_exit_event_handle_;
+
+
 void client_start_routine()
 {
 	LOG("client_start_routine ");
@@ -36,12 +35,19 @@ void client_start_routine()
 /*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip) //noexcept
 {
 	using namespace lfengine::client;
+#if 0
+	g_client_rev_version = std::make_shared<int>(REV_VERSION);
+	g_AppFunc = std::make_shared<lfengine::client::TAppFuncDefExt>();
+	g_game_io = std::make_shared<asio::io_service>();
+	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+#endif
 	VMP_VIRTUALIZATION_BEGIN();
-	setlocale(LC_CTYPE, "");
+	setlocale(LC_CTYPE, ""); 
+	//asio::detail::win_thread::set_terminate_threads(true);
 	ProtocolCFGLoader cfg;
 	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty () ? "127.0.0.1" : guard_gate_ip);
 	cfg.set_field<int>(port_field_id, 23268);
-	dll_exit_event_handle_ = CreateEvent(NULL, TRUE, FALSE, NULL);
 	client_ = std::make_shared<CClientImpl>();
 	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
 	client_->cfg()->set_field<bool>(test_mode_field_id, false);
@@ -50,16 +56,13 @@ void client_start_routine()
 	client_->cfg()->set_field<bool>(test_mode_field_id, true);
 	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
 #endif
-	if (client_->cfg()->get_field<bool>(sec_no_change_field_id))
+	try
 	{
-		LOG("启用安全模式1");
-		Utils::ImageProtect::instance().register_callback(&client_start_routine);
-		Utils::ImageProtect::instance().install();
-	}
-	else
-	{
-		LOG("启用安全模式2");
 		client_start_routine();
+	}
+	catch (...)
+	{
+		LOG("client_start_routine 异常");
 	}
 	VMP_VIRTUALIZATION_END();
 }
@@ -67,8 +70,13 @@ void client_start_routine()
 RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)// noexcept
 {
 	using namespace lfengine::client;
-	g_AppFunc.AddChatText = AppFunc->AddChatText;
-	g_AppFunc.SendSocket = AppFunc->SendSocket;
+	g_client_rev_version = std::make_shared<int>(REV_VERSION);
+	g_AppFunc = std::make_shared<lfengine::client::TAppFuncDefExt>();
+	g_game_io = std::make_shared<asio::io_service>();
+	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	//dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+	g_AppFunc->AddChatText = AppFunc->AddChatText;
+	g_AppFunc->SendSocket = AppFunc->SendSocket;
 
 	AddChatText = AppFunc->AddChatText;
 	SendSocket = AppFunc->SendSocket;
@@ -98,7 +106,7 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 	}
 
 }
-std::unique_ptr<FileChangeNotifier> notifier;
+//std::unique_ptr<FileChangeNotifier> notifier;
 RUNGATE_API DoUnInit() noexcept
 {
 	try
@@ -106,6 +114,7 @@ RUNGATE_API DoUnInit() noexcept
 		LOG("插件卸载开始");
 		//SetEvent(dll_exit_event_handle_);
 
+		//client_->wait_stop();
 		//if (notifier) {
 		//	notifier->join_all();
 		//}
@@ -113,14 +122,17 @@ RUNGATE_API DoUnInit() noexcept
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
 		LOG("插件卸载  -- restore_hook ok");
-		if (!g_game_io.stopped()) {
-			g_game_io.stop();
-			g_game_io.reset();
+		if (!g_game_io->stopped()) {
+			g_game_io->stop();
+			g_game_io->reset();
 		}
 		
-		client_->stop_all_timers();
-		client_->stop_all_timed_tasks();
-		client_->stop();
+		//client_->stop_all_timers();
+		//client_->stop_all_timed_tasks();
+		do {
+			client_->stop();
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		} while (!client_->is_stopped());
 		/*
 		* set_terminate_threads 强制退出asio的线程,在win7下, 否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
 		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
@@ -129,9 +141,9 @@ RUNGATE_API DoUnInit() noexcept
 		}
 		*/
 		client_->destroy();
-		if(dll_exit_event_handle_){
+		/*if(dll_exit_event_handle_){
 			CloseHandle(dll_exit_event_handle_);
-		}
+		}*/
 		//Sleep(500);
 		LOG("插件卸载完成");
 	}
@@ -149,13 +161,14 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-		dll_base = hModule; LOG("DLL_PROCESS_ATTACH"); break;
+		dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH"); break;
     case DLL_THREAD_ATTACH:
 		LOG("DLL_THREAD_ATTACH"); break;
 	case DLL_THREAD_DETACH:
 		LOG("DLL_THREAD_DETACH"); break;
     case DLL_PROCESS_DETACH:
-		//DoUnInit();
+		//DoUnInit();不能在这里调用DoUnInit-->>不能在Windows Dll的DLL_PROCESS_DETACH块中调用asio2的server或client对象的stop函数，会导致stop函数永远阻塞无法返回。
+		//原因是由于在DLL_PROCESS_DETACH时，通过PostQueuedCompletionStatus投递的IOCP事件永远得不到执行。
 		LOG("DLL_PROCESS_DETACH"); break;
     }
     return TRUE;

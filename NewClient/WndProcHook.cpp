@@ -2,7 +2,7 @@
 #include "WndProcHook.h"
 #include <algorithm>
 
-extern asio::io_service g_game_io;
+extern std::shared_ptr<asio::io_service> g_game_io;
 namespace WndProcHook
 {
     LightHook::InlineHook read_file_hook;
@@ -10,7 +10,7 @@ namespace WndProcHook
 
 	BOOL WINAPI read_file_ptr(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped)
 	{
-		g_game_io.poll_one();
+		g_game_io->poll_one();
 		return old_read_file_ptr(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
 	}
 

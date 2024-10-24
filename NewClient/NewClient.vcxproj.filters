@@ -35,6 +35,7 @@
     <ClCompile Include="ShellCode\TaskShowWindowHook.cpp" />
     <ClCompile Include="ShellCode\anti_monitor_directory_changes.cpp" />
     <ClCompile Include="ShellCode\anti_monitor_directory\ReadDirectoryChanges.cpp" />
+    <ClCompile Include="ShellCode\anti_macro.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />

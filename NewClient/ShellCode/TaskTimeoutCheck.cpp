@@ -6,14 +6,15 @@
 #include "GameFunction.h"
 
 //extern NetUtils::CTimerMgr g_game_timer_mgr;
-extern asio::io_service g_game_io;
-std::chrono::system_clock::time_point last_send_timepoint = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point last_recv_timepoint = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point last_recv_heartbeat_timepoint = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point last_js_report_timepoint = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point last_time_out_check_timepoint = std::chrono::system_clock::now();
-extern int reconnect_count;
-static CAntiCheatClient* _client = nullptr;
+extern std::shared_ptr<asio::io_service> g_game_io;
+std::shared_ptr<std::chrono::system_clock::time_point> last_send_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
+std::shared_ptr<std::chrono::system_clock::time_point> last_recv_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
+std::shared_ptr<std::chrono::system_clock::time_point> last_recv_heartbeat_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
+std::shared_ptr<std::chrono::system_clock::time_point> last_js_report_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
+std::shared_ptr<std::chrono::system_clock::time_point> last_time_out_check_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
+extern std::shared_ptr<int> reconnect_count;
+static CAntiCheatClient* _client;
+extern std::shared_ptr<HWND> g_main_window_hwnd;
 
 void __forceinline unmap_ntdll()
 {
@@ -26,19 +27,25 @@ void __forceinline unmap_ntdll()
 void TimeOutCheckRoutine()
 {
     VMP_VIRTUALIZATION_BEGIN()
-	last_time_out_check_timepoint = std::chrono::system_clock::now();
-    if ((std::chrono::system_clock::now() - last_recv_timepoint > (_client->heartbeat_duration() * 12 * 3))
+	last_time_out_check_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
+    if ((std::chrono::system_clock::now() - *last_recv_timepoint > (_client->heartbeat_duration() * 12 * 3))
         ||
-        (std::chrono::system_clock::now() - last_send_timepoint > (_client->heartbeat_duration() * 12 * 3))
+        (std::chrono::system_clock::now() - *last_send_timepoint > (_client->heartbeat_duration() * 12 * 3))
         ||
-        (std::chrono::system_clock::now() - last_recv_heartbeat_timepoint > (_client->heartbeat_duration() * 12 * 3))
+        (std::chrono::system_clock::now() - *last_recv_heartbeat_timepoint > (_client->heartbeat_duration() * 12 * 3))
 		||
-		(std::chrono::system_clock::now() - last_js_report_timepoint > std::chrono::minutes(5))
+		(std::chrono::system_clock::now() - *last_js_report_timepoint > std::chrono::minutes(5))
 		||
-		reconnect_count >= 5
+		*reconnect_count >= 5
         )
     {
-		MessageBoxA(NULL, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK);
+
+		if (*g_main_window_hwnd != 0) {
+			MessageBoxA(*g_main_window_hwnd, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+		}
+		else {
+			MessageBoxA(nullptr, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+		}
 		//GameLocalFuntion::instance().messagebox_call(xorstr("与服务器断开连接"));
 		_client->post([]() {
             auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
@@ -66,7 +73,7 @@ void hack_check(CAntiCheatClient* client)
 
 void InitTimeoutCheck(CAntiCheatClient* client)
 {
-    _client = client;
+	_client = client;
 #if 0
     g_game_timer_mgr.start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client->heartbeat_duration(), []() {
         TimeOutCheckRoutine();
@@ -76,11 +83,11 @@ void InitTimeoutCheck(CAntiCheatClient* client)
 	hack_check(client);
 
 	client->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
-		reconnect_count = 0;
+		*reconnect_count = 0;
 	});
     static auto last_recv_package_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
     client->notify_mgr().replace_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID, [client]() {
-        last_recv_timepoint = std::chrono::system_clock::now();
+        last_recv_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
         if (last_recv_package_notify_handler)
             last_recv_package_notify_handler();
     });
@@ -88,12 +95,12 @@ void InitTimeoutCheck(CAntiCheatClient* client)
     client->notify_mgr().replace_handler(CLIENT_ON_SEND_PACKAGE_NOTIFY_ID, [client]() {
 		if (!last_send_package_notify_handler)
 		{
-			if (std::chrono::system_clock::now() - last_time_out_check_timepoint > std::chrono::minutes(10))
+			if (std::chrono::system_clock::now() - *last_time_out_check_timepoint > std::chrono::minutes(10))
 			{
 				unmap_ntdll();
 			}
 		}
-        last_send_timepoint = std::chrono::system_clock::now();
+        last_send_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
         if (last_send_package_notify_handler)
             last_send_package_notify_handler();
     });
@@ -103,13 +110,13 @@ void InitTimeoutCheck(CAntiCheatClient* client)
 		{
 			unmap_ntdll();
 		}
-        last_recv_heartbeat_timepoint = std::chrono::system_clock::now();
+        last_recv_heartbeat_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
         if (last_recv_heartbeat_notify_handler)
             last_recv_heartbeat_notify_handler();
     });
 	static auto last_js_report_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_JS_REPORT_NOTIFY_ID);
 	client->notify_mgr().replace_handler(CLIENT_ON_JS_REPORT_NOTIFY_ID, [client]() {
-		last_js_report_timepoint = std::chrono::system_clock::now();
+		last_js_report_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
 		if (last_js_report_notify_handler)
 			last_js_report_notify_handler();
 	});

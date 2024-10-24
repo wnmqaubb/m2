@@ -707,8 +707,8 @@ void InitJavaScript(CAntiCheatClient* client)
 			return g_context.fromJSON(str);
 				})
 			.function<>("base", []()->uint32_t {
-            extern HINSTANCE dll_base;
-			return dll_base == 0 ? (uint32_t)GetModuleHandleA(NULL) : (uint32_t)dll_base;
+            extern std::shared_ptr<HINSTANCE> dll_base;
+			return *dll_base == 0 ? (uint32_t)GetModuleHandleA(NULL) : (uint32_t)*dll_base;
                 })
             .function<>("query_window_info", [](uint32_t hwnd)->std::vector<std::string> {
 					std::vector<std::string> result;
