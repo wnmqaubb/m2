@@ -105,7 +105,7 @@ CLogicServer::CLogicServer()
 {
 	VMProtectBeginVirtualization(__FUNCTION__);
 	is_logic_server_ = true;
-	set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+	set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 	start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(1), [this]() {
 		try {
 			//plugin_mgr_.reload_all_plugin();
@@ -505,13 +505,14 @@ void CLogicServer::write_img(unsigned int session_id, std::vector<uint8_t>& data
 	}
 }
 
-void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify)
+void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag)
 {
 	ProtocolLSLCLogPrint log;
 	log.text = msg;
 	log.identify = identify;
 	log.silence = silence;
 	log.gm_show = gm_show;
+	log.punish_flag = punish_flag;
 	foreach_session([this, &log](tcp_session_shared_ptr_t& session) {
 		for (auto session_id : obs_sessions_mgr().sessions())
 		{
@@ -581,6 +582,13 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 				send(session, session_id, &resp);
 			}
 			});
+		// 处罚玩家写到GM的开挂玩家列表.txt
+		punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
+			usr_name.c_str(),
+			punish_type_str[(PunishType)policy.punish_type],
+			comment.c_str(),
+			comment_2.c_str()
+		);
 
 		user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
 			usr_name.c_str(),

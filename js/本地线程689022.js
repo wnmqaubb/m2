@@ -9,6 +9,8 @@ const cheat_dll_set = new Set([
 	0xF467,/*27代理_gameppp.dll*/
 ]);
 const cheat_exe_set = new Set([
+	0xE308,/*鼠大侠 — 最多人用的鼠标连点器*/
+	0x2A6F,/*鼠大侠 — 最多人用的鼠标连点器*/
 	0xDBC8,/*鼠大侠 — 最多人用的鼠标连点器*/
 	0xCA6B,/*及时雨免费版1.4*/
 	0x271E,/*dragon鼠标*/
@@ -19,6 +21,8 @@ const cheat_exe_set = new Set([
 	0xB310,/*KeymouseGo*/
 ]);
 const cheat_set = new Set([	
+	0x166E308,/*鼠大侠 — 最多人用的鼠标连点器*/
+	0x12A2A6F,/*鼠大侠 — 最多人用的鼠标连点器*/
 	0x107DBC8,/*鼠大侠 — 最多人用的鼠标连点器*/
 	0x4BCA6B,/*及时雨免费版1.4*/
 	0xD3D9DA,

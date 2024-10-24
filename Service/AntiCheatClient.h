@@ -137,69 +137,120 @@ public:
 
     virtual void log(int type, LPCTSTR format, ...)
     {
-        static std::mutex mtx;
-        std::lock_guard<std::mutex> lck(mtx);
-        std::time_t now_time = time(0);
-        TCHAR date_str[MAX_PATH] = { 0 };
-        TCHAR time_str[MAX_PATH] = { 0 };
-        tm tm_;
-        localtime_s(&tm_, &now_time);
-        wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
-        wprintf(L"[%s]:", time_str);
-        TCHAR buffer[1024];
-        va_list ap;
-        va_start(ap, format);
-        _vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
-        va_end(ap);
-
-        switch (type)
+        try
         {
-        case LOG_TYPE_DEBUG:
-            wprintf(L"[Debug]");
-            break;
-        case LOG_TYPE_EVENT:
-            wprintf(L"[Event]");
-            break;
-        case LOG_TYPE_ERROR:
-            wprintf(L"[Error]");
-            break;
-        default:
-            break;
-        }
-        wprintf(TEXT("%s\n"), buffer);
-        OutputDebugStringW(buffer);
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lck(mtx);
+			std::time_t now_time = time(0);
+			TCHAR time_str[MAX_PATH] = { 0 };
+			tm tm_;
+			localtime_s(&tm_, &now_time);
+			wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
+			wprintf(L"[%s]:", time_str);
+			TCHAR buffer[1024];
+			va_list ap;
+			va_start(ap, format);
+			_vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+			va_end(ap);
+
+			switch (type)
+			{
+				case LOG_TYPE_DEBUG:
+					wprintf(L"[Debug]");
+					break;
+				case LOG_TYPE_EVENT:
+					wprintf(L"[Event]");
+					break;
+				case LOG_TYPE_ERROR:
+					wprintf(L"[Error]");
+					break;
+				default:
+					break;
+			}
+			wprintf(TEXT("%s\n"), buffer);
+			//OutputDebugStringW(buffer);
+		}
+		catch (CException* e)
+		{
+			TRACE("写入日志失败");
+		}
     }
 
-    void log_to_file(const std::string& identify, const std::string& text)
-    {
-        std::string log_file_name = identify.empty() ? "default.log" : identify + ".log";
-        static std::mutex mtx;
-        std::lock_guard<std::mutex> lck(mtx);
-        std::time_t now_time = time(0);
-        char date_str[MAX_PATH] = { 0 };
-        char time_str[MAX_PATH] = { 0 };
-        tm tm_;
-        localtime_s(&tm_, &now_time);
-        strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m-%d", &tm_);
-        strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
-
-        std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
-        if (!std::filesystem::exists(file))
+    void log_to_punish_file(const std::string& text)
+	{
+        try
         {
-            std::filesystem::create_directories(file);
+	        std::string log_file_name = "处罚玩家日志.log";
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lck(mtx);
+			std::time_t now_time = time(0);
+			char date_str[MAX_PATH] = { 0 };
+			char time_str[MAX_PATH] = { 0 };
+			tm tm_;
+			localtime_s(&tm_, &now_time);
+			strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m", &tm_);
+			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+
+			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
+			if (!std::filesystem::exists(file))
+			{
+				std::filesystem::create_directories(file);
+			}
+
+			file = file / log_file_name;
+
+			std::string result;
+			result = result + "[Event]" + time_str + "|";
+			std::ofstream output(file, std::ios::out | std::ios::app);
+
+			result = result + Utils::String::to_utf8(text) + "\n";
+
+			output << result;
+			output.close();
         }
+        catch (CException* e)
+        {
+            TRACE("写入处罚玩家日志失败");
+        }
+	}
 
-        file = file / log_file_name;
+	void log_to_file(const std::string& identify, const std::string& text)
+	{
+		try
+		{
+			std::string log_file_name = identify.empty() ? "default.log" : identify + ".log";
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lck(mtx);
+			std::time_t now_time = time(0);
+			char date_str[MAX_PATH] = { 0 };
+			char time_str[MAX_PATH] = { 0 };
+			tm tm_;
+			localtime_s(&tm_, &now_time);
+			strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m-%d", &tm_);
+			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
 
-        std::string result;
-        result = result + "[Event]" + time_str + "|";
-        std::ofstream output(file, std::ios::out | std::ios::app);
+			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
+			if (!std::filesystem::exists(file))
+			{
+				std::filesystem::create_directories(file);
+			}
 
-        result = result + Utils::String::to_utf8(text) + "\n";
+			file = file / log_file_name;
 
-        output << result;
-        output.close();
-    }
+			std::string result;
+			result = result + "[Event]" + time_str + "|";
+			std::ofstream output(file, std::ios::out | std::ios::app);
+
+			result = result + Utils::String::to_utf8(text) + "\n";
+
+			output << result;
+			output.close();
+		}
+		catch (CException* e)
+		{
+			TRACE("写入玩家日志失败");
+		}
+	}
 
 	template <typename T>
 	void send(T* package, unsigned int session_id = 0)

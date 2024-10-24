@@ -95,7 +95,8 @@ private:
 #include "Protocol.h"
 #endif
 
-
+static std::set<std::string> ddos_black_List;
+static std::map<std::string,uint32_t> ddos_black_map;
 CAntiCheatServer::CAntiCheatServer()
 	: super(asio2::detail::tcp_frame_size)
 {
@@ -178,6 +179,11 @@ bool CAntiCheatServer::check_timer(bool slience)
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
+    // 黑名单
+    if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+		log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"),Utils::c2w(session->remote_address()).c_str());
+        session->stop();
+    }
     log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
@@ -275,7 +281,7 @@ void CAntiCheatServer::log(int type, LPCTSTR format, ...)
     wprintf(TEXT("%s\n"), buffer);
 
     if (log_cb_)
-        log_cb_(buffer, false, true, "");
+        log_cb_(buffer, false, true, "",false);
 }
 
 void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...)
@@ -315,7 +321,31 @@ void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std:
     wprintf(TEXT("%s\n"), buffer);
 
     if (log_cb_)
-        log_cb_(buffer, silense, gm_show, identify);
+        log_cb_(buffer, silense, gm_show, identify,false);
+}
+
+void CAntiCheatServer::punish_log(LPCTSTR format, ...)
+{
+	static std::mutex mtx;
+	std::lock_guard<std::mutex> lck(mtx);
+	std::time_t now_time = time(0);
+	TCHAR date_str[MAX_PATH] = { 0 };
+	TCHAR time_str[MAX_PATH] = { 0 };
+	tm tm_;
+	localtime_s(&tm_, &now_time);
+	wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
+	std::wcout << time_str << ":";
+
+	TCHAR buffer[1024];
+	va_list ap;
+	va_start(ap, format);
+	_vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+	va_end(ap);
+    std::wcout << L"[Event]";
+	wprintf(TEXT("%s\n"), buffer);
+
+	if (log_cb_)
+        log_cb_(buffer, true, true, "", true);
 }
 
 void CAntiCheatServer::close(unsigned int session_id)
@@ -346,10 +376,25 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
+    auto remote_address = session->remote_address();
     if (sv.size() == 0)
     {
+        if(ddos_black_map.find(remote_address)!= ddos_black_map.end()){
+            if(ddos_black_map[remote_address] >= 50){
+				if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
+					ddos_black_List.emplace(remote_address);
+				}
+            }
+            else{
+                ddos_black_map[remote_address] += 1;
+            }
+        }
+        else{
+            ddos_black_map[remote_address] = 1;
+        }
+
         log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d 长度:%d"),
-            Utils::c2w(session->remote_address()).c_str(),
+            Utils::c2w(remote_address).c_str(),
             session->remote_port(),
             sv.size());
         session->stop();
@@ -368,7 +413,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 		if (!package.decode(sv))
         {
             log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
-                Utils::c2w(session->remote_address()).c_str(),
+                Utils::c2w(remote_address).c_str(),
                 session->remote_port(),
                 sv.size());
             return;
@@ -379,7 +424,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 		if (!package.decode(sv))
         {
             log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
-                Utils::c2w(session->remote_address()).c_str(),
+                Utils::c2w(remote_address).c_str(),
                 session->remote_port(),
                 sv.size());
             return;
@@ -389,7 +434,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (!package.decode(sv))
     {
         log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
-            Utils::c2w(session->remote_address()).c_str(),
+            Utils::c2w(remote_address).c_str(),
             session->remote_port(),
             sv.size());
         return;
@@ -407,7 +452,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     {
         user_data->set_field("miss_count", user_data->get_field<int>("miss_count") + 1);
         log(LOG_TYPE_DEBUG, TEXT("[%s:%d] 发现丢包或重放攻击"),
-            Utils::c2w(session->remote_address()).c_str(),
+            Utils::c2w(remote_address).c_str(),
             session->remote_port());
     }
     user_data->step = package.head.step;
@@ -422,7 +467,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (user_data->has_handshake == false)
     {
         log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"),
-            Utils::c2w(session->remote_address()).c_str(),
+            Utils::c2w(remote_address).c_str(),
             session->remote_port());
         return;
     }
@@ -435,7 +480,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     }
 #if 0
     log(Debug, TEXT("收到数据包:%s:%d 长度:%d"),
-        Utils::c2w(session->remote_address()).c_str(),
+        Utils::c2w(remote_address).c_str(),
         session->remote_port(),
         sv.size());
 #endif
@@ -446,7 +491,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (!on_recv(package_id, session, package, raw_msg))
     {
         log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
-            Utils::c2w(session->remote_address()).c_str(),
+            Utils::c2w(remote_address).c_str(),
             session->remote_port(),
             package_id);
     }

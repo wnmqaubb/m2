@@ -14,7 +14,14 @@ protected:
     using package_handler_t = std::function<void(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
     using notify_handler_t = std::function<void()>;
     using user_notify_handler_t = std::function<void(tcp_session_shared_ptr_t& session)>;
-    using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify)>;
+    /**
+     * msg: 日志信息
+     * silence: 是否显示到界面日志窗口
+     * gm_show: 是否显示到gm
+     * identify: 玩家uuid标识符
+     * punish_flag: 是否是惩罚log
+     */
+    using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify, bool punish_flag)>;
 public:
 	CAntiCheatServer();
     ~CAntiCheatServer();
@@ -61,6 +68,7 @@ protected:
 public:
     virtual void log(int type, LPCTSTR format, ...); 
     virtual void user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...);
+    virtual void punish_log(LPCTSTR format, ...);
     virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&) { return false; };
 
 	template <typename T>

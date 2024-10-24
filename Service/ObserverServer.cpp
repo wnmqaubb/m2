@@ -284,7 +284,7 @@ void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, con
     log.silence = silence;
     log.gm_show = gm_show;
     foreach_session([this, &log](tcp_session_shared_ptr_t& session){
-        if (get_user_data_(session)->get_field<bool>("is_observer_client"))
+        if (get_user_data_(session)->get_field<bool>("is_observer_client"))//adminÍø¹Ø
         {
             send(session, &log);
         }
