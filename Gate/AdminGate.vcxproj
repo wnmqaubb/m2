@@ -80,6 +80,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -294,6 +295,8 @@
     <ClCompile Include="CConfig.cpp" />
     <ClCompile Include="ChildFrm.cpp" />
     <ClCompile Include="ClientViewList.cpp" />
+    <ClCompile Include="CScrollingText.cpp" />
+    <ClInclude Include="CScrollingText.h" />
     <ClCompile Include="MainBar.cpp" />
     <ClCompile Include="CmdView.cpp" />
     <ClCompile Include="ConfigSettingChildFrm.cpp" />

@@ -115,6 +115,9 @@
     <ClInclude Include="CConfig.h">
       <Filter>MFC\ChildFrame</Filter>
     </ClInclude>
+    <ClInclude Include="CScrollingText.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Gate.cpp">
@@ -200,6 +203,9 @@
     </ClCompile>
     <ClCompile Include="CConfig.cpp">
       <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="CScrollingText.cpp">
+      <Filter>MFC\Widget</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

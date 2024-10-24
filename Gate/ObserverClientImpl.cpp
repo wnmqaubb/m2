@@ -56,6 +56,22 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         {
 			auto req = raw_msg.get().as<ProtocolLSLCLogPrint>();
 			auto msg = req.text;
+
+			if (req.punish_flag)
+			{
+#ifndef GATE_ADMIN
+				std::time_t now_time = time(0);
+				char time_str[MAX_PATH] = { 0 };
+				tm tm_;
+				localtime_s(&tm_, &now_time);
+				strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+				std::string result;
+				result = result + "[事件]" + time_str + "|";
+                // gm 界面滚动显示被处罚信息
+                theApp.GetMainFrame()->SetScrollText((Utils::c2w(result) + msg).c_str());
+#endif
+                log_to_punish_file(Utils::w2c(msg));
+			}
 #ifdef GATE_ADMIN
             if (!req.silence)
             {
@@ -75,7 +91,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
                 if (!req.identify.empty())
                 {
                     log_to_file(req.identify, Utils::w2c(msg));
-                }
+				}
             }
 #endif // GATE_ADMIN
         }

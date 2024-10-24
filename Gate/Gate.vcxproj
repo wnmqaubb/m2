@@ -247,6 +247,7 @@
     <ClInclude Include="BaseDoc.h" />
     <ClInclude Include="CConfig.h" />
     <ClInclude Include="ChildFrm.h" />
+    <ClInclude Include="CScrollingText.h" />
     <ClInclude Include="MainBar.h" />
     <ClInclude Include="CmdView.h" />
     <ClInclude Include="ConfigSettingChildFrm.h" />
@@ -280,6 +281,7 @@
     <ClCompile Include="BaseDoc.cpp" />
     <ClCompile Include="CConfig.cpp" />
     <ClCompile Include="ChildFrm.cpp" />
+    <ClCompile Include="CScrollingText.cpp" />
     <ClCompile Include="MainBar.cpp" />
     <ClCompile Include="CmdView.cpp" />
     <ClCompile Include="ConfigSettingChildFrm.cpp" />

@@ -40,9 +40,9 @@ public:
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 protected:
     virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
-	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+    afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
+    afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
     uint32_t next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies);

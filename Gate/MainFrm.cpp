@@ -7,6 +7,8 @@
 #include "Gate.h"
 
 #include "MainFrm.h"
+#include <afxmenubar.h>
+#include "CScrollingText.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -95,6 +97,35 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	DockPane(&m_wndMenuBar);
 	DockPane(&m_wndToolBar);
 
+#ifndef GATE_ADMIN  // 管理员版不显示滚动文本 
+	{
+		// 创建静态文本控件
+		m_scrollingText = new CScrollingText();
+		m_scrollingText->Create(_T(""), WS_CHILD | WS_VISIBLE | SS_LEFT, CRect(0, 0, 100, 30), this);
+
+		//m_scrollingText->SetText(_T("动态创建的大字体静态文本，这是一段较长的文本用于测试滚动效果"));
+		m_scrollingText->StartScrolling();
+
+		//m_textToShow = TEXT("动态创建的大字体静态文本，这是一段较长的文本用于测试滚动效果");
+		// 获取菜单栏（CMFCMenuBar）高度
+		const CMFCMenuBar* pMenuBar = GetMenuBar();
+		int menuBarHeight = 0;
+		if (pMenuBar)
+		{
+			CClientDC dc(this);
+			CRect menuBarRect;
+			pMenuBar->GetClientRect(menuBarRect);
+			menuBarHeight = menuBarRect.Height();
+		}
+
+		// 调整静态文本控件位置使其显示在菜单栏上方
+		CRect clientRect;
+		GetClientRect(&clientRect);
+		m_scrollingText->MoveWindow(200, 0, clientRect.Width()-200, menuBarHeight+35);
+		// 将静态文本控件置于菜单栏之上的 Z 顺序
+		m_scrollingText->BringWindowToTop();
+	}
+#endif
 
 	// 启用 Visual Studio 2005 样式停靠窗口行为
 	CDockingManager::SetDockingMode(DT_SMART);
@@ -290,7 +321,7 @@ void CMainFrame::OnTimer(UINT_PTR nIDEvent)
     if (nIDEvent == TIMER_ID_POLL_WORK_ID)
     {
         theApp.m_WorkIo.poll_one();
-    }
+    }	
     CMDIFrameWndEx::OnTimer(nIDEvent);
 }
 

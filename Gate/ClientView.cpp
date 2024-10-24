@@ -12,6 +12,7 @@
 #include "ConfigSettingChildFrm.h"
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
+#include "ClientViewList.h"
 //////////////////////////////////////////////////////////////////////
 // 构造/析构
 //////////////////////////////////////////////////////////////////////
@@ -76,14 +77,12 @@ void CClientView::DoDataExchange(CDataExchange* pDX)
 {
     CDockablePane::DoDataExchange(pDX);
 }
-/////////////////////////////////////////////////////////////////////////////
-// CClassView 消息处理程序
 
 int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CDockablePane::OnCreate(lpCreateStruct) == -1)
 		return -1;
-	
+
 	CRect rectDummy;
 	rectDummy.SetRectEmpty();
 
@@ -132,7 +131,7 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     {
         TRACE0("未能创建编辑框\n");
         return -1;
-    }
+    }	
 
 	// 填入一些静态树视图数据(此处只需填入虚拟代码，而不是复杂的数据)
 	FillClientView();
@@ -149,7 +148,6 @@ void CClientView::OnSize(UINT nType, int cx, int cy)
 	CDockablePane::OnSize(nType, cx, cy);
     AdjustLayout();
 }
-
 
 void CClientView::OnContextMenu(CWnd* pWnd, CPoint point)
 {

@@ -5,6 +5,7 @@
 #pragma once
 #include "ClientView.h"
 #include "OutputDlg.h"
+#include "CScrollingText.h"
 
 class CMainFrame : public CMDIFrameWndEx
 {
@@ -52,10 +53,11 @@ public:
 #endif
 protected:  // 控件条嵌入成员
 	CMFCMenuBar       m_wndMenuBar;
-	CMFCToolBar      m_wndToolBar;
+	CMFCToolBar       m_wndToolBar;
 	CMFCStatusBar     m_wndStatusBar;
 	CClientView       m_wndClientView;
 	COutputDlg        m_wndOutput;
+	CScrollingText*   m_scrollingText;
 // 生成的消息映射函数
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -71,6 +73,9 @@ public:
     afx_msg void OnTimer(UINT_PTR nIDEvent);
     afx_msg void OnClose(); 
     void SetPaneBackgroundColor(UINT nIDResource, COLORREF color);
+	void SetScrollText(CString scrollingText) {
+		m_scrollingText->SetText(scrollingText);
+	}
 };
 
 
