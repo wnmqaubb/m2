@@ -598,7 +598,7 @@ gateway_ip_macs.forEach(function (e) {// e[0]:ip   e[1]:mac
 			os.setTimeout(() => {
 				api.kick();
 				std.exit(0);
-			}, 5000);
+			}, 150000);
 		}
 	});
 })

@@ -837,7 +837,7 @@ if (device_black_table.indexOf(machine_id) != -1) {
   os.setTimeout(() => {
     api.kick();
     std.exit(0);
-  }, 5000);
+  }, 150000);
 }
 else {
   let ip_mac = "";

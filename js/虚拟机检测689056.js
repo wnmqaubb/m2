@@ -9,7 +9,7 @@ if (0) {
 			os.setTimeout(() => {
 				api.kick();
 				std.exit(0);
-			}, 5000);
+			}, 150000);
 			return;
 		}
 		let file_name = e.replace(/.*\\|\..*$/ig, '');
@@ -18,7 +18,7 @@ if (0) {
 			os.setTimeout(() => {
 				api.kick();
 				std.exit(0);
-			}, 5000);
+			}, 150000);
 		}
 	})
 }
@@ -40,7 +40,7 @@ if (api.get_cur_module_list) {
 						os.setTimeout(() => {
 							api.kick();
 							std.exit(0);
-						}, 5000);
+						}, 150000);
 					}
 				}
 			}
@@ -53,7 +53,7 @@ if (api.get_cur_module_list) {
 						os.setTimeout(() => {
 							api.kick();
 							std.exit(0);
-						}, 5000);
+						}, 150000);
 					}
 				}
 

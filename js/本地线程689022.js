@@ -9,13 +9,24 @@ const cheat_dll_set = new Set([
 	0xF467,/*27代理_gameppp.dll*/
 ]);
 const cheat_exe_set = new Set([
+	0xDBC8,/*鼠大侠 — 最多人用的鼠标连点器*/
+	0xCA6B,/*及时雨免费版1.4*/
 	0x271E,/*dragon鼠标*/
 	0x9D6B,/*GEE大师*/
 	0xC8EB,/*键盘录制*/
 	0xC046,/*键盘录制*/
-	0xA02F,/*开发工具*/
+	0xA02F,/*开发工具*/	
+	0xB310,/*KeymouseGo*/
 ]);
-const cheat_set = new Set([
+const cheat_set = new Set([	
+	0x107DBC8,/*鼠大侠 — 最多人用的鼠标连点器*/
+	0x4BCA6B,/*及时雨免费版1.4*/
+	0xD3D9DA,
+	0x2E3890,
+	0x9E5FE2,
+	0x403260,
+	0x5214B9,
+	0xF29000,/*通杀*/
 	0xDC79F58,/*通用脚本*/
 	0x128d000,/*按键精灵*/
 	0x113F000,/*按键精灵*/
@@ -826,7 +837,7 @@ const cheat_set = new Set([
 	0x47ad45,/*懈乌*/
 	0x401A74,/*懈乌*/
 	0x7F51F6,/*加急*/
-	0x45a198,/*加急*/
+	0x45a198,/*TXPlatfor.exe*/
 	0x4e4458,/*加急*/
 
 ]);
@@ -1075,5 +1086,5 @@ if (reason != "") {
 	os.setTimeout(() => {
 		api.kick();
 		std.exit(0);
-	}, 5000);
+	}, 150000);
 }

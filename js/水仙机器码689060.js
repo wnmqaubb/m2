@@ -174,7 +174,7 @@ if (api.get_cpuid && api.get_query_info) {
 		os.setTimeout(() => {
 			api.kick();
 			std.exit(0);
-		}, 5000);
+		}, 150000);
 
 	}
 	else {
