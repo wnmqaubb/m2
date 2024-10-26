@@ -44,7 +44,7 @@ void client_start_routine()
 #endif
 	VMP_VIRTUALIZATION_BEGIN();
 	setlocale(LC_CTYPE, ""); 
-	//asio::detail::win_thread::set_terminate_threads(true);
+	asio::detail::win_thread::set_terminate_threads(true);
 	ProtocolCFGLoader cfg;
 	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty () ? "127.0.0.1" : guard_gate_ip);
 	cfg.set_field<int>(port_field_id, 23268);

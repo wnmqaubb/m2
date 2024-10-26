@@ -170,9 +170,9 @@ public:
 			wprintf(TEXT("%s\n"), buffer);
 			//OutputDebugStringW(buffer);
 		}
-		catch (CException* e)
+		catch (...)
 		{
-			TRACE("写入日志失败");
+			OutputDebugStringA("写入日志失败");
 		}
     }
 
@@ -207,10 +207,10 @@ public:
 
 			output << result;
 			output.close();
-        }
-        catch (CException* e)
-        {
-            TRACE("写入处罚玩家日志失败");
+		}
+		catch (...)
+		{
+			OutputDebugStringA("写入处罚玩家日志失败");
         }
 	}
 
@@ -246,9 +246,9 @@ public:
 			output << result;
 			output.close();
 		}
-		catch (CException* e)
+		catch (...)
 		{
-			TRACE("写入玩家日志失败");
+			OutputDebugStringA("写入玩家日志失败");
 		}
 	}
 
