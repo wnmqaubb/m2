@@ -82,6 +82,7 @@ void InitTimeoutCheck(CAntiCheatClient* client)
 	client->cfg()->set_field<bool>(hack_type_version_dll_field_id, false);
 	hack_check(client);
 
+	LOG(__FUNCTION__);
 	client->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
 		*reconnect_count = 0;
 	});

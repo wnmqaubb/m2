@@ -39,7 +39,8 @@ void HideProcess(CAntiCheatClient* client)
 const unsigned int DEFINE_TIMER_ID(kHideProcessTimerId);
 void InitHideProcessDetect(CAntiCheatClient* client)
 {
-    client->start_timer(kHideProcessTimerId, std::chrono::seconds(15), [client]() {
+	LOG(__FUNCTION__);
+	client->start_timer(kHideProcessTimerId, std::chrono::seconds(15), [&client]() {
         HideProcess(client);
     });
 }

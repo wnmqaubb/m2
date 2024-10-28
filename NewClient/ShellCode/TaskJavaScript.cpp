@@ -8,11 +8,13 @@
 #include "wmic/dnscache.h"
 #include <asio2/util/base64.hpp>
 #include "ModuleCheckSum.h"
+#include "ClientImpl.h"
 
-qjs::Runtime g_runtime;
-qjs::Context g_context(g_runtime);
-static CAntiCheatClient* g_client = nullptr;
-static uint8_t ANONYMOUS_COUNT = 0;
+std::shared_ptr<qjs::Runtime> g_runtime = std::make_shared<qjs::Runtime>();
+std::shared_ptr<qjs::Context> g_context = std::make_shared<qjs::Context>(*g_runtime);
+//CAntiCheatClient* g_client;
+extern std::shared_ptr<CClientImpl> client_;
+std::shared_ptr<uint8_t> ANONYMOUS_COUNT = std::make_shared<uint8_t>(0);
 
 class CSehException
 {
@@ -51,7 +53,7 @@ static JSValue enum_device()
 
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 static uint32_t get_display_device_sig()
 {
@@ -80,7 +82,7 @@ static JSValue enum_pdb()
 {
     json x = Utils::CWindows::instance().get_current_process_pdb_list();
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static void terminate_process(unsigned int pid)
@@ -120,7 +122,7 @@ static JSValue get_process_names()
     }
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static JSValue enum_threads()
@@ -136,7 +138,7 @@ static JSValue enum_threads()
     }
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static JSValue enum_windows()
@@ -149,7 +151,7 @@ static JSValue enum_windows()
     }
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static JSValue enum_process_hash()
@@ -182,7 +184,7 @@ static JSValue enum_process_hash()
     }
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static std::string get_module_name(uint32_t pid, uint32_t start_address)
@@ -205,7 +207,7 @@ static JSValue get_gateway_ip_macs()
 {        
     json x = BasicUtils::get_gateway_ip_macs();
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static JSValue get_module_names()
@@ -224,7 +226,7 @@ static JSValue get_module_names()
 
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static JSValue get_hide_process_directories()
@@ -235,7 +237,7 @@ static JSValue get_hide_process_directories()
 
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static unsigned int get_machine_id()
@@ -246,7 +248,7 @@ static unsigned int get_machine_id()
 
 static std::string get_player_name()
 {
-    return Utils::String::w2c(g_client->cfg()->get_field<std::wstring>(usrname_field_id), CP_UTF8);
+    return Utils::String::w2c(client_->cfg()->get_field<std::wstring>(usrname_field_id), CP_UTF8);
 }
 
 static JSValue get_query_info()
@@ -304,7 +306,7 @@ static JSValue get_query_info()
     result.push_back(Utils::String::w2c(system_info.serialNumber, CP_UTF8));
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static JSValue get_monitor_info()
@@ -318,7 +320,7 @@ static JSValue get_monitor_info()
     result.push_back(serial_number);
     json x = result;
     auto str = x.dump();
-    return g_context.fromJSON(str);
+    return g_context->fromJSON(str);
 }
 
 static std::string get_cpuid()
@@ -337,51 +339,51 @@ static void report(unsigned int id, bool is_cheat, const std::string& reason)
     echo.task_id = id;
     echo.is_cheat = is_cheat;
     echo.text = Utils::String::from_utf8(reason);
-    g_client->send(&echo);
-	g_client->notify_mgr().dispatch(CLIENT_ON_JS_REPORT_NOTIFY_ID);
+    client_->send(&echo);
+    client_->notify_mgr().dispatch(CLIENT_ON_JS_REPORT_NOTIFY_ID);
 }
 
 void report_js_context_exception(uint32_t identify)
 {
     std::stringstream ss;
-    auto exception_val = g_context.getException();
+    auto exception_val = g_context->getException();
     JSValue val;
     BOOL is_error;
-    is_error = JS_IsError(g_context.ctx, exception_val.v);
+    is_error = JS_IsError(g_context->ctx, exception_val.v);
     {
         const char *str;
-        str = JS_ToCString(g_context.ctx, exception_val.v);
+        str = JS_ToCString(g_context->ctx, exception_val.v);
         if (str) {
             ss << std::to_string(identify) << ":" << str << std::endl;
-            JS_FreeCString(g_context.ctx, str);
+            JS_FreeCString(g_context->ctx, str);
         }
         else {
             ss << std::to_string(identify) << "[exception]" << std::endl;
         }
     }
     if (is_error) {
-        val = JS_GetPropertyStr(g_context.ctx, exception_val.v, "stack");
+        val = JS_GetPropertyStr(g_context->ctx, exception_val.v, "stack");
         if (!JS_IsUndefined(val)) {
             const char *str;
-            str = JS_ToCString(g_context.ctx, val);
+            str = JS_ToCString(g_context->ctx, val);
             if (str) {
                 ss << std::to_string(identify) << ":" << str << std::endl;
-                JS_FreeCString(g_context.ctx, str);
+                JS_FreeCString(g_context->ctx, str);
             }
             else {
                 ss << std::to_string(identify) << "[exception]" << std::endl;
             }
         }
-        JS_FreeValue(g_context.ctx, val);
+        JS_FreeValue(g_context->ctx, val);
     }
     std::cerr << ss.str();
 	if (ss.str().find("anonymous") != std::string::npos)
 	{
-		ANONYMOUS_COUNT++;
+		(*ANONYMOUS_COUNT)++;
 	}
-	if (ANONYMOUS_COUNT >= 10)
+	if (*ANONYMOUS_COUNT >= 10)
 	{
-		ANONYMOUS_COUNT = 0;
+		*ANONYMOUS_COUNT = 0;
 		report(689999, true, ss.str());
 	}
 	else
@@ -416,10 +418,10 @@ namespace qjs
 			try
 			{
 				auto jsarray = Value{ ctx, JS_NewArray(ctx) };
-				jsarray[(uint32_t)0] = std::move(val.name);
-				jsarray[(uint32_t)1] = std::move(val.type);
-				jsarray[(uint32_t)2] = std::move(val.data_length);
-				jsarray[(uint32_t)3] = std::move(val.flag);
+				jsarray[(uint32_t)0] = val.name;
+				jsarray[(uint32_t)1] = val.type;
+				jsarray[(uint32_t)2] = val.data_length;
+				jsarray[(uint32_t)3] = val.flag;
 				return jsarray.release();
 			}
 			catch (exception)
@@ -488,21 +490,52 @@ static bool crt(uint32_t pid, const std::string& payload_base64)
 	auto WriteProcessMemory = IMPORT(L"kernel32.dll", WriteProcessMemory);
 	auto CreateRemoteThread = IMPORT(L"kernel32.dll", CreateRemoteThread);
 	auto CloseHandle = IMPORT(L"kernel32.dll", CloseHandle);
-	std::string payload = asio2::base64().decode(payload_base64);
-	HANDLE phandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	if (phandle)
-	{
-		void* buf = VirtualAllocEx(phandle, NULL, payload.size(), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-		if (buf)
-		{
-			if (WriteProcessMemory(phandle, buf, payload.data(), payload.size(), NULL))
-			{
-				CreateRemoteThread(phandle, NULL, NULL, (LPTHREAD_START_ROUTINE)buf, NULL, NULL, NULL);
-			}
-		}
-		return true;
+
+	if (!OpenProcess || !VirtualAllocEx || !VirtualFreeEx || !WriteProcessMemory || !CreateRemoteThread || !CloseHandle) {		
+		return false;
 	}
-	return false;
+
+	// 解码 Base64 字符串
+	std::string payload = asio2::base64().decode(payload_base64);
+
+	// 打开目标进程
+	HANDLE phandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	if (phandle == nullptr) {
+		return false;
+	}
+
+	// 在目标进程中分配内存
+	void* buf = VirtualAllocEx(phandle, nullptr, payload.size(), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if (buf == nullptr) {
+		CloseHandle(phandle);
+		return false;
+	}
+
+	// 将数据写入目标进程
+	SIZE_T bytesWritten;
+	if (!WriteProcessMemory(phandle, buf, payload.data(), payload.size(), &bytesWritten) || bytesWritten != payload.size()) {
+		VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
+		CloseHandle(phandle);
+		return false;
+	}
+
+	// 创建远程线程
+	HANDLE rthread = CreateRemoteThread(phandle, nullptr, 0, (LPTHREAD_START_ROUTINE)buf, nullptr, NULL, nullptr);
+	if (rthread == nullptr) {
+		VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
+		CloseHandle(phandle);
+		return false;
+	}
+
+	// 等待远程线程完成（可选）
+	WaitForSingleObject(rthread, INFINITE);
+
+	// 清理资源
+	VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
+	CloseHandle(rthread);
+	CloseHandle(phandle);
+
+	return true;
 }
 class CJSContextHook : public LightHook::HookMgr
 {
@@ -531,10 +564,10 @@ private:
 
 void async_execute_javascript(const std::string& sv, uint32_t script_id)
 {
-    g_client->post([sv = sv, script_id]() {
+    client_->post([sv = sv, script_id]() {
         try 
         {
-            g_context.eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
+            g_context->eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
         }
         catch (qjs::exception)
         {
@@ -610,7 +643,7 @@ static JSValue get_cur_module_list()
 	}
 	json x = result;
 	auto str = x.dump();
-	return g_context.fromJSON(str);
+	return g_context->fromJSON(str);
 }
 
 static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_t>& mask)
@@ -633,16 +666,16 @@ static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_
 }
 void InitJavaScript(CAntiCheatClient* client)
 {
-    g_client = client;
+    //g_client = client;
     //g_thread_group.create_thread([]() {
-    g_client->post([](){
+    client_->post([](){
         _set_se_translator(&translate_seh_to_ce);
-        JS_SetModuleLoaderFunc(g_runtime.rt, NULL, js_module_loader, NULL);
-        js_std_add_helpers(g_context.ctx, NULL, NULL);
+        JS_SetModuleLoaderFunc(g_runtime->rt, nullptr, js_module_loader, nullptr);
+        js_std_add_helpers(g_context->ctx, NULL, nullptr);
         /* system modules */
-        js_init_module_std(g_context.ctx, "std");
-        js_init_module_os(g_context.ctx, "os");
-        auto& m = g_context.addModule("api");
+        js_init_module_std(g_context->ctx, "std");
+        js_init_module_os(g_context->ctx, "os");
+        auto& m = g_context->addModule("api");
 		m.class_<CJSContextHook>("hook")
 			.constructor<>()
 			.fun<&CJSContextHook::add>("add");
@@ -704,11 +737,11 @@ void InitJavaScript(CAntiCheatClient* client)
 				));
 			}
 			auto str = json(result).dump();
-			return g_context.fromJSON(str);
+			return g_context->fromJSON(str);
 				})
 			.function<>("base", []()->uint32_t {
             extern std::shared_ptr<HINSTANCE> dll_base;
-			return *dll_base == 0 ? (uint32_t)GetModuleHandleA(NULL) : (uint32_t)*dll_base;
+			return *dll_base == 0 ? (uint32_t)GetModuleHandleA(nullptr) : (uint32_t)*dll_base;
                 })
             .function<>("query_window_info", [](uint32_t hwnd)->std::vector<std::string> {
 					std::vector<std::string> result;
@@ -724,13 +757,14 @@ void InitJavaScript(CAntiCheatClient* client)
 						}, (ULONG_PTR)&result);
 					return result;
             });
-        g_context.eval("import * as std from 'std';\n"
+        g_context->eval("import * as std from 'std';\n"
             "import * as os from 'os';\n"
             "globalThis.std = std;\n"
             "globalThis.os = os;\n", "<GINIT>", JS_EVAL_TYPE_MODULE);
-        js_std_free_handlers(g_runtime.rt);
+        js_std_free_handlers(g_runtime->rt);
     });
-	g_client->start_timer(0, std::chrono::milliseconds(100), []() {
-		js_std_loop(g_context.ctx);
+	LOG(__FUNCTION__);
+    client_->start_timer(xorstr("Timer_JavaScript"), std::chrono::milliseconds(100), []() {
+		js_std_loop(g_context->ctx);
 	});
 }

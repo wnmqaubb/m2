@@ -287,7 +287,8 @@ void InitRmc(CAntiCheatClient* client)
         RmcProtocolC2SCreateCommandLine resp;
         client->send(&resp, package.head.session_id);
         client->stop_timer(kCmdPipeTimerId);
-        client->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [client, session_id = package.head.session_id]() {
+		LOG(__FUNCTION__);
+		client->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [client, session_id = package.head.session_id]() {
             if (!console_ptr)
                 return;
             console_ptr->read([client, session_id](const std::string& text) {

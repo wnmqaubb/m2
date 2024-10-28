@@ -61,7 +61,8 @@ void SpeedDetect(CAntiCheatClient* client)
 const unsigned int DEFINE_TIMER_ID(kSpeedDetectTimerId);
 void InitSpeedDetect(CAntiCheatClient* client)
 {
-    client->start_timer(kSpeedDetectTimerId, std::chrono::seconds(5), [client]() {
+	LOG(__FUNCTION__);
+	client->start_timer(kSpeedDetectTimerId, std::chrono::seconds(5), [&client]() {
         SpeedDetect(client);
     });
 }

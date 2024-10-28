@@ -216,7 +216,7 @@ namespace BasicUtils
         VMP_VIRTUALIZATION_END()
     }
 
-    std::tuple<std::string, std::string> scan_tcp_table(std::vector<std::tuple<std::string, std::string>> black_ip_table)
+    std::tuple<std::string, std::string> scan_tcp_table(const std::shared_ptr<std::vector<std::tuple<std::string, std::string>>>& black_ip_table)
     {
         std::tuple<std::string, std::string> empty_tuple{ "", "" };
         DWORD table_size = 0;
@@ -244,12 +244,12 @@ namespace BasicUtils
         for (int i = 0; i < ip_table->dwNumEntries; ++i)
         {
             remote_ip = inet_ntoa(*(in_addr*)& ip_table->table[i].dwRemoteAddr);
-            for (auto& t_ip : black_ip_table)
+            for (const auto&[ip, cheat_name] : *black_ip_table)
             {
-                if (remote_ip == std::get<0>(t_ip))
+                if (remote_ip == ip)
                 {
                     free(ip_table);
-                    return t_ip;
+                    return { ip, cheat_name };
                 }
             }
         }

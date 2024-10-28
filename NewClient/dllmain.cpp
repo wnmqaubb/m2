@@ -25,7 +25,7 @@ void client_start_routine()
     WndProcHook::install_hook();
     auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
 	auto port = client_->cfg()->get_field<int>(port_field_id);
-	client_->async_start(ip, port);
+	client_->start(ip, port);
 	LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
 	
 }
@@ -44,7 +44,6 @@ void client_start_routine()
 #endif
 	VMP_VIRTUALIZATION_BEGIN();
 	setlocale(LC_CTYPE, ""); 
-	asio::detail::win_thread::set_terminate_threads(true);
 	ProtocolCFGLoader cfg;
 	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty () ? "127.0.0.1" : guard_gate_ip);
 	cfg.set_field<int>(port_field_id, 23268);
@@ -122,29 +121,37 @@ RUNGATE_API DoUnInit() noexcept
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
 		LOG("插件卸载  -- restore_hook ok");
-		if (!g_game_io->stopped()) {
-			g_game_io->stop();
-			g_game_io->reset();
-		}
-		
-		//client_->stop_all_timers();
-		//client_->stop_all_timed_tasks();
-		do {
-			client_->stop();
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		} while (!client_->is_stopped());
-		/*
-		* set_terminate_threads 强制退出asio的线程,在win7下, 否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
-		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
-		if (Utils::CWindows::instance().get_system_version() <= Utils::CWindows::WINDOWS_7) {
-			//asio::detail::win_thread::set_terminate_threads(true);
-		}
+		g_game_io->stop();
+		g_game_io->reset();
+		client_->stop_all_timers();
+		client_->stop_all_timed_tasks();
+		/*作者建议：
+		if(!game_io->stopped()) 把这个判断删了，直接stop即可
+		你在这个uninit里加个日志，检测一下是在哪个步骤阻塞的，好判断问题范围
+		client.post([&client](){client.socket().close();})  先把socket直接关了就行 这样后续的包就不会发送了，很快就结束 了
+		client.stop();
 		*/
+		LOG("插件卸载stop 1");
+		auto start = std::chrono::steady_clock::now(); // 记录开始时间
+		/*client_->post([]() {LOG("插件卸载socket close 1");
+			client_->socket().close(); LOG("插件卸载socket close 2");
+		});*/ 
+		client_->socket().close();
+		client_->stop();
+
+		auto end = std::chrono::steady_clock::now(); // 记录结束时间
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+		LOG("插件卸载stop 2 %d ms", elapsed);
+		/*
+		* set_terminate_threads 强制退出asio的线程,否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
+		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
+		*/
+		asio::detail::win_thread::set_terminate_threads(true);
 		client_->destroy();
+		client_ = nullptr;
 		/*if(dll_exit_event_handle_){
 			CloseHandle(dll_exit_event_handle_);
 		}*/
-		//Sleep(500);
 		LOG("插件卸载完成");
 	}
 	catch (...)

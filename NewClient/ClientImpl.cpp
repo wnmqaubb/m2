@@ -79,6 +79,10 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
         }
 	});
 }
+CClientImpl::~CClientImpl()
+{
+    super::stop();
+}
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)
 {
