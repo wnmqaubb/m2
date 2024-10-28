@@ -180,7 +180,8 @@ bool CAntiCheatServer::check_timer(bool slience)
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
     // ºÚÃûµ¥
-    if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+		//printf("À¹½Øddos¹¥»÷ºÚÃûµ¥IP:%s\n", session->remote_address().c_str());
 		log(LOG_TYPE_ERROR, TEXT("À¹½Øddos¹¥»÷ºÚÃûµ¥IP:%s"),Utils::c2w(session->remote_address()).c_str());
         session->stop();
     }
@@ -378,14 +379,19 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 {
     auto remote_address = session->remote_address();
     if (sv.size() == 0)
-    {
+	{
+		//printf("1Ìí¼Óddos¹¥»÷ºÚÃûµ¥IP:%s\n", session->remote_address().c_str());
         if(ddos_black_map.find(remote_address)!= ddos_black_map.end()){
+		    //printf("2Ìí¼Óddos¹¥»÷ºÚÃûµ¥IP:%s\n", session->remote_address().c_str());
             if(ddos_black_map[remote_address] >= 50){
+		    //printf("3 >= 50Ìí¼Óddos¹¥»÷ºÚÃûµ¥IP:%s\n", session->remote_address().c_str());
 				if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
+					//printf("Ìí¼Óddos¹¥»÷ºÚÃûµ¥IP:%s\n", session->remote_address().c_str());
 					ddos_black_List.emplace(remote_address);
 				}
             }
             else{
+		    //printf("4 += 1Ìí¼Óddos¹¥»÷ºÚÃûµ¥IP:%s\n", session->remote_address().c_str());
                 ddos_black_map[remote_address] += 1;
             }
         }
