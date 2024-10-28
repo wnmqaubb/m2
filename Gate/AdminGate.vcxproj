@@ -362,6 +362,18 @@
     <Image Include="res\userimages.bmp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\js\内存检测689023.js" />
+    <None Include="..\js\内部线程689055.js" />
+    <None Include="..\js\图标检测689021_暂时不用.js" />
+    <None Include="..\js\本地线程689022.js" />
+    <None Include="..\js\水仙机器码689060.js" />
+    <None Include="..\js\猎手检测689061.js" />
+    <None Include="..\js\第一代机器码689051.js" />
+    <None Include="..\js\第五代机器码689054.js" />
+    <None Include="..\js\虚拟机检测689056.js" />
+    <None Include="..\js\驱动检测689052.js" />
+    <None Include="..\js\鸿蒙新增9051.js" />
+    <None Include="..\js\鸿蒙新增待解密.js" />
     <None Include="res\Gate.rc2" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
