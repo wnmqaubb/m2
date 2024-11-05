@@ -33,10 +33,10 @@ RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
 	guard_gate_ip = read_config_txt(ini_path, "GuardGate", "GateIP");
 	if (guard_gate_ip.empty()) {
-		AddShowLog("请在Config.ini配置锦衣卫网关IP [GuardGate]-->GateIP", 0);
+		AddShowLog("请在Config.ini配置及时雨网关IP [GuardGate]-->GateIP", 0);
 	}
 	else {
-		DbgPrint("=====锦衣卫网关IP:%s=====", guard_gate_ip.c_str());
+		DbgPrint("=====及时雨网关IP:%s=====", guard_gate_ip.c_str());
 	}
 }
 
@@ -67,7 +67,7 @@ RUNGATE_API ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData
 	{
 		//AddShowLog("=====接收客户端数据包=====", 0);
 		SetClientPlugLoad(clientID);
-		// 下发锦衣卫网关IP
+		// 下发及时雨网关IP
 		defMsg->ident = 10001;
 		SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
 	}

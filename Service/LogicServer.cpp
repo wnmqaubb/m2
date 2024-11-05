@@ -96,7 +96,7 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
 						close_socket(service_session, user_data->session_id);
 					user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("策略收到严重超时，请手动处罚:%d"), user_data->session_id);
 					std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-					//write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
+					write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
 				}
 			}
 			else
