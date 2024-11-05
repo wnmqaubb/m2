@@ -14,6 +14,12 @@
 #include "ObserverClientGroupImpl.h"
 #include "CConfig.h"
 
+typedef enum _SETTIMEOUT_ID
+{
+    TIMER_ID_RELOAD_GAMER_LIST = 1,
+    TIMER_ID_POLL_WORK_ID,
+    TIMER_ID_CHILD_SERIVCE_ID,
+}SETTIMEOUT_ID;
 #define GATE_ADMIN_POLICY_ID 689000
 #define GATE_POLICY_ID 688000
 // CGateApp:
@@ -75,6 +81,7 @@ public:
     CDocument* m_ConfigDoc = nullptr;
     HANDLE m_childpHandle;
     CConfig m_wndConfig;
+    bool is_parent_gate = true;
 	virtual void PreLoadState();
 	virtual void LoadCustomState();
 	virtual void SaveCustomState();
@@ -84,6 +91,7 @@ public:
 public:
 	afx_msg void OnServiceStart();
 	afx_msg void OnServiceStop();
+	afx_msg void OnServiceStop1();
     afx_msg void OnAppExit();
     afx_msg void OnServiceSettings();
     afx_msg void OnConfig();

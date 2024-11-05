@@ -97,10 +97,11 @@ BOOL CGateApp::InitInstance()
 	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
 	if (strCmdLine == TEXT("/StartService"))
     {
+        is_parent_gate = false;
         giInstancePid = GetCurrentProcessId();
         HANDLE pHandles[2] = {};
         std::filesystem::path path(m_ExeDir);
-        path = path / "Service.exe";
+        path = path / "g_Service.exe";
         STARTUPINFOA si = {};
         si.dwFlags = STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
@@ -122,7 +123,7 @@ BOOL CGateApp::InitInstance()
             AfxMessageBox(TEXT("启动Service失败"));
         }
         pHandles[0] = pi.hProcess;
-        path = path.parent_path() / "LogicServer.exe";
+        path = path.parent_path() / "g_LogicServer.exe";
         std::string strLogicServerCmdline = path.string() + strCmdLine;
         res = CreateProcessA(NULL,
             (char*)strLogicServerCmdline.c_str(),
@@ -139,8 +140,8 @@ BOOL CGateApp::InitInstance()
             AfxMessageBox(TEXT("启动LogicServer失败"));
         }
         pHandles[1] = pi.hProcess;
-        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
-        ExitProcess(0);
+        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);OutputDebugStringA("=====gate_ExitProcess");
+        ExitProcess(0); 
         return FALSE;
     }
     m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->async_start(kDefaultLocalhost, kDefaultServicePort);
@@ -394,27 +395,33 @@ void CGateApp::OnServiceStart()
 #endif
 }
 
-
 void CGateApp::OnServiceStop()
 {
 #ifndef GATE_ADMIN
     if(m_pMainWnd->MessageBox(TEXT("确认要停止服务吗?"), TEXT("提示"), MB_YESNO) == IDYES)
     {
-        if(m_childpHandle == NULL && giInstancePid != 0)
-        {
-            m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
-        }
-        if (m_childpHandle)
-        {
-            TerminateProcess(m_childpHandle, 0);
-            CloseHandle(m_childpHandle);
-            m_childpHandle = NULL;
-            giInstancePid = 0;
-        }
+        OnServiceStop1();
         LogPrint(ObserverClientLog, TEXT("服务已停止"));
         theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已停止"));
         theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(255, 0, 0));
     }
+#endif
+}
+
+void CGateApp::OnServiceStop1()
+{
+#ifndef GATE_ADMIN
+	if (m_childpHandle == NULL && giInstancePid != 0)
+	{
+		m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
+	}
+	if (m_childpHandle)
+	{
+		TerminateProcess(m_childpHandle, 0);
+		CloseHandle(m_childpHandle);
+	}
+	m_childpHandle = NULL;
+	giInstancePid = 0;
 #endif
 }
 

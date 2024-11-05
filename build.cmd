@@ -19,9 +19,10 @@ echo ***************Shell打包完成***************
 
 
 echo ***************执行网关加壳开始***************
-VMProtect_Con.exe %ReleaseDir%\Service.exe %bin_Dir%\gm_server\Service.exe -pf ServiceRelease.vmp
-VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %bin_Dir%\gm_server\LogicServer.exe -pf LogicRelease.vmp
+VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\g_Service.exe -pf ServiceRelease.vmp
+VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\g_LogicServer.exe -pf LogicRelease.vmp
 VMProtect_Con.exe %ReleaseDir%\Gate.exe %bin_Dir%\gm_server\Gate.exe -pf GateRelease.vmp
+VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\AdminGate.exe -pf AdminGateRelease.vmp
 echo ***************执行网关加壳完成***************
 
 echo ***************执行DLL加壳开始***************

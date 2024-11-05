@@ -17,6 +17,7 @@
 #define IDS_TOOLBAR_STANDARD            124
 #define IDS_TOOLBAR_CUSTOMIZE           125
 #define IDR_MAINFRAME                   128
+#define IDR_MAINFRAME1                  128
 #define IDS_STRING_PROCESS_EXT          129
 #define IDR_GateTYPE                    130
 #define ID_WINDOW_MANAGER               131
@@ -57,12 +58,13 @@
 #define IDI_ICON1                       328
 #define IDI_ICON_GUARD                  328
 #define IDI_config                      330
-#define IDR_MENU1                       331
 #define IDR_MENU_USERS_RIGHT            331
 #define IDR_PROCESS_RIGHT_MENU          332
 #define IDR_MODULE_RIGHT_MENU           333
 #define IDR_MENU_HELP                   334
 #define IDR_SETING_RIGHT_MENU           335
+#define IDI_ICON_BLUE                   337
+#define IDI_ICON_RED                    339
 #define IDC_ABOUT_VERSION               1000
 #define IDC_EDIT_POLICY_ID              1001
 #define IDC_EDIT_POLICY_CONFIG          1002
@@ -156,7 +158,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        336
+#define _APS_NEXT_RESOURCE_VALUE        340
 #define _APS_NEXT_COMMAND_VALUE         32832
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           313

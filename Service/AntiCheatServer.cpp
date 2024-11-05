@@ -182,8 +182,11 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
     // 黑名单
 	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
 		//printf("拦截ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-		log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"),Utils::c2w(session->remote_address()).c_str());
         session->stop();
+        if (ddos_black_map[session->remote_address()] > 0) {
+            ddos_black_map[session->remote_address()] -= 1;
+            log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"), Utils::c2w(session->remote_address()).c_str());
+        }
     }
     log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
@@ -378,12 +381,16 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
     auto remote_address = session->remote_address();
+	// 黑名单
+	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+        return;
+	}
     if (sv.size() == 0)
 	{
 		//printf("1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
         if(ddos_black_map.find(remote_address)!= ddos_black_map.end()){
 		    //printf("2添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-            if(ddos_black_map[remote_address] >= 50){
+            if(ddos_black_map[remote_address] >= 10){
 		    //printf("3 >= 50添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
 				if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
 					//printf("添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
@@ -399,9 +406,11 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
             ddos_black_map[remote_address] = 1;
         }
 
-        log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d 长度:%d"),
+        log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d ==> %s:%d 长度:%d"),
             Utils::c2w(remote_address).c_str(),
             session->remote_port(),
+			Utils::c2w(session->local_address()).c_str(),
+			session->local_port(),
             sv.size());
         session->stop();
         return;

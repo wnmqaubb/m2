@@ -13,9 +13,10 @@ std::filesystem::path g_cur_dir;
 int main(int argc, char** argv)
 {
 	VMProtectBeginVirtualization(__FUNCTION__);
-	CreateMutex(NULL, FALSE, TEXT("mtx_logic_server"));
+	HANDLE hEvent = CreateMutex(NULL, FALSE, TEXT("mtx_logic_server"));
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 	{
+		CloseHandle(hEvent);
 		return 0;
 	}
 	g_cur_dir = std::filesystem::path(argv[0]).parent_path();
@@ -45,6 +46,12 @@ int main(int argc, char** argv)
 	while (!server.is_stopped())
 	{
 		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+
+	if (hEvent)
+	{
+		ReleaseMutex(hEvent);
+		CloseHandle(hEvent);
 	}
 	return 0;
 	VMProtectEnd();

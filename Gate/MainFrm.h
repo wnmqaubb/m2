@@ -69,13 +69,17 @@ protected:
     void InitStatusBar();
 	BOOL CreateDockingWindows();
 	void SetDockingWindowIcons(BOOL bHiColorIcons); 
+	HICON m_hIcon;
 public:
     afx_msg void OnTimer(UINT_PTR nIDEvent);
     afx_msg void OnClose(); 
     void SetPaneBackgroundColor(UINT nIDResource, COLORREF color);
+	bool isProcessRunning(const std::string& processName);
+	HANDLE find_process(const std::string& processName);
 	void SetScrollText(CString scrollingText) {
 		m_scrollingText->SetText(scrollingText);
 	}
+
 };
 
 

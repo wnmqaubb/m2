@@ -138,7 +138,7 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 #ifdef GATE_ADMIN
     FillServiceView();
 #else
-    SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
+    SetTimer(TIMER_ID_RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
 #endif    
 	return 0;
 }
@@ -973,7 +973,7 @@ void CClientView::OnTimer(UINT_PTR nIDEvent)
 {
     switch (nIDEvent)
     {
-        case RELOAD_GAMER_LIST:
+        case TIMER_ID_RELOAD_GAMER_LIST:
         {
             OnRefreshUsers();
             break;

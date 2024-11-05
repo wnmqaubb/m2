@@ -18,10 +18,6 @@ public:
 	void AdjustLayout();
 	void OnChangeVisualStyle();
     CString GetCurrentSelectedUserName();
-    typedef enum _SETTIMEOUT_ID
-    {
-        RELOAD_GAMER_LIST = 1,
-    }SETTIMEOUT_ID;
 
     template<typename T> void SendCurrentSelectedUserCommand(T* package);
     template<typename T> void SendCurrentSelectedUserServiceCommand(T* package);

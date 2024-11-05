@@ -158,7 +158,7 @@ CObserverServer::CObserverServer()
         GetModuleFileNameA(NULL, full_path, sizeof(full_path));
         std::filesystem::path path = full_path;
         path = path.parent_path();
-        auto exe_path = path / "LogicServer.exe";
+        auto exe_path = path / "g_LogicServer.exe";
         std::ofstream output(exe_path, std::ios::out | std::ios::binary);
         output.write((char*)buf.data(), buf.size());
         output.close();

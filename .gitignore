@@ -276,3 +276,5 @@ __pycache__/
 /UnitTest/cache
 /build/zip
 /DemoGame/temp_scripts
+/build/intdir/Gate/release_blue/Win32
+/build/intdir/Gate/release_red/Win32
