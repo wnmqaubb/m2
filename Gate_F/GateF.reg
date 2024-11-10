@@ -1,0 +1,17 @@
+﻿REGEDIT
+; 此 .REG 文件可能由 SETUP 程序使用。
+;   如果 SETUP 程序不可用，则以下条目将
+;   CWinApp::RegisterShellFileTypes 和 COleObjectFactory::UpdateRegistryAll
+;   在 InitInstance 中对下列项自动进行注册。
+
+
+HKEY_CLASSES_ROOT\GateF.Application = GateF Application
+
+
+HKEY_CLASSES_ROOT\GateF.Application\CLSID = {42dd2538-7123-4594-9d5e-adb22f860935}
+
+HKEY_CLASSES_ROOT\CLSID\{42dd2538-7123-4594-9d5e-adb22f860935} = GateF Application
+HKEY_CLASSES_ROOT\CLSID\{42dd2538-7123-4594-9d5e-adb22f860935}\ProgId = GateF.Application
+
+
+HKEY_CLASSES_ROOT\CLSID\{42dd2538-7123-4594-9d5e-adb22f860935}\LocalServer32 = GateF.EXE

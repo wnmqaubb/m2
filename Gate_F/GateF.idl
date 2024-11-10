@@ -1,0 +1,46 @@
+﻿// GateF.idl: GateF.exe 的类型库源
+
+// 此文件将由 MIDL 编译器处理以产生
+// 类型库(GateF.tlb)。
+
+#include "olectl.h"
+[ uuid(5053d9b2-3353-4680-979d-a65da3cf8d1b), version(1.0) ]
+library GateF
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+
+	//  CGateFDoc 的主调度接口
+
+	[ uuid(12ab5939-59df-497e-aab9-9fc17412dd88) ]
+	dispinterface IGateF
+	{
+		properties:
+
+		methods:
+	};
+
+	//  CGateFDoc 的类信息
+
+	[ uuid(42dd2538-7123-4594-9d5e-adb22f860935) ]
+	coclass GateF
+	{
+		[default] dispinterface IGateF;
+	};
+	//  OBSCService 的主调度接口
+		
+	[ uuid(61d93358-a7e8-467a-bd70-5c8d8690fb37) ]
+	dispinterface IOBSCService
+	{
+		properties:
+		methods:
+	};
+
+	//  OBSCService 的类信息
+
+	[ uuid(c7a97a67-5463-415c-9d2f-878cab879c14) ]
+	coclass OBSCService
+	{
+		[default] dispinterface IOBSCService;
+	};
+};

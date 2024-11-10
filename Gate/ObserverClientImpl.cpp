@@ -1,5 +1,9 @@
 #include "pch.h"
-#include "Gate.h"
+#ifdef GATEF
+    #include "GateF.h"
+#else
+    #include "Gate.h"
+#endif
 #include "ObserverClientImpl.h"
 
 namespace fs = std::filesystem;
@@ -33,7 +37,11 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
     package_mgr_.register_handler(OBPKG_ID_S2C_QUERY_VMP_EXPIRE, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryVmpExpire>();
         theApp.m_WorkIo.post([vmp_expire = msg.vmp_expire]() {
+#ifdef GATEF
+            //todo
+#else
             ((CStatic*)theApp.GetMainFrame()->GetClientView().GetMainBar()->GetDlgItem(IDC_EXPDATE_STATIC))->SetWindowText(vmp_expire.c_str());
+#endif
         });
     });
 #endif
@@ -69,7 +77,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
             {
                 if (!req.silence)
                 {
-                    LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
+                    //todo LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
                 }
                 if (!req.identify.empty())
                 {
@@ -89,7 +97,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
             auto req = raw_msg.get().as<ProtocolOBS2OBCLogPrint>();
             if (!req.silence)
             {
-                LogPrint(ServiceLog, TEXT("%s"), req.text.c_str());
+                //todo LogPrint(ServiceLog, TEXT("%s"), req.text.c_str());
             }
             if (!req.identify.empty())
             {
@@ -189,7 +197,7 @@ void CObserverClientImpl::log(int type, LPCTSTR format, ...)
     va_start(ap, format);
     buf.FormatV(format, ap);
     va_end(ap);
-    LogPrint(ObserverClientLog, _T("%s"), buf);
+    //todo LogPrint(ObserverClientLog, _T("%s"), buf);
 }
 
 void CObserverClientImpl::OpenDocument(const std::wstring& path)

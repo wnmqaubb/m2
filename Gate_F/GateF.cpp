@@ -1,0 +1,284 @@
+﻿
+// GateF.cpp: 定义应用程序的类行为。
+//
+
+#include "pch.h"
+#include "framework.h"
+#include "GateF.h"
+#include "GateFDlg.h"
+#include "../3rdparty/vmprotect/VMProtectSDK.h"
+#include "../3rdparty/asio2-2.7/asio2/util/sha1.hpp"
+#include "../3rdparty/asio2-2.7/asio2/util/base64.hpp"
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#endif
+
+
+// CGateFApp
+
+BEGIN_MESSAGE_MAP(CGateFApp, CWinApp)
+	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
+END_MESSAGE_MAP()
+
+
+// CGateFApp 构造
+
+CGateFApp::CGateFApp()
+{
+	// 支持重新启动管理器
+	m_dwRestartManagerSupportFlags = AFX_RESTART_MANAGER_SUPPORT_RESTART;
+
+	// TODO: 在此处添加构造代码，
+	// 将所有重要的初始化放置在 InitInstance 中
+}
+
+
+// 唯一的 CGateFApp 对象
+
+CGateFApp theApp;
+
+const GUID CDECL BASED_CODE _tlid =
+		{0x5053d9b2,0x3353,0x4680,{0x97,0x9d,0xa6,0x5d,0xa3,0xcf,0x8d,0x1b}};
+const WORD _wVerMajor = 1;
+const WORD _wVerMinor = 0;
+
+
+// CGateFApp 初始化
+
+BOOL CGateFApp::InitInstance()
+{
+// TODO: 调用 AfxInitRichEdit2() 以初始化 richedit2 库。\n"	// 如果一个运行在 Windows XP 上的应用程序清单指定要
+	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
+	//则需要 InitCommonControlsEx()。  否则，将无法创建窗口。
+	INITCOMMONCONTROLSEX InitCtrls;
+	InitCtrls.dwSize = sizeof(InitCtrls);
+	// 将它设置为包括所有要在应用程序中使用的
+	// 公共控件类。
+	InitCtrls.dwICC = ICC_WIN95_CLASSES;
+	InitCommonControlsEx(&InitCtrls);
+
+	CWinApp::InitInstance();
+
+
+	// 初始化 OLE 库
+	if (!AfxOleInit())
+	{
+		AfxMessageBox(IDP_OLE_INIT_FAILED);
+		return FALSE;
+	}
+	// 初始化 OLE 库
+	hriched = LoadLibrary(L"RICHED20.DLL");
+	if (hriched == NULL || !AfxInitRichEdit2()) {
+		AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
+		return FALSE;
+	}
+	// 创建 shell 管理器，以防对话框包含
+	// 任何 shell 树视图控件或 shell 列表视图控件。
+	CShellManager *pShellManager = new CShellManager;
+
+	// 激活“Windows Native”视觉管理器，以便在 MFC 控件中启用主题
+	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+
+	// 标准初始化
+	// 如果未使用这些功能并希望减小
+	// 最终可执行文件的大小，则应移除下列
+	// 不需要的特定初始化例程
+	// 更改用于存储设置的注册表项
+	// TODO: 应适当修改该字符串，
+	// 例如修改为公司或组织名
+	SetRegistryKey(_T("应用程序向导生成的本地应用程序"));
+	// 分析自动化开关或注册/注销开关的命令行。
+	CCommandLineInfo cmdInfo;
+	ParseCommandLine(cmdInfo);
+
+	// 应用程序是用 /Embedding 或 /Automation 开关启动的。
+	//使应用程序作为自动化服务器运行。
+	if (cmdInfo.m_bRunEmbedded || cmdInfo.m_bRunAutomated)
+	{
+		// 通过 CoRegisterClassObject() 注册类工厂。
+		COleTemplateServer::RegisterAll();
+	}
+	// 应用程序是用 /Unregserver 或 /Unregister 开关启动的。  移除
+	// 注册表中的项。
+	else if (cmdInfo.m_nShellCommand == CCommandLineInfo::AppUnregister)
+	{
+		COleObjectFactory::UpdateRegistryAll(FALSE);
+		AfxOleUnregisterTypeLib(_tlid, _wVerMajor, _wVerMinor);
+		return FALSE;
+	}
+	// 应用程序是以独立方式或用其他开关(如 /Register
+	// 或 /Regserver)启动的。  更新注册表项，包括类型库。
+	else
+	{
+		COleObjectFactory::UpdateRegistryAll();
+		AfxOleRegisterTypeLib(AfxGetInstanceHandle(), _tlid);
+		if (cmdInfo.m_nShellCommand == CCommandLineInfo::AppRegister)
+			return FALSE;
+	}
+
+	CGateFDlg dlg;
+	m_pMainWnd = &dlg;
+	INT_PTR nResponse = dlg.DoModal();
+	if (nResponse == IDOK)
+	{
+		// TODO: 在此放置处理何时用
+		//  “确定”来关闭对话框的代码
+	}
+	else if (nResponse == IDCANCEL)
+	{
+		// TODO: 在此放置处理何时用
+		//  “取消”来关闭对话框的代码
+	}
+	else if (nResponse == -1)
+	{
+		TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+		TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+	}
+
+	// 删除上面创建的 shell 管理器。
+	if (pShellManager != nullptr)
+	{
+		delete pShellManager;
+	}
+
+#if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
+	ControlBarCleanUp();
+#endif
+
+	// 由于对话框已关闭，所以将返回 FALSE 以便退出应用程序，
+	//  而不是启动应用程序的消息泵。
+	return FALSE;
+}
+
+CGamesDlg* CGateFApp::GetMainFrame()
+{
+	ASSERT(m_pMainWnd->IsKindOf(RUNTIME_CLASS(CGateFDlg)));
+	return (CGamesDlg*)m_pMainWnd;
+}
+
+int CGateFApp::ExitInstance()
+{
+	AfxOleTerm(FALSE);
+	if (hriched!= NULL)
+	{
+		FreeLibrary(hriched);
+	}
+	return CWinApp::ExitInstance();
+}
+
+void CGateFApp::OnServiceSettings()
+{
+	/*auto tConfig = GetDocTemplateMgr().Find("Config");
+	tConfig->CloseAllDocuments(TRUE);
+	m_ConfigDoc = tConfig->OpenDocumentFile(m_cCfgPath);
+	if (!m_ConfigDoc)
+	{
+		ProtocolS2CPolicy policy;
+		std::ofstream cfg(m_cCfgPath.GetBuffer(), std::ios::out | std::ios::binary);
+		auto buffer = policy.dump();
+		cfg.write(buffer.data(), buffer.size());
+		cfg.close();
+		m_ConfigDoc = tConfig->OpenDocumentFile(m_cCfgPath);
+	}*/
+}
+
+void CGateFApp::OnConfig()
+{
+	OnServiceSettings();
+	//m_wndConfig.ShowConfigDlg();
+}
+
+
+// 打开并定位文件
+BOOL CGateFApp::OpenFolderAndSelectFile(CString szPath)
+{
+	LPSHELLFOLDER pDesktopFolder;
+	TCHAR szFullPath[MAX_PATH] = { 0 };
+	GetFullPathName(szPath, MAX_PATH, szFullPath, NULL);
+	if (SUCCEEDED(SHGetDesktopFolder(&pDesktopFolder)))
+	{
+		LPITEMIDLIST pidl;
+		ULONG chEaten;
+		ULONG dwAttributes;
+		HRESULT hr;
+		hr = pDesktopFolder->ParseDisplayName(
+			NULL, NULL, szFullPath, &chEaten, &pidl, &dwAttributes);
+		if (FAILED(hr))
+		{
+			pDesktopFolder->Release();
+			return FALSE;
+		}
+		LPCITEMIDLIST pidlFolder = pidl;
+		CoInitialize(NULL);
+		hr = SHOpenFolderAndSelectItems(pidl, 0, NULL, 0);
+		pDesktopFolder->Release();
+		if (hr == S_OK)
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+std::string CGateFApp::ReadLicense()
+{
+	std::filesystem::path path(m_ExeDir);
+	path = path / "serial.txt";
+	if (std::filesystem::exists(path) == false)
+		return "";
+	std::string serial(
+		std::istreambuf_iterator<char>(std::ifstream(path) >> std::skipws),
+		std::istreambuf_iterator<char>());
+	std::find_if(serial.begin(), serial.end(), [&serial](char f)->bool {
+		if (f == '\r' || f == '\n')
+		{
+			serial.erase(serial.find(f), 1);
+		}
+		return false;
+		});
+	return serial;
+}
+
+std::string CGateFApp::ReadAuthKey()
+{
+	std::string sn = ReadLicense();
+	VMProtectBeginVirtualization(__FUNCTION__);
+	auto sn_sha1 = asio2::sha1(asio2::base64().decode(sn));
+	auto auth_key = asio2::base64().encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
+	VMProtectEnd();
+	return auth_key;
+}
+
+void CGateFApp::ConnectionLicenses()
+{
+	std::filesystem::path license_path = m_ExeDir;
+	license_path = license_path / "license.txt";
+	std::ifstream file(license_path, std::ios::in | std::ios::binary);
+	if (file.is_open() == false)
+	{
+		AfxMessageBox(TEXT("找不到license.txt文件"));
+		ExitProcess(0);
+		return;
+	}
+	std::stringstream ss;
+	ss << file.rdbuf();
+	file.close();
+
+	try
+	{
+		json licenses(json::parse(ss.str()));
+		for (int i = 0; i < licenses.size(); i++)
+		{
+			const std::string ip = licenses[i]["ip"];
+			const std::string snhash = licenses[i]["snhash"];
+			const int port = licenses[i].find("port") != licenses[i].end() ? licenses[i]["port"] : kDefaultServicePort;
+			m_ObServerClientGroup(ip, port)->start(ip, port);
+			m_ObServerClientGroup(ip, port)->set_auth_key(snhash);
+		}
+	}
+	catch (...)
+	{
+		AfxMessageBox(TEXT("解析license.txt失败"));
+	}
+}
