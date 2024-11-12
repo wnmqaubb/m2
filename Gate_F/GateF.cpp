@@ -14,10 +14,14 @@
 #define new DEBUG_NEW
 #endif
 
+#pragma data_seg("sing")
+unsigned int giInstancePid = 0;
+#pragma data_seg()
+#pragma comment(linker,"/section:sing,RWS")
 
 // CGateFApp
 
-BEGIN_MESSAGE_MAP(CGateFApp, CWinApp)
+BEGIN_MESSAGE_MAP(CGateFApp, CWinAppEx)
 	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
 END_MESSAGE_MAP()
 
@@ -73,9 +77,20 @@ BOOL CGateFApp::InitInstance()
 		AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
 		return FALSE;
 	}
+
+	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
+	auto cParentDir = std::filesystem::path(m_ExeDir).parent_path().string();
+	strcpy_s(m_ExeDir, cParentDir.c_str());
+	m_cCfgPath = m_ExeDir;
+	m_cCfgPath = m_cCfgPath + TEXT("\\config.cfg");
+
+	m_bHiColorIcons = TRUE;
+	m_childpHandle = NULL;
+	// 加载策略配置文件
+	InitConfig();
 	// 创建 shell 管理器，以防对话框包含
 	// 任何 shell 树视图控件或 shell 列表视图控件。
-	CShellManager *pShellManager = new CShellManager;
+	//CShellManager *pShellManager = new CShellManager;
 
 	// 激活“Windows Native”视觉管理器，以便在 MFC 控件中启用主题
 	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
@@ -137,10 +152,10 @@ BOOL CGateFApp::InitInstance()
 	}
 
 	// 删除上面创建的 shell 管理器。
-	if (pShellManager != nullptr)
-	{
-		delete pShellManager;
-	}
+	//if (pShellManager != nullptr)
+	//{
+	//	delete pShellManager;
+	//}
 
 #if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
 	ControlBarCleanUp();
@@ -151,10 +166,10 @@ BOOL CGateFApp::InitInstance()
 	return FALSE;
 }
 
-CGamesDlg* CGateFApp::GetMainFrame()
+CGateFDlg* CGateFApp::GetMainFrame()
 {
 	ASSERT(m_pMainWnd->IsKindOf(RUNTIME_CLASS(CGateFDlg)));
-	return (CGamesDlg*)m_pMainWnd;
+	return (CGateFDlg*)m_pMainWnd;
 }
 
 int CGateFApp::ExitInstance()
@@ -167,26 +182,109 @@ int CGateFApp::ExitInstance()
 	return CWinApp::ExitInstance();
 }
 
+void CGateFApp::OnServiceStart()
+{
+	if (m_childpHandle == NULL && giInstancePid == 0)
+	{
+		STARTUPINFOA si = {};
+		si.dwFlags = STARTF_USESHOWWINDOW;
+		si.wShowWindow = SW_SHOW;
+		CHAR chrFullPath[MAX_PATH] = { 0 };
+		GetModuleFileNameA(NULL, chrFullPath, sizeof(chrFullPath));
+
+		PROCESS_INFORMATION pi = {};
+		BOOL res = CreateProcessA(NULL,
+			(char*)(std::string(chrFullPath) + " " + "/StartService").c_str(),
+			0,
+			0,
+			FALSE,
+			NORMAL_PRIORITY_CLASS,
+			NULL,
+			m_ExeDir,
+			&si,
+			&pi);
+		if (res == FALSE)
+		{
+			LogPrint(ObserverClientLog, TEXT("启动服务失败"));
+			return;
+		}
+		else
+		{
+			LogPrint(ObserverClientLog, TEXT("启动服务成功"));
+			theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已启动"));
+			theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(0, 255, 0));
+		}
+		m_childpHandle = pi.hProcess;
+	}
+	else
+	{
+		LogPrint(ObserverClientLog, TEXT("检测到服务已启动"));
+	}
+}
+
+
+void CGateFApp::OnServiceStop()
+{
+	if (m_pMainWnd->MessageBox(TEXT("确认要停止服务吗?"), TEXT("提示"), MB_YESNO) == IDYES)
+	{
+		if (m_childpHandle == NULL && giInstancePid != 0)
+		{
+			m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
+		}
+		if (m_childpHandle)
+		{
+			TerminateProcess(m_childpHandle, 0);
+			CloseHandle(m_childpHandle);
+			m_childpHandle = NULL;
+			giInstancePid = 0;
+		}
+		LogPrint(ObserverClientLog, TEXT("服务已停止"));
+		theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已停止"));
+		theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(255, 0, 0));
+	}
+}
+
 void CGateFApp::OnServiceSettings()
 {
-	/*auto tConfig = GetDocTemplateMgr().Find("Config");
-	tConfig->CloseAllDocuments(TRUE);
-	m_ConfigDoc = tConfig->OpenDocumentFile(m_cCfgPath);
-	if (!m_ConfigDoc)
+	OpenConfig();
+	GetMainFrame()->SwitchToTab(2);
+	GetMainFrame()->m_polices_dlg->RefreshViewList();
+	GetMainFrame()->m_polices_dlg->ShowWindow(SW_SHOW);
+}
+
+void CGateFApp::InitConfig()
+{
+	OpenConfig();
+}
+
+void CGateFApp::OpenConfig()
+{
+	std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
+	if (file.is_open())
+	{
+		std::stringstream ss;
+		ss << file.rdbuf();
+		auto str = ss.str();
+		theApp.m_cfg = ProtocolS2CPolicy::load(str.data(), str.size());
+		file.close();
+	}
+	else
 	{
 		ProtocolS2CPolicy policy;
 		std::ofstream cfg(m_cCfgPath.GetBuffer(), std::ios::out | std::ios::binary);
 		auto buffer = policy.dump();
 		cfg.write(buffer.data(), buffer.size());
 		cfg.close();
-		m_ConfigDoc = tConfig->OpenDocumentFile(m_cCfgPath);
-	}*/
+		OpenConfig();
+	}
 }
 
-void CGateFApp::OnConfig()
+void CGateFApp::SaveConfig()
 {
-	OnServiceSettings();
-	//m_wndConfig.ShowConfigDlg();
+	std::ofstream output(theApp.m_cCfgPath, std::ios::out | std::ios::binary);
+	auto& str = theApp.m_cfg->dump();
+	output.write(str.data(), str.size());
+	output.close();
 }
 
 

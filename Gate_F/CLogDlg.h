@@ -5,6 +5,12 @@
 #include "COBSCLogicDlg.h"
 
 
+enum OutputWndLogType
+{
+	ObserverClientLog,
+	ServiceLog,
+	LogicServerLog
+};
 // CLog 对话框
 
 class CLogDlg : public CDialogEx
@@ -14,6 +20,7 @@ class CLogDlg : public CDialogEx
 public:
 	CLogDlg(CWnd* pParent = nullptr);   // 标准构造函数
 	virtual ~CLogDlg();
+	void LogPrint(int type, LPCTSTR format, ...);
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME

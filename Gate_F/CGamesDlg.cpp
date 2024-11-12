@@ -23,7 +23,6 @@ void CGamesDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LIST_GAMES, m_list_games);
-	DDX_Control(pDX, IDOK, m_btn_refresh_games);
 }
 
 
@@ -34,20 +33,21 @@ void CGamesDlg::OnCommand(UINT nID)
 
 BEGIN_MESSAGE_MAP(CGamesDlg, CDialogEx)
 	ON_WM_CONTEXTMENU()
-	ON_COMMAND(ID_REFRESH_USERS, &CGamesDlg::OnRefreshUsers)
-	ON_COMMAND(ID_PROCESS_VIEW, &CGamesDlg::OnQueryProcess)
+	/*ON_COMMAND(ID_PROCESS_VIEW, &CGamesDlg::OnQueryProcess)
 	ON_COMMAND(ID_WINDOWS_VIEW, &CGamesDlg::OnQueryWindows)
 	ON_COMMAND(ID_DRIVER_VIEW, &CGamesDlg::OnQueryDrivers)
 	ON_COMMAND(ID_SCREENSHOT_VIEW, &CGamesDlg::OnQueryScreenShot)
 	ON_COMMAND(ID_SHELLCODE_VIEW, &CGamesDlg::OnQueryShellCode)
-	ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CGamesDlg::OnQueryScreenShot)
-	ON_COMMAND(IDC_BUTTON_SEARCH, &CGamesDlg::OnBnClickedOnlineGamerSearch)
 	ON_COMMAND(IDC_PROCESS_BUTTON, &CGamesDlg::OnQueryProcess)
+	ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CGamesDlg::OnQueryScreenShot)*/
+	ON_COMMAND(IDC_BUTTON_SEARCH, &CGamesDlg::OnBnClickedOnlineGamerSearch)
 	ON_COMMAND(ID_EXIT_GAME, &CGamesDlg::OnExitGame)
 	ON_COMMAND(ID_IP_BAN, &CGamesDlg::OnIpBan)
 	ON_COMMAND(ID_MAC_BAN, &CGamesDlg::OnMacBan)
 	ON_COMMAND(ID_IP_WHITE_ADD, &CGamesDlg::OnIpWhiteAdd)
 	ON_COMMAND(ID_MAC_WHITE_ADD, &CGamesDlg::OnMacWhiteAdd)
+	ON_BN_CLICKED(ID_REFRESH_USERS, &CGamesDlg::OnRefreshUsers)
+	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 
@@ -114,7 +114,6 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
 
 void CGamesDlg::OnRefreshUsers()
 {
-	AfxMessageBox(L"功能暂未开放!");
 	static size_t szUserCount = 0;
 	theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
 		{
@@ -122,6 +121,7 @@ void CGamesDlg::OnRefreshUsers()
 			theApp.m_WorkIo.post([this, msg, client]() {
 				client->set_user_count(0);
 				client->session_ids().clear();
+				CTime tCur(time(0));
 				for (auto& user_data : msg.data)
 				{
 					auto json_data = user_data.second.json;
@@ -154,7 +154,6 @@ void CGamesDlg::OnRefreshUsers()
 					std::wstring cpuid = json_data["cpuid"];
 					std::wstring mac = json_data["mac"];
 					std::wstring vol = json_data["vol"];
-					std::string ver = json_data["commit_ver"];
 					temp.Format(_T("%s|%s|%s"), cpuid.c_str(),
 						mac.c_str(),
 						vol.c_str());
@@ -162,27 +161,11 @@ void CGamesDlg::OnRefreshUsers()
 					int is_64bits = json_data["64bits"];
 					m_list_games.SetItemText(rowNum, colIndex++, temp);
 					m_list_games.SetItemText(rowNum, colIndex++, GetSystemDesc(sysver, is_64bits));
-					m_list_games.SetItemText(rowNum, colIndex++, CA2T(ver.c_str()));
-					asio2::uuid uuid;
-					memcpy(uuid.data, user_data.second.uuid, sizeof(uuid.data));
-					m_list_games.SetItemText(rowNum, colIndex++, CA2T(uuid.str().c_str()));
-					unsigned int pid = json_data["pid"];
-					temp.Format(TEXT("%d"), pid);
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
 					time_t tm = json_data["logintime"];
 					CTime t(tm);
 					m_list_games.SetItemText(rowNum, colIndex++, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
-					CTime tCur(time(0));
 					auto tDelta = tCur - t;
-					long long mins = tDelta.GetTotalMinutes();
 					temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
-					m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-					temp.Format(TEXT("%d"), client->get_port());
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
-					int miss_count = json_data.find("miss_count") == json_data.end() ? 0 : json_data["miss_count"];
-					float miss_rate = mins == 0 ? 0 : ((float)miss_count / (float)mins);
-					temp.Format(TEXT("%f"), miss_rate);
 					m_list_games.SetItemText(rowNum, colIndex++, temp);
 				}
 				//theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
@@ -423,4 +406,14 @@ void CGamesDlg::OnMacWhiteAdd()
 		output.close();
 		theApp.OnServiceSettings();
 	}
+}
+
+HBRUSH CGamesDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+	if (IDC_EXPDATE_STATIC == pWnd->GetDlgCtrlID())
+	{
+		pDC->SetTextColor(RGB(0x95, 0x3C, 0x97));
+	}
+	return hbr;
 }

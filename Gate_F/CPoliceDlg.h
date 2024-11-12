@@ -20,5 +20,37 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 
+	void OnInitialUpdate();
+	void OnSize(UINT nType, int cx, int cy);
+protected:
+	void AdjustLayout();
+	void InitConfigSettingView();
+	afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
+	afx_msg void OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnConfigAdd();
+	afx_msg void OnConfigDel();
+	afx_msg void OnConfigSave();
 	DECLARE_MESSAGE_MAP()
+private:
+	int m_nCurSelRow, m_nCurSelCol;
+public:
+	void RefreshViewList();
+	CListCtrl m_list_polices; 
+	CEdit m_editCtrl;
+	CComboBox m_combo_policy_type;
+	CComboBox m_combo_punish_type;
+	virtual BOOL OnInitDialog();
+	afx_msg void OnNMClickListPolices(NMHDR* pNMHDR, LRESULT* pResult);
+	CFont* GetCellFont(int nRow, int nCol);
+	void EditCell(int nRow, int nCol);
+	void OnEnKillfocusEditCtrl();
+	void OnCbnKillfocusComboPolicyType();
+	void OnCbnKillfocusComboPunishType();
+	void SetControlBorderColor(CWnd* pCtrl, COLORREF color);
+	void OnCbnDropdownComboPunishType(CString policy_type);
+	BOOL m_check_base_policy;
+	BOOL m_check_better_policy;
+	BOOL m_check_best_policy;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	afx_msg void OnBnClickedButton1();
 };

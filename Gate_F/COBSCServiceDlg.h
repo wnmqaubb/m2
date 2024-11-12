@@ -17,10 +17,10 @@ public:
 	enum { IDD = IDD_DIALOG_LOG_OBC_SERVICE };
 #endif
 
+	void AddLog(const CString& log_txt, COLORREF txt_color);
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 	BOOL OnInitDialog() override;
-	void AddLog(const CString& log_txt, COLORREF txt_color);
 
 	DECLARE_MESSAGE_MAP()
 public:

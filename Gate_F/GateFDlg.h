@@ -29,7 +29,6 @@ public:
 		RELOAD_GAMER_LIST = 1,
 	}SETTIMEOUT_ID;
 	template<typename T> void SendCurrentSelectedUserServiceCommand(T* package);
-	template<typename T> void SendCurrentSelectedServiceCommand(T* package);
 	DECLARE_MESSAGE_MAP()
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
@@ -59,29 +58,19 @@ protected:
 	virtual void OnOK();
 	virtual void OnCancel();
 public:
-	afx_msg void OnRefreshServices();
-	afx_msg void OnUpdateLogic();
-	afx_msg void OnCmdView();
-	afx_msg void OnJsQueryDeviceId();
-	afx_msg void OnJsExecute();
-	afx_msg void OnServiceRemoveCfg();
-	afx_msg void OnServiceRemovePlugin();
-	afx_msg void OnServiceUploadCfg();
-	afx_msg void OnServiceAllUploadCfg();
-	afx_msg void OnServiceUploadPlugin();
+	void SwitchToTab(int index);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	afx_msg void OnBnClickedLogButton();
-	afx_msg void OnBnClickedRefreshLicenseButton();
-	afx_msg void OnServiceAddList();
-	afx_msg void OnServiceClearList();
-	afx_msg void OnServiceS2CPlugin();
+	void SetPaneBackgroundColor(UINT nIDResource, COLORREF color);
+	void OnServiceCommand(UINT id);
 	afx_msg void OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult);
-	template<typename T> void BroadCastCurrentSelectedServiceCommand(T* package);
+	void InitStatusBar();
+	void SetStatusBar(UINT nIDResource, CString text);
 	CTabCtrl m_tab_main;
 	CRect m_tab_main_rect;
 	std::unique_ptr<CGamesDlg> m_games_dlg;
 	std::unique_ptr<CAntiCheatDlg> m_anticheat_dlg;
 	std::unique_ptr<CPoliceDlg> m_polices_dlg;
-	std::unique_ptr<CLogDlg> m_logs_dlg;
+	std::unique_ptr<CLogDlg> m_logs_dlg; 
+	CStatusBar m_wndStatusBar;
 
 };

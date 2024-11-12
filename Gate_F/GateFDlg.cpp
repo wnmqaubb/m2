@@ -49,25 +49,15 @@ BEGIN_MESSAGE_MAP(CGateFDlg, CDialogEx)
 	ON_WM_CONTEXTMENU()
 	ON_WM_TIMER()
 	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CGateFDlg::OnTcnSelchangeTabMain)
-#if defined(GATE_ADMIN)
-	ON_COMMAND(ID_SERVICE_REFRESH, &CGateFDlg::OnRefreshServices)
-	ON_COMMAND(ID_CMD_VIEW, &CGateFDlg::OnCmdView)
-	ON_COMMAND(ID_SERVICE_UPDATE_LOGIC, &CGateFDlg::OnUpdateLogic)
-	ON_COMMAND(ID_JS_QUERY_DEVICE_ID, &CGateFDlg::OnJsQueryDeviceId)
-	ON_COMMAND(ID_JS_EXECUTE, &CGateFDlg::OnJsExecute)
-	ON_BN_CLICKED(IDC_REFRESH_LICENSE_BUTTON, &CGateFDlg::OnBnClickedRefreshLicenseButton)
-	ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CGateFDlg::OnServiceS2CPlugin)
-#endif
-	ON_COMMAND(ID_SERVICE_REMOVE_CFG, &CGateFDlg::OnServiceRemoveCfg)
-	ON_COMMAND(ID_SERVICE_REMOVE_PLUGIN, &CGateFDlg::OnServiceRemovePlugin)
-	ON_COMMAND(ID_SERVICE_UPLOAD_CFG, &CGateFDlg::OnServiceUploadCfg)
-	ON_COMMAND(ID_SERVICE_ALL_UPLOAD_CFG, &CGateFDlg::OnServiceAllUploadCfg)
-	ON_COMMAND(ID_SERVICE_UPLOAD_PLUGIN, &CGateFDlg::OnServiceUploadPlugin)
-	ON_BN_CLICKED(IDC_LOG_BUTTON, &CGateFDlg::OnBnClickedLogButton)
-	ON_COMMAND(ID_SERVICE_ADD_LIST, &CGateFDlg::OnServiceAddList)
-	ON_COMMAND(ID_SERVICE_CLEAR_LIST, &CGateFDlg::OnServiceClearList)
+	ON_COMMAND_RANGE(ID_INDICATOR_SERVER_STAUS, ID_INDICATOR_USERS_COUNT, NULL)
 END_MESSAGE_MAP()
 
+static UINT indicators[] =
+{
+	ID_SEPARATOR,           // 状态行指示器
+	ID_INDICATOR_SERVER_STAUS,
+	ID_INDICATOR_USERS_COUNT,
+};
 
 // CGateFDlg 消息处理程序
 
@@ -80,6 +70,7 @@ BOOL CGateFDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
+	InitStatusBar();
 	// TODO: 在此添加额外的初始化代码
 	// 初始化 CTabCtrl
 	m_tab_main.GetClientRect(&m_tab_main_rect);
@@ -107,17 +98,8 @@ BOOL CGateFDlg::OnInitDialog()
 	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
 	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
 	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-#ifdef GATE_ADMIN
-	FillServiceView();
-#else
 	SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
-#endif 
+	
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -165,6 +147,9 @@ HCURSOR CGateFDlg::OnQueryDragIcon()
 
 void CGateFDlg::OnClose()
 {
+	theApp.OnServiceStop();
+	KillTimer(TIMER_ID_POLL_WORK_ID);
+	KillTimer(RELOAD_GAMER_LIST);
 	if (CanExit())
 		CDialogEx::OnClose();
 }
@@ -193,6 +178,40 @@ BOOL CGateFDlg::CanExit()
 	}
 
 	return TRUE;
+}
+
+void CGateFDlg::SwitchToTab(int index)
+{
+	m_tab_main.SetCurSel(index);
+	switch (index)
+	{
+	case 0:
+		m_games_dlg->ShowWindow(SW_SHOW);
+		m_anticheat_dlg->ShowWindow(SW_HIDE);
+		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_logs_dlg->ShowWindow(SW_HIDE);
+		break;
+	case 1:
+		m_games_dlg->ShowWindow(SW_HIDE);
+		m_anticheat_dlg->ShowWindow(SW_SHOW);
+		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_logs_dlg->ShowWindow(SW_HIDE);
+		break;
+	case 2:
+		m_games_dlg->ShowWindow(SW_HIDE);
+		m_anticheat_dlg->ShowWindow(SW_HIDE);
+		m_polices_dlg->ShowWindow(SW_SHOW);
+		m_logs_dlg->ShowWindow(SW_HIDE);
+		break;
+	case 3:
+		m_games_dlg->ShowWindow(SW_HIDE);
+		m_anticheat_dlg->ShowWindow(SW_HIDE);
+		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_logs_dlg->ShowWindow(SW_SHOW);
+		break;
+	default:
+		break;
+	}
 }
 
 void CGateFDlg::ShowAllDlgInTab()
@@ -299,18 +318,6 @@ void CGateFDlg::SendCurrentSelectedUserServiceCommand(T* package)
 	}
 }
 
-template<typename T>
-void CGateFDlg::SendCurrentSelectedServiceCommand(T* package)
-{
-	/*auto selectedRow = (int)m_ServiceViewList.GetFirstSelectedItemPosition() - 1;
-	if (selectedRow != -1)
-	{
-		const std::string ip = CT2A(m_ServiceViewList.GetItemText(selectedRow, 2));
-		const int port = atoi(CT2A(m_ServiceViewList.GetItemText(selectedRow, 3)));
-		theApp.m_ObServerClientGroup(ip, port)->send(package);
-	}*/
-}
-
 void CGateFDlg::FillClientView()
 {
 	/*m_games_dlg->m_list_games.SetColumnByIntSort({ 0, 1 });
@@ -323,237 +330,11 @@ void CGateFDlg::FillClientView()
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登录IP地址"), LVCFMT_LEFT, 110);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("机器码"), LVCFMT_LEFT, 320);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("系统版本"), LVCFMT_LEFT, 80);
-#ifndef GATE_ADMIN
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("客户端版本"), LVCFMT_LEFT, 0);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("uuid"), LVCFMT_LEFT, 0);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("进程ID"), LVCFMT_LEFT, 0);
-#else
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("客户端版本"), LVCFMT_LEFT, 80);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("uuid"), LVCFMT_LEFT, 240);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("进程ID"), LVCFMT_LEFT, 60);
-#endif
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 130);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("在线时长"), LVCFMT_LEFT, 80);
-#ifndef GATE_ADMIN
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 0);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 0);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("丢包率"), LVCFMT_LEFT, 0);
-#else
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 110);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 60);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("丢包率"), LVCFMT_LEFT, 60);
-#endif
 	m_games_dlg->m_list_games.DeleteAllItems();
 }
 
-void CGateFDlg::FillServiceView()
-{
-	/*m_ServiceViewList.SetColumnByIntSort({ 0, 1 });
-	m_ServiceViewList.SetColumnBySearch({ 2, 3 });
-	m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
-	int colIndex = 0;
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("IP"), LVCFMT_LEFT, 250);
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 110);
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("是否在线"), LVCFMT_LEFT, 110);
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("在线人数"), LVCFMT_LEFT, 110);
-	m_ServiceViewList.InsertColumn(colIndex++, TEXT("Logic版本"), LVCFMT_LEFT, 110);
-	m_ServiceViewList.DeleteAllItems();*/
-}
-
-void CGateFDlg::OnRefreshServices()
-{
-	/*m_ServiceViewList.DeleteAllItems();
-	theApp.m_ObServerClientGroup.foreach([this](std::shared_ptr<CObserverClientImpl> client) {
-		int rowNum = m_ServiceViewList.GetItemCount();
-		int colIndex = 0;
-
-		CString temp;
-		temp.Format(_T("%d"), rowNum + 1);
-		m_ServiceViewList.InsertItem(rowNum, _T(""));
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-		temp.Format(TEXT("%d"), client->get_port());
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth() && client->is_connected() ? TEXT("是") : TEXT("否"));
-		temp.Format(TEXT("%d"), client->get_user_count());
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-		std::wstring wstrLogicVersion;
-		try {
-			wstrLogicVersion = std::any_cast<std::wstring>(client->user_data().get_field(NetUtils::hash(TEXT("logic_ver"))));
-		}
-		catch (...)
-		{
-			wstrLogicVersion = TEXT("无");
-		}
-		m_ServiceViewList.SetItemText(rowNum, colIndex++, wstrLogicVersion.c_str());
-		});*/
-}
-
-void CGateFDlg::OnJsQueryDeviceId()
-{
-	//ProtocolS2CScript msg;
-	//msg.code = "import * as api from 'api'; api.report(0, false, api.get_machine_id().toString(16))";
-	//m_games_dlg->SendCurrentSelectedUserCommand(&msg);
-}
-
-void CGateFDlg::OnJsExecute()
-{
-	CString gReadFilePathName;
-	CFileDialog fileDlg(true, _T("js"), _T("*.js"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("js Files (*.js)|*.js"), NULL);
-	if (fileDlg.DoModal() == IDOK)    //弹出对话框  
-	{
-		std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-		if (file.is_open())
-		{
-			std::stringstream ss;
-			ss << file.rdbuf();
-			auto str = ss.str();
-			ProtocolS2CScript msg;
-			msg.code = str;
-
-
-			//if (m_wndTabs.GetActiveTab() == 1) {
-			//	//服务列表
-			//	BroadCastCurrentSelectedServiceCommand(&msg);
-			//}
-			//else {
-			//	//用户列表
-			//	SendCurrentSelectedUserCommand(&msg);
-			//}
-		}
-	}
-}
-void CGateFDlg::OnCmdView()
-{
-	/*theApp.GetDocTemplateMgr().Find("Cmd")->CloseAllDocuments(TRUE);
-	static std::map<unsigned int, CBaseDoc*> Docs;
-	theApp.m_ObServerClientGroup.register_client_package_handler(SPKG_ID_C2S_RMC_CREATE_CMD, [](std::shared_ptr<CObserverClientImpl> client, unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-		theApp.m_WorkIo.post([sid, package, client = std::move(client)]() {
-			auto Doc = (CBaseDoc*)theApp.GetDocTemplateMgr().Find("Cmd")->OpenDocumentFile(NULL);
-			Doc->m_RawPackage = package;
-			Doc->m_SesionId = package.head.session_id;
-			Doc->m_Client = client;
-			Docs[sid] = Doc;
-			});
-		});
-	theApp.m_ObServerClientGroup.register_client_package_handler(SPKG_ID_C2S_RMC_ECHO, [](std::shared_ptr<CObserverClientImpl> client, unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-		auto req = raw_msg.get().as<RmcProtocolC2SEcho>();
-		theApp.m_WorkIo.post([session_id = sid, req]() {
-			Docs[session_id]->GetView<CCmdView>()->Echo(CA2T(req.text.c_str()));
-			});
-		});
-	RmcProtocolS2CCreateCommandLine msg;
-	SendCurrentSelectedUserCommand(&msg);*/
-}
-
-
-void CGateFDlg::OnUpdateLogic()
-{
-	CString gReadFilePathName;
-	CFileDialog fileDlg(true, _T("exe"), _T("*.exe"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("exe Files (*.exe)|*.exe"), NULL);
-	if (fileDlg.DoModal() == IDOK)    //弹出对话框  
-	{
-		std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-		if (file.is_open())
-		{
-			std::stringstream ss;
-			ss << file.rdbuf();
-			auto str = ss.str();
-			ProtocolOBC2OBSUpdateLogic req;
-			req.data.resize(str.size());
-			std::copy(str.begin(), str.end(), req.data.begin());
-			SendCurrentSelectedServiceCommand(&req);
-		}
-	}
-}
-
-void CGateFDlg::OnServiceUploadCfg()
-{
-	CString gReadFilePathName;
-	CFileDialog fileDlg(true, _T("cfg"), _T("*.cfg"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("cfg Files (*.cfg)|*.cfg"), NULL);
-	if (fileDlg.DoModal() == IDOK)    //弹出对话框  
-	{
-		std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-		if (file.is_open())
-		{
-			std::stringstream ss;
-			ss << file.rdbuf();
-			auto str = ss.str();
-			ProtocolOBC2LSUploadConfig req;
-			req.file_name = "config.cfg";
-			req.data.resize(str.size());
-			std::copy(str.begin(), str.end(), req.data.begin());
-			SendCurrentSelectedServiceCommand(&req);
-		}
-	}
-}
-
-void CGateFDlg::OnServiceAllUploadCfg()
-{
-	//CString gReadFilePathName;
-	//CFileDialog fileDlg(true, _T("cfg"), _T("*.cfg"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("cfg Files (*.cfg)|*.cfg"), NULL);
-	//if (fileDlg.DoModal() == IDOK)    //弹出对话框  
-	//{
-	//	std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-	//	if (file.is_open())
-	//	{
-	//		std::stringstream ss;
-	//		ss << file.rdbuf();
-	//		auto str = ss.str();
-	//		ProtocolOBC2LSUploadConfig req;
-	//		req.file_name = "config.cfg";
-	//		req.data.resize(str.size());
-	//		std::copy(str.begin(), str.end(), req.data.begin());
-	//		std::string ip;
-	//		int port = 0;
-	//		for (int row_index = 0; row_index < m_ServiceViewList.GetItemCount(); row_index++)
-	//		{
-	//			ip = CT2A(m_ServiceViewList.GetItemText(row_index, 2));
-	//			port = atoi(CT2A(m_ServiceViewList.GetItemText(row_index, 3)));
-	//			theApp.m_ObServerClientGroup(ip, port)->send(&req);
-	//		}
-	//	}
-	//}
-}
-
-void CGateFDlg::OnServiceRemoveCfg()
-{
-	ProtocolOBC2LSRemoveConfig req;
-	req.file_name = "config.cfg";
-	SendCurrentSelectedServiceCommand(&req);
-}
-
-
-void CGateFDlg::OnServiceRemovePlugin()
-{
-	ProtocolOBC2LSRemovePlugin req;
-	req.file_name = "TaskBasic.dll";
-	SendCurrentSelectedServiceCommand(&req);
-}
-
-void CGateFDlg::OnServiceUploadPlugin()
-{
-	CString gReadFilePathName;
-	CFileDialog fileDlg(true, _T("dll"), _T("*.dll"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("dll Files (*.dll)|*.dll"), NULL);
-	if (fileDlg.DoModal() == IDOK)    //弹出对话框  
-	{
-		std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-		if (file.is_open())
-		{
-			std::stringstream ss;
-			ss << file.rdbuf();
-			auto str = ss.str();
-			ProtocolOBC2LSUploadPlugin req;
-			req.file_name = "TaskBasic.dll";
-			req.data.resize(str.size());
-			std::copy(str.begin(), str.end(), req.data.begin());
-			SendCurrentSelectedServiceCommand(&req);
-		}
-	}
-}
 
 void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 {
@@ -564,124 +345,74 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 			m_games_dlg->OnRefreshUsers();
 			break;
 		}
+		case TIMER_ID_POLL_WORK_ID:
+		{
+			theApp.m_WorkIo.poll_one();
+			break;
+		}
 	}
 
 	CDialogEx::OnTimer(nIDEvent);
 }
 
-void CGateFDlg::OnBnClickedLogButton()
+void CGateFDlg::InitStatusBar()
 {
-	//COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
-
-	//outputdlg.CenterWindow();
-	//outputdlg.ShowWindow(SW_SHOW);
-}
-
-void CGateFDlg::OnBnClickedRefreshLicenseButton()
-{
-	theApp.ConnectionLicenses();
-	OnRefreshServices();
-}
-
-
-void CGateFDlg::OnServiceAddList()
-{
-	ProtocolOBC2LSAddList req;
-	req.file_name = LOGIC_SERVER_KICK_LIST_FILE;
-	req.text = CT2A(GetCurrentSelectedUserName());
-	if (req.text.size() == 0)
+	if (!m_wndStatusBar.Create(this))
 	{
-		AfxMessageBox(TEXT("获取玩家名失败"));
+		TRACE0("未能创建状态栏\n");
 		return;
 	}
-	SendCurrentSelectedUserServiceCommand(&req);
+	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators) / sizeof(UINT));
+	// 设置状态栏的位置和大小
+	CRect rect;
+	GetClientRect(rect);
+	m_wndStatusBar.SetWindowPos(NULL, 0, rect.bottom - 20, rect.right, 20, SWP_NOZORDER);
+	int a, b;
+	a = m_wndStatusBar.CommandToIndex(ID_INDICATOR_SERVER_STAUS);
+	b = m_wndStatusBar.CommandToIndex(ID_INDICATOR_USERS_COUNT);
+	m_wndStatusBar.SetPaneInfo(a, ID_INDICATOR_SERVER_STAUS, SBPS_NORMAL, 250);
+	m_wndStatusBar.SetPaneInfo(b, ID_INDICATOR_USERS_COUNT, SBPS_NORMAL, 180);
+	SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已停止"));
+	SetStatusBar(ID_INDICATOR_USERS_COUNT, _T("0"));
 }
 
-
-void CGateFDlg::OnServiceClearList()
+void CGateFDlg::SetStatusBar(UINT nIDResource, CString text)
 {
-	ProtocolOBC2LSClearList req;
-	req.file_name = LOGIC_SERVER_KICK_LIST_FILE;
-	SendCurrentSelectedServiceCommand(&req);
-}
-
-
-void CGateFDlg::OnServiceS2CPlugin()
-{
-
-	//CString gReadFilePathName;
-	//CFileDialog fileDlg(true, _T("dll"), _T("*.dll"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("dll Files (*.dll)|*.dll"), NULL);
-	//if (fileDlg.DoModal() != IDOK)    //弹出对话框  
-	//{
-	//	return;
-	//}
-
-	//std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-	//if (file.is_open() == false)
-	//{
-	//	return;
-
-	//}
-
-	//std::stringstream ss;
-	//ss << file.rdbuf();
-	//std::string buffer = ss.str();
-
-	//ProtocolS2CDownloadPlugin package;
-
-	//if (*(uint16_t*)buffer.data() != 0x5A4D)
-	//{
-	//	RawProtocolImpl raw_package;
-	//	if (!raw_package.decode(buffer))
-	//	{
-	//		AfxMessageBox(L"Decode Error");
-	//		return;
-	//	}
-
-	//	auto raw_msg = msgpack::unpack((char*)raw_package.body.buffer.data(), raw_package.body.buffer.size());
-	//	package = raw_msg.get().as<ProtocolS2CDownloadPlugin>();
-	//}
-	//else
-	//{
-	//	std::copy(buffer.begin(), buffer.end(), std::back_inserter(package.data));
-	//	xor_buffer(package.data.data(), package.data.size(), kProtocolXorKey);
-	//	package.is_crypted = 1;
-	//	package.plugin_hash = NetUtils::aphash((unsigned char*)buffer.data(), buffer.size());
-	//	package.plugin_name = "TaskBasic.dll";
-	//}
-
-
-	///*if (m_wndTabs.GetActiveTab() == 1) {
-	//	//服务列表
-	//	BroadCastCurrentSelectedServiceCommand(&package);
-	//}
-	//else*/ {
-	//	//用户列表
-	//	m_games_dlg->SendCurrentSelectedUserCommand(&package);
-	//}
-}
-
-template<typename T>
-void CGateFDlg::BroadCastCurrentSelectedServiceCommand(T* package)
-{
-	POSITION selectedPos = m_ServiceViewList.GetFirstSelectedItemPosition();
-	if (selectedPos == NULL)
+	int index = m_wndStatusBar.CommandToIndex(nIDResource);
+	CString strPrefix;
+	if (index != -1)
 	{
-		AfxMessageBox(TEXT("请选择一个服务器!"), MB_OK);
-		return;
+		strPrefix.LoadString(nIDResource);
+		CString strText;
+		strText = strPrefix + _T(":") + text;
+		m_wndStatusBar.SetPaneText(index, strText);
 	}
+}
 
-	while (selectedPos)
+void CGateFDlg::SetPaneBackgroundColor(UINT nIDResource, COLORREF color)
+{
+	int vecIndex = m_wndStatusBar.CommandToIndex(nIDResource);
+	//m_wndStatusBar.SetPaneBackgroundColor(vecIndex, color);
+}
+
+void CGateFDlg::OnServiceCommand(UINT id)
+{
+	int vecIndex = m_wndStatusBar.CommandToIndex(ID_INDICATOR_SERVER_STAUS);
+	switch (id)
 	{
-		int nItem = m_ServiceViewList.GetNextSelectedItem(selectedPos);
-		if (nItem >= 0 && nItem < m_ServiceViewList.GetItemCount())
+		case ID_SERVICE_START:
 		{
-			std::string ip = CT2A(m_ServiceViewList.GetItemText(nItem, 2));
-			int port = atoi(CT2A(m_ServiceViewList.GetItemText(nItem, 3)));
-			for (auto session_id : theApp.m_ObServerClientGroup(ip, port)->session_ids())
-			{
-				theApp.m_ObServerClientGroup(ip, port)->send(session_id, package);
-			}
+			SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已启动"));
+			//SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(0, 255, 0));
+			break;
 		}
+		case ID_SERVICE_STOP:
+		{
+			SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已停止"));
+			//SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(255, 0, 0));
+			break;
+		}
+		default:
+			break;
 	}
 }

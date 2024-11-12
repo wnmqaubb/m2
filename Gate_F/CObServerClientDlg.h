@@ -18,10 +18,10 @@ public:
 	enum { IDD = IDD_DIALOG_LOG_OBSERVER_CLIENT };
 #endif
 
+	void AddLog(const CString& log_txt, COLORREF txt_color);
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV 支持
 	BOOL OnInitDialog() override;
-	void AddLog(const CString& log_txt, COLORREF txt_color);
 
 	DECLARE_MESSAGE_MAP()
 public:

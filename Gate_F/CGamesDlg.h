@@ -37,7 +37,7 @@ public:
 	afx_msg void OnBnClickedOnlineGamerSearch();
 	// 在线玩家列表
 	CGateFDlgList m_list_games;
-	CButton m_btn_refresh_games;
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
 	void OnRefreshUsers();
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

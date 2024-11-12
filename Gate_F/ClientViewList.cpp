@@ -34,9 +34,7 @@ void CGateFDlgList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
         //处理，将item改变背景颜色   
         for (auto& m : m_suspicious_uuids)
         {
-#ifndef GATE_ADMIN
             if (!m.second) continue;
-#endif
             std::wstring uuid = this->GetItemText(pLVCD->nmcd.dwItemSpec, 7);
             if (m.first == uuid)
             {   //当前选中的item   

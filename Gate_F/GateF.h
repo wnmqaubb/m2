@@ -11,14 +11,20 @@
 #include "resource.h"		// 主符号
 #include "../Gate/ObserverClientGroupImpl.h"
 #include "../Service/SubServicePackage.h"
-#include "CGamesDlg.h"
+#include "GateFDlg.h"
 
 
 // CGateFApp:
 // 有关此类的实现，请参阅 GateF.cpp
 //
+typedef enum _SETTIMEOUT_ID
+{
+	TIMER_ID_RELOAD_GAMER_LIST = 1,
+	TIMER_ID_POLL_WORK_ID,
+	TIMER_ID_CHILD_SERIVCE_ID,
+}SETTIMEOUT_ID;
 
-class CGateFApp : public CWinApp
+class CGateFApp : public CWinAppEx
 {
 public:
 	CGateFApp();
@@ -27,13 +33,16 @@ public:
 public:
 	virtual BOOL InitInstance();
 	virtual int ExitInstance();
+	void OnServiceStart();
+	void OnServiceStop();
 	virtual BOOL OpenFolderAndSelectFile(CString szPath);
-	virtual CGamesDlg* GetMainFrame();
+	virtual CGateFDlg* GetMainFrame();
 	std::string ReadLicense();
 	std::string ReadAuthKey();
 	void ConnectionLicenses();
-
-// 实现
+	void OpenConfig();
+	void SaveConfig();
+	// 实现
 	CHAR  m_ExeDir[MAX_PATH];
 	CString m_cCfgPath;
 	UINT  m_nAppLook;
@@ -44,10 +53,11 @@ public:
 	CDocument* m_ConfigDoc = nullptr;
 	HANDLE m_childpHandle;
 	//CConfig m_wndConfig;
+	std::unique_ptr<ProtocolS2CPolicy> m_cfg;
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnServiceSettings();
-	afx_msg void OnConfig();
+	afx_msg void InitConfig();
 };
 
 extern CGateFApp theApp;
@@ -59,21 +69,17 @@ void LogPrint(int type, LPCTSTR format, Args... args)
 	if (!lpMainWnd)
 		return;
 	ASSERT(lpMainWnd);
-	ASSERT(lpMainWnd->IsKindOf(RUNTIME_CLASS(CMainFrame)));
-	reinterpret_cast<CMainFrame*>(lpMainWnd)->GetOutputWindow().LogPrint(type, format, args...);
+	ASSERT(lpMainWnd->IsKindOf(RUNTIME_CLASS(CGateFDlg)));
+	reinterpret_cast<CGateFDlg*>(lpMainWnd)->m_logs_dlg->LogPrint(type, format, args...);
 }
 
 static CString ConvertToString(PunishType type)
 {
 	std::map<PunishType, LPCTSTR> mPunishType = {
 		{ENM_PUNISH_TYPE_KICK,TEXT("退出游戏")},
-		{ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
 		{ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("不处理")},
 		{ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("白名单")},
 		{ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("封机器")},
-		{ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("截图")},
-		{ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("截图+退出游戏")},
-		{ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("截图+蓝屏")},
 		{ENM_PUNISH_TYPE_ENABLE,TEXT("启用")},
 		{ENM_PUNISH_TYPE_DISABLE,TEXT("禁用")},
 	};
@@ -91,13 +97,9 @@ static PunishType ConvertToPunishType(CString punishname)
 {
 	std::map<CString, PunishType> mPunishType = {
 		{ TEXT("退出游戏"), ENM_PUNISH_TYPE_KICK },
-		{ TEXT("蓝屏"), ENM_PUNISH_TYPE_BSOD },
 		{ TEXT("不处理"), ENM_PUNISH_TYPE_NO_OPEARATION },
 		{ TEXT("白名单"), ENM_PUNISH_TYPE_SUPER_WHITE_LIST },
 		{ TEXT("封机器"), ENM_PUNISH_TYPE_BAN_MACHINE },
-		{ TEXT("截图"), ENM_PUNISH_TYPE_SCREEN_SHOT },
-		{ TEXT("截图+退出游戏"), ENM_PUNISH_TYPE_SCREEN_SHOT_KICK },
-		{ TEXT("截图+蓝屏"), ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD },
 		{ TEXT("启用"), ENM_PUNISH_TYPE_ENABLE },
 		{ TEXT("禁用"), ENM_PUNISH_TYPE_DISABLE },
 	};

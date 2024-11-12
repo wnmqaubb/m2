@@ -9,7 +9,6 @@
 #define IDD_DIALOGBAR                   104
 #define IDC_REFRESH_USERS_BUTTON        105
 #define IDC_PROCESS_BUTTON              106
-#define ID_BSOD                         107
 #define ID_SERVICE_REMOVE_CFG           108
 #define ID_SERVICE_REMOVE_PLUGIN        109
 #define ID_SERVICE_UPLOAD_CFG           110
@@ -41,20 +40,20 @@
 #define IDC_COMBO_POLICY_TYPE           1007
 #define IDC_BUTTON2                     1008
 #define IDC_COMBO_PUNISH_TYPE           1009
-#define IDC_BUTTON3                     1010
 #define IDC_COMBO_PUNISH_TYPE2          1010
 #define IDC_BUTTON_POLICY_COMMIT        1011
-#define IDC_BUTTON4                     1012
+#define IDC_EXPDATE_STATIC              1012
 #define IDC_BUTTON_SEARCH               1013
 #define IDC_EDIT_SEARCH                 1014
 #define IDC_RICHEDIT2_LOG_OBC_LOGIC     1015
+#define IDC_EXPDATE_TEXT_STATIC         1015
 #define IDC_LIST_GAMES                  1016
 #define IDC_CHECK1                      1017
 #define IDC_CHECK2                      1018
 #define IDC_TAB_LOG                     1019
-#define IDC_CHECK3                      1020
+#define IDC_CHECK_BASE_POLICY           1020
 #define IDC_RICHEDIT2_LOG_OBC           1021
-#define IDC_CHECK_BACK                  1022
+#define IDC_CHECK_BETTER_POLICY         1022
 #define IDC_EDIT_BACK                   1023
 #define IDC_CHECK_EXIT                  1024
 #define IDC_EDIT_EXIT                   1025
@@ -66,7 +65,14 @@
 #define IDC_EDIT_SPEED_SPELL            1031
 #define IDC_CHECK_CAN_BACK_EXIT         1032
 #define IDC_RICHEDIT2_LOG_OBC_SERVICE   1033
-#define IDC_LIST1                       1034
+#define IDC_LIST_POLICES                1034
+#define IDC_CHECK_BEST_POLICY           1035
+#define IDC_CHECK3                      1036
+#define IDC_CHECK_BACK                  1037
+#define IDC_BUTTON4                     1038
+#define IDC_LIST_EDIT                   10010
+#define IDC_LIST_COMBOBOX_POLICY        10011
+#define IDC_LIST_COMBOBOX_PUNISH        10012
 #define ID_PROCESS_VIEW                 32781
 #define ID_WINDOWS_VIEW                 32782
 #define ID_EXIT_GAME                    32783
@@ -82,6 +88,10 @@
 #define ID_IP_BAN                       32793
 #define ID_MAC_WHITE_ADD                32794
 #define ID_IP_WHITE_ADD                 32795
+#define ID_INDICATOR_SERVER_STAUS       32796
+#define ID_INDICATOR_USERS_COUNT        32797
+#define ID_SERVICE_START                32798
+#define ID_SERVICE_STOP                 32799
 
 // Next default values for new objects
 // 
@@ -89,7 +99,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32772
-#define _APS_NEXT_CONTROL_VALUE         1017
+#define _APS_NEXT_CONTROL_VALUE         1023
 #define _APS_NEXT_SYMED_VALUE           114
 #endif
 #endif

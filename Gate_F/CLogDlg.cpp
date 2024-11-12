@@ -6,6 +6,7 @@
 #include "CLogDlg.h"
 #include "Resource.h"
 #include <memory>
+#include "GateF.h"
 
 
 // CLog 对话框
@@ -93,4 +94,34 @@ void CLogDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 			break;
 	}
 	*pResult = 0;
+}
+
+void CLogDlg::LogPrint(int type, LPCTSTR format, ...)
+{
+	CString buf;
+	va_list ap;
+	va_start(ap, format);
+	buf.FormatV(format, ap);
+	va_end(ap);
+	CTime tm = CTime::GetCurrentTime();
+	buf.Format(_T("[%s]%s"), tm.Format(_T("%H:%M:%S")), buf);
+	theApp.m_WorkIo.post([this, type, buf]() {
+		switch (type)
+		{
+			case ObserverClientLog:
+				m_observer_client_dlg->AddLog(buf, RGB(0, 200, 0));
+				//AdjustHorzScroll(m_wndObserverClientLog);
+				break;
+			case ServiceLog:
+				m_obsc_service_dlg->AddLog(buf, RGB(5, 0, 210));
+				//AdjustHorzScroll(m_wndServiceLog);
+				break;
+			case LogicServerLog:
+				m_obsc_logic_dlg->AddLog(buf, RGB(255, 0, 0));
+				//AdjustHorzScroll(m_wndLogicServerLog);
+				break;
+			default:
+				break;
+		}
+		});
 }
