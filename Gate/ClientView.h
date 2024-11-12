@@ -55,7 +55,6 @@ public:
     afx_msg void OnUpdateLogic();
     afx_msg void OnCmdView();
     afx_msg void OnExitGame();
-    afx_msg void OnBsod();
     afx_msg void OnIpBan();
     afx_msg void OnMacBan();
     afx_msg void OnIpWhiteAdd();

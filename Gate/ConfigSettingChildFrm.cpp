@@ -75,9 +75,7 @@ int CConfigSettingChildFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
     DockPane(&m_wndSubViewWnd);
 	return 0;
-} 
-
-
+}
 
 BOOL CConfigSettingChildFrame::CreateDockingWindows()
 {

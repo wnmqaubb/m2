@@ -55,7 +55,6 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
     ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
 #endif
     ON_COMMAND(ID_EXIT_GAME, &CClientView::OnExitGame)
-    ON_COMMAND(ID_BSOD, &CClientView::OnBsod)
     ON_COMMAND(ID_IP_BAN, &CClientView::OnIpBan)
     ON_COMMAND(ID_MAC_BAN, &CClientView::OnMacBan)
     ON_COMMAND(ID_IP_WHITE_ADD, &CClientView::OnIpWhiteAdd)
@@ -600,14 +599,6 @@ void CClientView::OnExitGame()
 {
     ProtocolS2CPunish req;
     req.type = PunishType::ENM_PUNISH_TYPE_KICK;
-    SendCurrentSelectedUserCommand(&req);
-}
-
-
-void CClientView::OnBsod()
-{
-    ProtocolS2CPunish req;
-    req.type = PunishType::ENM_PUNISH_TYPE_BSOD;
     SendCurrentSelectedUserCommand(&req);
 }
 

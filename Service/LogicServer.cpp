@@ -535,13 +535,9 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 {
     static std::map<PunishType, wchar_t*> punish_type_str = {
        {ENM_PUNISH_TYPE_KICK,TEXT("退出游戏")},
-       {ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
        {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("不处理")},
        {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("白名单")},
        {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("封机器")},
-       {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("截图")},
-       {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("截图+退出游戏")},
-       {ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("截图+蓝屏")},
     };
     static std::map<PolicyType, wchar_t*> policy_type_str = {
         {ENM_POLICY_TYPE_MODULE_NAME,TEXT("模块名检测")},
@@ -631,53 +627,10 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
         switch (policy.punish_type)
         {
         case ENM_PUNISH_TYPE_KICK:
-        case ENM_PUNISH_TYPE_BSOD:
         {
             ProtocolS2CPunish resp;
             resp.type = policy.punish_type;
             send(session, session_id, &resp);
-            break;
-        }
-        case ENM_PUNISH_TYPE_SCREEN_SHOT:
-        {
-            ProtocolS2CQueryScreenShot req;
-            send(session, session_id, &req);
-            policy_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-                write_img(package.head.session_id, msg.get().as<ProtocolC2SQueryScreenShot>().data);
-                io().context().post([this, session_id = package.head.session_id]() {
-                    policy_pkg_mgr_.remove_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id);
-                });
-            });
-            break;
-        }
-        case ENM_PUNISH_TYPE_SCREEN_SHOT_KICK:
-        {
-            ProtocolS2CQueryScreenShot req;
-            send(session, session_id, &req);
-            policy_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-                write_img(package.head.session_id, msg.get().as<ProtocolC2SQueryScreenShot>().data);
-                io().context().post([this, session = session->hash_key(), session_id = package.head.session_id]() {
-                    policy_pkg_mgr_.remove_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id);
-                    ProtocolS2CPunish resp;
-                    resp.type = PunishType::ENM_PUNISH_TYPE_KICK;
-                    send(sessions().find(session), session_id, &resp);
-                });
-            });
-            break;
-        }
-        case ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD:
-        {
-            ProtocolS2CQueryScreenShot req;
-            send(session, session_id, &req);
-            policy_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-                write_img(package.head.session_id, msg.get().as<ProtocolC2SQueryScreenShot>().data);
-                io().context().post([this, session = session->hash_key(), session_id = package.head.session_id]() {
-                    policy_pkg_mgr_.remove_handler(SPKG_ID_C2S_QUERY_SCREENSHOT | session_id);
-                    ProtocolS2CPunish resp;
-                    resp.type = PunishType::ENM_PUNISH_TYPE_BSOD;
-                    send(sessions().find(session), session_id, &resp);
-                });
-            });
             break;
         }
         case ENM_PUNISH_TYPE_BAN_MACHINE:

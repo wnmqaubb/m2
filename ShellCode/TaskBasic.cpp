@@ -242,12 +242,6 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 {
 	switch (msg.get().as<ProtocolS2CPunish>().type)
 	{
-	case PunishType::ENM_PUNISH_TYPE_BSOD:
-	{
-		std::error_code ec;
-		UnitPunishBsod(ec);
-		break;
-	}
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
 		g_game_io.post([]() {

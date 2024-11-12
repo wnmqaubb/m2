@@ -38,7 +38,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryVmpExpire>();
         theApp.m_WorkIo.post([vmp_expire = msg.vmp_expire]() {
 #ifdef GATEF
-            //todo
+            ((CStatic*)theApp.GetMainFrame()->m_games_dlg->GetDlgItem(IDC_EXPDATE_STATIC))->SetWindowText(vmp_expire.c_str());
 #else
             ((CStatic*)theApp.GetMainFrame()->GetClientView().GetMainBar()->GetDlgItem(IDC_EXPDATE_STATIC))->SetWindowText(vmp_expire.c_str());
 #endif
@@ -77,7 +77,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
             {
                 if (!req.silence)
                 {
-                    //todo LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
+                    LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
                 }
                 if (!req.identify.empty())
                 {
@@ -97,7 +97,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
             auto req = raw_msg.get().as<ProtocolOBS2OBCLogPrint>();
             if (!req.silence)
             {
-                //todo LogPrint(ServiceLog, TEXT("%s"), req.text.c_str());
+                LogPrint(ServiceLog, TEXT("%s"), req.text.c_str());
             }
             if (!req.identify.empty())
             {
@@ -197,7 +197,7 @@ void CObserverClientImpl::log(int type, LPCTSTR format, ...)
     va_start(ap, format);
     buf.FormatV(format, ap);
     va_end(ap);
-    //todo LogPrint(ObserverClientLog, _T("%s"), buf);
+    LogPrint(ObserverClientLog, _T("%s"), buf);
 }
 
 void CObserverClientImpl::OpenDocument(const std::wstring& path)
