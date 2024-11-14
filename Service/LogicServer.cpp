@@ -84,7 +84,7 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
                         close_socket(service_session, user_data->session_id);
                     user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("策略收到严重超时，请手动处罚:%d"), user_data->session_id);
                     std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-                    //write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
+                    write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
                 }
             }
             else
@@ -663,7 +663,15 @@ void CLogicServer::detect(tcp_session_shared_ptr_t& session, unsigned int sessio
     {
         auto mac = user_data->mac;
         std::string ip = user_data->json["ip"];
-        std::wstring wstr_ip = Utils::c2w(ip);
+		std::wstring wstr_ip = Utils::c2w(ip);
+		/*std::wstring username = user_data->json.find("usrname") == user_data->json.end() ? TEXT("") : user_data->json["usrname"];
+		if(username != L"")
+		{
+			size_t pos = username.find(L" - ");
+			if (pos != std::wstring::npos) {
+				username = username.substr(pos + 3);
+			}
+		}*/
         auto cur_usr_machine_count = usr_sessions_mgr().get_machine_count(mac);
         if (cur_usr_machine_count > policy_mgr_.get_multi_client_limit_count())
         {
@@ -713,7 +721,7 @@ void CLogicServer::OnlineCheck()
     try
     {
         std::filesystem::path online_path = g_cur_dir;
-        online_path /= CONFIG_APP_NAME"网关在线玩家.txt";
+        online_path /= "网关在线玩家.txt";
         std::ofstream online(online_path, std::ios::out | std::ios::binary | std::ios::trunc);
 
         std::string gamer, username;

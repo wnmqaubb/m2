@@ -153,6 +153,7 @@ static CString ConvertToString(PolicyType type)
     std::map<PolicyType, LPCTSTR> mPolicyType = {
         {ENM_POLICY_TYPE_MODULE_NAME,TEXT("模块名检测")},
         {ENM_POLICY_TYPE_PROCESS_NAME,TEXT("进程名检测")},
+        {ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE,TEXT("进程名+大小检测")},
         {ENM_POLICY_TYPE_FILE_NAME,TEXT("文件路径")},
         {ENM_POLICY_TYPE_WINDOW_NAME,TEXT("窗口名")},
         {ENM_POLICY_TYPE_MACHINE,TEXT("机器码")},
@@ -181,6 +182,7 @@ static PolicyType ConvertToPolicyType(CString policyname)
     std::map<CString,PolicyType> mPolicyType = {
         { TEXT("模块名检测"), ENM_POLICY_TYPE_MODULE_NAME },
         { TEXT("进程名检测"), ENM_POLICY_TYPE_PROCESS_NAME },
+        { TEXT("进程名+大小检测"), ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE },
         { TEXT("文件路径"), ENM_POLICY_TYPE_FILE_NAME },
         { TEXT("窗口名"), ENM_POLICY_TYPE_WINDOW_NAME },
         { TEXT("机器码"), ENM_POLICY_TYPE_MACHINE },

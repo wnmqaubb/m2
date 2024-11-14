@@ -55,9 +55,10 @@ struct ProtocolProcessInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_PROCESS_INFO>
     std::map<uint32_t, ProtocolThreadInfo> threads;
     std::vector<ProtocolModuleInfo> modules;
     bool no_access = false;
-    bool is_64bits = false;
+	bool is_64bits = false;
     std::vector<ProtocolDirectoryInfo> directories;
-    MSGPACK_DEFINE(package_id, pid, parent_pid, name, threads, modules, no_access, is_64bits, directories);
+	uint32_t process_file_size = 0;
+    MSGPACK_DEFINE(package_id, pid, parent_pid, name, threads, modules, no_access, is_64bits, directories, process_file_size);
 };
 
 struct ProtocolDriverInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_DRIVERINFO>

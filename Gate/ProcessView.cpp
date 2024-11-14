@@ -26,6 +26,7 @@ BEGIN_MESSAGE_MAP(CProcessView, CView)
 	ON_WM_SIZE()
     ON_NOTIFY(LVN_ITEMCHANGED, ID_PROCESS_VIEW, &CProcessView::OnListItemChanged)
     ON_COMMAND(ID_PROCESS_NAME, &CProcessView::OnProcessNameBan)
+    ON_COMMAND(ID_PROCESS_NAME_AND_SIZE, &CProcessView::OnProcessNameAndSizeBan)
     ON_COMMAND(ID_PROCESS_PATH, &CProcessView::OnProcessPathBan)
 END_MESSAGE_MAP()
 
@@ -133,6 +134,7 @@ void CProcessView::FillViewList()
     m_ViewList.InsertColumn(colIndex++, TEXT("父PID"), LVCFMT_LEFT, 45);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程名称"), LVCFMT_LEFT, 150);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程路径"), LVCFMT_LEFT, 530);
+    m_ViewList.InsertColumn(colIndex++, TEXT("进程大小"), LVCFMT_LEFT, 70);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程位数"), LVCFMT_LEFT, 70);
     m_ViewList.DeleteAllItems();
     CString connect_id_str, seq;
@@ -160,6 +162,8 @@ void CProcessView::FillViewList()
         m_ViewList.SetItemText(rowNum, colIndex++, process.second.name.c_str());
         m_ViewList.SetItemText(rowNum, colIndex++, process.second.no_access ? no_access_wstr :
             process.second.modules.empty() ? empty_list_wstr : process.second.modules.front().path.c_str());
+        temp.Format(format_d, process.second.process_file_size);
+        m_ViewList.SetItemText(rowNum, colIndex++, temp);
         m_ViewList.SetItemText(rowNum, colIndex++, process.second.is_64bits ? x64_wstr : x32_wstr);
         rowNum++;
     }
@@ -244,6 +248,48 @@ void CProcessView::OnProcessNameBan()
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
         Policy.policy_type = ENM_POLICY_TYPE_PROCESS_NAME;
+        Policy.config = process_name;
+        Policies[uiLastPolicyId] = Policy;
+        file.close();
+        std::ofstream output(theApp.m_cCfgPath, std::ios::out | std::ios::binary);
+        str = Cfg->dump();
+        output.write(str.data(), str.size());
+        output.close();
+        theApp.OnServiceSettings();
+    }
+}
+
+void CProcessView::OnProcessNameAndSizeBan()
+{
+    auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
+    std::wstring process_name;
+    if (selectedRow != -1)
+    {
+        process_name = m_ViewList.GetItemText(selectedRow, 3);
+        process_name += (TEXT("|") + m_ViewList.GetItemText(selectedRow, 5));
+    }
+    else
+    {
+        return;
+    }
+    std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
+    if (file.is_open())
+    {
+        std::stringstream ss;
+        ss << file.rdbuf();
+        auto str = ss.str();
+        auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
+        auto& Policies = Cfg->policies;
+        unsigned int uiLastPolicyId = 0;
+        for (auto[uiPolicyId, Policy] : Policies)
+        {
+            uiLastPolicyId = uiPolicyId;
+        }
+        uiLastPolicyId++;
+        ProtocolPolicy Policy;
+        Policy.policy_id = uiLastPolicyId;
+        Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
+        Policy.policy_type = ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE;
         Policy.config = process_name;
         Policies[uiLastPolicyId] = Policy;
         file.close();

@@ -98,7 +98,8 @@ namespace Utils
             std::vector<DirectoryInfo> directories;
             bool no_access = false;
             bool is_64bits = false;
-        };
+			uint32_t process_file_size = 0;
+		};
         struct DriverInfo
         {
             PVOID image_base;

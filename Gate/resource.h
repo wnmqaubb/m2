@@ -140,13 +140,15 @@
 #define ID_VIEW                         32820
 #define ID_INDICATOR_SERVER_STAUS       32821
 #define ID_INDICATOR_USERS_COUNT        32822
+#define ID_32828                        32828
+#define ID_PROCESS_NAME_AND_SIZE        32829
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        331
-#define _APS_NEXT_COMMAND_VALUE         32828
+#define _APS_NEXT_COMMAND_VALUE         32830
 #define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           312
 #endif

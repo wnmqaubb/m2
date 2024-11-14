@@ -496,6 +496,7 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
     std::lock_guard<std::mutex> lck(mtx);
     auto NtQueryInformationThread = IMPORT(L"ntdll.dll", NtQueryInformationThread);
     auto OpenThread = IMPORT(L"kernel32.dll", OpenThread);
+    auto GetFileSizeEx = IMPORT(L"kernel32.dll", GetFileSizeEx);
     ProcessMap process_map;
 	power();
     uint32_t system_information_class = SystemExtendedProcessInformation;
@@ -604,9 +605,27 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
         process.threads[main_thread_tid].is_main_thread = true;
         if (!process.modules.empty())
         {
-            auto walk_path = std::filesystem::path(process.modules.front().path).parent_path();
+            auto process_path = process.modules.front().path;
+            auto walk_path = std::filesystem::path(process_path).parent_path();
             std::error_code ec;
             size_t file_count = 0;
+            if (!process_path.empty() && std::filesystem::exists(process_path, ec))
+            {
+                process.process_file_size = std::filesystem::file_size(process_path);
+                if (process.process_file_size <= 0)
+                {
+					LARGE_INTEGER fileSize;
+					HANDLE hFile = CreateFile(process_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+					if (hFile != INVALID_HANDLE_VALUE)
+					{
+						if (GetFileSizeEx(hFile, &fileSize))
+						{
+							process.process_file_size = fileSize.QuadPart;
+						}
+						CloseHandle(hFile);
+					}
+                }
+            }
             for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
             {
                 if (file_count++ >= 50)

@@ -7,7 +7,7 @@
 #include "ObserverClientImpl.h"
 
 namespace fs = std::filesystem;
-
+#ifdef GATE_ADMIN
 CString get_current_time_str()
 {
     CTime tm = CTime::GetCurrentTime();
@@ -19,7 +19,7 @@ CString get_current_date_str()
     CTime tm = CTime::GetCurrentTime();
     return tm.Format(_T("%Y-%m-%d"));
 }
-
+#endif // GATE_ADMIN
 CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(io_, auth_key)
 , user_count_(0)
 {
@@ -109,6 +109,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
             TRACE("Ω‚ŒˆService»’÷æ ß∞‹");
         }
     });
+#ifdef GATE_ADMIN
     client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
         if (msg.plugin_list.empty())
@@ -187,6 +188,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         file.close();
         OpenDocument(filepath / file_name);
     });
+#endif // GATE_ADMIN
     
 }
 

@@ -131,12 +131,12 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
                         {
                             GameLocalFuntion::instance().call_sig_pattern();
                             GameLocalFuntion::instance().hook_init(client);
-                            static asio::steady_timer welcome_message_timer(g_io);
-                            welcome_message_timer.expires_after(std::chrono::seconds(20));
-                            welcome_message_timer.async_wait([](std::error_code ec) {
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
-                            });
+							/*static asio::steady_timer welcome_message_timer(g_io);
+							welcome_message_timer.expires_after(std::chrono::seconds(20));
+							welcome_message_timer.async_wait([](std::error_code ec) {
+								GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
+								GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
+							});*/
                         }
                         client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                     }
@@ -197,6 +197,9 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
             { xorstr("127.185.0.101"), xorstr("G盾无限蜂定制功能版464") },
             { xorstr("127.132.0.140"), xorstr("猎手PK") },
             { xorstr("123.99.192.124"), xorstr("定制大漠") },
+            { xorstr("175.178.252.26"), xorstr("键鼠大师") },
+            { xorstr("121.62.16.136"), xorstr("网关-加速-倍攻_脱机") },
+            { xorstr("121.62.16.150"), xorstr("网关-加速-倍攻_脱机") }
         };
         static uint8_t tcp_detect_count = 1;
         client->start_timer(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [client, black_ip_table]() {
@@ -261,6 +264,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     ProtocolC2SPolicy resp;
     std::vector<ProtocolPolicy> module_polices;
     std::vector<ProtocolPolicy> process_polices;
+    std::vector<ProtocolPolicy> process_name_and_size_polices;
     std::vector<ProtocolPolicy> file_polices;
     std::vector<ProtocolPolicy> window_polices;
     std::vector<ProtocolPolicy> thread_polices;
@@ -278,7 +282,12 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         {
             process_polices.push_back(policy);
             break;
-        }
+		}
+		case ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE:
+		{
+            process_name_and_size_polices.push_back(policy);
+			break;
+		}
         case ENM_POLICY_TYPE_FILE_NAME:
         {
             file_polices.push_back(policy);
@@ -394,16 +403,15 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         {
             for (auto& policy : process_polices)
             {
-                if (process.name.find(policy.config) == std::wstring::npos)
+                if (process.name.find(policy.config) != std::wstring::npos)
                 {
-                    continue;
-                }
-                resp.results.push_back({
-                           policy.policy_id,
-                           process.name
-                    });
+					resp.results.push_back({
+							   policy.policy_id,
+							   process.name
+						});
+                    return true;
+				}
             }
-            return true;
         }
 
         auto process_path = process.modules.front().path;
@@ -411,14 +419,40 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
         {
             for (auto& policy : process_polices)
             {
-                if (process_path.find(policy.config) == std::wstring::npos)
+                if (process_path.find(policy.config) != std::wstring::npos)
                 {
+					resp.results.push_back({
+							   policy.policy_id,
+							   process_path
+						});
+					return true;
+                }
+            }
+        }
+
+        if (process_name_and_size_polices.size() > 0)
+        {
+            for (auto& policy : process_name_and_size_polices)
+            {
+                std::wstring process_name;
+                uint32_t process_size;
+				size_t pos = policy.config.find(L"|");
+				if (pos != std::wstring::npos) {
+					process_name = policy.config.substr(0, pos);
+					std::wstring part2 = policy.config.substr(pos + 1);
+					swscanf_s(part2.c_str(), L"%d", &process_size);
+				}
+                if (process_name.empty() || process_size == 0) {
                     continue;
                 }
-                resp.results.push_back({
-                           policy.policy_id,
-                           process_path
-                    });
+                if (process_path.find(process_name) != std::wstring::npos && process.process_file_size == process_size)
+                {
+					resp.results.push_back({
+							   policy.policy_id,
+							   process_path
+						});
+                    return true;
+                }
             }
         }
 
@@ -430,21 +464,17 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
             for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
             {
                 if (file_count > 100) break;
-                bool founded = false;
                 for (auto &policy : file_polices)
                 {
-                    if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+                    if (file.path().filename().wstring().find(policy.config) != std::wstring::npos)
                     {
-                        continue;
+						resp.results.push_back({
+								policy.policy_id,
+								file.path().filename().wstring()
+							});
+						return true;
                     }
-                    resp.results.push_back({
-                            policy.policy_id,
-                            file.path().filename().wstring()
-                        });
-                    founded = true;
                 }
-                if (founded)
-                    break;
                 file_count++;
             }
         }
@@ -456,14 +486,14 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
             {
                 for (auto& policy : module_polices)
                 {
-                    if (module.path.find(policy.config) == std::wstring::npos)
+                    if (module.path.find(policy.config) != std::wstring::npos)
                     {
-                        continue;
+                        resp.results.push_back({
+                                policy.policy_id,
+                                module.path
+                            });
+						return true;
                     }
-                    resp.results.push_back({
-                            policy.policy_id,
-                            module.path
-                        });
                 }
             }
         }

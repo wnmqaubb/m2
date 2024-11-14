@@ -50,7 +50,8 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	
     afx_msg void OnProcessNameBan();
-    afx_msg void OnProcessPathBan();
+	afx_msg void OnProcessNameAndSizeBan();
+	afx_msg void OnProcessPathBan();
 };
 
 #ifndef _DEBUG  // GateView.cpp 中的调试版本

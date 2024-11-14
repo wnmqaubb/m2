@@ -13,6 +13,8 @@
         "xlocmes": "cpp",
         "xlocmon": "cpp",
         "xlocnum": "cpp",
-        "xloctime": "cpp"
+        "xloctime": "cpp",
+        "sstream": "cpp",
+        "filesystem": "cpp"
     }
 }
