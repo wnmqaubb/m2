@@ -179,7 +179,7 @@ void CpackertoolDlg::OnBnClickedButtonPack()
     m_pack_file_edit.GetWindowText(temp);
     std::filesystem::path pack_exe_path(temp.GetString());
 	std::wstring new_path = pack_exe_path.wstring();
-	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[YK]"));
+	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
     cmd.Format(TEXT("packer.exe --pack_exe --exe %s --dll %s --output %s --config %s > result.txt"),
         pack_exe_path.wstring().c_str(),
         TEXT("NewClient.dll"),
