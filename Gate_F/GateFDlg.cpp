@@ -9,6 +9,7 @@
 #include "DlgProxy.h"
 #include "afxdialogex.h"
 #include "CGamesDlg.h"
+#include <Psapi.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -23,8 +24,14 @@ IMPLEMENT_DYNAMIC(CGateFDlg, CDialogEx);
 CGateFDlg::CGateFDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_GATEF_DIALOG, pParent)
 {
-	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pAutoProxy = nullptr;
+	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+#ifdef VERSION_RED
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
+#endif
+#ifdef VERSION_VIP
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
+#endif
 }
 
 CGateFDlg::~CGateFDlg()
@@ -65,6 +72,15 @@ BOOL CGateFDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
+#ifdef VERSION_BLUE
+	SetWindowText(TEXT("及时雨定制版"));
+#endif
+#ifdef VERSION_RED
+	SetWindowText(TEXT("及时雨鸿蒙版"));
+#endif
+#ifdef VERSION_VIP
+	SetWindowText(TEXT("及时雨内部版"));
+#endif
 	// 设置此对话框的图标。  当应用程序主窗口不是对话框时，框架将自动
 	//  执行此操作
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
@@ -85,21 +101,11 @@ BOOL CGateFDlg::OnInitDialog()
 	// 填入一些静态树视图数据(此处只需填入虚拟代码，而不是复杂的数据)
 	FillClientView();
 
-	int rowNum = m_games_dlg->m_list_games.GetItemCount();
-	int colIndex = 0;
-
-	CString temp = _T("游戏名");
-	m_games_dlg->m_list_games.InsertItem(rowNum, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	m_games_dlg->m_list_games.SetItemText(rowNum, colIndex++, temp);
-	SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
-	
+	SetTimer(TIMER_ID_POLL_WORK_ID, 200, NULL);
+	SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);	
+	if (theApp.is_parent_gate) {
+		SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
+	}
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -149,7 +155,10 @@ void CGateFDlg::OnClose()
 {
 	theApp.OnServiceStop();
 	KillTimer(TIMER_ID_POLL_WORK_ID);
-	KillTimer(RELOAD_GAMER_LIST);
+	KillTimer(RELOAD_GAMER_LIST);	
+	if (theApp.is_parent_gate) {
+		KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
+	}
 	if (CanExit())
 		CDialogEx::OnClose();
 }
@@ -271,18 +280,6 @@ void CGateFDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 	*pResult = 0;
 }
 
-BOOL CGateFDlg::PreTranslateMessage(MSG* pMsg)
-{
-	if (WM_KEYFIRST <= pMsg->message && pMsg->message <= WM_KEYLAST)
-	{
-		if (pMsg->wParam == VK_RETURN)
-		{
-			m_games_dlg->OnBnClickedOnlineGamerSearch();
-		}
-}
-	return CDialogEx::PreTranslateMessage(pMsg);
-}
-
 CString CGateFDlg::GetCurrentSelectedUserName()
 {
 	auto selectedRow = (int)m_games_dlg->m_list_games.GetFirstSelectedItemPosition() - 1;
@@ -320,21 +317,59 @@ void CGateFDlg::SendCurrentSelectedUserServiceCommand(T* package)
 
 void CGateFDlg::FillClientView()
 {
-	/*m_games_dlg->m_list_games.SetColumnByIntSort({ 0, 1 });
-	m_games_dlg->m_list_games.SetColumnBySearch({ 2, 3 });*/
+	m_games_dlg->m_list_games.SetColumnByIntSort({ 0, 1 });
+	m_games_dlg->m_list_games.SetColumnBySearch({ 2, 3 });
 	m_games_dlg->m_list_games.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
 	int colIndex = 0;
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("角色名"), LVCFMT_LEFT, 250);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登录IP地址"), LVCFMT_LEFT, 110);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("机器码"), LVCFMT_LEFT, 320);
+	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("机器码"), LVCFMT_LEFT, 270);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("系统版本"), LVCFMT_LEFT, 80);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 130);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("在线时长"), LVCFMT_LEFT, 80);
 	m_games_dlg->m_list_games.DeleteAllItems();
 }
 
+bool CGateFDlg::isProcessRunning(const std::string& processName)
+{
+	DWORD processes[1024], needed;
+	if (!EnumProcesses(processes, sizeof(processes), &needed))
+	{
+		return false;
+	}
+
+	int processCount = needed / sizeof(DWORD);
+	for (int i = 0; i < processCount; i++)
+	{
+		if (processes[i] != 0)
+		{
+			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
+			if (hProcess)
+			{
+				char processNameBuffer[MAX_PATH];
+				DWORD size = sizeof(processNameBuffer);
+				if (QueryFullProcessImageNameA(hProcess, 0, processNameBuffer, &size))
+				{
+					std::string fullProcessName(processNameBuffer);
+					size_t lastSlash = fullProcessName.find_last_of("\\");
+					if (lastSlash != std::string::npos)
+					{
+						std::string exeName = fullProcessName.substr(lastSlash + 1);
+						if (exeName == processName)
+						{
+							CloseHandle(hProcess);
+							return true;
+						}
+					}
+				}
+				CloseHandle(hProcess);
+			}
+		}
+	}
+	return false;
+}
 
 void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 {
@@ -350,8 +385,74 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 			theApp.m_WorkIo.poll_one();
 			break;
 		}
-	}
+		case TIMER_ID_CHILD_SERIVCE_ID:
+		{
+			bool service_stoped = false;
+			bool logic_server_stoped = false;
 
+			// 已停止
+			HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
+			if (existingMutex != NULL) {
+				if (!isProcessRunning("g_Service.exe")) {
+					// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
+					ReleaseMutex(existingMutex);
+				}
+				CloseHandle(existingMutex);
+
+			}
+			else {
+				service_stoped = true;
+			}
+
+			HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
+			if (existingMutex1 != NULL) {
+				if (!isProcessRunning("g_LogicServer.exe")) {
+					// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
+					ReleaseMutex(existingMutex1);
+				}
+				CloseHandle(existingMutex1);
+			}
+			else {
+				logic_server_stoped = true;
+			}
+
+			if (service_stoped || logic_server_stoped)
+			{
+				KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
+				// 进程已停止，尝试重启		
+				if (service_stoped)
+				{
+					// 尝试关闭所有子进程
+					HANDLE hProcess = find_process("g_LogicServer.exe");
+					if (hProcess) {
+						TerminateProcess(hProcess, 0);
+						CloseHandle(hProcess);
+					}
+					while (existingMutex) {
+						ReleaseMutex(existingMutex);
+						CloseHandle(existingMutex);
+					}
+				}
+				// 进程已停止，尝试重启		
+				if (logic_server_stoped)
+				{
+					HANDLE hProcess = find_process("g_Service.exe");
+					if (hProcess) {
+						TerminateProcess(hProcess, 0);
+						CloseHandle(hProcess);
+					}
+					while (existingMutex1) {
+						ReleaseMutex(existingMutex1);
+						CloseHandle(existingMutex1);
+					}
+				}
+				theApp.OnServiceStop1();
+				theApp.OnServiceStart();
+				SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
+			}
+			break;
+		}
+	}
 	CDialogEx::OnTimer(nIDEvent);
 }
 
@@ -415,4 +516,43 @@ void CGateFDlg::OnServiceCommand(UINT id)
 		default:
 			break;
 	}
+}
+
+HANDLE CGateFDlg::find_process(const std::string& processName)
+{
+	DWORD processes[1024], needed;
+	if (!EnumProcesses(processes, sizeof(processes), &needed))
+	{
+		return nullptr;
+	}
+
+	int processCount = needed / sizeof(DWORD);
+	for (int i = 0; i < processCount; i++)
+	{
+		if (processes[i] != 0)
+		{
+			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
+			if (hProcess)
+			{
+				char processNameBuffer[MAX_PATH];
+				DWORD size = sizeof(processNameBuffer);
+				if (QueryFullProcessImageNameA(hProcess, 0, processNameBuffer, &size))
+				{
+					std::string fullProcessName(processNameBuffer);
+					size_t lastSlash = fullProcessName.find_last_of("\\");
+					if (lastSlash != std::string::npos)
+					{
+						std::string exeName = fullProcessName.substr(lastSlash + 1);
+						if (exeName == processName)
+						{
+							CloseHandle(hProcess);
+							return OpenProcess(PROCESS_TERMINATE, FALSE, processes[i]);
+						}
+					}
+				}
+				CloseHandle(hProcess);
+			}
+		}
+	}
+	return nullptr;
 }

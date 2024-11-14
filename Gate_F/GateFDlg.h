@@ -38,12 +38,11 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
 	void FillClientView();
-	void FillServiceView();
 
 
-// 实现
+	bool isProcessRunning(const std::string& processName);
+	// 实现
 protected:
-	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	CGateFDlgAutoProxy* m_pAutoProxy;
 	HICON m_hIcon;
 
@@ -62,6 +61,7 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	void SetPaneBackgroundColor(UINT nIDResource, COLORREF color);
 	void OnServiceCommand(UINT id);
+	HANDLE find_process(const std::string& processName);
 	afx_msg void OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult);
 	void InitStatusBar();
 	void SetStatusBar(UINT nIDResource, CString text);

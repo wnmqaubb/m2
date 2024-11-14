@@ -29,15 +29,19 @@ protected:
 	afx_msg void OnExitGame();
 	afx_msg void OnIpBan();
 	afx_msg void OnMacBan();
+	void OnRoleNameBan();
 	afx_msg void OnIpWhiteAdd();
 	afx_msg void OnMacWhiteAdd();
 	DECLARE_MESSAGE_MAP()
+	void OnRoleNameWhiteAdd();
+	void OnWhiteOrBlackAdd(const CString& list_name, CListBox* m_current_list);
 public:
 	template<typename T> void SendCurrentSelectedUserCommand(T* package);
 	afx_msg void OnBnClickedOnlineGamerSearch();
 	// 在线玩家列表
 	CGateFDlgList m_list_games;
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
+	BOOL PreTranslateMessage(MSG* pMsg);
 	void OnRefreshUsers();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

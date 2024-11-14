@@ -33,26 +33,19 @@ void CGamesDlg::OnCommand(UINT nID)
 
 BEGIN_MESSAGE_MAP(CGamesDlg, CDialogEx)
 	ON_WM_CONTEXTMENU()
-	/*ON_COMMAND(ID_PROCESS_VIEW, &CGamesDlg::OnQueryProcess)
-	ON_COMMAND(ID_WINDOWS_VIEW, &CGamesDlg::OnQueryWindows)
-	ON_COMMAND(ID_DRIVER_VIEW, &CGamesDlg::OnQueryDrivers)
-	ON_COMMAND(ID_SCREENSHOT_VIEW, &CGamesDlg::OnQueryScreenShot)
-	ON_COMMAND(ID_SHELLCODE_VIEW, &CGamesDlg::OnQueryShellCode)
-	ON_COMMAND(IDC_PROCESS_BUTTON, &CGamesDlg::OnQueryProcess)
-	ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CGamesDlg::OnQueryScreenShot)*/
 	ON_COMMAND(IDC_BUTTON_SEARCH, &CGamesDlg::OnBnClickedOnlineGamerSearch)
 	ON_COMMAND(ID_EXIT_GAME, &CGamesDlg::OnExitGame)
 	ON_COMMAND(ID_IP_BAN, &CGamesDlg::OnIpBan)
 	ON_COMMAND(ID_MAC_BAN, &CGamesDlg::OnMacBan)
+	ON_COMMAND(ID_ROLENAME_BAN, &CGamesDlg::OnRoleNameBan)
 	ON_COMMAND(ID_IP_WHITE_ADD, &CGamesDlg::OnIpWhiteAdd)
 	ON_COMMAND(ID_MAC_WHITE_ADD, &CGamesDlg::OnMacWhiteAdd)
+	ON_COMMAND(ID_ROLENAME_WHITE_ADD, &CGamesDlg::OnRoleNameWhiteAdd)
 	ON_BN_CLICKED(ID_REFRESH_USERS, &CGamesDlg::OnRefreshUsers)
 	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
-
 // GamesDlg 消息处理程序
-
 
 void CGamesDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 {
@@ -70,6 +63,19 @@ void CGamesDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 			menu.GetSubMenu(0)->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 		}
 	}
+}
+
+BOOL CGamesDlg::PreTranslateMessage(MSG* pMsg)
+{
+	if (WM_KEYFIRST <= pMsg->message && pMsg->message <= WM_KEYLAST)
+	{
+		if (pMsg->wParam == VK_RETURN)
+		{
+			OnBnClickedOnlineGamerSearch();
+			this->ShowWindow(SW_SHOW);
+		}
+	}
+	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
 inline CString GetSystemDesc(int SysVer, bool is64bits)
@@ -168,7 +174,7 @@ void CGamesDlg::OnRefreshUsers()
 					temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
 					m_list_games.SetItemText(rowNum, colIndex++, temp);
 				}
-				//theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
+				theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
 				});
 		});
 	m_list_games.DeleteAllItems();
@@ -244,7 +250,7 @@ void CGamesDlg::OnExitGame()
 void CGamesDlg::OnIpBan()
 {
 	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	std::wstring ip;
+	CString ip;
 	if (selectedRow != -1)
 	{
 		ip = m_list_games.GetItemText(selectedRow, 3);
@@ -253,39 +259,13 @@ void CGamesDlg::OnIpBan()
 	{
 		return;
 	}
-	std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
-	if (file.is_open())
-	{
-		std::stringstream ss;
-		ss << file.rdbuf();
-		auto str = ss.str();
-		auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-		auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
-		for (auto [uiPolicyId, Policy] : Policies)
-		{
-			uiLastPolicyId = uiPolicyId;
-		}
-		uiLastPolicyId++;
-		ProtocolPolicy Policy;
-		Policy.policy_id = uiLastPolicyId;
-		Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
-		Policy.policy_type = ENM_POLICY_TYPE_MACHINE;
-		Policy.config = ip;
-		Policies[uiLastPolicyId] = Policy;
-		file.close();
-		std::ofstream output(theApp.m_cCfgPath, std::ios::out | std::ios::binary);
-		str = Cfg->dump();
-		output.write(str.data(), str.size());
-		output.close();
-		theApp.OnServiceSettings();
-	}
+	OnWhiteOrBlackAdd(ip, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_ip));
 }
 
 void CGamesDlg::OnMacBan()
 {
 	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	std::wstring strMac;
+	CString strMac;
 	if (selectedRow != -1)
 	{
 		strMac = m_list_games.GetItemText(selectedRow, 4);
@@ -294,40 +274,33 @@ void CGamesDlg::OnMacBan()
 	{
 		return;
 	}
+	OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_machine));
+}
 
-	std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
-	if (file.is_open())
+void CGamesDlg::OnRoleNameBan()
+{
+	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
+	CString str_rolename;
+	if (selectedRow != -1)
 	{
-		std::stringstream ss;
-		ss << file.rdbuf();
-		auto str = ss.str();
-		auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-		auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
-		for (auto [uiPolicyId, Policy] : Policies)
+		str_rolename = m_list_games.GetItemText(selectedRow, 2);
+		int nPos = str_rolename.Find(_T(" - "));
+		if (nPos != -1)
 		{
-			uiLastPolicyId = uiPolicyId;
+			str_rolename = str_rolename.Mid(nPos + 3);
 		}
-		uiLastPolicyId++;
-		ProtocolPolicy Policy;
-		Policy.policy_id = uiLastPolicyId;
-		Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
-		Policy.policy_type = ENM_POLICY_TYPE_MACHINE;
-		Policy.config = strMac;
-		Policies[uiLastPolicyId] = Policy;
-		file.close();
-		std::ofstream output(theApp.m_cCfgPath, std::ios::out | std::ios::binary);
-		str = Cfg->dump();
-		output.write(str.data(), str.size());
-		output.close();
-		theApp.OnServiceSettings();
 	}
+	else
+	{
+		return;
+	}
+	OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_rolename));
 }
 
 void CGamesDlg::OnIpWhiteAdd()
 {
 	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	std::wstring strIP;
+	CString strIP;
 	if (selectedRow != -1)
 	{
 		strIP = m_list_games.GetItemText(selectedRow, 3);
@@ -337,39 +310,13 @@ void CGamesDlg::OnIpWhiteAdd()
 		return;
 	}
 
-	std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
-	if (file.is_open())
-	{
-		std::stringstream ss;
-		ss << file.rdbuf();
-		auto str = ss.str();
-		auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-		auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
-		for (auto [uiPolicyId, Policy] : Policies)
-		{
-			uiLastPolicyId = uiPolicyId;
-		}
-		uiLastPolicyId++;
-		ProtocolPolicy Policy;
-		Policy.policy_id = uiLastPolicyId;
-		Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;
-		Policy.policy_type = ENM_POLICY_TYPE_MACHINE;
-		Policy.config = strIP;
-		Policies[uiLastPolicyId] = Policy;
-		file.close();
-		std::ofstream output(theApp.m_cCfgPath, std::ios::out | std::ios::binary);
-		str = Cfg->dump();
-		output.write(str.data(), str.size());
-		output.close();
-		theApp.OnServiceSettings();
-	}
+	OnWhiteOrBlackAdd(strIP, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_ip));
 }
 
 void CGamesDlg::OnMacWhiteAdd()
 {
 	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	std::wstring strMac;
+	CString strMac;
 	if (selectedRow != -1)
 	{
 		strMac = m_list_games.GetItemText(selectedRow, 4);
@@ -378,34 +325,37 @@ void CGamesDlg::OnMacWhiteAdd()
 	{
 		return;
 	}
+	OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_machine));
+}
 
-	std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
-	if (file.is_open())
+void CGamesDlg::OnRoleNameWhiteAdd()
+{
+	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
+	CString str_rolename;
+	if (selectedRow != -1)
 	{
-		std::stringstream ss;
-		ss << file.rdbuf();
-		auto str = ss.str();
-		auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-		auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = 0;
-		for (auto [uiPolicyId, Policy] : Policies)
+		str_rolename = m_list_games.GetItemText(selectedRow, 2);
+		int nPos = str_rolename.Find(_T(" - "));
+		if (nPos != -1)
 		{
-			uiLastPolicyId = uiPolicyId;
+			str_rolename = str_rolename.Mid(nPos + 3);
 		}
-		uiLastPolicyId++;
-		ProtocolPolicy Policy;
-		Policy.policy_id = uiLastPolicyId;
-		Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;
-		Policy.policy_type = ENM_POLICY_TYPE_MACHINE;
-		Policy.config = strMac;
-		Policies[uiLastPolicyId] = Policy;
-		file.close();
-		std::ofstream output(theApp.m_cCfgPath, std::ios::out | std::ios::binary);
-		str = Cfg->dump();
-		output.write(str.data(), str.size());
-		output.close();
-		theApp.OnServiceSettings();
 	}
+	else
+	{
+		return;
+	}
+
+	OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_rolename));
+}
+
+void CGamesDlg::OnWhiteOrBlackAdd(const CString& list_name, CListBox* m_current_list)
+{
+	auto mainFrame = theApp.GetMainFrame();
+	mainFrame->m_anticheat_dlg->m_current_list = m_current_list;
+	mainFrame->m_anticheat_dlg->OnAddToList(list_name);
+	mainFrame->SwitchToTab(1);
+	mainFrame->m_anticheat_dlg->ShowWindow(SW_SHOW);
 }
 
 HBRUSH CGamesDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)

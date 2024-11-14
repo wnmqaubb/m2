@@ -34,10 +34,10 @@ protected:
 	BOOL OnInitDialog();
 	void ShowAllDlgInTab();
 	void OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult);
-	std::unique_ptr<CObServerClientDlg> m_observer_client_dlg;
-	std::unique_ptr<COBSCServiceDlg> m_obsc_service_dlg;
-	std::unique_ptr<COBSCLogicDlg> m_obsc_logic_dlg;
 public:
+	std::shared_ptr<CObServerClientDlg> m_observer_client_dlg;
+	std::shared_ptr<COBSCServiceDlg> m_obsc_service_dlg;
+	std::shared_ptr<COBSCLogicDlg> m_obsc_logic_dlg;
 	CTabCtrl m_tab_log;
 	CRect m_tab_log_rect;
 };

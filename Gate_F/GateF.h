@@ -35,11 +35,11 @@ public:
 	virtual int ExitInstance();
 	void OnServiceStart();
 	void OnServiceStop();
+	void OnServiceStop1();
 	virtual BOOL OpenFolderAndSelectFile(CString szPath);
 	virtual CGateFDlg* GetMainFrame();
 	std::string ReadLicense();
 	std::string ReadAuthKey();
-	void ConnectionLicenses();
 	void OpenConfig();
 	void SaveConfig();
 	// 实现
@@ -53,6 +53,7 @@ public:
 	CDocument* m_ConfigDoc = nullptr;
 	HANDLE m_childpHandle;
 	//CConfig m_wndConfig;
+	bool is_parent_gate = true;
 	std::unique_ptr<ProtocolS2CPolicy> m_cfg;
 	DECLARE_MESSAGE_MAP()
 public:

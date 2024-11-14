@@ -146,5 +146,11 @@
     <Image Include="res\GateF.ico">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="res\red.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\blue.ico">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

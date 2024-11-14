@@ -17,6 +17,8 @@
 [Rr]elease2/
 [Rr]eleases/
 [Rr]Test/
+[Rr]elease_red/
+[Rr]elease_vip/
 x64/
 bld/
 [Bb]in/
@@ -275,7 +277,3 @@ __pycache__/
 /Service/HWID.txt
 /UnitTest/cache
 /build/zip
-/Tools/Packer
-/build/intdir/GateF/Release_red/Win32
-/build/intdir/GateF/Release_vip/Win32/GateF.tlog
-/build/intdir/GateF/Release_vip/Win32

@@ -4,7 +4,7 @@
 
 
  /* File created by MIDL compiler version 7.00.0555 */
-/* at Wed Oct 30 16:10:30 2024
+/* at Tue Nov 12 23:40:40 2024
  */
 /* Compiler settings for GateF.idl:
     Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 7.00.0555 
@@ -32,8 +32,8 @@
 #endif // __RPCNDR_H_VERSION__
 
 
-#ifndef __Gate_F_h_h__
-#define __Gate_F_h_h__
+#ifndef __GateF_h_h__
+#define __GateF_h_h__
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -57,6 +57,24 @@ typedef struct GateF GateF;
 #endif /* __cplusplus */
 
 #endif 	/* __GateF_FWD_DEFINED__ */
+
+
+#ifndef __IOBSCService_FWD_DEFINED__
+#define __IOBSCService_FWD_DEFINED__
+typedef interface IOBSCService IOBSCService;
+#endif 	/* __IOBSCService_FWD_DEFINED__ */
+
+
+#ifndef __OBSCService_FWD_DEFINED__
+#define __OBSCService_FWD_DEFINED__
+
+#ifdef __cplusplus
+typedef class OBSCService OBSCService;
+#else
+typedef struct OBSCService OBSCService;
+#endif /* __cplusplus */
+
+#endif 	/* __OBSCService_FWD_DEFINED__ */
 
 
 #ifdef __cplusplus
@@ -187,6 +205,121 @@ EXTERN_C const CLSID CLSID_GateF;
 
 class DECLSPEC_UUID("42dd2538-7123-4594-9d5e-adb22f860935")
 GateF;
+#endif
+
+#ifndef __IOBSCService_DISPINTERFACE_DEFINED__
+#define __IOBSCService_DISPINTERFACE_DEFINED__
+
+/* dispinterface IOBSCService */
+/* [uuid] */ 
+
+
+EXTERN_C const IID DIID_IOBSCService;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+    MIDL_INTERFACE("61d93358-a7e8-467a-bd70-5c8d8690fb37")
+    IOBSCService : public IDispatch
+    {
+    };
+    
+#else 	/* C style interface */
+
+    typedef struct IOBSCServiceVtbl
+    {
+        BEGIN_INTERFACE
+        
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            IOBSCService * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */ 
+            __RPC__deref_out  void **ppvObject);
+        
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            IOBSCService * This);
+        
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            IOBSCService * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetTypeInfoCount )( 
+            IOBSCService * This,
+            /* [out] */ UINT *pctinfo);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetTypeInfo )( 
+            IOBSCService * This,
+            /* [in] */ UINT iTInfo,
+            /* [in] */ LCID lcid,
+            /* [out] */ ITypeInfo **ppTInfo);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetIDsOfNames )( 
+            IOBSCService * This,
+            /* [in] */ REFIID riid,
+            /* [size_is][in] */ LPOLESTR *rgszNames,
+            /* [range][in] */ UINT cNames,
+            /* [in] */ LCID lcid,
+            /* [size_is][out] */ DISPID *rgDispId);
+        
+        /* [local] */ HRESULT ( STDMETHODCALLTYPE *Invoke )( 
+            IOBSCService * This,
+            /* [in] */ DISPID dispIdMember,
+            /* [in] */ REFIID riid,
+            /* [in] */ LCID lcid,
+            /* [in] */ WORD wFlags,
+            /* [out][in] */ DISPPARAMS *pDispParams,
+            /* [out] */ VARIANT *pVarResult,
+            /* [out] */ EXCEPINFO *pExcepInfo,
+            /* [out] */ UINT *puArgErr);
+        
+        END_INTERFACE
+    } IOBSCServiceVtbl;
+
+    interface IOBSCService
+    {
+        CONST_VTBL struct IOBSCServiceVtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define IOBSCService_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IOBSCService_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IOBSCService_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define IOBSCService_GetTypeInfoCount(This,pctinfo)	\
+    ( (This)->lpVtbl -> GetTypeInfoCount(This,pctinfo) ) 
+
+#define IOBSCService_GetTypeInfo(This,iTInfo,lcid,ppTInfo)	\
+    ( (This)->lpVtbl -> GetTypeInfo(This,iTInfo,lcid,ppTInfo) ) 
+
+#define IOBSCService_GetIDsOfNames(This,riid,rgszNames,cNames,lcid,rgDispId)	\
+    ( (This)->lpVtbl -> GetIDsOfNames(This,riid,rgszNames,cNames,lcid,rgDispId) ) 
+
+#define IOBSCService_Invoke(This,dispIdMember,riid,lcid,wFlags,pDispParams,pVarResult,pExcepInfo,puArgErr)	\
+    ( (This)->lpVtbl -> Invoke(This,dispIdMember,riid,lcid,wFlags,pDispParams,pVarResult,pExcepInfo,puArgErr) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+#endif 	/* __IOBSCService_DISPINTERFACE_DEFINED__ */
+
+
+EXTERN_C const CLSID CLSID_OBSCService;
+
+#ifdef __cplusplus
+
+class DECLSPEC_UUID("c7a97a67-5463-415c-9d2f-878cab879c14")
+OBSCService;
 #endif
 #endif /* __GateF_LIBRARY_DEFINED__ */
 

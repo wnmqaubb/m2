@@ -39,8 +39,6 @@ BOOL CLogDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	// TODO: 在此添加额外的初始化代码
-	// 初始化 CTabCtrl
 	m_tab_log.GetClientRect(&m_tab_log_rect);
 	m_tab_log.AdjustRect(FALSE, &m_tab_log_rect);
 	m_tab_log_rect.DeflateRect(0, 20, 0, 0);
@@ -55,20 +53,20 @@ BOOL CLogDlg::OnInitDialog()
 
 void CLogDlg::ShowAllDlgInTab()
 {
-	m_observer_client_dlg = std::make_unique<CObServerClientDlg>();
+	m_observer_client_dlg = std::make_shared<CObServerClientDlg>();
 	m_observer_client_dlg->Create(IDD_DIALOG_LOG_OBSERVER_CLIENT, &m_tab_log);
 	m_observer_client_dlg->MoveWindow(m_tab_log_rect);
-	m_observer_client_dlg->ShowWindow(SW_SHOW);
+	m_observer_client_dlg->ShowWindow(SW_HIDE);
 
-	m_obsc_service_dlg = std::make_unique<COBSCServiceDlg>();
+	m_obsc_service_dlg = std::make_shared<COBSCServiceDlg>();
 	m_obsc_service_dlg->Create(IDD_DIALOG_LOG_OBC_SERVICE, &m_tab_log);
 	m_obsc_service_dlg->MoveWindow(m_tab_log_rect);
 	m_obsc_service_dlg->ShowWindow(SW_HIDE);
 
-	m_obsc_logic_dlg = std::make_unique<COBSCLogicDlg>();
+	m_obsc_logic_dlg = std::make_shared<COBSCLogicDlg>();
 	m_obsc_logic_dlg->Create(IDD_DIALOG_LOG_OBC_LOGIC, &m_tab_log);
 	m_obsc_logic_dlg->MoveWindow(m_tab_log_rect);
-	m_obsc_logic_dlg->ShowWindow(SW_HIDE);
+	m_obsc_logic_dlg->ShowWindow(SW_SHOW);
 }
 
 void CLogDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
@@ -109,15 +107,15 @@ void CLogDlg::LogPrint(int type, LPCTSTR format, ...)
 		switch (type)
 		{
 			case ObserverClientLog:
-				m_observer_client_dlg->AddLog(buf, RGB(0, 200, 0));
+				theApp.GetMainFrame()->m_logs_dlg->m_observer_client_dlg->AddLog(buf, RGB(0, 200, 0));
 				//AdjustHorzScroll(m_wndObserverClientLog);
 				break;
 			case ServiceLog:
-				m_obsc_service_dlg->AddLog(buf, RGB(5, 0, 210));
+				theApp.GetMainFrame()->m_logs_dlg->m_obsc_service_dlg->AddLog(buf, RGB(5, 5, 255));
 				//AdjustHorzScroll(m_wndServiceLog);
 				break;
 			case LogicServerLog:
-				m_obsc_logic_dlg->AddLog(buf, RGB(255, 0, 0));
+				theApp.GetMainFrame()->m_logs_dlg->m_obsc_logic_dlg->AddLog(buf, RGB(255, 0, 0));
 				//AdjustHorzScroll(m_wndLogicServerLog);
 				break;
 			default:

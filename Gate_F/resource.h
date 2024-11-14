@@ -1,12 +1,11 @@
-Ôªø//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ ÁîüÊàêÁöÑÂåÖÂê´Êñá‰ª∂„ÄÇ
-// ‰æõ GateF.rc ‰ΩøÁî®
+//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ …˙≥…µƒ∞¸∫¨Œƒº˛°£
+// π© GateF.rc  π”√
 //
 #define IDP_OLE_INIT_FAILED             100
 #define ID_SHELLCODE_VIEW               101
 #define IDD_GATEF_DIALOG                102
 #define IDC_SCREENSHOT_BUTTON           103
-#define IDD_DIALOGBAR                   104
 #define IDC_REFRESH_USERS_BUTTON        105
 #define IDC_PROCESS_BUTTON              106
 #define ID_SERVICE_REMOVE_CFG           108
@@ -27,10 +26,12 @@
 #define IDD_DIALOG_LOG                  123
 #define IDD_DIALOG_LOG_OBSERVER_CLIENT  124
 #define IDR_MENU_USERS_RIGHT            125
-#define IDR_PROCESS_RIGHT_MENU          126
 #define IDR_SETING_RIGHT_MENU           127
 #define IDD_DIALOG_LOG_OBC_SERVICE      128
 #define IDD_DIALOG_LOG_OBC_LOGIC        129
+#define IDR_MENU_WHITE_LIST             136
+#define IDI_ICON1                       137
+#define IDI_ICON_RED                    137
 #define IDC_TAB_MAIN                    1001
 #define IDC_EDIT_POLICY_ID              1002
 #define IDC_EDIT_POLICY_CONFIG          1003
@@ -51,15 +52,26 @@
 #define IDC_CHECK1                      1017
 #define IDC_CHECK2                      1018
 #define IDC_TAB_LOG                     1019
+#define IDC_CHECK4                      1019
 #define IDC_CHECK_BASE_POLICY           1020
+#define IDC_CHECK5                      1020
 #define IDC_RICHEDIT2_LOG_OBC           1021
+#define IDC_CHECK6                      1021
 #define IDC_CHECK_BETTER_POLICY         1022
+#define IDC_CHECK7                      1022
 #define IDC_EDIT_BACK                   1023
+#define IDC_LIST_WHITE_MACHINA          1023
+#define IDC_LIST_WHITE_MACHINE          1023
 #define IDC_CHECK_EXIT                  1024
+#define IDC_LIST_BLACK_MACHINE          1024
 #define IDC_EDIT_EXIT                   1025
+#define IDC_LIST_WHITE_IP               1025
 #define IDC_CHECK_SPEED_WALK            1026
+#define IDC_LIST_BLACK_IP               1026
 #define IDC_EDIT_SPEED_WALK             1027
+#define IDC_LIST_WHITE_ROLENAME         1027
 #define IDC_CHECK_SPEED_HIT             1028
+#define IDC_LIST_BLACK_ROLENAME         1028
 #define IDC_EDIT_SPEED_HIT              1029
 #define IDC_CHECK_SPEED_SPELL           1030
 #define IDC_EDIT_SPEED_SPELL            1031
@@ -73,11 +85,15 @@
 #define IDC_LIST_EDIT                   10010
 #define IDC_LIST_COMBOBOX_POLICY        10011
 #define IDC_LIST_COMBOBOX_PUNISH        10012
+#define ID_32772                        32772
+#define ID_REMOVE_FROM_WHITELIST        32773
+#define ID_32774                        32774
+#define ID_ROLENAME_BAN                 32775
+#define ROLENAME                        32776
+#define ID_ROLENAME_WHITE_ADD           32777
 #define ID_PROCESS_VIEW                 32781
 #define ID_WINDOWS_VIEW                 32782
 #define ID_EXIT_GAME                    32783
-#define ID_PROCESS_NAME                 32784
-#define ID_PROCESS_PATH                 32785
 #define ID_REFRESH_USERS                32786
 #define ID_DRIVER_VIEW                  32787
 #define ID_SCREENSHOT_VIEW              32788
@@ -97,9 +113,20 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        136
-#define _APS_NEXT_COMMAND_VALUE         32772
-#define _APS_NEXT_CONTROL_VALUE         1023
+#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_COMMAND_VALUE         32778
+#define _APS_NEXT_CONTROL_VALUE         1024
 #define _APS_NEXT_SYMED_VALUE           114
 #endif
+#endif
+
+
+//#if defined(VERSION_RED) || defined(VERSION_VIP)
+//#define VERSION_RED1           1
+//#endif
+#ifdef VERSION_RED
+#define VERSION_RED1           1
+#endif
+#ifdef VERSION_VIP
+#define VERSION_RED1           1
 #endif

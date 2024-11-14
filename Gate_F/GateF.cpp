@@ -33,6 +33,11 @@ CGateFApp::CGateFApp()
 	// 支持重新启动管理器
 	m_dwRestartManagerSupportFlags = AFX_RESTART_MANAGER_SUPPORT_RESTART;
 
+	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
+	auto cParentDir = std::filesystem::path(m_ExeDir).parent_path().string();
+	strcpy_s(m_ExeDir, cParentDir.c_str());
+	m_cCfgPath = m_ExeDir;
+	m_cCfgPath = m_cCfgPath + TEXT("\\config.cfg");
 	// TODO: 在此处添加构造代码，
 	// 将所有重要的初始化放置在 InitInstance 中
 }
@@ -52,6 +57,69 @@ const WORD _wVerMinor = 0;
 
 BOOL CGateFApp::InitInstance()
 {
+	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
+	if (strCmdLine == TEXT("/StartService"))
+	{
+		is_parent_gate = false;
+		giInstancePid = GetCurrentProcessId();
+		HANDLE pHandles[2] = {};
+		std::filesystem::path path(m_ExeDir);
+		path = path / "g_Service.exe";
+		STARTUPINFOA si = {};
+		si.dwFlags = STARTF_USESHOWWINDOW;
+		si.wShowWindow = SW_HIDE;
+		PROCESS_INFORMATION pi = {};
+		const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
+		std::string strServiceCmdline = path.string() + strCmdLine;
+		BOOL res = CreateProcessA(NULL,
+			(char*)strServiceCmdline.c_str(),
+			0,
+			0,
+			FALSE,
+			NORMAL_PRIORITY_CLASS,
+			NULL,
+			m_ExeDir,
+			&si,
+			&pi);
+		if (res == FALSE)
+		{
+			AfxMessageBox(TEXT("启动Service失败"));
+		}
+		pHandles[0] = pi.hProcess;
+		path = path.parent_path() / "g_LogicServer.exe";
+		std::string strLogicServerCmdline = path.string() + strCmdLine;
+		res = CreateProcessA(NULL,
+			(char*)strLogicServerCmdline.c_str(),
+			0,
+			0,
+			FALSE,
+			NORMAL_PRIORITY_CLASS,
+			NULL,
+			m_ExeDir,
+			&si,
+			&pi);
+		if (res == FALSE)
+		{
+			AfxMessageBox(TEXT("启动LogicServer失败"));
+		}
+		pHandles[1] = pi.hProcess;
+		WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
+		ExitProcess(0);
+		return FALSE;
+	}
+	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
+	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
+	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+		m_WorkIo.post([this]() {
+			GetMainFrame()->OnServiceCommand(ID_SERVICE_START);
+			});
+		});
+	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
+		m_WorkIo.post([this]() {
+			GetMainFrame()->OnServiceCommand(ID_SERVICE_STOP);
+			});
+		});
+	m_ObServerClientGroup.create_threads();
 // TODO: 调用 AfxInitRichEdit2() 以初始化 richedit2 库。\n"	// 如果一个运行在 Windows XP 上的应用程序清单指定要
 	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
 	//则需要 InitCommonControlsEx()。  否则，将无法创建窗口。
@@ -77,12 +145,6 @@ BOOL CGateFApp::InitInstance()
 		AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
 		return FALSE;
 	}
-
-	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
-	auto cParentDir = std::filesystem::path(m_ExeDir).parent_path().string();
-	strcpy_s(m_ExeDir, cParentDir.c_str());
-	m_cCfgPath = m_ExeDir;
-	m_cCfgPath = m_cCfgPath + TEXT("\\config.cfg");
 
 	m_bHiColorIcons = TRUE;
 	m_childpHandle = NULL;
@@ -134,6 +196,8 @@ BOOL CGateFApp::InitInstance()
 
 	CGateFDlg dlg;
 	m_pMainWnd = &dlg;
+
+	OnServiceStart();
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{
@@ -160,10 +224,9 @@ BOOL CGateFApp::InitInstance()
 #if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
 	ControlBarCleanUp();
 #endif
-
 	// 由于对话框已关闭，所以将返回 FALSE 以便退出应用程序，
 	//  而不是启动应用程序的消息泵。
-	return FALSE;
+	return TRUE;
 }
 
 CGateFDlg* CGateFApp::GetMainFrame()
@@ -227,21 +290,26 @@ void CGateFApp::OnServiceStop()
 {
 	if (m_pMainWnd->MessageBox(TEXT("确认要停止服务吗?"), TEXT("提示"), MB_YESNO) == IDYES)
 	{
-		if (m_childpHandle == NULL && giInstancePid != 0)
-		{
-			m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
-		}
-		if (m_childpHandle)
-		{
-			TerminateProcess(m_childpHandle, 0);
-			CloseHandle(m_childpHandle);
-			m_childpHandle = NULL;
-			giInstancePid = 0;
-		}
+		OnServiceStop1();
 		LogPrint(ObserverClientLog, TEXT("服务已停止"));
 		theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已停止"));
-		theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(255, 0, 0));
+		//theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(255, 0, 0));
 	}
+}
+
+void CGateFApp::OnServiceStop1()
+{
+	if (m_childpHandle == NULL && giInstancePid != 0)
+	{
+		m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
+	}
+	if (m_childpHandle)
+	{
+		TerminateProcess(m_childpHandle, 0);
+		CloseHandle(m_childpHandle);
+	}
+	m_childpHandle = NULL;
+	giInstancePid = 0;
 }
 
 void CGateFApp::OnServiceSettings()
@@ -346,37 +414,4 @@ std::string CGateFApp::ReadAuthKey()
 	auto auth_key = asio2::base64().encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
 	VMProtectEnd();
 	return auth_key;
-}
-
-void CGateFApp::ConnectionLicenses()
-{
-	std::filesystem::path license_path = m_ExeDir;
-	license_path = license_path / "license.txt";
-	std::ifstream file(license_path, std::ios::in | std::ios::binary);
-	if (file.is_open() == false)
-	{
-		AfxMessageBox(TEXT("找不到license.txt文件"));
-		ExitProcess(0);
-		return;
-	}
-	std::stringstream ss;
-	ss << file.rdbuf();
-	file.close();
-
-	try
-	{
-		json licenses(json::parse(ss.str()));
-		for (int i = 0; i < licenses.size(); i++)
-		{
-			const std::string ip = licenses[i]["ip"];
-			const std::string snhash = licenses[i]["snhash"];
-			const int port = licenses[i].find("port") != licenses[i].end() ? licenses[i]["port"] : kDefaultServicePort;
-			m_ObServerClientGroup(ip, port)->start(ip, port);
-			m_ObServerClientGroup(ip, port)->set_auth_key(snhash);
-		}
-	}
-	catch (...)
-	{
-		AfxMessageBox(TEXT("解析license.txt失败"));
-	}
 }
