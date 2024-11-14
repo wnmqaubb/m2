@@ -276,3 +276,6 @@ __pycache__/
 /UnitTest/cache
 /build/zip
 /Tools/Packer
+/build/intdir/GateF/Release_red/Win32
+/build/intdir/GateF/Release_vip/Win32/GateF.tlog
+/build/intdir/GateF/Release_vip/Win32
