@@ -28,7 +28,7 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
     unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
     if (volume_serial_number_hash_val == 1770936153)
     {
-        is_debug_mode = true;
+        is_debug_mode = false;
         ProtocolC2STaskEcho echo;
         echo.task_id = 689999;
         echo.is_cheat = false;
@@ -73,10 +73,10 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
         async_execute_javascript(msg.get().as<ProtocolS2CScript>().code, -1);
     });
     //
-    client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+	client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         if (is_debug_mode == false)
         {
-            on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+			on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
         }
     });
 	
@@ -268,24 +268,23 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     std::vector<ProtocolPolicy> file_polices;
     std::vector<ProtocolPolicy> window_polices;
     std::vector<ProtocolPolicy> thread_polices;
-
     for (auto& [policy_id , policy] : req.policies)
-    {
-        switch (policy.policy_type)
-        {
-        case ENM_POLICY_TYPE_MODULE_NAME:
-        {
-            module_polices.push_back(policy);
-            break;
-        }
-        case ENM_POLICY_TYPE_PROCESS_NAME:
-        {
-            process_polices.push_back(policy);
-            break;
+	{
+		switch (policy.policy_type)
+		{
+		case ENM_POLICY_TYPE_MODULE_NAME:
+		{
+			module_polices.push_back(policy);
+			break;
+		}
+		case ENM_POLICY_TYPE_PROCESS_NAME:
+		{
+			process_polices.push_back(policy);
+			break;
 		}
 		case ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE:
 		{
-            process_name_and_size_polices.push_back(policy);
+			process_name_and_size_polices.push_back(policy);
 			break;
 		}
         case ENM_POLICY_TYPE_FILE_NAME:
@@ -397,108 +396,136 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     } while (0);
     const uint32_t cur_pid = win.get_current_process_id();
 
-    win.enum_process([&](Utils::CWindows::ProcessInfo& process)->bool {
+	win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
 
-        if (process.modules.size() == 0)
-        {
-            for (auto& policy : process_polices)
-            {
-                if (process.name.find(policy.config) != std::wstring::npos)
-                {
-					resp.results.push_back({
-							   policy.policy_id,
-							   process.name
-						});
-                    return true;
+		if (process.modules.size() == 0)
+		{
+			for (auto& policy : process_polices)
+			{
+				if (process.name.find(policy.config) == std::wstring::npos)
+				{
+					continue;
 				}
-            }
-        }
+				resp.results.push_back({
+						   policy.policy_id,
+						   process.name
+					});
+                break;
+			}
+            return true;
+		}
 
-        auto process_path = process.modules.front().path;
-        if (process_polices.size() > 0)
-        {
-            for (auto& policy : process_polices)
-            {
-                if (process_path.find(policy.config) != std::wstring::npos)
-                {
-					resp.results.push_back({
-							   policy.policy_id,
-							   process_path
-						});
-					return true;
-                }
-            }
-        }
+		if (resp.results.size() > 0) {
+			return false;
+		}
 
-        if (process_name_and_size_polices.size() > 0)
-        {
-            for (auto& policy : process_name_and_size_polices)
-            {
-                std::wstring process_name;
-                uint32_t process_size;
+		auto process_path = process.modules.front().path;
+		if (process_polices.size() > 0)
+		{
+			for (auto& policy : process_polices)
+			{
+				if (process_path.find(policy.config) == std::wstring::npos)
+				{
+					continue;
+				}
+				resp.results.push_back({
+						   policy.policy_id,
+						   process_path
+					});
+				break;
+			}
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
+
+		if (process_name_and_size_polices.size() > 0)
+		{
+			for (auto& policy : process_name_and_size_polices)
+			{
+				std::wstring process_name;
+				uint32_t process_size;
 				size_t pos = policy.config.find(L"|");
 				if (pos != std::wstring::npos) {
 					process_name = policy.config.substr(0, pos);
 					std::wstring part2 = policy.config.substr(pos + 1);
-					swscanf_s(part2.c_str(), L"%d", &process_size);
+					process_size = std::stoul(part2);
 				}
-                if (process_name.empty() || process_size == 0) {
-                    continue;
-                }
-                if (process_path.find(process_name) != std::wstring::npos && process.process_file_size == process_size)
-                {
+				if (process_name.empty() || process_size == 0) {
+					continue;
+				}
+				if (process_path.find(process_name) != std::wstring::npos && process.process_file_size == process_size)
+				{
 					resp.results.push_back({
 							   policy.policy_id,
 							   process_path
 						});
-                    return true;
-                }
-            }
-        }
+					break;
+				}
+			}
+		}
 
-        if (file_polices.size())
-        {
-            auto walk_path = std::filesystem::path(process_path).parent_path();
-            std::error_code ec;
-            size_t file_count = 0;
-            for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
-            {
-                if (file_count > 100) break;
-                for (auto &policy : file_polices)
-                {
-                    if (file.path().filename().wstring().find(policy.config) != std::wstring::npos)
-                    {
-						resp.results.push_back({
-								policy.policy_id,
-								file.path().filename().wstring()
-							});
-						return true;
-                    }
-                }
-                file_count++;
-            }
-        }
-        
+		if (resp.results.size() > 0) {
+			return false;
+		}
 
-        if (module_polices.size() > 0)
-        {
-            for (auto& module : process.modules)
-            {
-                for (auto& policy : module_polices)
-                {
-                    if (module.path.find(policy.config) != std::wstring::npos)
-                    {
-                        resp.results.push_back({
-                                policy.policy_id,
-                                module.path
-                            });
-						return true;
-                    }
-                }
-            }
-        }
-        return true;
-    });
+		if (file_polices.size())
+		{
+			auto walk_path = std::filesystem::path(process_path).parent_path();
+			std::error_code ec;
+			size_t file_count = 0;
+			bool founded = false;
+			for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
+			{
+				if (file_count > 100) break;
+				for (auto& policy : file_polices)
+				{
+					if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+					{
+						continue;
+					}
+					resp.results.push_back({
+							policy.policy_id,
+							file.path().filename().wstring()
+						});
+					founded = true;
+					break;
+				}
+				if (founded)
+					break;
+				file_count++;
+			}
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
+
+		if (module_polices.size() > 0)
+		{
+			bool founded = false;
+			for (auto& module : process.modules)
+			{
+				for (auto& policy : module_polices)
+				{
+					if (module.path.find(policy.config) == std::wstring::npos)
+					{
+						continue;
+					}
+					resp.results.push_back({
+							policy.policy_id,
+							module.path
+						});
+					founded = true;
+					break;
+				}
+				if (founded)
+					break;
+			}
+		}
+		return true;
+	});
     client->send(&resp);
 }
 
