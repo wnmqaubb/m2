@@ -410,10 +410,15 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
                 resp.results.push_back({
                            policy.policy_id,
                            process.name
-                    });
-            }
-            return true;
-        }
+					});
+				break;
+			}
+			return true;
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
 
         auto process_path = process.modules.front().path;
         if (process_polices.size() > 0)
@@ -427,9 +432,14 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
                 resp.results.push_back({
                            policy.policy_id,
                            process_path
-                    });
-            }
-        }
+					});
+				break;
+			}
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
 
         if (file_polices.size())
         {
@@ -457,7 +467,10 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
                 file_count++;
             }
         }
-        
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
 
         if (module_polices.size() > 0)
         {
@@ -477,8 +490,10 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
             }
         }
         return true;
-    });
-    client->send(&resp);
+	});
+	if (resp.results.size() > 0) {
+		client->send(&resp);
+	}
 	VMP_VIRTUALIZATION_END();
 
 }

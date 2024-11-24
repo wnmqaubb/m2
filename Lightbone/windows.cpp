@@ -778,6 +778,16 @@ bool CWindows::is_process_open_from_explorer(uint32_t pid)
     return false;
 }
 
+BOOL CALLBACK CWindows::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+	//过滤掉非窗体和有不可见样式的窗体
+	if (!::IsWindow(hwnd)/* || !IsWindowVisible(hwnd)*/)
+		return TRUE;
+
+	auto results = (std::vector<HWND>*)lParam;
+	results->push_back(hwnd);
+	return TRUE;
+}
+
 CWindows::WindowsList CWindows::enum_windows()
 {
     auto EnumDesktopWindows = IMPORT(L"user32.dll", EnumDesktopWindows);
@@ -787,28 +797,35 @@ CWindows::WindowsList CWindows::enum_windows()
 
     WindowsList result;
     std::vector<HWND> hwnds;
-    EnumDesktopWindows(NULL, [](HWND hwnd, LPARAM param)->BOOL {
-        auto results = (std::vector<HWND>*)param;
-        results->push_back(hwnd);
-        return TRUE;
-    }, (LPARAM)&hwnds);
-
+    EnumDesktopWindows(NULL, CWindows::EnumWindowsProc, (LPARAM)&hwnds);
+    DWORD process_id;
+    DWORD thread_id;
     for (HWND hwnd : hwnds)
     {
-        WCHAR caption[MAX_PATH] = { 0 };
+        /*WCHAR caption[MAX_PATH] = { 0 };
         WCHAR class_name[MAX_PATH] = { 0 };
         GetWindowTextW(hwnd, caption, MAX_PATH - 1);
-        GetClassNameW(hwnd, class_name, MAX_PATH - 1);
-        DWORD process_id;
-        DWORD thread_id;
-        thread_id = GetWindowThreadProcessId(hwnd, &process_id);
-        WindowInfo window;
-        window.caption = caption;
-        window.class_name = class_name;
-        window.hwnd = hwnd;
-        window.pid = process_id;
-        window.tid = thread_id;
-        result.push_back(window);
+        GetClassNameW(hwnd, class_name, MAX_PATH - 1);*/
+        PSTR pszMem = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
+        PSTR pszCls = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
+        if (pszMem != NULL)
+        {
+            ::GetWindowText(hwnd, (LPWSTR)pszMem, MAX_PATH);
+            ::GetClassNameW(hwnd, (LPWSTR)pszCls, MAX_PATH);
+            if (_wcsicmp((LPWSTR)pszMem, L"") != NULL && _wcsicmp((LPWSTR)pszCls, L"") != NULL && !IsIconic(hwnd) && IsWindowVisible(hwnd))
+            {
+                thread_id = GetWindowThreadProcessId(hwnd, &process_id);
+                WindowInfo window;
+                window.caption = (LPWSTR)pszMem;
+                window.class_name = (LPWSTR)pszCls;
+                window.hwnd = hwnd;
+                window.pid = process_id;
+                window.tid = thread_id;
+                result.push_back(window);
+            }
+        }
+        VirtualFree(pszMem, 0, MEM_RELEASE);
+        VirtualFree(pszCls, 0, MEM_RELEASE);
     }
     return result;
 }
