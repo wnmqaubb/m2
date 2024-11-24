@@ -27,7 +27,28 @@ RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 	SetClientPlugLoad = g_InitRecord.SetClientPlugLoad;
 	SendDataToClient = g_InitRecord.SendDataToClient;
 	LockClient = g_InitRecord.LockClient;
-	AddShowLog("====加载网关插件完成====", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                          ====加载及时雨网关插件完成====", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                0Q交流:331101339", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                           ※※※  优雅永不过时  ※※※", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                           ※※※  沉静游戏模式  ※※※", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                           ※※※  最舒适的使用  ※※※", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                           ※※※  最高效的运行  ※※※", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                       ", 0);
+	AddShowLog("                                                                                          ", 0);
 	char m_ExeDir[MAX_PATH];
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
@@ -36,7 +57,7 @@ RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 		AddShowLog("请在Config.ini配置及时雨网关IP [GuardGate]-->GateIP", 0);
 	}
 	else {
-		DbgPrint("=====及时雨网关IP:%s=====", guard_gate_ip.c_str());
+		DbgPrint("                       =====及时雨网关IP:%s=====", guard_gate_ip.c_str());
 	}
 }
 
