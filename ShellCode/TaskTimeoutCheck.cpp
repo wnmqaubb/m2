@@ -27,23 +27,44 @@ void TimeOutCheckRoutine()
 {
     VMP_VIRTUALIZATION_BEGIN()
 	last_time_out_check_timepoint = std::chrono::system_clock::now();
-    if ((std::chrono::system_clock::now() - last_recv_timepoint > (_client->heartbeat_duration() * 12 * 3))
+    if ((last_time_out_check_timepoint - last_recv_timepoint > (_client->heartbeat_duration() * 12 * 3))
         ||
-        (std::chrono::system_clock::now() - last_send_timepoint > (_client->heartbeat_duration() * 12 * 3))
+        (last_time_out_check_timepoint - last_send_timepoint > (_client->heartbeat_duration() * 12 * 3))
         ||
-        (std::chrono::system_clock::now() - last_recv_heartbeat_timepoint > (_client->heartbeat_duration() * 12 * 3))
+        (last_time_out_check_timepoint - last_recv_heartbeat_timepoint > (_client->heartbeat_duration() * 12 * 3))
 		||
-		(std::chrono::system_clock::now() - last_js_report_timepoint > std::chrono::minutes(5))
+		(last_time_out_check_timepoint - last_js_report_timepoint > std::chrono::minutes(5))
 		||
 		reconnect_count >= 5
         )
     {
-        GameLocalFuntion::instance().messagebox_call(xorstr("与服务器断开连接"));
+		if ((last_time_out_check_timepoint - last_recv_timepoint > (_client->heartbeat_duration() * 12 * 3)))
+		{
+			OutputDebugStringA("TimeOutCheckRoutine recv timeout");
+		}
+		if ((last_time_out_check_timepoint - last_send_timepoint > (_client->heartbeat_duration() * 12 * 3)))
+		{
+			OutputDebugStringA("TimeOutCheckRoutine send timeout");
+		}
+		if ((last_time_out_check_timepoint - last_recv_heartbeat_timepoint > (_client->heartbeat_duration() * 12 * 3)))
+		{
+			OutputDebugStringA("TimeOutCheckRoutine recv heartbeat timeout");
+		}
+		if ((last_time_out_check_timepoint - last_js_report_timepoint > std::chrono::minutes(5)))
+		{
+			OutputDebugStringA("TimeOutCheckRoutine js report timeout");
+		}
+		if (reconnect_count >= 5)
+		{
+			OutputDebugStringA("TimeOutCheckRoutine reconnect count timeout");
+		}
+        GameLocalFuntion::instance().messagebox_call(xorstr("涓庢湇鍔″櫒鏂紑杩炴帴"));
         static asio::steady_timer exit_game_delay(g_game_io);
         exit_game_delay.expires_after(std::chrono::seconds(10));
         exit_game_delay.async_wait([](std::error_code ec) {
             auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
             char ntdll_name[] = { 'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l' ,0 };
+			OutputDebugStringA ("TimeOutCheckRoutine exit game");
             Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(ntdll_name));
         });
     }

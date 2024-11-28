@@ -535,6 +535,7 @@ private:
 
 void async_execute_javascript(const std::string& sv, uint32_t script_id)
 {
+    if (sv.empty()) return;
     g_js_io.post([sv = sv, script_id]() {
         try 
         {

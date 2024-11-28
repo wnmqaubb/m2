@@ -207,7 +207,7 @@ $(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDi
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>_HAS_SHARED_MUTEX=1;WIN32;NDEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>LOG_SHOW;_HAS_SHARED_MUTEX=1;WIN32;NDEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -239,9 +239,6 @@ $(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDi
     <PostBuildEvent>
       <Command>mkdir $(TargetDir)\plugin
 del /f /s /q $(TargetDir)\plugin\*
-$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\TaskBasic.vmp
-del /f /s /q $(TargetPath)
-copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
 $(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\
 </Command>
     </PostBuildEvent>

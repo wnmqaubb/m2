@@ -1,13 +1,17 @@
-#include "NewClient/pch.h"
+ï»¿#include "NewClient/pch.h"
 #include "TaskBasic.h"
 
 void __declspec(noinline) UnitPunishKick(std::error_code ec)
 {
+    OutputDebugStringA("UnitPunishKick");
     g_game_io.post([](){
-        std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5));
+		std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5));
+		Utils::CWindows::instance().exit_process();
+		exit(-1);
+		abort();
         auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
         char ntdll_name[] = { 'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l' ,0 };
         Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(ntdll_name));
     });
-    GameLocalFuntion::instance().messagebox_call("YK·â¹ÒÌáÊ¾£ºÇëÎğ¿ª¹Ò½øĞĞÓÎÏ·£¡·ñÔòÓĞÀ¶ÆÁ·âºÅ´¦·£");
+    GameLocalFuntion::instance().messagebox_call("å°æŒ‚æç¤ºï¼šè¯·å‹¿å¼€æŒ‚è¿›è¡Œæ¸¸æˆï¼å¦åˆ™æœ‰å°å·æ‹‰é»‘é£é™©å¤„ç½š");
 }

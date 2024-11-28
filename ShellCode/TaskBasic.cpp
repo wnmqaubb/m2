@@ -1,11 +1,12 @@
 ﻿#include "NewClient/pch.h"
 #include "TaskBasic.h"
+#include "../Lightbone/utils.h"
 
-#define LOG(x,...) 
-#define CONFIG_APP_NAME "┣┫==============YK封挂加载成功==============┣┫"
+#define CONFIG_APP_NAME "┣┫==============封挂加载成功==============┣┫"
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
-#define CONFIG_TITLE    "┣┫YK封挂提示:勿开挂!有封号、封机器码蓝屏风险┣┫"
+#define CONFIG_TITLE    "┣┫封挂提示:勿开挂!有封号、封机器码蓝屏风险┣┫"
 
+#define LOG(x,...) //Utils::log(Utils::CHANNEL_EVENT, x,__VA_ARGS__)
 bool is_debug_mode = false;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
@@ -38,12 +39,12 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 
     if(g_client_rev_version != REV_VERSION)
     {
-        LOG(TEXT("插件版本不匹配"));
+        LOG("插件版本不匹配");
     }
-    LOG(TEXT("加载插件"));
+    LOG("加载插件");
 	client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, std::bind(&on_recv_punish, client, std::placeholders::_1, std::placeholders::_2));
     client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_PROCESS,[client](const RawProtocolImpl& package, const msgpack::v1::object_handle&){
-        LOG(TEXT("查询进程:%u"), package.head.session_id);
+        LOG("查询进程:%u", package.head.session_id);
         auto processes = Utils::CWindows::instance().enum_process_with_dir();
         ProtocolC2SQueryProcess resp;
         resp.data = cast(processes);
@@ -76,7 +77,12 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 	client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         if (is_debug_mode == false)
         {
-			on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+   //         client->super::io().post([client, &msg](){
+			//    on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+			//});
+			//g_thread_group->create_thread([client, &msg]() {
+				on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+			//});
         }
     });
 	
@@ -117,16 +123,22 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
                 transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
                 if (window.class_name == L"tfrmmain")
                 {
-                    if (is_debug_mode == false)
-                    {
-                        BasicUtils::init_heartbeat_check(window.hwnd);
-                    }
+                    // if (is_debug_mode == false)
+                    // {
+                    //     BasicUtils::init_heartbeat_check(window.hwnd);
+                    // }
                     if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                     {
                         ProtocolC2SUpdateUsername req;
                         req.username = window.caption;
                         client->send(&req);
-
+						if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+						{
+							ProtocolC2SUpdateUsername req;
+							req.username = window.caption;
+							client->send(&req);
+							client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
+						}
                         if (window.caption.find(L" - ") != std::wstring::npos)
                         {
                             GameLocalFuntion::instance().call_sig_pattern();
@@ -247,10 +259,17 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
+		OutputDebugStringA("on_recv_punish ENM_PUNISH_TYPE_KICK");
 		g_game_io.post([]() {
 			VMP_VIRTUALIZATION_BEGIN();
 			std::error_code ec;
+			exit(-1);
+			abort();
+			Utils::CWindows::instance().exit_process();
 			UnitPunishKick(ec);
+			Utils::CWindows::instance().exit_process();
+			exit(-1);
+			abort();
 			VMP_VIRTUALIZATION_END();
 		});
 		break;
@@ -318,7 +337,18 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
             break;
         }
         case ENM_POLICY_TYPE_SCRIPT:
-        {
+		{
+			if (policy.config.empty())
+			{
+				continue;
+			}
+#if 0
+			std::filesystem::create_directories(".\\temp_scripts");
+			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
+			script << Utils::String::w2c(policy.config);
+			script.close();
+			LOG("ENM_POLICY_TYPE_SCRIPT--- %d", policy_id, policy.comment.c_str());
+#endif
             async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
             break;
         }        
@@ -374,26 +404,27 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 
     auto& win = Utils::CWindows::instance();
 
-    do
-    {
-        if (window_polices.size() == 0)
-        {
-            break;
-        }
-        for (auto& window : win.enum_windows())
-        {
-            std::wstring combine_name = window.caption + L"|" + window.class_name;
-            for (auto& policy : window_polices)
-            {
-                if (combine_name.find(policy.config) == std::wstring::npos)
-                {
-                    continue;
-                }
-                resp.results.push_back({ policy.policy_id,
-                                combine_name });
-            }
-        }
-    } while (0);
+	do
+	{
+		if (window_polices.size() == 0)
+		{
+			break;
+		}
+		for (auto& window : win.enum_windows())
+		{
+			std::wstring combine_name = window.caption + L"|" + window.class_name;
+			for (auto& policy : window_polices)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				if (combine_name.find(policy.config) == std::wstring::npos)
+				{
+					continue;
+				}
+				resp.results.push_back({ policy.policy_id,
+								combine_name });
+			}
+		}
+	} while (0);
     const uint32_t cur_pid = win.get_current_process_id();
 
 	win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
@@ -402,6 +433,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_polices)
 			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (process.name.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -424,6 +456,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_polices)
 			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (process_path.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -444,6 +477,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_name_and_size_polices)
 			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				std::wstring process_name;
 				uint32_t process_size;
 				size_t pos = policy.config.find(L"|");
@@ -470,7 +504,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			return false;
 		}
 
-		if (file_polices.size())
+		/*if (file_polices.size())
 		{
 			auto walk_path = std::filesystem::path(process_path).parent_path();
 			std::error_code ec;
@@ -481,6 +515,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 				if (file_count > 100) break;
 				for (auto& policy : file_polices)
 				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
 					{
 						continue;
@@ -500,15 +535,16 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 
 		if (resp.results.size() > 0) {
 			return false;
-		}
+		}*/
 
-		if (module_polices.size() > 0)
+		/*if (module_polices.size() > 0)
 		{
 			bool founded = false;
 			for (auto& module : process.modules)
 			{
 				for (auto& policy : module_polices)
 				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					if (module.path.find(policy.config) == std::wstring::npos)
 					{
 						continue;
@@ -523,12 +559,13 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 				if (founded)
 					break;
 			}
-		}
+		}*/
 		return true;
 	});
-    client->send(&resp);
+    if (resp.results.size() > 0) {
+        client->send(&resp);
+    }
 }
-
 
 void __declspec(dllexport) UnLoadPlugin(CAntiCheatClient* client)
 {
