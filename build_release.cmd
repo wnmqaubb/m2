@@ -10,7 +10,6 @@ mkdir %OutputDir%
 ::"D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe" AntiCheat.sln /build "Release|x86"
 ::"D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe" Tools/PackerTool/packer_tool.vcxproj /rebuild "Release|x86"
 
-
 ::echo ***************构建方案***************
 ::devenv.exe AntiCheat.sln /rebuild "Release2|x86"
 
@@ -26,11 +25,10 @@ set admin_server=%OutputDir%admin_server\%2
 VMProtect_Con.exe %ReleaseDir%\Service.exe %gm_server%\g_Service.exe -pf ServiceRelease_blue.vmp
 VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %gm_server%\g_LogicServer.exe -pf LogicRelease_blue.vmp
 VMProtect_Con.exe %ReleaseDir%\GateF.exe %gm_server%\及时雨定制版.exe -pf GateRelease_blue.vmp
-VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\AdminGate.exe -pf AdminGateRelease.vmp
+VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %admin_server%\AdminGate.exe -pf AdminGateRelease.vmp
 echo D|xcopy %ReleaseDir%\plugin\* %gm_server%plugin\ /y
 
 ::echo ***************admin_server***************
-echo F|xcopy %ReleaseDir%\AdminGate.exe %admin_server%AdminGate.exe /y
 echo F|xcopy %ReleaseDir%\packer.exe %admin_server%packer.exe /y
 echo F|xcopy %ReleaseDir%\packer_tool.exe %admin_server%packer_tool.exe /y
 echo F|xcopy %ReleaseDir%\NewClient.dll %admin_server%NewClient.dll /y
