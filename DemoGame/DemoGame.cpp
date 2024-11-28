@@ -9,30 +9,55 @@
 #include "Service/SubServicePackage.h"
 #include "Service/NetUtils.h"
 #include "Tools/Packer/loader.h"
+#include "asio2/base/selector.hpp"
+#include "asio2/util/sha1.hpp"
+#include "asio2/util/base64.hpp"
+#include <../../14.41.34120/include/iosfwd>
 
 using client_entry_t = decltype(&client_entry);
 namespace fs = std::filesystem;
+void on_recv_pkg_policy(ProtocolS2CPolicy& req);
 int main(int argc, char** argv)
 {
-#ifdef _DEBUG
-    /*auto hmodule = LoadLibraryA("NewClient.dll");
-    client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
-    share_data_ptr_t param = new share_data_t();
-    param->stage = 1;
-    ProtocolCFGLoader cfg;
-    cfg.set_field(ip_field_id, kDefaultLocalhost);
-    cfg.set_field(port_field_id, kDefaultServicePort);
-    cfg.set_field(test_mode_field_id, true);
-    auto cfg_bin = cfg.dump();
-    param->cfg_size = cfg_bin.size();
-    memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
-    entry(param);*/
+#ifndef _DEBUG
+	//while (true)
+	//{
+		//ProtocolS2CPolicy req;
+		//std::ifstream file("D:\\work\\Repos\\yk\\build\\bin\\gm_server_vip\\config.cfg", std::ios::in | std::ios::binary);
+		//if (file.is_open())
+		//{
+		//	std::stringstream ss;
+		//	ss << file.rdbuf();
+		//	auto str = ss.str();
+		//	req = *ProtocolS2CPolicy::load(str.data(), str.size());
+		//	file.close();
+		//}
+		//std::cout << "开始运行" << std::endl;
+		//auto start = std::chrono::steady_clock::now(); // 记录开始时间
+		//on_recv_pkg_policy(req); 
+		//auto end = std::chrono::steady_clock::now(); // 记录结束时间
+		//auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+		//std::cout << "结束运行" << elapsed << std::endl;
+		//std::this_thread::sleep_for(std::chrono::minutes(1));
+	//}
+	auto hmodule = LoadLibraryA("NewClient.dll");
+	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+	share_data_ptr_t param = new share_data_t();
+	param->stage = 1;
+	ProtocolCFGLoader cfg;
+	cfg.set_field(ip_field_id, kDefaultLocalhost);
+	cfg.set_field(port_field_id, kDefaultServicePort);
+	cfg.set_field(test_mode_field_id, true);
+	auto cfg_bin = cfg.dump();
+	param->cfg_size = cfg_bin.size();
+	memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
+	entry(param);
 	/*std::wstring volume_serial_number = std::any_cast<std::wstring>(Utils::HardwareInfo::get_volume_serial_number());
 	unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
     std::cout << volume_serial_number_hash_val << std::endl;
     getchar();*/
-
-    std::cout << "Hello World" << sizeof(share_data_t) - offsetof(share_data_t, ret_opcode) << "  " << offsetof(share_data_t, ret_opcode);
+	
+    //std::cout << "Hello World" << sizeof(share_data_t) - offsetof(share_data_t, ret_opcode) << "  " << offsetof(share_data_t, ret_opcode);
 #else
     fs::path path(argv[0]);
     std::ifstream file(path.parent_path() / "client.bin", std::ios::in | std::ios::binary);
@@ -61,4 +86,235 @@ int main(int argc, char** argv)
 #endif
     getchar();
     std::cout << "Hello World!\n";
+}
+
+void on_recv_pkg_policy(ProtocolS2CPolicy& req)
+{	
+	ProtocolC2SPolicy resp;
+	std::vector<ProtocolPolicy> module_polices;
+	std::vector<ProtocolPolicy> process_polices;
+	std::vector<ProtocolPolicy> process_name_and_size_polices;
+	std::vector<ProtocolPolicy> file_polices;
+	std::vector<ProtocolPolicy> window_polices;
+	std::vector<ProtocolPolicy> thread_polices;
+	for (auto& [policy_id, policy] : req.policies)
+	{
+		switch (policy.policy_type)
+		{
+			case ENM_POLICY_TYPE_MODULE_NAME:
+			{
+				module_polices.push_back(policy);
+				break;
+			}
+			case ENM_POLICY_TYPE_PROCESS_NAME:
+			{
+				process_polices.push_back(policy);
+				break;
+			}
+			case ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE:
+			{
+				process_name_and_size_polices.push_back(policy);
+				break;
+			}
+			case ENM_POLICY_TYPE_FILE_NAME:
+			{
+				file_polices.push_back(policy);
+				break;
+			}
+			case ENM_POLICY_TYPE_WINDOW_NAME:
+			{
+				window_polices.push_back(policy);
+				break;
+			}
+			case ENM_POLICY_TYPE_THREAD_START:
+			{
+				thread_polices.push_back(policy);
+				break;
+			}
+			
+			default:
+				break;
+		}
+	}
+	// 获取代码执行前的时间点
+	auto start = std::chrono::high_resolution_clock::now();
+
+	auto& win = Utils::CWindows::instance();
+
+	do
+	{
+		if (window_polices.size() == 0)
+		{
+			break;
+		}
+		auto windows = win.enum_windows();
+		if (GetLastError())
+		{
+			std::cout << " enum_windows GetLastError :" << GetLastError() << std::endl;
+		}
+		for (const auto& window : windows)
+		{
+			std::wstring combine_name = window.caption + L"|" + window.class_name;
+			for (auto& policy : window_polices)
+			{
+				//std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				if (combine_name.find(policy.config) == std::wstring::npos)
+				{
+					continue;
+				}
+				resp.results.push_back({ policy.policy_id,
+								combine_name });
+			}
+		}
+	} while (0);
+
+	// 获取代码执行后的时间点
+	auto end = std::chrono::high_resolution_clock::now();
+
+	// 计算时间差
+	std::chrono::duration<double> elapsed_seconds = end - start;
+
+	// 输出代码执行所花费的时间（以秒为单位）
+	std::cout << "1代码执行花费了 " << elapsed_seconds.count() << " 秒" << std::endl;
+
+	const uint32_t cur_pid = win.get_current_process_id();
+
+	win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
+
+		if (process.modules.size() == 0)
+		{
+			for (auto& policy : process_polices)
+			{
+				if (process.name.find(policy.config) == std::wstring::npos)
+				{
+					continue;
+				}
+				resp.results.push_back({
+						   policy.policy_id,
+						   process.name
+					});
+				break;
+			}
+			return true;
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
+
+		auto process_path = process.modules.front().path;
+		if (process_polices.size() > 0)
+		{
+			for (auto& policy : process_polices)
+			{
+				if (process_path.find(policy.config) == std::wstring::npos)
+				{
+					continue;
+				}
+				resp.results.push_back({
+						   policy.policy_id,
+						   process_path
+					});
+				break;
+			}
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
+
+		if (process_name_and_size_polices.size() > 0)
+		{
+			for (auto& policy : process_name_and_size_polices)
+			{
+				std::wstring process_name;
+				uint32_t process_size;
+				size_t pos = policy.config.find(L"|");
+				if (pos != std::wstring::npos) {
+					process_name = policy.config.substr(0, pos);
+					std::wstring part2 = policy.config.substr(pos + 1);
+					process_size = std::stoul(part2);
+				}
+				if (process_name.empty() || process_size == 0) {
+					continue;
+				}
+				if (process_path.find(process_name) != std::wstring::npos && process.process_file_size == process_size)
+				{
+					resp.results.push_back({
+							   policy.policy_id,
+							   process_path
+						});
+					break;
+				}
+			}
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
+
+		if (file_polices.size())
+		{
+			auto walk_path = std::filesystem::path(process_path).parent_path();
+			std::error_code ec;
+			size_t file_count = 0;
+			bool founded = false;
+			for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
+			{
+				if (file_count > 100) break;
+				for (auto& policy : file_polices)
+				{
+					if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+					{
+						continue;
+					}
+					resp.results.push_back({
+							policy.policy_id,
+							file.path().filename().wstring()
+						});
+					founded = true;
+					break;
+				}
+				if (founded)
+					break;
+				file_count++;
+			}
+		}
+
+		if (resp.results.size() > 0) {
+			return false;
+		}
+
+		if (module_polices.size() > 0)
+		{
+			bool founded = false;
+			for (auto& module : process.modules)
+			{
+				for (auto& policy : module_polices)
+				{
+					if (module.path.find(policy.config) == std::wstring::npos)
+					{
+						continue;
+					}
+					resp.results.push_back({
+							policy.policy_id,
+							module.path
+						});
+					founded = true;
+					break;
+				}
+				if (founded)
+					break;
+			}
+		}
+		if (resp.results.size() > 0) {
+			return false;
+		}
+		return true;
+		});
+	if (resp.results.size() > 0) {
+		std::wcout << L"detect policy ok" << resp.results[0].policy_id << " " << resp.results[0].information.c_str() << std::endl;
+	}else{
+		std::wcout << L"detect policy failed" << std::endl;
+	}
 }
