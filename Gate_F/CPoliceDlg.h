@@ -52,5 +52,5 @@ public:
 	BOOL m_check_better_policy;
 	BOOL m_check_best_policy;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
-	afx_msg void OnBnClickedButton1();
+	afx_msg void OnBnClickedRefreshPolicy();
 };

@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 
 #include "AntiCheatServer.h"
 #include "NetUtils.h"
@@ -9,7 +9,7 @@
 #endif
 
 #if ENABLE_PROXY_TUNNEL
-//todo Îö¹¹ÊÍ·Å
+//todo æžæž„é‡Šæ”¾
 class GameProxyTunnel : public ProxyTunnel
 {
 public:
@@ -25,13 +25,13 @@ public:
 	}
     void on_connect(const std::error_code& ec)
     {
-        log(LOG_TYPE_DEBUG, TEXT("ÓÎÏ·Í¨µÀ½¨Á¢Á¬½Ó %s:%d"),
+        log(LOG_TYPE_DEBUG, TEXT("æ¸¸æˆé€šé“å»ºç«‹è¿žæŽ¥ %s:%d"),
             Utils::c2w(get_address()).c_str(),
             get_port());
     }
     void on_disconnect(const std::error_code& ec)
     {
-        log(LOG_TYPE_DEBUG, TEXT("ÓÎÏ·Í¨µÀÊ§È¥Á¬½Ó %s:%d"),
+        log(LOG_TYPE_DEBUG, TEXT("æ¸¸æˆé€šé“å¤±åŽ»è¿žæŽ¥ %s:%d"),
             Utils::c2w(get_address()).c_str(),
             get_port());
     }
@@ -42,7 +42,7 @@ public:
     }
     void on_send(const std::error_code& ec, std::size_t length)
     {
-        log(LOG_TYPE_DEBUG, TEXT("ÓÎÏ·Í¨µÀ·¢ËÍÏûÏ¢ %s:%d ³¤¶È:%d %s"),
+        log(LOG_TYPE_DEBUG, TEXT("æ¸¸æˆé€šé“å‘é€æ¶ˆæ¯ %s:%d é•¿åº¦:%d %s"),
             Utils::c2w(get_address()).c_str(),
             get_port(),
             length,
@@ -56,7 +56,7 @@ private:
 
 
 #if ENABLE_GAME_MATCH_ROLE
-//ÓÎÏ·½â°üÂß¼­£¬ÔÝÊ±²»ÓÃ
+//æ¸¸æˆè§£åŒ…é€»è¾‘ï¼Œæš‚æ—¶ä¸ç”¨
 class match_role
 {
 public:
@@ -99,7 +99,7 @@ private:
 CAntiCheatServer::CAntiCheatServer()
 	: super()
 {
-	//ÑéÖ¤Ïà¹Ø£¬serverless ÔÆº¯Êý+Êý¾Ý¿â
+	//éªŒè¯ç›¸å…³ï¼Œserverless äº‘å‡½æ•°+æ•°æ®åº“
 	auth_check_timer_ = std::chrono::minutes(24 * 60);
     auth_url_ = "";//"http://service-4v2g0j35-1305025354.sh.apigw.tencentcs.com/release/check";
 	auth_ticket_ = "1234";
@@ -162,7 +162,7 @@ bool CAntiCheatServer::check_timer(bool slience)
     }
     catch (...)
     {
-        log(Event, TEXT("ÈÏÖ¤·þÎñÆ÷´íÎó %s"), Utils::c2w(Utils::from_utf8(body)).c_str());
+        log(Event, TEXT("è®¤è¯æœåŠ¡å™¨é”™è¯¯ %s"), Utils::c2w(Utils::from_utf8(body)).c_str());
     }
 #endif
 	return false;
@@ -170,7 +170,7 @@ bool CAntiCheatServer::check_timer(bool slience)
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
-    log(LOG_TYPE_DEBUG, TEXT("½ÓÊÜ %s:%d"),
+    log(LOG_TYPE_DEBUG, TEXT("æŽ¥å— %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
     get_user_data(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
@@ -178,12 +178,12 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_init()
 {
-    log(LOG_TYPE_EVENT, TEXT("Ì×½Ó×Ö³õÊ¼»¯³É¹¦"));
+    log(LOG_TYPE_EVENT, TEXT("å¥—æŽ¥å­—åˆå§‹åŒ–æˆåŠŸ"));
 }
 
 void CAntiCheatServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
-    log(LOG_TYPE_DEBUG, TEXT("¶Ï¿ªÁ¬½Ó %s:%d"),
+    log(LOG_TYPE_DEBUG, TEXT("æ–­å¼€è¿žæŽ¥ %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
 	if (is_enable_proxy_tunnel())
@@ -198,7 +198,7 @@ void CAntiCheatServer::on_start(error_code_t ec)
 {
 	if (!ec)
 	{
-		log(LOG_TYPE_EVENT, TEXT("¿ªÊ¼¼àÌý:%s:%d %s"),
+		log(LOG_TYPE_EVENT, TEXT("å¼€å§‹ç›‘å¬:%s:%d %s"),
 			Utils::c2w(listen_address()).c_str(),
 			listen_port(),
 			Utils::c2w(ec.message()).c_str());
@@ -206,7 +206,7 @@ void CAntiCheatServer::on_start(error_code_t ec)
 	}
 	else
 	{
-		log(LOG_TYPE_EVENT, TEXT("¼àÌýÊ§°Ü:%s:%d %s"),
+		log(LOG_TYPE_EVENT, TEXT("ç›‘å¬å¤±è´¥:%s:%d %s"),
 			Utils::c2w(listen_address()).c_str(),
 			listen_port(),
 			Utils::c2w(ec.message()).c_str());
@@ -215,7 +215,7 @@ void CAntiCheatServer::on_start(error_code_t ec)
 
 void CAntiCheatServer::on_stop(error_code_t ec)
 {
-    log(LOG_TYPE_EVENT, TEXT("Í£Ö¹¼àÌý:%s:%d %s"),
+    log(LOG_TYPE_EVENT, TEXT("åœæ­¢ç›‘å¬:%s:%d %s"),
         Utils::c2w(listen_address()).c_str(),
         listen_port(),
         Utils::c2w(ec.message()).c_str());
@@ -331,7 +331,7 @@ void CAntiCheatServer::on_recv(tcp_session_shared_ptr_t& session, std::string_vi
     }
     catch (...)
     {
-        log(LOG_TYPE_DEBUG, TEXT("ÊÕ°ü½âÎöÒì³£:%s:%d ³¤¶È:%d"),
+        log(LOG_TYPE_DEBUG, TEXT("æ”¶åŒ…è§£æžå¼‚å¸¸:%s:%d é•¿åº¦:%d"),
             Utils::c2w(session->remote_address()).c_str(),
             session->remote_port(),
             sv.size());
@@ -344,7 +344,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 {
     if (sv.size() == 0)
     {
-        log(LOG_TYPE_ERROR, TEXT("Ð­Òéµ×²ã´íÎó:%s:%d ³¤¶È:%d"),
+        log(LOG_TYPE_ERROR, TEXT("åè®®åº•å±‚é”™è¯¯:%s:%d é•¿åº¦:%d"),
             Utils::c2w(session->remote_address()).c_str(),
             session->remote_port(),
             sv.size());
@@ -363,7 +363,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     {
 		if (!package.decode(sv))
         {
-            log(LOG_TYPE_DEBUG, TEXT("½â°üÐ£ÑéÊ§°Ü:%s:%d ³¤¶È:%d"),
+            log(LOG_TYPE_DEBUG, TEXT("è§£åŒ…æ ¡éªŒå¤±è´¥:%s:%d é•¿åº¦:%d"),
                 Utils::c2w(session->remote_address()).c_str(),
                 session->remote_port(),
                 sv.size());
@@ -374,7 +374,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     {
 		if (!package.decode(sv))
         {
-            log(LOG_TYPE_DEBUG, TEXT("½â°üÐ£ÑéÊ§°Ü:%s:%d ³¤¶È:%d"),
+            log(LOG_TYPE_DEBUG, TEXT("è§£åŒ…æ ¡éªŒå¤±è´¥:%s:%d é•¿åº¦:%d"),
                 Utils::c2w(session->remote_address()).c_str(),
                 session->remote_port(),
                 sv.size());
@@ -384,7 +384,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 #else
     if (!package.decode(sv))
     {
-        log(LOG_TYPE_DEBUG, TEXT("½â°üÐ£ÑéÊ§°Ü:%s:%d ³¤¶È:%d"),
+        log(LOG_TYPE_DEBUG, TEXT("è§£åŒ…æ ¡éªŒå¤±è´¥:%s:%d é•¿åº¦:%d"),
             Utils::c2w(session->remote_address()).c_str(),
             session->remote_port(),
             sv.size());
@@ -402,7 +402,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (package.head.step != user_data->step + 1)
     {
         user_data->set_field("miss_count", user_data->get_field<int>("miss_count") + 1);
-        log(LOG_TYPE_DEBUG, TEXT("[%s:%d] ·¢ÏÖ¶ª°ü»òÖØ·Å¹¥»÷"),
+        log(LOG_TYPE_DEBUG, TEXT("[%s:%d] å‘çŽ°ä¸¢åŒ…æˆ–é‡æ”¾æ”»å‡»"),
             Utils::c2w(session->remote_address()).c_str(),
             session->remote_port());
     }
@@ -417,7 +417,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 
     if (user_data->has_handshake == false)
     {
-        log(LOG_TYPE_ERROR, TEXT("[%s:%d] Î´ÎÕÊÖÓÃ»§"),
+        log(LOG_TYPE_ERROR, TEXT("[%s:%d] æœªæ¡æ‰‹ç”¨æˆ·"),
             Utils::c2w(session->remote_address()).c_str(),
             session->remote_port());
         return;
@@ -430,7 +430,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 		return;
     }
 #if 0
-    log(Debug, TEXT("ÊÕµ½Êý¾Ý°ü:%s:%d ³¤¶È:%d"),
+    log(Debug, TEXT("æ”¶åˆ°æ•°æ®åŒ…:%s:%d é•¿åº¦:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port(),
         sv.size());
@@ -441,7 +441,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     }
     if (!on_recv(package_id, session, package, raw_msg))
     {
-        log(LOG_TYPE_ERROR, TEXT("[%s:%d] Î´Öª°üid %d"),
+        log(LOG_TYPE_ERROR, TEXT("[%s:%d] æœªçŸ¥åŒ…id %d"),
             Utils::c2w(session->remote_address()).c_str(),
             session->remote_port(),
             package_id);
@@ -450,7 +450,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 
 void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 {
-	log(LOG_TYPE_DEBUG, TEXT("½¨Á¢Á¬½Ó %s:%d"),
+	log(LOG_TYPE_DEBUG, TEXT("å»ºç«‹è¿žæŽ¥ %s:%d"),
 		Utils::c2w(session->remote_address()).c_str(),
 		session->remote_port());
 #if ENABLE_PROXY_TUNNEL
@@ -459,13 +459,13 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 		auto userdata = get_user_data(session);
 		userdata.game_proxy_tunnel->start();
 		userdata.game_proxy_tunnel->set_recv_callback([this, session_id = session->hash_key()](const std::vector<char>& buf, const std::error_code& ec, std::size_t length){
-			log(LOG_TYPE_DEBUG, TEXT("ÓÎÏ·Í¨µÀÊÕµ½ÏûÏ¢ ³¤¶È:%d"),
+			log(LOG_TYPE_DEBUG, TEXT("æ¸¸æˆé€šé“æ”¶åˆ°æ¶ˆæ¯ é•¿åº¦:%d"),
 				length);
 			this->send(session_id, buf.data(), length);
 		});
 	}
 #endif
-	//ÎÕÊÖ³¬Ê±¼ì²é
+	//æ¡æ‰‹è¶…æ—¶æ£€æŸ¥
 	session->start_timer((unsigned int)UUID_CHECK_TIMER_ID, uuid_check_duration_, [this, session]() {
 		auto userdata = get_user_data(session);
 		if (userdata->has_handshake == false)
@@ -488,21 +488,21 @@ void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, cons
 
 void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)
 {
-    log(LOG_TYPE_DEBUG, TEXT("ÎÕÊÖ %s:%d"),
+    log(LOG_TYPE_DEBUG, TEXT("æ¡æ‰‹ %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
 	auto userdata = get_user_data(session);
 	memcpy(userdata->uuid, msg.uuid, sizeof(msg.uuid));
 	userdata->has_handshake = true;
-	//ÎÕÊÖ³¬Ê±¼ì²éÈ¡Ïû
+	//æ¡æ‰‹è¶…æ—¶æ£€æŸ¥å–æ¶ˆ
     session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
-	//ÐÄÌø³¬Ê±¼ì²é
+	//å¿ƒè·³è¶…æ—¶æ£€æŸ¥
 	session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_, [this, session]() {
 		auto userdata = get_user_data(session);
 		auto duration = userdata->get_heartbeat_duration();
 		if (duration > heartbeat_timeout_)
 		{
-			log(LOG_TYPE_ERROR, TEXT("%s:%d ÐÄÌø³¬Ê±%dÃë"), Utils::c2w(session->remote_address()).c_str(),
+			log(LOG_TYPE_ERROR, TEXT("%s:%d å¿ƒè·³è¶…æ—¶%dç§’"), Utils::c2w(session->remote_address()).c_str(),
 				session->remote_port(), std::chrono::duration_cast<std::chrono::seconds>(duration).count());
 			session->stop();
 		}

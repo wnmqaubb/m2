@@ -602,6 +602,18 @@ void CClientView::OnExitGame()
     SendCurrentSelectedUserCommand(&req);
 }
 
+uint32_t CClientView::next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies) {
+	uint32_t policy_id = GATE_POLICY_ID + 1;
+
+	while (policies.find(policy_id) != policies.end()) {
+		policy_id++;
+		if (policy_id >= GATE_ADMIN_POLICY_ID) {
+			break;
+		}
+	}
+	return policy_id;
+}
+
 void CClientView::OnIpBan()
 {
     auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
@@ -622,12 +634,7 @@ void CClientView::OnIpBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
@@ -663,13 +670,8 @@ void CClientView::OnMacBan()
         ss << file.rdbuf();
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-        auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		auto& Policies = Cfg->policies;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
@@ -706,13 +708,8 @@ void CClientView::OnIpWhiteAdd()
         ss << file.rdbuf();
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-        auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		auto& Policies = Cfg->policies;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;
@@ -749,13 +746,8 @@ void CClientView::OnMacWhiteAdd()
         ss << file.rdbuf();
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-        auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		auto& Policies = Cfg->policies;
+		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;

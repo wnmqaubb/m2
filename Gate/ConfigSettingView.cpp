@@ -112,7 +112,7 @@ int CConfigSettingView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     GetClientRect(&rectDummy);
 
     // ´´½¨ÊÓÍ¼: 
-    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | LVS_SHOWSELALWAYS;
 
     if (!m_ViewList.Create(dwViewStyle, rectDummy, this, ID_CFG_ADD))
     {
@@ -287,4 +287,19 @@ void CConfigSettingView::OnConfigDel()
 void CConfigSettingView::OnConfigSave()
 {
     GetDocument()->DoFileSave();
+}
+
+void CConfigSettingView::ScrollToAddByPolicyId(int policy_id)
+{
+    for (int i = 0; i < m_ViewList.GetItemCount(); i++)
+    {
+        CString cstrPolicyId = m_ViewList.GetItemText(i, 1);
+        uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
+        if (uiPolicyId == policy_id)
+        {   
+            m_ViewList.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            m_ViewList.EnsureVisible(i, FALSE);
+            return;
+        }
+    }
 }

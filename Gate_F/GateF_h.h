@@ -4,7 +4,7 @@
 
 
  /* File created by MIDL compiler version 7.00.0555 */
-/* at Tue Nov 12 23:40:40 2024
+/* at Sat Nov 16 00:41:30 2024
  */
 /* Compiler settings for GateF.idl:
     Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 7.00.0555 

@@ -45,7 +45,7 @@ int CProcessSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
     }
 
     // 创建输出窗格: 
-    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | LVS_SHOWSELALWAYS;
 
     if (!m_wndModuleInfo.Create(dwViewStyle, rectDummy, &m_wndTabs, 2) ||
         !m_wndThreadInfo.Create(dwViewStyle, rectDummy, &m_wndTabs, 3) ||

@@ -217,12 +217,6 @@ void CServerPolicyMgr::add_policy(unsigned int file_hash, ProtocolS2CPolicy& pol
 
 void CServerPolicyMgr::add_policy(ProtocolPolicy& policy)
 {
-    if (policy.policy_type == ENM_POLICY_TYPE_MACHINE)
-    {
-        std::shared_lock<std::shared_mutex> lck(mtx_);
-        if(mac_ban_policy_.find(NetUtils::hash(policy.config.c_str(), policy.config.size())) != mac_ban_policy_.end())
-            return;
-    }
     std::filesystem::path g_cfg_path = g_cur_dir / "config.cfg";
 
     std::ifstream file(g_cfg_path, std::ios::in | std::ios::binary);
@@ -375,22 +369,72 @@ void CServerPolicyMgr::on_policy_reload()
     }
 
     {
-        std::unique_lock<std::shared_mutex> lck(mtx_);
-        mac_ban_policy_.clear();
-        mac_white_policy_.clear();
-        for (auto[policy_id, policy] : policy_.policies)
-        {
-            if (policy.policy_type == ENM_POLICY_TYPE_MACHINE)
-            {
-                if (policy.punish_type == ENM_PUNISH_TYPE_SUPER_WHITE_LIST)
-                {
-                    mac_white_policy_.emplace(std::make_pair(NetUtils::hash(policy.config.c_str(), policy.config.size()), policy));
-                }
-                else
-                {
-                    mac_ban_policy_.emplace(std::make_pair(NetUtils::hash(policy.config.c_str(), policy.config.size()), policy));
-                }
-            }
-        }
+		std::unique_lock<std::shared_mutex> lck(mtx_);
+		mac_ban_set_.clear();
+		ip_ban_set_.clear();
+		rolename_ban_set_.clear();
+		mac_white_set_.clear();
+		ip_white_set_.clear();
+		rolename_white_set_.clear();
+		std::string path;
+		path = "机器码黑名单.txt";
+		read_file_white_and_black(g_cur_dir / path, mac_ban_set_);
+		path = "IP黑名单.txt";
+		read_file_white_and_black(g_cur_dir / path, ip_ban_set_);
+		path = "角色名黑名单.txt";
+		read_file_white_and_black(g_cur_dir / path, rolename_ban_set_);
+        path = "机器码白名单.txt";
+		read_file_white_and_black(g_cur_dir / path, mac_white_set_);
+		path = "IP白名单.txt";
+		read_file_white_and_black(g_cur_dir / path, ip_white_set_);
+		path = "角色名白名单.txt";
+		read_file_white_and_black(g_cur_dir / path, rolename_white_set_);
+	}
+}
+
+void CServerPolicyMgr::read_file_white_and_black(const std::filesystem::path& filePath, std::unordered_set<unsigned int>& white_and_black_list)
+{
+	if (filePath.empty())
+		return;
+	std::ifstream inFile(filePath);
+	if (inFile.is_open())
+	{
+		std::string line_txt;
+		while (std::getline(inFile, line_txt))
+		{
+			white_and_black_list.emplace(NetUtils::hash(line_txt.c_str(), line_txt.size()));
+		}
+		inFile.close();
+	}
+}
+// 白名单优先级高于黑名单
+bool CServerPolicyMgr::is_svip(const std::string& mac, const std::string& ip, const std::string& rolename) 
+{
+	std::shared_lock<std::shared_mutex> lck(mtx_);
+    if (mac_white_set_.find(NetUtils::hash(mac.c_str(), mac.size())) != mac_white_set_.end()) {
+        return true;
     }
+    if (ip_white_set_.find(NetUtils::hash(ip.c_str(), ip.size())) != ip_white_set_.end()) {
+        return true;
+    }
+    if (rolename_white_set_.find(NetUtils::hash(rolename.c_str(), rolename.size())) != rolename_white_set_.end()) {
+        return true;
+    }
+    return false;
+}
+
+// 黑名单
+bool CServerPolicyMgr::is_ban(const std::string& mac, const std::string& ip, const std::string& rolename)
+{
+	std::shared_lock<std::shared_mutex> lck(mtx_);
+	if (mac_ban_set_.find(NetUtils::hash(mac.c_str(), mac.size())) != mac_ban_set_.end()) {
+		return true;
+	}
+	if (ip_ban_set_.find(NetUtils::hash(ip.c_str(), ip.size())) != ip_ban_set_.end()) {
+		return true;
+	}
+	if (rolename_ban_set_.find(NetUtils::hash(rolename.c_str(), rolename.size())) != rolename_ban_set_.end()) {
+		return true;
+	}
+	return false;
 }

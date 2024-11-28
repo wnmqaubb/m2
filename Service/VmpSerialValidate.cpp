@@ -160,8 +160,8 @@ int VmpSerialValidator::http_query_sn_status(const std::string& sn)
     VMProtectBeginVirtualization(__FUNCTION__);
     try
     {
-		const std::string host = "43.139.236.115";
-		const char* port = "5178";
+		const std::string host = "121.43.101.216";
+		const char* port = "13568";
         asio2::base64 base64;
         auto base64_sn = base64.encode((unsigned char*)sn.data(), sn.size());
         asio2::http_client http_client;

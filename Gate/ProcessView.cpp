@@ -6,6 +6,8 @@
 #include "framework.h"
 #include "Gate.h"
 
+#include "ConfigSettingDoc.h"
+#include "ConfigSettingView.h"
 #include "ProcessChildFrm.h"
 #include "ProcessDoc.h"
 #include "ProcessView.h"
@@ -237,13 +239,8 @@ void CProcessView::OnProcessNameBan()
         ss << file.rdbuf();
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-        auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		auto& Policies = Cfg->policies;
+		unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -255,7 +252,8 @@ void CProcessView::OnProcessNameBan()
         str = Cfg->dump();
         output.write(str.data(), str.size());
         output.close();
-        theApp.OnServiceSettings();
+		theApp.OnServiceSettings();
+        ScrollToAddByPolicyId(uiLastPolicyId);
     }
 }
 
@@ -279,13 +277,8 @@ void CProcessView::OnProcessNameAndSizeBan()
         ss << file.rdbuf();
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-        auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		auto& Policies = Cfg->policies;
+		unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -298,9 +291,17 @@ void CProcessView::OnProcessNameAndSizeBan()
         output.write(str.data(), str.size());
         output.close();
         theApp.OnServiceSettings();
+        ScrollToAddByPolicyId(uiLastPolicyId);
     }
 }
 
+void CProcessView::ScrollToAddByPolicyId(int policy_id) {
+	auto pSettingDoc = ((CConfigSettingDoc*)theApp.m_ConfigDoc);
+	if (pSettingDoc->GetView<CConfigSettingView>())
+	{
+		pSettingDoc->GetView<CConfigSettingView>()->ScrollToAddByPolicyId(policy_id);
+	}
+}
 
 void CProcessView::OnProcessPathBan()
 {
@@ -321,13 +322,8 @@ void CProcessView::OnProcessPathBan()
         ss << file.rdbuf();
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
-        auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		auto& Policies = Cfg->policies;
+		unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_gm_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -339,6 +335,7 @@ void CProcessView::OnProcessPathBan()
         str = Cfg->dump();
         output.write(str.data(), str.size());
         output.close();
-        theApp.OnServiceSettings();
+		theApp.OnServiceSettings();
+        ScrollToAddByPolicyId(uiLastPolicyId);
     }
 }

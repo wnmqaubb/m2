@@ -80,7 +80,11 @@ void CConfigSettingSubViewWnd::FillProp(CDocument* pDoc, ProtocolPolicy& Policy)
     m_PropEditForm->m_PolicyIdEdit.SetReadOnly(Policy.create_by_admin);
 #endif
     m_PropEditForm->m_PolicyIdEdit.SetWindowText(temp);
-    m_PropEditForm->m_PolicyTypeComboBox.SetCurSel(Policy.policy_type);
+    int index = m_PropEditForm->m_PolicyTypeComboBox.FindString(-1, ConvertToString((PolicyType)Policy.policy_type));
+	if (index != -1)
+	{
+        m_PropEditForm->m_PolicyTypeComboBox.SetCurSel(index);
+	}
     m_PropEditForm->m_PunishTypeComboBox.SetCurSel(Policy.punish_type);
     m_PropEditForm->m_PolicyConfigEdit.SetWindowText(Policy.config.c_str());
     m_PropEditForm->m_PolicyCommentEdit.SetWindowText(Policy.comment.c_str());

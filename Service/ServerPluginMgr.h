@@ -33,32 +33,12 @@ public:
     void remove_policy_file(const std::string& file_name);
     std::set<unsigned int> get_policy_file_hash_set();
     void on_policy_reload();
+    void read_file_white_and_black(const std::filesystem::path& filePath, std::unordered_set<unsigned int>& white_and_black_list);
+    bool is_svip(const std::string& mac, const std::string& ip, const std::string& rolename);
+    bool is_ban(const std::string& mac, const std::string& ip, const std::string& rolename);
     int get_multi_client_limit_count() const { return multi_client_limit_count_; }
     PunishType get_multi_client_limit_punish_type() const { return multi_client_limit_punish_type_; }
     ProtocolPolicy& get_multi_client_policy() { return multi_client_policy_; }
-    std::unordered_map<unsigned int, ProtocolPolicy> get_mac_ban_policy() { std::shared_lock<std::shared_mutex> lck(mtx_); return mac_ban_policy_; }
-    bool is_ip_or_mac_ban(const std::wstring& val, ProtocolPolicy& policy) 
-    { 
-        std::shared_lock<std::shared_mutex> lck(mtx_);
-        auto hash_val = NetUtils::hash(val.c_str(), val.size());
-        if (mac_ban_policy_.find(hash_val) != mac_ban_policy_.end())
-        {
-            policy = mac_ban_policy_[hash_val];
-            return true;
-        }
-        return false;
-    }
-    bool is_ip_or_mac_in_super_white_list(const std::wstring& val, ProtocolPolicy& policy)
-    {
-        std::shared_lock<std::shared_mutex> lck(mtx_);
-        auto hash_val = NetUtils::hash(val.c_str(), val.size());
-        if (mac_white_policy_.find(hash_val) != mac_white_policy_.end())
-        {
-            policy = mac_white_policy_[hash_val];
-            return true;
-        }
-        return false;
-    }
 protected:
     std::shared_mutex mtx_;
     std::unordered_map<unsigned int, ProtocolS2CPolicy> policy_cache_;
@@ -66,6 +46,10 @@ protected:
     int multi_client_limit_count_ = 999;
     PunishType multi_client_limit_punish_type_ = ENM_PUNISH_TYPE_NO_OPEARATION;
     ProtocolPolicy multi_client_policy_;
-    std::unordered_map<unsigned int, ProtocolPolicy> mac_ban_policy_;
-    std::unordered_map<unsigned int, ProtocolPolicy> mac_white_policy_;
+    std::unordered_set<unsigned int> mac_ban_set_;
+    std::unordered_set<unsigned int> ip_ban_set_;
+    std::unordered_set<unsigned int> rolename_ban_set_;
+    std::unordered_set<unsigned int> mac_white_set_;
+    std::unordered_set<unsigned int> ip_white_set_;
+    std::unordered_set<unsigned int> rolename_white_set_;
 };

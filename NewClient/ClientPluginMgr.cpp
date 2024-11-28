@@ -77,8 +77,14 @@ bool CClientPluginMgr::load_plugin(plugin_hash_t plugin_hash, const std::string&
         return false;
     }
     decltype(&LoadPlugin) plugin_entry = (decltype(&LoadPlugin))ApiResolver::get_proc_address(plugin_handle, ApiResolver::hash("LoadPlugin"));
-    if (plugin_entry)
-        plugin_entry(instance_);
+	if (plugin_entry) {
+#if 1
+		char path[MAX_PATH];
+		sprintf_s(path, MAX_PATH, "plugin_entry %08X", plugin_entry);
+		OutputDebugStringA(path);
+#endif
+		plugin_entry(instance_);
+	}
     ProtocolModuleInfo module_info;
     module_info.base = (uintptr_t)plugin_handle;
     module_info.module_name = Utils::String::c2w(filename);

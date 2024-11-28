@@ -181,6 +181,7 @@ namespace Utils
         LIGHT_BONE_API std::wstring get_process_path(uint32_t pid, __in  ProcessMap& processes);
         LIGHT_BONE_API uint32_t get_process_parent(uint32_t pid);
         LIGHT_BONE_API bool is_process_open_from_explorer(uint32_t pid);
+        static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
         LIGHT_BONE_API static void* get_proc_address(uint32_t module_hash, uint32_t func_hash);
         LIGHT_BONE_API bool is_64bits_system();
         LIGHT_BONE_API bool is_64bits_process(HANDLE process_handle);

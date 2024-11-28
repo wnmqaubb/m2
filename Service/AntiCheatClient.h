@@ -6,6 +6,7 @@
 #include "SubServicePackage.h"
 #include <filesystem>
 #include <fstream>
+#include "Lightbone/utils.h"
 
 using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
 
@@ -182,7 +183,7 @@ public:
         result = result + "[Event]" + time_str + "|";
         std::ofstream output(file, std::ios::out | std::ios::app);
 
-        result = result + text + "\n";
+        result = result + Utils::String::to_utf8(text) + "\n";
 
         output << result;
         output.close();

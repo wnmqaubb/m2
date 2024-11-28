@@ -51,6 +51,7 @@ public:
 	
     afx_msg void OnProcessNameBan();
 	afx_msg void OnProcessNameAndSizeBan();
+	void ScrollToAddByPolicyId(int policy_id);
 	afx_msg void OnProcessPathBan();
 };
 

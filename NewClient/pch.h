@@ -22,4 +22,11 @@
 #include "Lightbone/lighthook.h"
 #include "Lightbone/xorstr.hpp"
 #include "qjs.h"
+
+//#ifdef LOG_SHOW
+//#define LOG(x,...) LOG_EVENT(x, __VA_ARGS__)
+//#else 
+//#define LOG(x,...)
+//#endif
+
 #endif //PCH_H

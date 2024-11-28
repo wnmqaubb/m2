@@ -229,6 +229,7 @@ inline std::map<uint32_t, ProtocolProcessInfo> cast(const std::map<uint32_t, CWi
         new_child.directories = cast(child.second.directories);
         new_child.no_access = child.second.no_access;
         new_child.is_64bits = child.second.is_64bits;
+        new_child.process_file_size = child.second.process_file_size;
         return std::pair<uint32_t, ProtocolProcessInfo>(child.first, new_child);
     });
     return std::move(result);

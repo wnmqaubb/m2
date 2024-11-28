@@ -44,7 +44,7 @@ BEGIN_MESSAGE_MAP(CPoliceDlg, CDialogEx)
 	ON_COMMAND(ID_CFG_SAVE, &CPoliceDlg::OnConfigSave)
 	ON_WM_CTLCOLOR()
 	ON_BN_CLICKED(IDC_BUTTON_POLICY_COMMIT, &CPoliceDlg::OnConfigSave)
-	ON_BN_CLICKED(IDC_BUTTON1, &CPoliceDlg::OnBnClickedButton1)
+	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CPoliceDlg::OnBnClickedRefreshPolicy)
 END_MESSAGE_MAP()
 
 BOOL CPoliceDlg::OnInitDialog()
@@ -170,27 +170,6 @@ void CPoliceDlg::OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	NM_LISTVIEW* pNMListView = (NM_LISTVIEW*)pNMHDR;
 
-	if (pNMListView->uChanged == LVIF_STATE)
-	{
-		if (pNMListView->uNewState & LVIS_SELECTED)
-		{
-			int nItem = pNMListView->iItem;
-			CString cstrPolicyId = m_list_polices.GetItemText(nItem, 1);
-			CString policy_type_str = m_list_polices.GetItemText(nItem, 2);
-			uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
-			PolicyType policy_type = ConvertToPolicyType(policy_type_str);
-			if (policy_type == ENM_POLICY_TYPE_BACK_GAME ||
-				policy_type == ENM_POLICY_TYPE_EXIT_GAME ||
-				policy_type == ENM_POLICY_TYPE_ACTION_SPEED_WALK ||
-				policy_type == ENM_POLICY_TYPE_ACTION_SPEED_HIT ||
-				policy_type == ENM_POLICY_TYPE_ACTION_SPEED_SPELL
-				)
-			{
-				return;
-			}
-			//GetParentCChild()->m_wndSubViewWnd.FillProp(GetDocument(), GetDocument()->GetPolicy().policies.find(uiPolicyId)->second);
-		}
-	}
 }
 
 void CPoliceDlg::OnConfigAdd()
@@ -302,7 +281,7 @@ void CPoliceDlg::EditCell(int nRow, int nCol)
 	m_nCurSelCol = nCol;
 	CFont* pOldFont;
 	CRect rect;
-	int nLength,lineHeight;
+	int nLength,lineHeight,index;
 	m_list_polices.GetSubItemRect(nRow, nCol, LVIR_BOUNDS, rect);
 
 	// 将列表控件的客户区坐标转换为对话框的客户区坐标
@@ -356,7 +335,11 @@ void CPoliceDlg::EditCell(int nRow, int nCol)
 			break;
 		case 2: // 策略类型下拉框
 			m_combo_policy_type.MoveWindow(rect);
-			m_combo_policy_type.SetCurSel(ConvertToPolicyType(m_list_polices.GetItemText(nRow, nCol)));
+			index = m_combo_policy_type.FindString(-1, m_list_polices.GetItemText(nRow, nCol)); 
+			if (index != -1)
+			{
+				m_combo_policy_type.SetCurSel(index);
+			}
 			m_combo_policy_type.ShowWindow(SW_SHOW);
 			// 应用单元格的字体
 			m_combo_policy_type.SetFont(pCellFont);
@@ -366,7 +349,11 @@ void CPoliceDlg::EditCell(int nRow, int nCol)
 		case 3: // 处罚类型下拉框			
 			m_combo_punish_type.MoveWindow(rect);
 			OnCbnDropdownComboPunishType(m_list_polices.GetItemText(nRow, 2));
-			m_combo_punish_type.SetCurSel(ConvertToPunishType(m_list_polices.GetItemText(nRow, nCol)));
+			index = m_combo_punish_type.FindString(-1, m_list_polices.GetItemText(nRow, nCol));
+			if (index != -1)
+			{
+				m_combo_punish_type.SetCurSel(index);
+			}
 			m_combo_punish_type.ShowWindow(SW_SHOW);
 			// 应用单元格的字体
 			m_combo_punish_type.SetFont(pCellFont);
@@ -426,9 +413,10 @@ void CPoliceDlg::OnCbnDropdownComboPunishType(CString policy_type)
 	std::map<PolicyType, std::vector<PunishType>> config = {
 		{ENM_POLICY_TYPE_MODULE_NAME,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
 		{ENM_POLICY_TYPE_PROCESS_NAME,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
+		{ENM_POLICY_TYPE_PROCESS_NAME_AND_SIZE,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
 		{ENM_POLICY_TYPE_FILE_NAME,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
 		{ENM_POLICY_TYPE_WINDOW_NAME,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
-		{ENM_POLICY_TYPE_MACHINE,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE,ENM_PUNISH_TYPE_SUPER_WHITE_LIST}},
+		//{ENM_POLICY_TYPE_MACHINE,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE,ENM_PUNISH_TYPE_SUPER_WHITE_LIST}},
 		{ENM_POLICY_TYPE_MULTICLIENT,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
 		{ENM_POLICY_TYPE_SHELLCODE,{ENM_PUNISH_TYPE_KICK,ENM_PUNISH_TYPE_NO_OPEARATION,ENM_PUNISH_TYPE_BAN_MACHINE}},
 	};
@@ -477,9 +465,8 @@ HBRUSH CPoliceDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	return hbr;
 }
 
-void CPoliceDlg::OnBnClickedButton1()
+void CPoliceDlg::OnBnClickedRefreshPolicy()
 {
-	OnConfigSave();
 	theApp.OpenConfig();
 	RefreshViewList();
 }

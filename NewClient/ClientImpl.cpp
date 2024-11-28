@@ -1,10 +1,10 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ClientImpl.h"
 #include "version.build"
 
-#define log(x,...)
-
 using namespace Utils;
+
+#define log(LOG_TYPE,x,...) log(LOG_TYPE, x, __VA_ARGS__ )
 
 CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
 {
@@ -21,13 +21,13 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
     plugin_mgr_->set_client_instance(this);
 
     notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("Ê§È¥Á¬½Ó"));
+        log(LOG_TYPE_DEBUG, TEXT("å¤±å»è¿æ¥"));
     });
     notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("Á¬½ÓÊ§°Ü"));
+        log(LOG_TYPE_DEBUG, TEXT("è¿æ¥å¤±è´¥"));
     });
     notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("ÎÕÊÖ"));
+        log(LOG_TYPE_DEBUG, TEXT("æ¡æ‰‹"));
         ProtocolC2SHandShake handshake;
         memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
         handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
@@ -45,31 +45,44 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             ProtocolC2SHeartBeat heartbeat;
             heartbeat.tick = time(0);
             send(&heartbeat);
-            log(LOG_TYPE_DEBUG, TEXT("·¢ËÍĞÄÌø"));
+            log(LOG_TYPE_DEBUG, TEXT("å‘é€å¿ƒè·³"));
 		});
-		// ·¢ËÍÓÃ»§Ãû ·ÀÖ¹¶Ï¿ªºóÖØÁ¬Ê±Íø¹ØÓÃ»§ÃûÎª¿Õ
+		// å‘é€ç”¨æˆ·å é˜²æ­¢æ–­å¼€åé‡è¿æ—¶ç½‘å…³ç”¨æˆ·åä¸ºç©º
 		notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
     notify_mgr().register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
         ProtocolC2SQueryPlugin req;
         send(&req);
-        log(LOG_TYPE_DEBUG, TEXT("²éÑ¯²å¼şÁĞ±í"));
+        log(LOG_TYPE_DEBUG, TEXT("æŸ¥è¯¢æ’ä»¶åˆ—è¡¨"));
     });
     notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("½ÓÊÕĞÄÌø"));
+        log(LOG_TYPE_DEBUG, TEXT("æ¥æ”¶å¿ƒè·³"));
 #if 0
-        ProtocolC2SQueryPlugin req;
-        send(&req);
-        log(Debug, TEXT("²éÑ¯²å¼şÁĞ±í"));
+		/*ProtocolC2SQueryPlugin req;
+		send(&req);
+		log(Debug, TEXT("æŸ¥è¯¢æ’ä»¶åˆ—è¡¨"));*/
+		start_timer(19051, std::chrono::minutes(2), [this]() {
+			ProtocolC2STaskEcho echo;
+			echo.task_id = 689051;
+			echo.is_cheat = false;
+			echo.text = Utils::String::from_utf8("9051_test");
+			send(&echo);
+			echo.task_id = 689060;
+			echo.is_cheat = false;
+			echo.text = Utils::String::from_utf8("9060_test");
+			send(&echo);
+			notify_mgr().dispatch(CLIENT_ON_JS_REPORT_NOTIFY_ID);
+			log(LOG_TYPE_DEBUG, TEXT("9051_test_and_9060_test"));
+		});
 #endif
     });
     start_timer(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
         ProtocolC2SQueryPlugin req;
         send(&req);
-        log(LOG_TYPE_DEBUG, TEXT("²éÑ¯²å¼şÁĞ±í"));
+        log(LOG_TYPE_DEBUG, TEXT("æŸ¥è¯¢æ’ä»¶åˆ—è¡¨"));
     });
     notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
-        log(LOG_TYPE_DEBUG, TEXT("¿Í»§¶Ë³õÊ¼»¯³É¹¦"));
+        log(LOG_TYPE_DEBUG, TEXT("å®¢æˆ·ç«¯åˆå§‹åŒ–æˆåŠŸ"));
         user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
         user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
         user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
@@ -81,7 +94,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
     });
     package_mgr().register_handler(SPKG_ID_S2C_QUERY_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto msg = raw_msg.get().as<ProtocolS2CQueryPlugin>();
-        log(LOG_TYPE_DEBUG, TEXT("ÊÕµ½²å¼şÁĞ±í£º%d"), msg.plugin_list.size());
+        log(LOG_TYPE_DEBUG, TEXT("æ”¶åˆ°æ’ä»¶åˆ—è¡¨ï¼š%d"), msg.plugin_list.size());
         auto& resp = raw_msg.get().as<ProtocolS2CQueryPlugin>();
         for (auto[plugin_hash, plugin_name] : resp.plugin_list)
         {
@@ -92,11 +105,11 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
                     super::io().post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
                         if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
                         {
-                            log(LOG_TYPE_DEBUG, TEXT("¼ÓÔØ»º´æ²å¼ş³É¹¦£º%s"), Utils::String::c2w(plugin_name).c_str());
+                            log(LOG_TYPE_DEBUG, TEXT("åŠ è½½ç¼“å­˜æ’ä»¶æˆåŠŸï¼š%s"), Utils::String::c2w(plugin_name).c_str());
                         }
                         else
                         {
-                            log(LOG_TYPE_DEBUG, TEXT("¼ÓÔØ»º´æ²å¼şÊ§°Ü£º%s"), Utils::String::c2w(plugin_name).c_str());
+                            log(LOG_TYPE_DEBUG, TEXT("åŠ è½½ç¼“å­˜æ’ä»¶å¤±è´¥ï¼š%s"), Utils::String::c2w(plugin_name).c_str());
                         }
                     });
                 }
@@ -120,11 +133,11 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
         super::io().post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
             if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
             {
-                log(LOG_TYPE_DEBUG, TEXT("¼ÓÔØÔ¶³Ì²å¼ş³É¹¦£º%s"), Utils::String::c2w(plugin_name).c_str());
+                log(LOG_TYPE_DEBUG, TEXT("åŠ è½½è¿œç¨‹æ’ä»¶æˆåŠŸï¼š%s"), Utils::String::c2w(plugin_name).c_str());
             }
             else
             {
-                log(LOG_TYPE_DEBUG, TEXT("¼ÓÔØÔ¶³Ì²å¼ş³É¹¦£º%s"), Utils::String::c2w(plugin_name).c_str());
+                log(LOG_TYPE_DEBUG, TEXT("åŠ è½½è¿œç¨‹æ’ä»¶æˆåŠŸï¼š%s"), Utils::String::c2w(plugin_name).c_str());
             }
         });
     });
@@ -150,7 +163,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)
 {
-    log(LOG_TYPE_DEBUG, TEXT("ÊÕµ½:%d"), package_id);
+    log(LOG_TYPE_DEBUG, TEXT("æ”¶åˆ°:%d"), package_id);
 }
 
 void CClientImpl::load_uuid()

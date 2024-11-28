@@ -1,4 +1,4 @@
-﻿// COBSCLogicDlg.cpp: 实现文件
+// COBSCLogicDlg.cpp: 实现文件
 //
 
 #include "pch.h"

@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
 
@@ -176,11 +176,11 @@ CObserverServer::CObserverServer(asio::io_service& io_)
             &pi);
         if (res == FALSE)
         {
-            log(LOG_TYPE_EVENT, TEXT("¸üĞÂLogicServerÊ§°Ü"));
+            log(LOG_TYPE_EVENT, TEXT("æ›´æ–°LogicServerå¤±è´¥"));
         }
         else
         {
-            log(LOG_TYPE_EVENT, TEXT("¸üĞÂLogicServer³É¹¦"));
+            log(LOG_TYPE_EVENT, TEXT("æ›´æ–°LogicServeræˆåŠŸ"));
         }
     });
     user_notify_mgr_.register_handler(CLIENT_HANDSHAKE_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
@@ -247,7 +247,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     {
         if (get_user_data(session)->get_field<bool>("is_observer_client") == false)
         {
-            log(LOG_TYPE_ERROR, TEXT("Î´ÊÚÈ¨Serviceµ÷ÓÃ"));
+            log(LOG_TYPE_ERROR, TEXT("æœªæˆæƒServiceè°ƒç”¨"));
             return false;
         }
         ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
@@ -257,7 +257,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     {
         if (get_user_data(session)->get_field<bool>("is_observer_client") == false)
         {
-            log(LOG_TYPE_ERROR, TEXT("Î´ÊÚÈ¨LogicServerµ÷ÓÃ"));
+            log(LOG_TYPE_ERROR, TEXT("æœªæˆæƒLogicServerè°ƒç”¨"));
             return false;
         }
         ProtocolLC2LSSend req;

@@ -119,6 +119,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     {
     case DLL_PROCESS_ATTACH:
         dll_base = hModule;
+#if 1
+        char path[MAX_PATH];
+        sprintf_s(path, MAX_PATH, "dll_base %08X", dll_base);
+        OutputDebugStringA(path);
+#endif
+        break;
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:

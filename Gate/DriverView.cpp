@@ -103,7 +103,7 @@ int CDriverView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     GetClientRect(&rectDummy);
 
     // 创建视图: 
-    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | LVS_SHOWSELALWAYS;
 
     if (!m_ViewList.Create(dwViewStyle, rectDummy, this, ID_DRIVER_VIEW))
     {

@@ -4,6 +4,7 @@
 #include "ClientViewList.h"
 #include "SearchBar.h"
 #include "MainBar.h"
+#include "Service/SubServicePackage.h"
 
 class CClientView : public CDockablePane
 {
@@ -55,6 +56,7 @@ public:
     afx_msg void OnUpdateLogic();
     afx_msg void OnCmdView();
     afx_msg void OnExitGame();
+    uint32_t next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies);
     afx_msg void OnIpBan();
     afx_msg void OnMacBan();
     afx_msg void OnIpWhiteAdd();

@@ -18,6 +18,8 @@
 // 有关此类的实现，请参阅 Gate.cpp
 //
 
+#define GATE_ADMIN_POLICY_ID 689000
+#define GATE_POLICY_ID 688000
 class CDocTemplateMgr
 {
 public:

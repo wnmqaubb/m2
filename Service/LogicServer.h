@@ -125,6 +125,7 @@ public:
     virtual void write_img(unsigned int session_id, std::vector<uint8_t>& data);
     virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify);
     virtual void punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2 = L"");
+    virtual bool is_svip(unsigned int session_id);
     virtual void detect(tcp_session_shared_ptr_t& session, unsigned int session_id);
 	virtual void close_socket(tcp_session_shared_ptr_t& session, unsigned int session_id);
 	std::string trim_user_name(const std::string& username_);
