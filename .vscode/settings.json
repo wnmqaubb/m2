@@ -1,0 +1,27 @@
+{
+    "files.associations": {
+        "system_error": "cpp",
+        "map": "cpp",
+        "sstream": "cpp",
+        "set": "cpp",
+        "xstring": "cpp",
+        "filesystem": "cpp",
+        "xlocale": "cpp",
+        "xutility": "cpp",
+        "xhash": "cpp",
+        "random": "cpp",
+        "cmath": "cpp",
+        "complex": "cpp",
+        "valarray": "cpp",
+        "charconv": "cpp",
+        "*.ipp": "cpp",
+        "mutex": "cpp",
+        "vector": "cpp",
+        "future": "cpp",
+        "regex": "cpp",
+        "chrono": "cpp",
+        "type_traits": "cpp",
+        "codecvt": "cpp",
+        "memory": "cpp"
+    }
+}
