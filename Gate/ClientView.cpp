@@ -515,9 +515,7 @@ void CClientView::OnRefreshUsers()
                 std::wstring mac = json_data["mac"];
                 std::wstring vol = json_data["vol"];
                 std::string ver = json_data["commit_ver"];
-                temp.Format(_T("%s|%s|%s"), cpuid.c_str(),
-                    mac.c_str(),
-                    vol.c_str());
+                temp.Format(_T("%s|%s|%s"), cpuid.c_str(), mac.c_str(), vol.c_str());
                 int sysver = json_data["sysver"];
                 int is_64bits = json_data["64bits"];
                 m_ViewList.SetItemText(rowNum, colIndex++, temp);
@@ -538,8 +536,7 @@ void CClientView::OnRefreshUsers()
                 temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
                 m_ViewList.SetItemText(rowNum, colIndex++, temp);
                 m_ViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-                temp.Format(TEXT("%d"), client->get_port());
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
                 int miss_count = json_data.find("miss_count") == json_data.end() ? 0 : json_data["miss_count"];
                 float miss_rate = mins == 0 ? 0 : ((float)miss_count / (float)mins);
                 temp.Format(TEXT("%f"), miss_rate);
@@ -567,9 +564,8 @@ void CClientView::OnRefreshServices()
         m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
         m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
         m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-        temp.Format(TEXT("%d"), client->get_port());
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth()&&client->is_connected() ? TEXT("是"): TEXT("否"));
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth()&&client->is_started() ? TEXT("是"): TEXT("否"));
         temp.Format(TEXT("%d"), client->get_user_count());
         m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
         std::wstring wstrLogicVersion;

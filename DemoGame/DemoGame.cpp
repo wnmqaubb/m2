@@ -9,17 +9,16 @@
 #include "Service/SubServicePackage.h"
 #include "Service/NetUtils.h"
 #include "Tools/Packer/loader.h"
-#include "asio2/base/selector.hpp"
 #include "asio2/util/sha1.hpp"
 #include "asio2/util/base64.hpp"
-#include <../../14.41.34120/include/iosfwd>
+#include "Gate/cmdline.h"
 
 using client_entry_t = decltype(&client_entry);
 namespace fs = std::filesystem;
 void on_recv_pkg_policy(ProtocolS2CPolicy& req);
 int main(int argc, char** argv)
 {
-#ifndef _DEBUG
+#ifdef _DEBUG
 	//while (true)
 	//{
 		//ProtocolS2CPolicy req;
@@ -71,7 +70,7 @@ int main(int argc, char** argv)
         share_data_ptr_t param = new share_data_t();
         param->stage = 1;
         ProtocolCFGLoader cfg;
-        cfg.set_field(ip_field_id, "kDefaultLocalhost");
+        cfg.set_field(ip_field_id, kDefaultLocalhost);
         cfg.set_field(port_field_id, kDefaultServicePort);
         auto cfg_bin = cfg.dump();
         param->cfg_size = cfg_bin.size();
@@ -86,6 +85,51 @@ int main(int argc, char** argv)
 #endif
     getchar();
     std::cout << "Hello World!\n";
+}
+
+void test_js(int argc, char** argv) {
+	/*std::vector<std::string> args;
+	for (int i = 1; i < argc; i++) args.push_back(argv[i]);
+
+	auto cmd_handler = [](std::vector<std::string>& cmd) {
+		cmdline::parser a;
+		a.add("js");
+		a.add("connect");
+		a.parse(cmd);
+		if (a.get_program_name() == "js")
+		{
+			a.add<std::string>("path", 'p');
+			a.parse(cmd);
+			auto path = a.get<std::string>("path");
+			std::ifstream file(path, std::ios::in);
+			std::stringstream ss;
+			ss << file.rdbuf();
+			static bool is_init = false;
+			if (!is_init)
+			{
+				test_javascript();
+				InitJavaScript(client.get());
+				is_init = true;
+			}
+			async_execute_javascript(ss.str(), 0);
+		}
+		else if (a.get_program_name() == "connect")
+		{
+			test_connect();
+		}
+		else
+		{
+			std::cerr << a.usage() << std::endl;
+		}
+		};
+
+	cmd_handler(args);
+
+	std::string cmd;
+	while (std::getline(std::cin, cmd))
+	{
+		cmd_handler(split(cmd, " "));
+	}*/
 }
 
 void on_recv_pkg_policy(ProtocolS2CPolicy& req)

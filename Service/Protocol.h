@@ -10,8 +10,8 @@
 #define PROTOCOL_EXPORT
 #endif
 #else
-#ifndef ASIO_HPP
-#include <asio/asio.hpp>
+#ifndef __ASIO2_HPP__
+#include <asio2/asio2.hpp>
 #endif
 #ifndef MSGPACK_OBJECT_HPP
 #include <msgpack.hpp>

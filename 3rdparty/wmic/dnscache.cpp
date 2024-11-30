@@ -80,5 +80,5 @@ private:
 std::vector<CachedDnsRecord> get_dns_cache()
 {
 	auto impl = std::make_unique<DnsCacheImpl>();
-	return std::move(impl->get_dns_cache());
+	return impl->get_dns_cache();
 }

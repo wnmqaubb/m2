@@ -4,79 +4,6 @@
 
 namespace NetUtils
 {
-
-    class CTimerMgr
-    {
-    public:
-        CTimerMgr(asio::io_service& io) :io_(io) {};
-        ~CTimerMgr() { stop_all_timer(); }
-        struct TimerInfo
-        {
-            unsigned int timer_id;
-            asio::steady_timer timer;
-            bool exited = false;
-            std::function<void()> cb;
-            TimerInfo(unsigned int id, asio::io_service& service, std::function<void()> t)
-                : timer_id(id), timer(service), cb(std::move(t)) {}
-        };
-    public:
-        virtual void start_timer(unsigned int timer_id, std::chrono::system_clock::duration duration, std::function<void()> cb)
-        {
-            asio::post(io_, [this, timer_id, duration, cb = std::move(cb)]() {
-                std::unique_lock<std::shared_mutex> lck(mtx_);
-                if (timers_.find(timer_id) != timers_.end())
-                {
-                    return;
-                }
-                auto timer_info = std::make_shared<TimerInfo>(timer_id, io_, std::move(cb));
-                timers_[timer_id] = timer_info;
-                _post_timer(std::move(timer_info), duration);
-            });
-        }
-        virtual void stop_timer(unsigned int timer_id)
-        {
-            asio::post(io_, [this, timer_id]() {
-                std::unique_lock<std::shared_mutex> lck(mtx_);
-                if (timers_.find(timer_id) == timers_.end())
-                    return;
-                timers_[timer_id]->timer.cancel();
-                timers_.erase(timer_id);
-            });
-        }
-
-        virtual void stop_all_timer()
-        {
-            asio::post(io_, [this]() {
-                std::unique_lock<std::shared_mutex> lck(mtx_);
-                for (auto& timer_info : timers_)
-                {
-                    timer_info.second->timer.cancel();
-                }
-                timers_.clear();
-            });
-        }
-
-    protected:
-        void _post_timer(const std::shared_ptr<TimerInfo>& timer_info, std::chrono::system_clock::duration duration)
-        {
-            timer_info->timer.expires_after(duration);
-            timer_info->timer.async_wait([this, duration, timer_info = std::move(timer_info)](std::error_code ec) {
-                std::shared_lock<std::shared_mutex> lck(mtx_);
-                if (ec == asio::error::operation_aborted)
-                {
-                    timer_info->exited = true;
-                    return;
-                }
-                timer_info->cb();
-                _post_timer(timer_info, duration);
-            });
-        }
-        std::shared_mutex mtx_;
-        std::unordered_map<unsigned int, std::shared_ptr<TimerInfo>> timers_;
-        asio::io_service& io_;
-    };
-
-
     template <typename event_handler_type>
     class EventMgr
     {
@@ -284,7 +211,7 @@ enum FieldId
 enum TimerId
 {
     DEFINE_TIMER_ID(CLIENT_HEARTBEAT_TIMER_ID),
-    DEFINE_TIMER_ID(CLIENT_RECONNECT_TIMER_ID),
+    //DEFINE_TIMER_ID(CLIENT_RECONNECT_TIMER_ID),
     DEFINE_TIMER_ID(AUTH_CHECK_TIMER_ID),
     DEFINE_TIMER_ID(UUID_CHECK_TIMER_ID),
     DEFINE_TIMER_ID(HEARTBEAT_CHECK_TIMER_ID),

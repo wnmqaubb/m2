@@ -121,7 +121,7 @@
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <CompileAsManaged>false</CompileAsManaged>
@@ -207,11 +207,11 @@ $(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDi
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>LOG_SHOW;_HAS_SHARED_MUTEX=1;WIN32;NDEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ASIO2_ENABLE_LOG;_HAS_SHARED_MUTEX=1;WIN32;NDEBUG; _WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)Gate\Service;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\breakpad\includes;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <CompileAsManaged>false</CompileAsManaged>
@@ -239,8 +239,10 @@ $(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDi
     <PostBuildEvent>
       <Command>mkdir $(TargetDir)\plugin
 del /f /s /q $(TargetDir)\plugin\*
-$(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\
-</Command>
+$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\TaskBasic.vmp
+del /f /s /q $(TargetPath)
+copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
+$(TargetDir)\packer.exe --obfuse_dll_import -d $(TargetPath) --output $(TargetDir)\plugin\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

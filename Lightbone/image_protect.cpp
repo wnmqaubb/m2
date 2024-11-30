@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "utils.h"
 #include "lighthook.h"
 
@@ -28,7 +28,7 @@ ImageProtect::ImageProtect()
 	image_base_ = GetModuleHandleA(NULL);
 	image_section_handle_ = NULL;
 	image_size_ = 0;
-	//¼Ó¿ÇÇé¿öÏÂ±È½ÏÕÛÖĞµÄ´úÂë´óĞ¡
+	//åŠ å£³æƒ…å†µä¸‹æ¯”è¾ƒæŠ˜ä¸­çš„ä»£ç å¤§å°
 	code_size_ = 0x290000;
     SYSTEM_INFO system_info_ = {};
 	GetSystemInfo(&system_info_);
@@ -327,8 +327,8 @@ void ImageProtect::self_remapping()
 	if (!self_remap_is_init_)
 	{
 		char msg[255] = {0};
-		snprintf(msg, sizeof(msg) - 1, "½øÈë¼æÈİÄ£Ê½:%d", err_code);
-		::MessageBoxA(NULL, msg, "ÌáÊ¾", MB_OK);
+		snprintf(msg, sizeof(msg) - 1, "è¿›å…¥å…¼å®¹æ¨¡å¼:%d", err_code);
+		::MessageBoxA(NULL, msg, "æç¤º", MB_OK);
 	}
 
 	LOG_EVENT("cb");

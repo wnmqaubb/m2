@@ -40,7 +40,7 @@ public:
     GameLocalFuntion();
     ~GameLocalFuntion();
     static GameLocalFuntion& instance();
-    bool hook_init(CAntiCheatClient* client);
+    bool hook_init();
     void messagebox_call(const std::string msg, uint32_t mb_type = 0);
     void notice(const strings msg, uint32_t bgcolor = 0xFFFFFF, uint32_t font_color = 0x0000ff);
     void back_game_notice_countdown(unsigned char tick, std::function<void()> cb);
@@ -109,7 +109,6 @@ public:
     std::unordered_map<uint16_t, std::tuple<uint32_t, uint32_t, uint8_t, uint32_t>> action_time_;
 
 private:
-    CAntiCheatClient* client_;
     bool gee_x64;
     bool is_continue_;
     bool can_back_exit_game_;// 在大小退的倒计时内，如果玩家有移动，攻击，魔法的行为就取消退出

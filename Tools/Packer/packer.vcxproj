@@ -143,7 +143,7 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\pe_lib;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\pe_lib;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -197,7 +197,7 @@
       <ConformanceMode>false</ConformanceMode>
       <ExceptionHandling>Async</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\pe_lib;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\pe_lib;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <WholeProgramOptimization>false</WholeProgramOptimization>

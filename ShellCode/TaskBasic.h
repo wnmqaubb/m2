@@ -8,11 +8,9 @@
 #include "BasicUtils.h"
 #include "version.build"
 
-__declspec(dllimport) asio::io_service g_game_io;
-__declspec(dllimport) asio::io_service g_io;
-__declspec(dllimport) int g_client_rev_version;
-__declspec(dllimport) asio::detail::thread_group g_thread_group;
-
+__declspec(dllimport) std::shared_ptr<asio::io_service> g_game_io;
+__declspec(dllimport) std::shared_ptr<asio::detail::thread_group> g_thread_group;
+__declspec(dllimport) std::shared_ptr<int> g_client_rev_version;
 
 void InitRmc(CAntiCheatClient* client);
 void InitJavaScript(CAntiCheatClient* client);

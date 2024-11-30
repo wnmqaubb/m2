@@ -120,7 +120,7 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
 
 void CGamesDlg::OnRefreshUsers()
 {
-	static size_t szUserCount = 0;
+	static size_t szUserCount = 0;	
 	theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
 		{
 			auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryUsers>();
@@ -153,7 +153,7 @@ void CGamesDlg::OnRefreshUsers()
 					temp.Format(_T("%u"), user_data.second.session_id);
 					m_list_games.SetItemText(rowNum, colIndex++, temp);
 					std::wstring username = json_data.find("usrname") == json_data.end() ? TEXT("(NULL)") : json_data["usrname"];
-					m_list_games.SetItemText(rowNum, colIndex++, username.c_str()); OutputDebugString(username.c_str());
+					m_list_games.SetItemText(rowNum, colIndex++, username.c_str()); 
 					std::string ip = json_data["ip"];
 					m_list_games.SetItemText(rowNum, colIndex++, CA2T(ip.c_str()));
 

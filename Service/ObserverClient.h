@@ -7,8 +7,7 @@ class CObserverClient : public CAntiCheatClient
     using super = CAntiCheatClient;
 public:
     using super::send;
-    CObserverClient(asio::io_service& io_, const std::string& auth_key)
-        : super(io_), auth_key_(auth_key), is_auth_(false)
+    CObserverClient(const std::string& auth_key) : auth_key_(auth_key), is_auth_(false)
     {
         package_mgr_.register_handler(OBPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
             auto req = msg.get().as<ProtocolOBS2OBCSetField>();
@@ -45,7 +44,7 @@ public:
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
             super::send(&handshake);
-            start_timer(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration_, [this]() {
+            start_timer<int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration_, [this]() {
                 ProtocolC2SHeartBeat heartbeat;
                 heartbeat.tick = time(0);
                 super::send(&heartbeat);

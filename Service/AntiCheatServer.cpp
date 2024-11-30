@@ -94,11 +94,18 @@ private:
 #include "Protocol.h"
 #endif
 
-
-
-CAntiCheatServer::CAntiCheatServer()
-	: super()
+static std::set<std::string> ddos_black_List;
+static std::map<std::string, uint32_t> ddos_black_map;
+CAntiCheatServer::CAntiCheatServer(): super()
 {
+	bind_init(&CAntiCheatServer::on_init, this);
+	bind_recv(&CAntiCheatServer::on_recv_package, this);
+	bind_accept(&CAntiCheatServer::on_accept, this);
+	bind_connect(&CAntiCheatServer::on_post_connect, this);
+	bind_disconnect(&CAntiCheatServer::on_post_disconnect, this);
+	bind_start(&CAntiCheatServer::on_start, this);
+	bind_stop(&CAntiCheatServer::on_stop, this);
+
 	//验证相关，serverless 云函数+数据库
 	auth_check_timer_ = std::chrono::minutes(24 * 60);
     auth_url_ = "";//"http://service-4v2g0j35-1305025354.sh.apigw.tencentcs.com/release/check";
@@ -126,7 +133,7 @@ bool CAntiCheatServer::start(const std::string& listen_addr, int port)
 #else
 	enable_proxy_tunnel(false);
 #endif
-	if (super::super::start(listen_addr, port, RawProtocolImpl()))
+	if (super::start(listen_addr, port, RawProtocolImpl()))
 	{
 		return true;
 	}
@@ -170,10 +177,19 @@ bool CAntiCheatServer::check_timer(bool slience)
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
-    log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"),
-        Utils::c2w(session->remote_address()).c_str(),
-        session->remote_port());
-    get_user_data(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
+	// 黑名单
+	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+		//printf("拦截ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+		session->stop();
+		if (ddos_black_map[session->remote_address()] > 0) {
+			ddos_black_map[session->remote_address()] -= 1;
+			log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"), Utils::c2w(session->remote_address()).c_str());
+		}
+	}
+	log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"),
+		Utils::c2w(session->remote_address()).c_str(),
+		session->remote_port());
+	get_user_data_(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
 }
 
 void CAntiCheatServer::on_init()
@@ -194,44 +210,39 @@ void CAntiCheatServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 	}
 }
 
-void CAntiCheatServer::on_start(error_code_t ec)
+void CAntiCheatServer::on_start()
 {
-	if (!ec)
-	{
-		log(LOG_TYPE_EVENT, TEXT("开始监听:%s:%d %s"),
-			Utils::c2w(listen_address()).c_str(),
-			listen_port(),
-			Utils::c2w(ec.message()).c_str());
-        notify_mgr_.dispatch(SERVER_START_NOTIFY_ID);
-	}
-	else
-	{
-		log(LOG_TYPE_EVENT, TEXT("监听失败:%s:%d %s"),
-			Utils::c2w(listen_address()).c_str(),
-			listen_port(),
-			Utils::c2w(ec.message()).c_str());
-	}
+	log(LOG_TYPE_EVENT, TEXT("开始监听:%s:%d "),
+		Utils::c2w(listen_address()).c_str(),
+		listen_port());
+	notify_mgr_.dispatch(SERVER_START_NOTIFY_ID);
 }
 
-void CAntiCheatServer::on_stop(error_code_t ec)
+void CAntiCheatServer::on_stop()
 {
-    log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d %s"),
-        Utils::c2w(listen_address()).c_str(),
-        listen_port(),
-        Utils::c2w(ec.message()).c_str());
+	auto ec = asio2::get_last_error();
+	if (ec) {
+		log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d"),
+			Utils::c2w(listen_address()).c_str(),
+			listen_port());
+	}
+	else {
+		log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d %s"),
+			Utils::c2w(listen_address()).c_str(),
+			listen_port(), ec.message().c_str());
+	}
 }
-
 
 void CAntiCheatServer::start_timer(unsigned int timer_id, std::chrono::system_clock::duration duration, std::function<void()> handler)
 {
-    super::start_timer(timer_id, duration, [this, handler = std::move(handler)](){
+    super::start_timer<int>((int)timer_id, duration, [this, handler = std::move(handler)](){
         handler();
     });
 }
 
 void CAntiCheatServer::stop_timer(unsigned int timer_id)
 {
-    super::stop_timer(timer_id);
+    super::stop_timer<int>((int)timer_id);
 }
 
 void CAntiCheatServer::log(int type, LPCTSTR format, ...)
@@ -271,7 +282,7 @@ void CAntiCheatServer::log(int type, LPCTSTR format, ...)
     wprintf(TEXT("%s\n"), buffer);
 
     if (log_cb_)
-        log_cb_(buffer, false, true, "");
+        log_cb_(buffer, false, true, "", false);
 }
 
 void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...)
@@ -311,7 +322,31 @@ void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std:
     wprintf(TEXT("%s\n"), buffer);
 
     if (log_cb_)
-        log_cb_(buffer, silense, gm_show, identify);
+        log_cb_(buffer, silense, gm_show, identify, false);
+}
+
+void CAntiCheatServer::punish_log(LPCTSTR format, ...)
+{
+	static std::mutex mtx;
+	std::lock_guard<std::mutex> lck(mtx);
+	std::time_t now_time = time(0);
+	TCHAR date_str[MAX_PATH] = { 0 };
+	TCHAR time_str[MAX_PATH] = { 0 };
+	tm tm_;
+	localtime_s(&tm_, &now_time);
+	wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
+	std::wcout << time_str << ":";
+
+	TCHAR buffer[1024];
+	va_list ap;
+	va_start(ap, format);
+	_vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+	va_end(ap);
+	std::wcout << L"[Event]";
+	wprintf(TEXT("%s\n"), buffer);
+
+	if (log_cb_)
+		log_cb_(buffer, true, true, "", true);
 }
 
 void CAntiCheatServer::close(unsigned int session_id)
@@ -320,7 +355,7 @@ void CAntiCheatServer::close(unsigned int session_id)
 }
 
 
-void CAntiCheatServer::on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
+void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
 #ifdef _DEBUG
     _on_recv(session, sv);
@@ -342,15 +377,41 @@ void CAntiCheatServer::on_recv(tcp_session_shared_ptr_t& session, std::string_vi
 
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
-    if (sv.size() == 0)
-    {
-        log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d 长度:%d"),
-            Utils::c2w(session->remote_address()).c_str(),
-            session->remote_port(),
-            sv.size());
-        session->stop();
-        return;
-    }
+	auto remote_address = session->remote_address();
+	// 黑名单
+	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+		return;
+	}
+	if (sv.size() == 0)
+	{
+		//printf("1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+		if (ddos_black_map.find(remote_address) != ddos_black_map.end()) {
+			//printf("2添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+			if (ddos_black_map[remote_address] >= 10) {
+				//printf("3 >= 50添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+				if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
+					//printf("添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+					ddos_black_List.emplace(remote_address);
+			}
+		}
+			else {
+				//printf("4 += 1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+				ddos_black_map[remote_address] += 1;
+			}
+	}
+		else {
+			ddos_black_map[remote_address] = 1;
+		}
+
+		log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d ==> %s:%d 长度:%d"),
+			Utils::c2w(remote_address).c_str(),
+			session->remote_port(),
+			Utils::c2w(session->local_address()).c_str(),
+			session->local_port(),
+			sv.size());
+		session->stop();
+		return;
+}
     if (is_enable_proxy_tunnel())
     {
 #if ENABLE_PROXY_TUNNEL
@@ -390,15 +451,13 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
             sv.size());
         return;
     }
-#endif
-    
-
+#endif  
     auto raw_msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
     if (raw_msg.get().type != msgpack::type::ARRAY) throw msgpack::type_error();
     if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
     if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
     const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
-	auto user_data = get_user_data(session);
+	auto user_data = get_user_data_(session);
     if (package.head.step != user_data->step + 1)
     {
         user_data->set_field("miss_count", user_data->get_field<int>("miss_count") + 1);
@@ -467,7 +526,7 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 #endif
 	//握手超时检查
 	session->start_timer((unsigned int)UUID_CHECK_TIMER_ID, uuid_check_duration_, [this, session]() {
-		auto userdata = get_user_data(session);
+		auto userdata = get_user_data_(session);
 		if (userdata->has_handshake == false)
 		{
 			session->stop();
@@ -478,7 +537,7 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg)
 {
-	auto userdata = get_user_data(session);
+	auto userdata = get_user_data_(session);
 	userdata->update_heartbeat_time();
     ProtocolS2CHeartBeat resp;
     resp.tick = msg.tick;
@@ -491,14 +550,14 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
     log(LOG_TYPE_DEBUG, TEXT("握手 %s:%d"),
         Utils::c2w(session->remote_address()).c_str(),
         session->remote_port());
-	auto userdata = get_user_data(session);
+	auto userdata = get_user_data_(session);
 	memcpy(userdata->uuid, msg.uuid, sizeof(msg.uuid));
 	userdata->has_handshake = true;
 	//握手超时检查取消
     session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
 	//心跳超时检查
 	session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_, [this, session]() {
-		auto userdata = get_user_data(session);
+		auto userdata = get_user_data_(session);
 		auto duration = userdata->get_heartbeat_duration();
 		if (duration > heartbeat_timeout_)
 		{

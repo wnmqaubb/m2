@@ -3,12 +3,11 @@
 //
 
 #include "pch.h"
-#include "framework.h"
 #include "GateF.h"
 #include "GateFDlg.h"
-#include "../3rdparty/vmprotect/VMProtectSDK.h"
-#include "../3rdparty/asio2-2.7/asio2/util/sha1.hpp"
-#include "../3rdparty/asio2-2.7/asio2/util/base64.hpp"
+#include "asio2/util/base64.hpp"
+#include "asio2/util/sha1.hpp"
+#include "vmprotect/VMProtectSDK.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -54,15 +53,14 @@ const WORD _wVerMinor = 0;
 
 
 // CGateFApp 初始化
-
+HANDLE pHandles[2] = {};
 BOOL CGateFApp::InitInstance()
 {
 	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
 	if (strCmdLine == TEXT("/StartService"))
 	{
 		is_parent_gate = false;
-		giInstancePid = GetCurrentProcessId();
-		HANDLE pHandles[2] = {};
+		giInstancePid = GetCurrentProcessId();		
 		std::filesystem::path path(m_ExeDir);
 		path = path / "g_Service.exe";
 		STARTUPINFOA si = {};
@@ -307,6 +305,16 @@ void CGateFApp::OnServiceStop1()
 	{
 		TerminateProcess(m_childpHandle, 0);
 		CloseHandle(m_childpHandle);
+	}
+	if (pHandles[0])
+	{
+		TerminateProcess(pHandles[0], 0);
+		CloseHandle(pHandles[0]);
+	}
+	if (pHandles[1])
+	{
+		TerminateProcess(pHandles[1], 0);
+		CloseHandle(pHandles[1]);
 	}
 	m_childpHandle = NULL;
 	giInstancePid = 0;

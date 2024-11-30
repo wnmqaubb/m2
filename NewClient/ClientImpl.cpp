@@ -4,9 +4,13 @@
 
 using namespace Utils;
 
+#ifdef LOG_SHOW
 #define log(LOG_TYPE,x,...) log(LOG_TYPE, x, __VA_ARGS__ )
+#else
+#define log(LOG_TYPE,x,...)
+#endif
 
-CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
+CClientImpl::CClientImpl() : super()
 {
     char path[MAX_PATH] = { 0 };
     GetModuleFileNameA(GetModuleHandleA(NULL), path, sizeof(path));
@@ -40,8 +44,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
         handshake.pid = GetCurrentProcessId();
         this->save_uuid(handshake);
         send(&handshake);
-        auto self(shared_from_this());
-        start_timer(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [self, this]() {
+        start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
             ProtocolC2SHeartBeat heartbeat;
             heartbeat.tick = time(0);
             send(&heartbeat);
@@ -61,7 +64,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
 		/*ProtocolC2SQueryPlugin req;
 		send(&req);
 		log(Debug, TEXT("查询插件列表"));*/
-		start_timer(19051, std::chrono::minutes(2), [this]() {
+		start_timer<unsigned int>(19051, std::chrono::minutes(2), [this]() {
 			ProtocolC2STaskEcho echo;
 			echo.task_id = 689051;
 			echo.is_cheat = false;
@@ -76,7 +79,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
 		});
 #endif
     });
-    start_timer(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
+    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
         ProtocolC2SQueryPlugin req;
         send(&req);
         log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
@@ -102,7 +105,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             {
                 if (!plugin_mgr_->is_plugin_loaded(plugin_hash))
                 {
-                    super::io().post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
+                    post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
                         if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
                         {
                             log(LOG_TYPE_DEBUG, TEXT("加载缓存插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
@@ -130,7 +133,7 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             return;
         }
         plugin_mgr_->save_plugin(package, resp);
-        super::io().post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
+        post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
             if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
             {
                 log(LOG_TYPE_DEBUG, TEXT("加载远程插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
@@ -159,6 +162,11 @@ CClientImpl::CClientImpl(asio::io_service& io_) : super(io_)
             break;
         }
     });
+}
+
+CClientImpl::~CClientImpl()
+{
+    super::stop();
 }
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)

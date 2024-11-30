@@ -1,32 +1,41 @@
 #pragma once
-#include "TcpServer.h"
 #include "Protocol.h"
 #include "NetUtils.h"
 
-class CAntiCheatServer : public CTcpServerImpl
+class CAntiCheatServer : public asio2::tcp_server
 {
-private:
-    using self = CAntiCheatServer;
-    using super = CTcpServerImpl;
+public:
+	using self = CAntiCheatServer;
+	using tcp_session_t = session_type;
+	using error_code_t = asio2::error_code;
+	using super = asio2::tcp_server;
+	using tcp_session_shared_ptr_t = std::shared_ptr<session_type>;
 protected:
     using package_handler_t = std::function<void(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
     using notify_handler_t = std::function<void()>;
     using user_notify_handler_t = std::function<void(tcp_session_shared_ptr_t& session)>;
-    using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify)>;
+    /**
+     * msg: 日志信息
+     * silence: 是否显示到界面日志窗口
+     * gm_show: 是否显示到gm
+     * identify: 玩家uuid标识符
+     * punish_flag: 是否是惩罚log
+     */
+    using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify, bool punish_flag)>;
 public:
 	CAntiCheatServer();
-    ~CAntiCheatServer();
-    bool start(const std::string& listen_addr, int port);
+	~CAntiCheatServer();
+	bool start(const std::string& listen_addr, int port);
 	bool check_timer(bool slience);
 	virtual void on_accept(tcp_session_shared_ptr_t& session);
-    virtual void on_init();
-    virtual void on_post_connect(tcp_session_shared_ptr_t& session);
-    virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
-    virtual void on_start(error_code_t ec);
-    virtual void on_stop(error_code_t ec);
-    virtual void on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
-    virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
-    virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
+	virtual void on_init();
+	virtual void on_post_connect(tcp_session_shared_ptr_t& session);
+	virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
+	virtual void on_start();
+	virtual void on_stop();
+	virtual void on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv);
+	virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
+	virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
 private:
     virtual void _on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
     
@@ -59,6 +68,7 @@ protected:
 public:
     virtual void log(int type, LPCTSTR format, ...); 
     virtual void user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...);
+    void punish_log(LPCTSTR format, ...);
     virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&) { return false; };
 
 	template <typename T>
@@ -148,7 +158,7 @@ struct AntiCheatUserData
         data[key] = val;
     }
     inline void update_heartbeat_time()
-    {
+	{
         last_heartbeat_time = std::chrono::system_clock::now();
     }
     inline std::chrono::system_clock::duration get_heartbeat_duration()
@@ -157,16 +167,16 @@ struct AntiCheatUserData
     }
 };
 
-inline AntiCheatUserData* get_user_data(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
+inline AntiCheatUserData* get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
 {
-    auto userdata = session->user_data<AntiCheatUserData*>();
+    auto userdata = session->get_user_data<AntiCheatUserData*>();
     if (userdata == nullptr)
     {
         userdata = new AntiCheatUserData();
 #if ENABLE_PROXY_TUNNEL
         userdata->game_proxy_tunnel = std::make_shared<GameProxyTunnel>(session->io().context());
 #endif
-        session->user_data<AntiCheatUserData*>(std::move(userdata));
+        session->set_user_data<AntiCheatUserData*>(std::move(userdata));
     }
     return userdata;
 }

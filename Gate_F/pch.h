@@ -18,9 +18,6 @@
 #include <json\json.hpp>
 #include <iostream>
 #include <afxext.h>
-#include <afxext.h>
-#include <afxcontrolbars.h>
-#include <afxcontrolbars.h>
 #include <afxcontrolbars.h>
 
 using json = nlohmann::json;

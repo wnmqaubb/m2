@@ -2,7 +2,6 @@
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include "Service/SubServicePackage.h"
-#include <filesystem>
 
 
 struct ConsoleProperties {

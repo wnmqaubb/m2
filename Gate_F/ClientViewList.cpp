@@ -1,8 +1,9 @@
 
 #include "pch.h"
-//#include "Gate.h"
+#include "GateF.h"
 #include "framework.h"
 #include "ClientViewList.h"
+
 BEGIN_MESSAGE_MAP(CGateFDlgList, CViewList)
     ON_NOTIFY_REFLECT(NM_CUSTOMDRAW, &CGateFDlgList::OnNMCustomdraw)
     ON_WM_CONTEXTMENU()
@@ -11,10 +12,10 @@ END_MESSAGE_MAP()
 
 CGateFDlgList::CGateFDlgList()
 {
-	/* theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_PUNISH_USER_UUID, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-		 auto msg = raw_msg.get().as<ProtocolOBS2OBCPunishUserUUID>();
-		 m_suspicious_uuids.emplace(std::make_pair(msg.uuid, msg.gm_show));
-	 });*/
+	theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_PUNISH_USER_UUID, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+		auto msg = raw_msg.get().as<ProtocolOBS2OBCPunishUserUUID>();
+		m_suspicious_uuids.emplace(std::make_pair(msg.uuid, msg.gm_show));
+	});
 }
 
 CGateFDlgList::~CGateFDlgList()

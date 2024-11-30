@@ -32,8 +32,12 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
     afx_msg void OnBnClickedButtonPack();
-    afx_msg void OnBnClickedButton2();
-    CEdit m_pack_file_edit;
+
+	void OnBnClickedLog();
+
+	afx_msg void OnBnClickedVMP();
+	void OnBnClickedButton2();
+	CEdit m_pack_file_edit;
     CEdit m_result_edit;
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 };

@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "ClientPluginMgr.h"
 
-extern HINSTANCE dll_base;
+extern std::shared_ptr<HINSTANCE> dll_base;
 extern void LoadPlugin(CAntiCheatClient* client);
 extern uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params);
 extern void execute_tls_callback(HINSTANCE instance, uint32_t reason, void* param);
@@ -49,7 +49,7 @@ bool CClientPluginMgr::load_plugin(plugin_hash_t plugin_hash, const std::string&
         if (plugin.is_crypted && plugin.plugin_hash == plugin_hash)
         {
             xor_buffer(plugin.data.data(), plugin.data.size(), kProtocolXorKey);
-            plugin_handle = dll_base;
+            plugin_handle = *dll_base;
             if (peload(plugin.data.data(), sizeof(IMAGE_DOS_HEADER), &plugin_handle, NULL) == ERROR_SUCCESS && plugin_handle)
             {
                 enable_seh_on_shellcode();
@@ -78,7 +78,7 @@ bool CClientPluginMgr::load_plugin(plugin_hash_t plugin_hash, const std::string&
     }
     decltype(&LoadPlugin) plugin_entry = (decltype(&LoadPlugin))ApiResolver::get_proc_address(plugin_handle, ApiResolver::hash("LoadPlugin"));
 	if (plugin_entry) {
-#if 1
+#if LOG_SHOW
 		char path[MAX_PATH];
 		sprintf_s(path, MAX_PATH, "plugin_entry %08X", plugin_entry);
 		OutputDebugStringA(path);

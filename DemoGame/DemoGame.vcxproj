@@ -113,7 +113,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_HAS_SHARED_MUTEX=1;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -137,7 +137,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_HAS_SHARED_MUTEX=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <StringPooling>true</StringPooling>

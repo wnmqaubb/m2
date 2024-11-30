@@ -20,7 +20,7 @@ CString get_current_date_str()
     return tm.Format(_T("%Y-%m-%d"));
 }
 #endif // GATE_ADMIN
-CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(io_, auth_key)
+CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(auth_key)
 , user_count_(0)
 {
     std::error_code ec;

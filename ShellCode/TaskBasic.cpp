@@ -1,15 +1,19 @@
 ﻿#include "NewClient/pch.h"
 #include "TaskBasic.h"
-#include "../Lightbone/utils.h"
 
 #define CONFIG_APP_NAME "┣┫==============封挂加载成功==============┣┫"
 #define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
 #define CONFIG_TITLE    "┣┫封挂提示:勿开挂!有封号、封机器码蓝屏风险┣┫"
 
+#ifdef LOG_SHOW
 #define LOG(x,...) //Utils::log(Utils::CHANNEL_EVENT, x,__VA_ARGS__)
+#else
+#define LOG(x,...)
+#endif
 bool is_debug_mode = false;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
+std::shared_ptr<HWND> g_main_window_hwnd;
 
 void NotifyHook(CAntiCheatClient* client)
 {
@@ -37,7 +41,7 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
         client->send(&echo);
     }
 
-    if(g_client_rev_version != REV_VERSION)
+    if(*g_client_rev_version != REV_VERSION)
     {
         LOG("插件版本不匹配");
     }
@@ -87,17 +91,14 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
     });
 	
     client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
-        static asio::steady_timer usrname_resend_timer(g_io);
-        //防止重启服务器的时候过于集中发包
-		reconnect_count++;
-        usrname_resend_timer.expires_after(std::chrono::seconds(std::rand() % 10));
-        usrname_resend_timer.async_wait([client](std::error_code){
-            ProtocolC2SUpdateUsername req;
-            req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-            client->send(&req);
-        });
+		//防止重启服务器的时候过于集中发包
+		client->post([client]() {
+			ProtocolC2SUpdateUsername req;
+			req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
+			client->send(&req);
+		}, std::chrono::seconds(std::rand() % 10 + 1));
     });
-    client->start_timer(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
+    client->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
         if (client->cfg()->get_field<bool>(test_mode_field_id))
         {
             static bool is_already_send = false;
@@ -126,33 +127,28 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
                     // if (is_debug_mode == false)
                     // {
                     //     BasicUtils::init_heartbeat_check(window.hwnd);
-                    // }
-                    if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
-                    {
-                        ProtocolC2SUpdateUsername req;
-                        req.username = window.caption;
-                        client->send(&req);
-						if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
-						{
-							ProtocolC2SUpdateUsername req;
-							req.username = window.caption;
-							client->send(&req);
-							client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
-						}
+					// }
+					g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
+					if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+					{
+						ProtocolC2SUpdateUsername req;
+						req.username = window.caption;
+						client->send(&req);
+						client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
+                        
                         if (window.caption.find(L" - ") != std::wstring::npos)
                         {
                             GameLocalFuntion::instance().call_sig_pattern();
-                            GameLocalFuntion::instance().hook_init(client);
-							/*static asio::steady_timer welcome_message_timer(g_io);
-							welcome_message_timer.expires_after(std::chrono::seconds(20));
-							welcome_message_timer.async_wait([](std::error_code ec) {
-								GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
-								GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
-							});*/
+                            GameLocalFuntion::instance().hook_init();
+                            /*static asio::steady_timer welcome_message_timer();
+                            welcome_message_timer.expires_after(std::chrono::seconds(20));
+                            welcome_message_timer.async_wait([](std::error_code ec) {
+                                GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
+                                GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
+                            });*/
                         }
-                        client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
-                    }
-                    return;
+					}
+					return;
                 }
             }
         }
@@ -161,8 +157,9 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 
 #if 1
     if (is_debug_mode == false)
-    {
-        std::vector<std::tuple<std::string, std::string>> black_ip_table{
+	{
+		auto black_ip_table = std::make_shared<std::vector<std::tuple<std::string, std::string>>>(
+			std::initializer_list<std::tuple<std::string, std::string>>{
             { xorstr("61.139.126.216"), xorstr("水仙") },
             { xorstr("103.26.79.221"), xorstr("横刀辅助") },
             { xorstr("220.166.64.104"), xorstr("猎手") },
@@ -212,41 +209,41 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
             { xorstr("175.178.252.26"), xorstr("键鼠大师") },
             { xorstr("121.62.16.136"), xorstr("网关-加速-倍攻_脱机") },
             { xorstr("121.62.16.150"), xorstr("网关-加速-倍攻_脱机") }
-        };
-        static uint8_t tcp_detect_count = 1;
-        client->start_timer(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [client, black_ip_table]() {
-            auto&[ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
-            if (!ip.empty())
-            {            
-                if (tcp_detect_count == 1)
-                {
-                    ProtocolC2STaskEcho echo;
-                    echo.task_id = 689054;
-                    echo.is_cheat = true;
-                    echo.text = xorstr("检测到外挂[") + cheat_name + xorstr("],IP:") + ip;
-                    client->send(&echo);
-                }
-
-                if (++tcp_detect_count == 10) tcp_detect_count = 1;
-            }
         });
+		static uint8_t tcp_detect_count = 1;
+		client->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [&client, black_ip_table]() {
+			auto& [ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
+			if (!ip.empty())
+			{
+				if (tcp_detect_count == 1)
+				{
+					ProtocolC2STaskEcho echo;
+					echo.task_id = 689054;
+					echo.is_cheat = true;
+					echo.text = xorstr("检测到外挂[") + cheat_name + xorstr("],IP:") + ip;
+					client->send(&echo);
+				}
+
+				if (++tcp_detect_count == 10) tcp_detect_count = 1;
+			}
+			});
 
         InitImageProtectCheck(client);
     }
 #endif
 
-    NotifyHook(client);
-    InitRmc(client);
-    InitTimeoutCheck(client);
-    InitJavaScript(client);
+    //NotifyHook(client);
+	InitRmc(client);
+	InitTimeoutCheck(client);
+	InitJavaScript(client);
 
     if (is_debug_mode == false)
     {
-        InitHideProcessDetect(client);
-        InitSpeedDetect(client);
-        InitShowWindowHookDetect(client);
+		InitHideProcessDetect(client);
+		InitSpeedDetect(client);
+		InitShowWindowHookDetect(client);
     }
-    
+
     ProtocolC2SLoadedPlugin req;
     req.loaded = true;
     client->send(&req);
@@ -259,8 +256,8 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
 	{
-		OutputDebugStringA("on_recv_punish ENM_PUNISH_TYPE_KICK");
-		g_game_io.post([]() {
+		GameLocalFuntion::instance().messagebox_call("封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚");
+		g_game_io->post([]() {
 			VMP_VIRTUALIZATION_BEGIN();
 			std::error_code ec;
 			exit(-1);
@@ -280,6 +277,9 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 }
 void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 {
+#if LOG_SHOW
+    OutputDebugStringA("on_recv_pkg_policy===");
+#endif
     ProtocolC2SPolicy resp;
     std::vector<ProtocolPolicy> module_polices;
     std::vector<ProtocolPolicy> process_polices;
@@ -347,7 +347,10 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
 			script << Utils::String::w2c(policy.config);
 			script.close();
-			LOG("ENM_POLICY_TYPE_SCRIPT--- %d", policy_id, policy.comment.c_str());
+            char szCmd[1024] = { 0 };
+            sprintf_s(szCmd, "ENM_POLICY_TYPE_SCRIPT--- %d %s", policy_id, Utils::String::w2c(policy.comment).c_str());
+			//LOG("ENM_POLICY_TYPE_SCRIPT--- %d %s", policy_id, Utils::String::w2c(policy.comment).c_str());
+            OutputDebugStringA(szCmd);
 #endif
             async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
             break;
@@ -403,7 +406,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     }
 
     auto& win = Utils::CWindows::instance();
-
+    bool find_cheat = false;
 	do
 	{
 		if (window_polices.size() == 0)
@@ -415,17 +418,31 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			std::wstring combine_name = window.caption + L"|" + window.class_name;
 			for (auto& policy : window_polices)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				//std::this_thread::sleep_for(std::chrono::milliseconds(2));
 				if (combine_name.find(policy.config) == std::wstring::npos)
 				{
 					continue;
 				}
 				resp.results.push_back({ policy.policy_id,
 								combine_name });
+                find_cheat = true;
+				break;
+			}
+			if (find_cheat) {
+				break;
 			}
 		}
+		if (find_cheat) {
+			break;
+		}
 	} while (0);
+
     const uint32_t cur_pid = win.get_current_process_id();
+
+	if (resp.results.size() > 0) {
+		client->send(&resp);
+        return;
+	}
 
 	win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
 
@@ -433,7 +450,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_polices)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (process.name.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -456,7 +473,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_polices)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (process_path.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -477,7 +494,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_name_and_size_polices)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				std::wstring process_name;
 				uint32_t process_size;
 				size_t pos = policy.config.find(L"|");

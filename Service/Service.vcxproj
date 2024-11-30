@@ -96,6 +96,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <TargetName>g_$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -115,7 +116,7 @@
       <PreprocessorDefinitions>ENABLE_VMP_VALIDATE=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
@@ -150,7 +151,7 @@
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Custom</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -158,9 +159,15 @@
       <ConformanceMode>false</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\asio2-2.9\3rd;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -222,8 +229,6 @@
     <ClInclude Include="ProxyTunnel.h" />
     <ClInclude Include="ServicePackage.h" />
     <ClInclude Include="SubServicePackage.h" />
-    <ClInclude Include="TcpClient.h" />
-    <ClInclude Include="TcpServer.h" />
     <ClInclude Include="VmpSerialValidate.h" />
   </ItemGroup>
   <ItemGroup>

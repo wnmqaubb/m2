@@ -7,10 +7,10 @@
 #include "Tools/Packer/loader.h"
 
 using namespace ApiResolver;
-extern HINSTANCE dll_base;
+extern std::shared_ptr<HINSTANCE> dll_base;
 extern share_data_ptr_t share_data;
 extern void __stdcall reflective_load(share_data_ptr_t param) noexcept;
-extern asio::detail::thread_group g_thread_group;
+extern std::shared_ptr <asio::detail::thread_group> g_thread_group;
 
 namespace HookProc
 {
@@ -19,7 +19,7 @@ namespace HookProc
         return ((uintptr_t)dll <= (uintptr_t)addr) && ((uintptr_t)addr <= ((uintptr_t)dll + get_image_nt_header(dll)->OptionalHeader.SizeOfImage));
     }
 #define FUNCTION_CHECK() \
-     if (is_address_in_module(_ReturnAddress(), dll_base))\
+     if (is_address_in_module(_ReturnAddress(), *dll_base))\
      {\
          SetLastError(ERROR_BAD_CONFIGURATION);\
          return FALSE;\
@@ -135,7 +135,7 @@ namespace HookProc
 
                 share_data_ptr_t new_param = (share_data_ptr_t)shellcode.data();
                 new_param->magic = 0x90909090;
-                new_param->entry_point_dist = sizeof(share_data_t) - offsetof(share_data_t, ret_opcode) + va2fa(dll_base, (size_t)&reflective_load);
+                new_param->entry_point_dist = sizeof(share_data_t) - offsetof(share_data_t, ret_opcode) + va2fa(*dll_base, (size_t)&reflective_load);
                 new_param->stub_size = shellcode.size();
 
                 auto Sleep = IMPORT(L"kernel32.dll", Sleep);
@@ -179,7 +179,7 @@ namespace HookProc
                 {
                     uint8_t* hook_addr = reinterpret_cast<uint8_t*>(hook->get_hook_addr());
                     uint8_t* src_addr = reinterpret_cast<uint8_t*>(ResolveJmp(hook->get_src()));
-                    if (*hook_addr != 0xE9 || !is_address_in_module(src_addr, dll_base) || *(src_addr + 0x2) == 0xE9)
+                    if (*hook_addr != 0xE9 || !is_address_in_module(src_addr, *dll_base) || *(src_addr + 0x2) == 0xE9)
                     {
                         *(void**)_AddressOfReturnAddress() = ExitProcess;
                         return 0;
@@ -213,7 +213,7 @@ namespace HookProc
         LightHook::HookMgr::instance().add_inline_hook(create_process_internal_w, &HookProc::CreateProcessInternalW, &HookProc::create_process_internal_w);
         void* resume_thread = IMPORT(L"kernel32.dll", ResumeThread);
         LightHook::HookMgr::instance().add_inline_hook(resume_thread, &HookProc::ResumeThread, &HookProc::resume_thread);
-        g_thread_group.create_thread(&check_hook_vaild_routine);
+        //g_thread_group->create_thread(&check_hook_vaild_routine);
         return true;
     }
 }

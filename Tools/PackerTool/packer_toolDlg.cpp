@@ -163,7 +163,7 @@ HCURSOR CpackertoolDlg::OnQueryDragIcon()
 void CpackertoolDlg::OnBnClickedButtonPack()
 {
     // TODO: 在此添加控件通知处理程序代码
-    CString cmd;
+    CString cmd,cmd2,cmd3;
     CString temp;
 	auto pa = std::filesystem::current_path();
     if (!std::filesystem::exists("packer.exe"))
@@ -186,18 +186,128 @@ void CpackertoolDlg::OnBnClickedButtonPack()
 		new_path.c_str(),
         TEXT("config.txt")
         );
-    USES_CONVERSION;
-    system(T2A(cmd));
-    std::ifstream result("result.txt", std::ios::in | std::ios::binary);
-    result.seekg(0, result.end);
-    size_t size = result.tellg();
-    result.seekg(0);
-    std::string text;
-    text.resize(size);
-    result.read(text.data(), size);
-    m_result_edit.SetWindowText(A2T(text.c_str()));
+
+	USES_CONVERSION;
+	std::system(T2A(cmd));
+	OnBnClickedLog();
+	// vmp
+	std::wstring new_path_vmp = new_path;
+	new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
+	cmd2.Format(TEXT("\"D:\\tool\\52pojie\\Tools\\Packers\\VMProtect Ultimate3.4\\VMProtect_Con.exe\" %s %s -pf 1.vmp > result.txt"),
+		new_path.c_str(),
+		new_path_vmp.c_str()
+	);
+	std::system(T2A(cmd2));
+	OnBnClickedLog();
+
+	// 复制附加数据
+	cmd3.Format(TEXT("packer.exe --copy_append_data --src %s --dst %s > result.txt"),
+		pack_exe_path.wstring().c_str(),
+		new_path_vmp.c_str()
+	);
+
+	std::system(T2A(cmd3));
+	OnBnClickedLog();
+}
+//
+//void CpackertoolDlg::OnBnClickedButtonPack()
+//{
+//    // TODO: 在此添加控件通知处理程序代码
+//    CString cmd,cmd2,cmd3;
+//    CString temp;
+//	auto pa = std::filesystem::current_path();
+//    if (!std::filesystem::exists("packer.exe"))
+//    {
+//        m_result_edit.SetWindowText(TEXT("封装器主程序未找到"));
+//        return;
+//    }
+//    else if (!std::filesystem::exists("NewClient.dll"))
+//    {
+//        m_result_edit.SetWindowText(TEXT("反作弊模块未找到"));
+//        return;
+//    }
+//    m_pack_file_edit.GetWindowText(temp);
+//    std::filesystem::path pack_exe_path(temp.GetString());
+//	std::wstring new_path = pack_exe_path.wstring();
+//	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
+//    cmd.Format(TEXT("packer.exe --pack_exe --exe %s --dll %s --output %s --config %s > result.txt"),
+//        pack_exe_path.wstring().c_str(),
+//        TEXT("NewClient.dll"),
+//		new_path.c_str(),
+//        TEXT("config.txt")
+//        );
+//
+//	// vmp
+//	std::wstring new_path_vmp = new_path;
+//	new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
+//	cmd2.Format(TEXT(" & \"D:\\tool\\52pojie\\Tools\\Packers\\VMProtect Ultimate3.4\\VMProtect_Con.exe\" %s %s -pf 1.vmp > result.txt"),
+//		new_path.c_str(),
+//		new_path_vmp.c_str()
+//	);
+//
+//	// 复制附加数据
+//	cmd3.Format(TEXT(" & packer.exe --copy_append_data --src %s --dst %s > result.txt & pause "),
+//		pack_exe_path.wstring().c_str(),
+//		new_path_vmp.c_str()
+//	);
+//
+//	USES_CONVERSION;
+//	auto all_cmd = cmd + cmd2 + cmd3;
+//	system(T2A(all_cmd));
+//	OnBnClickedLog();
+//}
+
+void CpackertoolDlg::OnBnClickedLog() {
+	USES_CONVERSION;
+	std::ifstream result("result.txt", std::ios::in | std::ios::binary);
+	result.seekg(0, result.end);
+	size_t size = result.tellg();
+	result.seekg(0);
+	std::string text;
+	text.resize(size);
+	result.read(text.data(), size);
+	CString str;
+	m_result_edit.GetWindowText(str);
+	m_result_edit.SetWindowText(str + "\n" + A2T(text.c_str()));
 }
 
+void CpackertoolDlg::OnBnClickedVMP()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CString cmd;
+	CString temp;
+	auto pa = std::filesystem::current_path();
+	if (!std::filesystem::exists("packer.exe"))
+	{
+		m_result_edit.SetWindowText(TEXT("封装器主程序未找到"));
+		return;
+	}
+	else if (!std::filesystem::exists("NewClient.dll"))
+	{
+		m_result_edit.SetWindowText(TEXT("反作弊模块未找到"));
+		return;
+	}
+	m_pack_file_edit.GetWindowText(temp);
+	std::filesystem::path pack_exe_path(temp.GetString());
+	std::wstring new_path = pack_exe_path.wstring();
+	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
+	cmd.Format(TEXT("packer.exe --pack_exe --exe %s --dll %s --output %s --config %s > result.txt"),
+		pack_exe_path.wstring().c_str(),
+		TEXT("NewClient.dll"),
+		new_path.c_str(),
+		TEXT("config.txt")
+	);
+	USES_CONVERSION;
+	system(T2A(cmd));
+	std::ifstream result("result.txt", std::ios::in | std::ios::binary);
+	result.seekg(0, result.end);
+	size_t size = result.tellg();
+	result.seekg(0);
+	std::string text;
+	text.resize(size);
+	result.read(text.data(), size);
+	m_result_edit.SetWindowText(A2T(text.c_str()));
+}
 
 void CpackertoolDlg::OnBnClickedButton2()
 {

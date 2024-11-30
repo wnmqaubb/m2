@@ -1,8 +1,11 @@
 ﻿#include "NewClient/pch.h"
 #include "GameFunction.h"
 #include "BasicUtils.h"
+#include "NewClient/ClientImpl.h"
 
-__declspec(dllimport) asio::io_service g_game_io;
+__declspec(dllimport) std::shared_ptr<asio::io_service> g_game_io;
+__declspec(dllimport) std::shared_ptr<CClientImpl> client;
+extern std::shared_ptr<HWND> g_main_window_hwnd;
 LightHook::HookMgr hook_mgr;
 
 uint32_t base_handle_offset_;
@@ -12,7 +15,7 @@ uint32_t messagebox_call_addr_;
 uint32_t public_call_addr_;
 
 GameLocalFuntion::GameLocalFuntion()
-	: back_game_timer_(g_game_io),
+	: back_game_timer_(*g_game_io),
 	gee_x64(false),
 	is_continue_(true),
 	can_back_exit_game_(true),
@@ -133,14 +136,13 @@ GameLocalFuntion::~GameLocalFuntion()
 
 }
 
-bool GameLocalFuntion::hook_init(CAntiCheatClient* client)
+bool GameLocalFuntion::hook_init()
 {
 
 #ifdef _RTEST
 	LOG_ERROR("public_call_addr:%08X", public_call_addr_);
 	LOG_ERROR("exit_game_call_addr:%08X", exit_game_call_addr_);
 #endif
-	client_ = client;
 	// 公共功能函数HOOK
 	if (public_call_addr_)
 	{
@@ -243,7 +245,7 @@ void GameLocalFuntion::messagebox_call(const std::string text, uint32_t mb_type)
 	else
 	{
 		auto msgbox = IMPORT(L"user32.dll", MessageBoxA);
-		msgbox(NULL, text.c_str(), "封挂提示", MB_OK);
+		msgbox(*g_main_window_hwnd, text.c_str(), "封挂提示", MB_OK | MB_ICONERROR);
 	}
 
 	VMP_VIRTUALIZATION_END();
@@ -333,7 +335,7 @@ void GameLocalFuntion::back_game_call(LightHook::Context ctx)
 			popad
 		}
 	}
-	hook_init(client_);
+	hook_init();
 }
 
 /************************************************************************/
@@ -490,7 +492,7 @@ void GameLocalFuntion::decode_message_packet_before(LightHook::Context& ctx)
 		resp.task_id = 689024;
 		resp.text = resp_text + xorstr(",速度:[") + std::to_string(old_action_speed) + " >> " + std::to_string(action_speed) + "]";
 		resp.is_cheat = true;
-		client_->send(&resp);
+		client->send(&resp);
 	}
 	VMP_VIRTUALIZATION_END();
 }

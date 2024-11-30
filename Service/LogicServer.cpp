@@ -278,9 +278,9 @@ CLogicServer::CLogicServer()
 			user_data->set_loaded_plugin(true);
             send_policy(user_data, session, package.head.session_id);
 			// 白名单用户不检测心跳和策略
-			/*if (is_svip(package.head.session_id)) {
-				return;
-			}*/
+			//if (is_svip(package.head.session_id)) {
+			//	return;
+			//}
             detect(session, package.head.session_id);
         }
     });
@@ -311,13 +311,17 @@ CLogicServer::CLogicServer()
 		{
 			user_data->pkg_id_time_map()[req.task_id] = std::chrono::system_clock::now();
 		}
+#if 0
+        wchar_t buffer[1024];
+        swprintf(buffer, 1024, TEXT("===>>玩家:%s 策略ID:%d 日志:%s"), user_data->json.at("usrname").get<std::wstring>().c_str(), req.task_id, reason.c_str());
+        OutputDebugString(buffer);
         log(LOG_TYPE_EVENT, TEXT("玩家:%s 策略ID:%d 日志:%s"), user_data->json.at("usrname").get<std::wstring>().c_str(), req.task_id, req.text.c_str());
+#endif
         if (req.is_cheat && policy)
 		{
             punish(session, package.head.session_id, *policy, reason.c_str());
             return;
         }
-
        
         if (user_data)
         {
@@ -592,8 +596,16 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
             {
                 send(session, session_id, &resp);
             }
-        });
+		});
         
+		// 处罚玩家写到GM的开挂玩家列表.txt
+		punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
+			usr_name.c_str(),
+			punish_type_str[(PunishType)policy.punish_type],
+			comment.c_str(),
+			comment_2.c_str()
+		);
+
         user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
             usr_name.c_str(),
             policy_type_str[(PolicyType)policy.policy_type],

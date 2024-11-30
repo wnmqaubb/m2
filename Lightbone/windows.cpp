@@ -822,7 +822,6 @@ CWindows::WindowsList CWindows::enum_windows()
 	DWORD thread_id;
     for (HWND hwnd : hwnds)
     {
-
 		PSTR pszMem = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
 		PSTR pszCls = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE); 
         if (pszMem != NULL)

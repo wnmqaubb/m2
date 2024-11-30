@@ -116,7 +116,7 @@
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
@@ -178,12 +178,12 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>LOG_SHOW;ANTICHEAT_CLIENT_API=__declspec(dllexport);_HAS_SHARED_MUTEX=1;WIN32;NDEBUG;NEWCLIENT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ASIO2_ENABLE_LOG;ANTICHEAT_CLIENT_API=__declspec(dllexport);_HAS_SHARED_MUTEX=1;WIN32;NDEBUG;NEWCLIENT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.7;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -199,7 +199,10 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
       <DataExecutionPrevention>false</DataExecutionPrevention>
     </Link>
     <PostBuildEvent>
-      <Command>$(TargetDir)\packer.exe --obfuse_dll_export -d $(TargetPath)
+      <Command>$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)\$(TargetName).vmp
+del /f /s /q $(TargetPath)
+copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
+$(TargetDir)\packer.exe --obfuse_dll_export -d $(TargetPath)
 $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lightbone\$(Configuration)\$(Platform)\peloader.obj -d $(TargetPath) --output $(TargetDir)\client.bin</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

@@ -1,4 +1,4 @@
-#include "Lightbone/windows_internal.h"
+ï»¿#include "Lightbone/windows_internal.h"
 namespace ApiResolverInline
 {
 #include "Lightbone/api_resolver.h"
@@ -152,7 +152,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
     }
 
 
-    //ÖØ¶¨Î»ĞŞÕı
+    //é‡å®šä½ä¿®æ­£
     if (get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_BASERELOC).Size)
     {
         ULONG_PTR dist = (ULONG_PTR)image_base - nt_header->OptionalHeader.ImageBase;
@@ -185,7 +185,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
         }
     }
 
-    //ĞŞÕıImageBase
+    //ä¿®æ­£ImageBase
     get_image_nt_header(image_base)->OptionalHeader.ImageBase = (ULONG_PTR)image_base;
 
     *instance = (HINSTANCE)image_base;
@@ -194,7 +194,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
 
 void execute_tls_callback(HINSTANCE instance, uint32_t reason, void* param)
 {
-    //tlscallbackµ÷ÓÃ
+    //tlscallbackè°ƒç”¨
     PIMAGE_NT_HEADERS nt_header = get_image_nt_header(instance);
 
     if (get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_TLS).Size)
@@ -333,8 +333,8 @@ extern "C" void __stdcall loader_entry(uint8_t* eip)
 
 void enable_seh_on_shellcode()
 {
-    //Vista ÒÔÉÏ½ø³ÌIMAGEÔÚÆô¶¯Ê±Èç¹ûÓĞDEP,ÄÚºË»áÉèÖÃPermanentÊôĞÔÓÀ¾ÃÉúĞ§£¬ÎŞ·¨ÔÙ´ÎĞŞ¸Ä
-    //https://sudonull.com/post/97504-Exceptions-for-hardcore-Features-of-processing-executions-in-dynamically-allocated-code-Blog-Company
+	//Vista ä»¥ä¸Šè¿›ç¨‹IMAGEåœ¨å¯åŠ¨æ—¶å¦‚æœæœ‰DEP,å†…æ ¸ä¼šè®¾ç½®Permanentå±æ€§æ°¸ä¹…ç”Ÿæ•ˆï¼Œæ— æ³•å†æ¬¡ä¿®æ”¹
+	//https://sudonull.com/post/97504-Exceptions-for-hardcore-Features-of-processing-executions-in-dynamically-allocated-code-Blog-Company
     ULONG ExecuteFlags = MEM_EXECUTE_OPTION_ENABLE;
     auto NtSetInformationProcess = IMPORT(L"ntdll.dll", NtSetInformationProcess);
     ExecuteFlags = MEM_EXECUTE_OPTION_ENABLE;
