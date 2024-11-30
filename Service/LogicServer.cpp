@@ -32,7 +32,7 @@ int main(int argc, char** argv)
         unsigned int ppid = std::stoi(argv[1]);
         HANDLE phandle = OpenProcess(PROCESS_VM_OPERATION | SYNCHRONIZE, FALSE, ppid);
         WaitForSingleObject(phandle, INFINITE);
-        server.stop();
+		server.stop();
     }
 #ifndef _DEBUG
     server.set_log_level(LOG_TYPE_EVENT | LOG_TYPE_ERROR);

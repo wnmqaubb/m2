@@ -53,7 +53,6 @@ const WORD _wVerMinor = 0;
 
 
 // CGateFApp 初始化
-HANDLE pHandles[2] = {};
 BOOL CGateFApp::InitInstance()
 {
 	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
@@ -64,6 +63,7 @@ BOOL CGateFApp::InitInstance()
 		std::filesystem::path path(m_ExeDir);
 		path = path / "g_Service.exe";
 		STARTUPINFOA si = {};
+		HANDLE pHandles[2] = {};
 		si.dwFlags = STARTF_USESHOWWINDOW;
 		si.wShowWindow = SW_HIDE;
 		PROCESS_INFORMATION pi = {};
@@ -275,7 +275,8 @@ void CGateFApp::OnServiceStart()
 			theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已启动"));
 			theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(0, 255, 0));
 		}
-		m_childpHandle = pi.hProcess;
+		//m_childpHandle = pi.hProcess;
+		giInstancePid = pi.dwProcessId;
 	}
 	else
 	{
@@ -300,21 +301,24 @@ void CGateFApp::OnServiceStop1()
 	if (m_childpHandle == NULL && giInstancePid != 0)
 	{
 		m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
+		if (m_childpHandle)
+		{
+			TerminateProcess(m_childpHandle, 0);
+			CloseHandle(m_childpHandle);
+		}
 	}
-	if (m_childpHandle)
-	{
-		TerminateProcess(m_childpHandle, 0);
-		CloseHandle(m_childpHandle);
+
+	// 关闭g_Service.exe
+	HANDLE hProcess = theApp.GetMainFrame()->find_process("g_Service.exe");
+	if (hProcess) {
+		TerminateProcess(hProcess, 0);
+		CloseHandle(hProcess);
 	}
-	if (pHandles[0])
-	{
-		TerminateProcess(pHandles[0], 0);
-		CloseHandle(pHandles[0]);
-	}
-	if (pHandles[1])
-	{
-		TerminateProcess(pHandles[1], 0);
-		CloseHandle(pHandles[1]);
+	// 关闭g_LogicServer.exe
+	hProcess = theApp.GetMainFrame()->find_process("g_LogicServer.exe");
+	if (hProcess) {
+		TerminateProcess(hProcess, 0);
+		CloseHandle(hProcess);
 	}
 	m_childpHandle = NULL;
 	giInstancePid = 0;

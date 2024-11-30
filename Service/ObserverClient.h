@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 #include "AntiCheatClient.h"
 #include "ObServerPackage.h"
 
@@ -29,17 +29,17 @@ public:
         notify_mgr_.register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
             is_auth_ = false;
             get_gate_notify_mgr().dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT(" ß»•¡¨Ω”:%s:%u"), Utils::c2w(get_address()).c_str(),
+            log(LOG_TYPE_DEBUG, TEXT("Â§±ÂéªËøûÊé•:%s:%u"), Utils::c2w(get_address()).c_str(),
                 get_port());
         });
         notify_mgr_.register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
             get_gate_notify_mgr().dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("¡¨Ω” ß∞‹:%s:%u"), Utils::c2w(get_address()).c_str(),
+            log(LOG_TYPE_DEBUG, TEXT("ËøûÊé•Â§±Ë¥•:%s:%u"), Utils::c2w(get_address()).c_str(),
                 get_port());
         });
         notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
             get_gate_notify_mgr().dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("Ω®¡¢¡¨Ω”:%s:%u"), Utils::c2w(get_address()).c_str(),
+            log(LOG_TYPE_DEBUG, TEXT("Âª∫Á´ãËøûÊé•:%s:%u"), Utils::c2w(get_address()).c_str(),
                 get_port());
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
@@ -50,6 +50,7 @@ public:
                 super::send(&heartbeat);
             });
         });
+        // Ëé∑ÂèñÂà∞ÊúüÊó∂Èó¥
         notify_mgr_.register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
             ProtocolOBC2OBSAuth auth;
             auth.key = auth_key_;

@@ -17,9 +17,9 @@
 #define MAKE_DATETIME_SVN           $WCNOW$
 #define MAKE_DATETIME        VER2STR(MAKE_DATETIME_SVN)
 
-#define PRODUCT_NAME                       "审判反外挂保护系统"
-#define COMPANY_NAME                       "审判工作室 Co., Ltd."
-#define LEGAL_COPYRIGHT                    "Copyright (C) 2021 审判工作室 Co., Ltd."
+#define PRODUCT_NAME                       "反外挂保护系统"
+#define COMPANY_NAME                       "反外挂工作室 Co., Ltd."
+#define LEGAL_COPYRIGHT                    "Copyright (C) 2021 反外挂工作室 Co., Ltd."
 #define FILE_VERSION_VAL                   MAJOR_VERSION,MINOR_VERSION,INNER_VERSION,REV_VERSION
 #define FILE_VERSION_STR                   VER2STR(MAJOR_VERSION.MINOR_VERSION.INNER_VERSION.REV_VERSION)
 #define FILE_DESC                          VER2STR(COMMITED_HASH) IS_UNCOMMITED_STR
