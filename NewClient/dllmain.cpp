@@ -104,6 +104,11 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 		LOG("lf客户端插件HookRecv--gate_ip: %s ", lpData);
 	}
 
+	if (defMsg->ident == 10002 || defMsg->ident == 10003)
+	{		
+		AddChatText(lpData, 0x0000ff, 0);
+	}
+
 }
 //std::unique_ptr<FileChangeNotifier> notifier;
 RUNGATE_API DoUnInit() noexcept

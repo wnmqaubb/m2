@@ -16,6 +16,9 @@ TInitRecord g_InitRecord;
 std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key);
 VOID DbgPrint(const char* fmt, ...);
 std::string guard_gate_ip;
+std::string show_welcome_msg;
+std::string guard_gate_welcome_msg1;
+std::string guard_gate_welcome_msg2;
 RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 {
 	g_InitRecord = *pInitRecord;
@@ -34,7 +37,7 @@ RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 	AddShowLog("                                                                                       ", 0);
 	AddShowLog("                          ====加载及时雨网关插件完成====", 0);
 	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                0Q交流:331101339", 0);
+	AddShowLog("                                QQ交流:331101339", 0);
 	AddShowLog("                                                                                       ", 0);
 	AddShowLog("                           ※※※  优雅永不过时  ※※※", 0);
 	AddShowLog("                                                                                       ", 0);
@@ -53,6 +56,9 @@ RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
 	guard_gate_ip = read_config_txt(ini_path, "GuardGate", "GateIP");
+	show_welcome_msg = read_config_txt(ini_path, "GuardGate", "ShowWelcomeMsg");
+	guard_gate_welcome_msg1 = read_config_txt(ini_path, "GuardGate", "WelcomeMsg1");
+	guard_gate_welcome_msg2 = read_config_txt(ini_path, "GuardGate", "WelcomeMsg2");
 	if (guard_gate_ip.empty()) {
 		AddShowLog("请在Config.ini配置及时雨网关IP [GuardGate]-->GateIP", 0);
 	}
@@ -91,6 +97,21 @@ RUNGATE_API ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData
 		// 下发及时雨网关IP
 		defMsg->ident = 10001;
 		SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
+
+
+		if (show_welcome_msg == "1") {
+			if (!guard_gate_welcome_msg1.empty ()) {
+				// 下发及时雨网关欢迎信息1
+				defMsg->ident = 10002;
+				SendDataToClient(clientID, defMsg, guard_gate_welcome_msg1.c_str(), guard_gate_welcome_msg1.length());
+			}
+
+			if (!guard_gate_welcome_msg2.empty()) {
+				// 下发及时雨网关欢迎信息1
+				defMsg->ident = 10003;
+				SendDataToClient(clientID, defMsg, guard_gate_welcome_msg2.c_str(), guard_gate_welcome_msg2.length());
+			}
+		}
 	}
 }
 

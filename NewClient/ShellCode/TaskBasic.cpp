@@ -1,10 +1,5 @@
 ﻿#include "../pch.h"
 #include "TaskBasic.h"
-#include "../../lf_rungate_server_plug/lf_plug_sdk.h"
-
-#define CONFIG_APP_NAME "    ┣┫========锦衣卫封挂加载成功========┣┫"
-#define CONFIG_WEBSITE  "┣┫====   开服顺利◆充值充不停   ====┣┫"
-#define CONFIG_TITLE    "┣┫锦衣卫封挂提示:勿开挂!有封号、封机器码风险┣┫"
 
 std::shared_ptr<bool> is_debug_mode = std::make_shared<bool>(false);
 std::shared_ptr<int> reconnect_count = std::make_shared<int>(0);
@@ -20,10 +15,6 @@ void NotifyHook(CAntiCheatClient* client)
 void LoadPlugin(CAntiCheatClient* client)
 {
     client->set_is_loaded_plugin(true);
-    if (lfengine::client::AddChatText && false) {
-		lfengine::client::AddChatText(CONFIG_APP_NAME, 0x0000ff, 0);
-		lfengine::client::AddChatText(CONFIG_TITLE, 0x0000ff, 0);
-    }
     LOG("加载插件成功---");
     VMP_VIRTUALIZATION_BEGIN();
     srand(time(0));
@@ -374,7 +365,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     }
 
     auto& win = Utils::CWindows::instance();
-
+    bool find_cheat = false;
     do
     {
         if (window_polices.size() == 0)
@@ -392,10 +383,24 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
                 }
                 resp.results.push_back({ policy.policy_id,
                                 combine_name });
-            }
-        }
-    } while (0);
+                find_cheat = true;
+				break;
+			}
+			if (find_cheat) {
+				break;
+			}
+		}
+		if (find_cheat) {
+			break;
+		}
+	} while (0);
+
     const uint32_t cur_pid = win.get_current_process_id();
+
+	if (resp.results.size() > 0) {
+		client->send(&resp);
+        return;
+	}
 
     win.enum_process([&](Utils::CWindows::ProcessInfo& process)->bool {
 

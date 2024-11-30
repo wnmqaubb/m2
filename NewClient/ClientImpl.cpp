@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ClientImpl.h"
 #include "version.build"
 #include "TaskBasic.h"
@@ -17,14 +17,14 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
         fs::create_directory(cache_dir_, ec);
     }
     notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
-        LOG("Ê§È¥Á¬½Ó");
+        LOG("å¤±å»è¿æ¥");
     });
     notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
         auto ec = asio2::get_last_error();
-        LOG("Á¬½ÓÊ§°Ü: %s ", ec.message().c_str());
+        LOG("è¿æ¥å¤±è´¥: %s ", ec.message().c_str());
     });
     notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-        LOG("ÎÕÊÖ");
+        LOG("æ¡æ‰‹");
         ProtocolC2SHandShake handshake;
         memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
         handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
@@ -41,7 +41,7 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 			ProtocolC2SHeartBeat heartbeat;
 			heartbeat.tick = time(0);
 			send(&heartbeat);
-			LOG("·¢ËÍĞÄÌø");
+			LOG("å‘é€å¿ƒè·³");
 			});
 		post([this]() {
             if (!is_loaded_plugin())
@@ -49,16 +49,16 @@ CClientImpl::CClientImpl(/*asio::io_service& io_*/) : super(/*io_*/)
 			    LoadPlugin(this);
             }
 		},std::chrono::milliseconds(200));
-        // ·¢ËÍÓÃ»§Ãû ·ÀÖ¹¶Ï¿ªºóÖØÁ¬Ê±Íø¹ØÓÃ»§ÃûÎª¿Õ
+        // å‘é€ç”¨æˆ·å é˜²æ­¢æ–­å¼€åé‡è¿æ—¶ç½‘å…³ç”¨æˆ·åä¸ºç©º
         notify_mgr().dispatch (CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
 
 	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
-		LOG("½ÓÊÕĞÄÌø");
+		LOG("æ¥æ”¶å¿ƒè·³");
 		});
 
     notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
-        LOG("¿Í»§¶Ë³õÊ¼»¯³É¹¦");
+        LOG("å®¢æˆ·ç«¯åˆå§‹åŒ–æˆåŠŸ");
         user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
         user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
         user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
@@ -86,7 +86,7 @@ CClientImpl::~CClientImpl()
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)
 {
-    LOG("ÊÕµ½:%d", package_id);
+    LOG("æ”¶åˆ°:%d", package_id);
 }
 
 void CClientImpl::load_uuid()
