@@ -14,8 +14,8 @@ mkdir %gm_server%
 
 ::echo ***************gm_server***************
 ::VMProtect_Con.exe %ReleaseDir%\Service.exe %gm_server%\g_Service.exe -pf ServiceRelease_vip.vmp
-::VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %gm_server%\g_LogicServer.exe -pf LogicRelease_vip.vmp
-VMProtect_Con.exe %ReleaseDir_vip%\GateF.exe %gm_server%\鍙婃椂闆ㄥ唴閮ㄧ増.exe -pf GateRelease_vip.vmp
+VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %gm_server%\g_LogicServer.exe -pf LogicRelease_vip.vmp
+::VMProtect_Con.exe %ReleaseDir_vip%\GateF.exe %gm_server%\及时雨内部版.exe -pf GateRelease_vip.vmp
 ::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %admin_server%\AdminGate.exe -pf AdminGateRelease.vmp
 
 pause

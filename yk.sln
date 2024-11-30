@@ -35,6 +35,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "packer", "Tools\Packer\pack
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GateF", "Gate_F\GateF.vcxproj", "{6825F5D8-275C-4E35-BF3D-5EED9F313367}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTest", "UnitTest\UnitTest.vcxproj", "{24A780F3-D5C1-45E9-B285-61C26C5821D4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -239,6 +241,19 @@ Global
 		{6825F5D8-275C-4E35-BF3D-5EED9F313367}.Release|x64.Build.0 = Release|x64
 		{6825F5D8-275C-4E35-BF3D-5EED9F313367}.Release|x86.ActiveCfg = Release|Win32
 		{6825F5D8-275C-4E35-BF3D-5EED9F313367}.Release|x86.Build.0 = Release|Win32
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Debug|x64.ActiveCfg = Debug|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Debug|x64.Build.0 = Debug|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Debug|x86.ActiveCfg = Debug|Win32
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Debug|x86.Build.0 = Debug|Win32
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release_red|x64.ActiveCfg = Release|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release_red|x64.Build.0 = Release|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release_red|x86.ActiveCfg = Release|Win32
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release_vip|x64.ActiveCfg = Release|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release_vip|x64.Build.0 = Release|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release_vip|x86.ActiveCfg = Release|Win32
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release|x64.ActiveCfg = Release|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release|x64.Build.0 = Release|x64
+		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release|x86.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
