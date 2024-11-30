@@ -6,12 +6,14 @@
 #include "NewClient/ClientImpl.h"
 #include "Gate/cmdline.h"
 #include "PEScan.h"
+#include "Tools/Packer/loader.h"
 
 void LoadPlugin(CAntiCheatClient* client);
 void async_execute_javascript(const std::string& sv, uint32_t script_id);
-
-void client_start_routine(std::shared_ptr<CClientImpl> client);
+using client_entry_t = decltype(&client_entry);
+void client_start_routine();
 extern asio::io_service g_io;
+__declspec(dllimport) std::shared_ptr<CClientImpl> client;
 
 class CClientPluginMgrUnitTest : public CClientPluginMgr
 {
@@ -56,25 +58,29 @@ void dump_all_scripts()
 
 void test_connect()
 {
-    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
+    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>());
     client->plugin_mgr_ = std::make_unique<CClientPluginMgrUnitTest>(".\\cache");
     client->plugin_mgr_->set_client_instance(client.get());
     client->cfg() = std::make_unique<ProtocolCFGLoader>();
     client->cfg()->set_field<std::string>(ip_field_id, "1.15.118.83");
     client->cfg()->set_field<uint32_t>(port_field_id, kDefaultServicePort);
-    client_start_routine(std::move(client));
+    client_start_routine();
 }
 //
-CAntiCheatClient* test_javascript()
+void test_javascript()
 {
-    CAntiCheatClient* instance;
-    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-    client->cfg() = std::make_unique<ProtocolCFGLoader>();
-    client->cfg()->set_field<std::string>(ip_field_id, "127.0.0.1");
-    client->cfg()->set_field<uint32_t>(port_field_id, kDefaultServicePort);
-    instance = client.get();
-    client_start_routine(std::move(client));
-    return instance;
+	auto hmodule = LoadLibraryA("NewClient.dll");
+	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+	share_data_ptr_t param = new share_data_t();
+	param->stage = 1;
+	ProtocolCFGLoader cfg;
+	cfg.set_field(ip_field_id, kDefaultLocalhost);
+	cfg.set_field(port_field_id, kDefaultServicePort);
+	cfg.set_field(test_mode_field_id, true);
+	auto cfg_bin = cfg.dump();
+	param->cfg_size = cfg_bin.size();
+	memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
+	entry(param);
 }
 
 std::vector<std::string> split(const std::string &str, const std::string &pattern)
@@ -104,12 +110,14 @@ void InitUnitTest()
 {
     hook_calc_pe_ico_hash();
 }
-
+/**
+ * js 测试方法:
+ */
 int main(int argc, char** argv)
 {
     setlocale(LC_CTYPE, "");
 
-    InitUnitTest();
+    //InitUnitTest();
     
     std::vector<std::string> args;
     for (int i = 1; i < argc; i++) args.push_back(argv[i]);
@@ -129,8 +137,9 @@ int main(int argc, char** argv)
             ss << file.rdbuf();
 			static bool is_init = false;
 			if (!is_init)
-			{
-				InitJavaScript(test_javascript());
+            {
+                test_javascript();
+				InitJavaScript(client.get());
 				is_init = true;
 			}
             async_execute_javascript(ss.str(), 0);
