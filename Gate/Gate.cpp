@@ -420,6 +420,19 @@ void CGateApp::OnServiceStop1()
 		TerminateProcess(m_childpHandle, 0);
 		CloseHandle(m_childpHandle);
 	}
+
+	// 关闭g_Service.exe
+	HANDLE hProcess = theApp.GetMainFrame()->find_process("g_Service.exe");
+	if (hProcess) {
+		TerminateProcess(hProcess, 0);
+		CloseHandle(hProcess);
+	}
+	// 关闭g_LogicServer.exe
+	hProcess = theApp.GetMainFrame()->find_process("g_LogicServer.exe");
+	if (hProcess) {
+		TerminateProcess(hProcess, 0);
+		CloseHandle(hProcess);
+	}
 	m_childpHandle = NULL;
 	giInstancePid = 0;
 #endif
