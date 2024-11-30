@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "Protocol.h"
 #include "NetUtils.h"
 
@@ -15,11 +15,11 @@ protected:
     using notify_handler_t = std::function<void()>;
     using user_notify_handler_t = std::function<void(tcp_session_shared_ptr_t& session)>;
     /**
-     * msg: ÈÕÖ¾ĞÅÏ¢
-     * silence: ÊÇ·ñÏÔÊ¾µ½½çÃæÈÕÖ¾´°¿Ú
-     * gm_show: ÊÇ·ñÏÔÊ¾µ½gm
-     * identify: Íæ¼Òuuid±êÊ¶·û
-     * punish_flag: ÊÇ·ñÊÇ³Í·£log
+     * msg: æ—¥å¿—ä¿¡æ¯
+     * silence: æ˜¯å¦æ˜¾ç¤ºåˆ°ç•Œé¢æ—¥å¿—çª—å£
+     * gm_show: æ˜¯å¦æ˜¾ç¤ºåˆ°gm
+     * identify: ç©å®¶uuidæ ‡è¯†ç¬¦
+     * punish_flag: æ˜¯å¦æ˜¯æƒ©ç½šlog
      */
     using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify, bool punish_flag)>;
 public:

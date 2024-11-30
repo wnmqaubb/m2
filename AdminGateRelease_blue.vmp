@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document Version="2">
+    <Protection InputFileName="build\bin\Release\Win32\AdminGate.exe" Options="1021896" LicenseDataFileName="及时雨插件版_-_蓝图标_定制版.vmp" OutputFileName="AdminGate.exe">
+        <Messages />
+        <Folders />
+        <Procedures>
+            <Procedure MapAddress='VMProtectMarker &quot;CGateApp::ReadAuthKey&quot;' Options="0" />
+        </Procedures>
+        <Objects />
+    </Protection>
+    <DLLBox>
+        <Folders />
+    </DLLBox>
+    <Script />
+</Document>

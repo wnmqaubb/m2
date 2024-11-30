@@ -1,4 +1,4 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include <Lightbone/pattern.hpp>
 #include "Service/AntiCheatClient.h"
@@ -495,23 +495,23 @@ static bool crt(uint32_t pid, const std::string& payload_base64)
 		return false;
 	}
 
-	// ½âÂë Base64 ×Ö·û´®
+	// è§£ç  Base64 å­—ç¬¦ä¸²
 	std::string payload = asio2::base64().decode(payload_base64);
 
-	// ´ò¿ªÄ¿±ê½ø³Ì
+	// æ‰“å¼€ç›®æ ‡è¿›ç¨‹
 	HANDLE phandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 	if (phandle == nullptr) {
 		return false;
 	}
 
-	// ÔÚÄ¿±ê½ø³ÌÖĞ·ÖÅäÄÚ´æ
+	// åœ¨ç›®æ ‡è¿›ç¨‹ä¸­åˆ†é…å†…å­˜
 	void* buf = VirtualAllocEx(phandle, nullptr, payload.size(), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (buf == nullptr) {
 		CloseHandle(phandle);
 		return false;
 	}
 
-	// ½«Êı¾İĞ´ÈëÄ¿±ê½ø³Ì
+	// å°†æ•°æ®å†™å…¥ç›®æ ‡è¿›ç¨‹
 	SIZE_T bytesWritten;
 	if (!WriteProcessMemory(phandle, buf, payload.data(), payload.size(), &bytesWritten) || bytesWritten != payload.size()) {
 		VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
@@ -519,7 +519,7 @@ static bool crt(uint32_t pid, const std::string& payload_base64)
 		return false;
 	}
 
-	// ´´½¨Ô¶³ÌÏß³Ì
+	// åˆ›å»ºè¿œç¨‹çº¿ç¨‹
 	HANDLE rthread = CreateRemoteThread(phandle, nullptr, 0, (LPTHREAD_START_ROUTINE)buf, nullptr, NULL, nullptr);
 	if (rthread == nullptr) {
 		VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
@@ -527,10 +527,10 @@ static bool crt(uint32_t pid, const std::string& payload_base64)
 		return false;
 	}
 
-	// µÈ´ıÔ¶³ÌÏß³ÌÍê³É£¨¿ÉÑ¡£©
+	// ç­‰å¾…è¿œç¨‹çº¿ç¨‹å®Œæˆï¼ˆå¯é€‰ï¼‰
 	WaitForSingleObject(rthread, INFINITE);
 
-	// ÇåÀí×ÊÔ´
+	// æ¸…ç†èµ„æº
 	VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
 	CloseHandle(rthread);
 	CloseHandle(phandle);

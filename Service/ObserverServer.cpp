@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
 
@@ -44,7 +44,7 @@ CObserverServer::CObserverServer()
         if (session)
         {
             get_user_data_(session)->set_field(param.key, param.val);
-            // ·¢¸ø¹ÜÀíÔ±Íø¹Ø
+            // å‘ç»™ç®¡ç†å‘˜ç½‘å…³
             if (get_user_data_(session)->get_field<bool>("is_observer_client"))
             {
                 ProtocolOBS2OBCSetField req;
@@ -178,11 +178,11 @@ CObserverServer::CObserverServer()
             &pi);
         if (res == FALSE)
         {
-            log(LOG_TYPE_EVENT, TEXT("¸üÐÂLogicServerÊ§°Ü"));
+            log(LOG_TYPE_EVENT, TEXT("æ›´æ–°LogicServerå¤±è´¥"));
         }
         else
         {
-            log(LOG_TYPE_EVENT, TEXT("¸üÐÂLogicServer³É¹¦"));
+            log(LOG_TYPE_EVENT, TEXT("æ›´æ–°LogicServeræˆåŠŸ"));
         }
     });
     user_notify_mgr_.register_handler(CLIENT_HANDSHAKE_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
@@ -249,7 +249,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     {
         if (get_user_data_(session)->get_field<bool>("is_observer_client") == false)
         {
-            log(LOG_TYPE_ERROR, TEXT("Î´ÊÚÈ¨Serviceµ÷ÓÃ"));
+            log(LOG_TYPE_ERROR, TEXT("æœªæŽˆæƒServiceè°ƒç”¨"));
             return false;
         }
         ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
@@ -259,7 +259,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     {
         if (get_user_data_(session)->get_field<bool>("is_observer_client") == false)
         {
-            log(LOG_TYPE_ERROR, TEXT("Î´ÊÚÈ¨LogicServerµ÷ÓÃ"));
+            log(LOG_TYPE_ERROR, TEXT("æœªæŽˆæƒLogicServerè°ƒç”¨"));
             return false;
         }
         ProtocolLC2LSSend req;
@@ -284,7 +284,7 @@ void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, con
     log.silence = silence;
     log.gm_show = gm_show;
     foreach_session([this, &log](tcp_session_shared_ptr_t& session){
-        if (get_user_data_(session)->get_field<bool>("is_observer_client"))//adminÍø¹Ø
+        if (get_user_data_(session)->get_field<bool>("is_observer_client"))//adminç½‘å…³
         {
             send(session, &log);
         }

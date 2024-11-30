@@ -97,14 +97,12 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 #endif
 #ifdef VERSION_BLUE
 	SetWindowText(TEXT("及时雨定制版"));
-	/*SetIcon(m_hIcon, TRUE);
-	SetIcon(m_hIcon, FALSE);*/
 #endif
 #ifdef VERSION_RED
 	SetWindowText(TEXT("及时雨鸿蒙版"));
+#endif
 	SetIcon(m_hIcon, TRUE);
 	SetIcon(m_hIcon, FALSE);
-#endif
 
 	CString strToolBarName;
 	bNameValid = strToolBarName.LoadString(IDS_TOOLBAR_STANDARD);

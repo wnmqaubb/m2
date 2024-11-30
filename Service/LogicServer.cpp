@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "LogicServer.h"
 #include "../version.build"
 #include "vmprotect/VMProtectSDK.h"
@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 	if (!server.start(kDefaultLocalhost, kDefaultLogicServicePort))
 	{
 		if (asio2::get_last_error())
-			printf("CLogicServerÆô¶¯Ê§°Ü:´íÎóºÅ: %d, ´íÎóĞÅÏ¢: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
+			printf("CLogicServerå¯åŠ¨å¤±è´¥:é”™è¯¯å·: %d, é”™è¯¯ä¿¡æ¯: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
 		return 1;
 	}
 	if (argc == 2 || argc == 3)
@@ -87,16 +87,16 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
 		user_data->policy_recv_timeout_timer_->async_wait([this, user_data = user_data, service_session_id = session->hash_key()](std::error_code ec) {
 			if (ec != asio::error::operation_aborted)
 			{
-				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("²ßÂÔÊÕµ½³¬Ê±:%d"), user_data->session_id);
+				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ç­–ç•¥æ”¶åˆ°è¶…æ—¶:%d"), user_data->session_id);
 				user_data->add_policy_timeout_times();
 				if (user_data->get_policy_timeout_times() >= ENABLE_POLICY_TIMEOUT_CHECK_TIMES)
 				{
 					auto service_session = sessions().find(service_session_id);
 					if (service_session)
 						close_socket(service_session, user_data->session_id);
-					user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("²ßÂÔÊÕµ½ÑÏÖØ³¬Ê±£¬ÇëÊÖ¶¯´¦·£:%d"), user_data->session_id);
+					user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ç­–ç•¥æ”¶åˆ°ä¸¥é‡è¶…æ—¶ï¼Œè¯·æ‰‹åŠ¨å¤„ç½š:%d"), user_data->session_id);
 					std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-					write_txt(".\\¶ñĞÔ¿ª¹ÒÈËÔ±Ãûµ¥.txt", trim_user_name(Utils::w2c(usr_name)));
+					write_txt(".\\æ¶æ€§å¼€æŒ‚äººå‘˜åå•.txt", trim_user_name(Utils::w2c(usr_name)));
 				}
 			}
 			else
@@ -130,7 +130,7 @@ CLogicServer::CLogicServer()
 		this->stop();
 		exit(0);
 		});
-	// service ---> logic serverÁ¬½Ó
+	// service ---> logic serverè¿æ¥
 	package_mgr_.register_handler(LSPKG_ID_C2S_ADD_OBS_SESSION, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto req = msg.get().as<ProtocolLC2LSAddObsSession>();
 		obs_sessions_mgr().add_session(req.session_id);
@@ -146,10 +146,10 @@ CLogicServer::CLogicServer()
 		auto user_data = usr_sessions_mgr().get_user_data(req.data.session_id);
 		if (user_data)
 		{
-			// ÑÓ³Ù·¢ËÍ²ßÂÔ£¬·ÀÖ¹ÓÃ»§Á¬½Ó¹ıÂıµ¼ÖÂ²ßÂÔ·¢ËÍÊ§°Ü
+			// å»¶è¿Ÿå‘é€ç­–ç•¥ï¼Œé˜²æ­¢ç”¨æˆ·è¿æ¥è¿‡æ…¢å¯¼è‡´ç­–ç•¥å‘é€å¤±è´¥
 			session->post([this, user_data, session]() mutable {
 				send_policy(user_data, session, user_data->session_id);
-				//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ÑÓ³Ù·¢ËÍ²ßÂÔ"));
+				//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("å»¶è¿Ÿå‘é€ç­–ç•¥"));
 			}, std::chrono::seconds(std::rand() % 20 + 10));
 
 			std::wstring json_dump;
@@ -161,7 +161,7 @@ CLogicServer::CLogicServer()
 			{
 
 			}
-			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("½¨Á¢Á¬½Ó²¢ÏÂ·¢²ßÂÔ:%s"), json_dump.c_str());
+			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("å»ºç«‹è¿æ¥å¹¶ä¸‹å‘ç­–ç•¥:%s"), json_dump.c_str());
 		}
 		detect(session, req.data.session_id);
 		});
@@ -170,7 +170,7 @@ CLogicServer::CLogicServer()
 		auto user_data = usr_sessions_mgr().get_user_data(req.data.session_id);
 		if (user_data) {
 #if defined(ENABLE_DETAIL_USER_LOGIN_LOGOUT_LOG)
-			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("¶Ï¿ªÁ¬½Ó:%d"), user_data->session_id);
+			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("æ–­å¼€è¿æ¥:%d"), user_data->session_id);
 #endif
 #if defined(ENABLE_POLICY_TIMEOUT_CHECK)
 			if (user_data->policy_recv_timeout_timer_) user_data->policy_recv_timeout_timer_->cancel();
@@ -178,7 +178,7 @@ CLogicServer::CLogicServer()
 		}
 		usr_sessions_mgr().remove_session(req.data.session_id);
 		});
-	// service ---> logic server  ×ª·¢Ğ­Òé
+	// service ---> logic server  è½¬å‘åè®®
 	package_mgr_.register_handler(LSPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto req = msg.get().as<ProtocolLC2LSSend>().package;
 		auto raw_msg = msgpack::unpack((char*)req.body.buffer.data(), req.body.buffer.size());
@@ -188,7 +188,7 @@ CLogicServer::CLogicServer()
 		const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
 		if (package_id == LSPKG_ID_C2S_SEND)
 		{
-			log(LOG_TYPE_ERROR, TEXT("Ç¶Ì××ª·¢"));
+			log(LOG_TYPE_ERROR, TEXT("åµŒå¥—è½¬å‘"));
 			return;
 		}
 
@@ -211,7 +211,7 @@ CLogicServer::CLogicServer()
 		auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
 		if (user_data)
 		{
-			// Ã¿3·ÖÖÓ¼ì²âÒ»´Î¸÷¸ö°üÊÇ·ñ³¬Ê±
+			// æ¯3åˆ†é’Ÿæ£€æµ‹ä¸€æ¬¡å„ä¸ªåŒ…æ˜¯å¦è¶…æ—¶
 			if (user_data->get_heartbeat_duration() > std::chrono::minutes(3))
 			{
 				detect(session, package.head.session_id);
@@ -221,40 +221,40 @@ CLogicServer::CLogicServer()
 				{
 					if (user_data->pkg_id_time_map().count(689060) == 0)
 					{
-						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("Ë®ÏÉ³¬Ê±:%d"), user_data->session_id);
-						//write_txt(".\\¶ñĞÔ¿ª¹ÒÈËÔ±Ãûµ¥.txt", trim_user_name(Utils::w2c(usr_name)));
+						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("æ°´ä»™è¶…æ—¶:%d"), user_data->session_id);
+						//write_txt(".\\æ¶æ€§å¼€æŒ‚äººå‘˜åå•.txt", trim_user_name(Utils::w2c(usr_name)));
 					}
 					else
 					{
 						auto dura_689060 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[689060];
 						if (dura_689060 > std::chrono::minutes(5))
 						{
-							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689060³¬Ê±:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689060).count());
+							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689060è¶…æ—¶:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689060).count());
 						}
 					}
 					if (user_data->pkg_id_time_map().count(689051) == 0)
 					{
-						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("»úÆ÷ÂëÊÕµ½³¬Ê±:%d"), user_data->session_id);
+						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("æœºå™¨ç æ”¶åˆ°è¶…æ—¶:%d"), user_data->session_id);
 						close_socket(session, user_data->session_id);
 						std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-						//write_txt(".\\¶ñĞÔ¿ª¹ÒÈËÔ±Ãûµ¥.txt", trim_user_name(Utils::w2c(usr_name)));
+						//write_txt(".\\æ¶æ€§å¼€æŒ‚äººå‘˜åå•.txt", trim_user_name(Utils::w2c(usr_name)));
 					}
 					else
 					{
 						auto dura_689051 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[689051];
 						if (dura_689051 > std::chrono::minutes(5))
 						{
-							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689051³¬Ê±:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689051).count());
+							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689051è¶…æ—¶:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689051).count());
 							std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
 						}
 					}
 
 					if (user_data->pkg_id_time_map().count(SPKG_ID_C2S_QUERY_PROCESS) == 0)
 					{
-						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("²é¿´½ø³ÌÊÕµ½³¬Ê±:%d"), user_data->session_id);
+						user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("æŸ¥çœ‹è¿›ç¨‹æ”¶åˆ°è¶…æ—¶:%d"), user_data->session_id);
 						close_socket(session, user_data->session_id);
 						std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-						//write_txt(".\\¶ñĞÔ¿ª¹ÒÈËÔ±Ãûµ¥.txt", trim_user_name(Utils::w2c(usr_name)));
+						//write_txt(".\\æ¶æ€§å¼€æŒ‚äººå‘˜åå•.txt", trim_user_name(Utils::w2c(usr_name)));
 					}
 				}
 				else
@@ -262,7 +262,7 @@ CLogicServer::CLogicServer()
 					ProtocolS2CQueryProcess req;
 					send(session, package.head.session_id, &req);
 					user_data->has_been_check_pkg(true);
-					//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ÏÂ·¢²é¿´½ø³Ì:%d"), user_data->session_id);
+					//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ä¸‹å‘æŸ¥çœ‹è¿›ç¨‹:%d"), user_data->session_id);
 				}
 
 				user_data->last_heartbeat_time = std::chrono::system_clock::now();
@@ -276,10 +276,10 @@ CLogicServer::CLogicServer()
 		auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
 		if (user_data)
 		{
-			// ·¢¸øservice
+			// å‘ç»™service
 			set_field(session, package.head.session_id, "usrname", req.username);
 			user_data->json["usrname"] = req.username;
-			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ÓÃ»§µÇÂ¼:%s sid:[%d]"), req.username.c_str(), user_data->session_id);
+			user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("ç”¨æˆ·ç™»å½•:%s sid:[%d]"), req.username.c_str(), user_data->session_id);
 		}
 		});
 	ob_pkg_mgr_.register_handler(SPKG_ID_C2S_TASKECHO, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
@@ -308,11 +308,11 @@ CLogicServer::CLogicServer()
 
 			if (req.task_id == 689999 && req.is_cheat)
 			{
-				write_txt(".\\¶ñĞÔ¿ª¹ÒÈËÔ±Ãûµ¥.txt", trim_user_name(Utils::w2c(usr_name)));
-				user_log(LOG_TYPE_EVENT, silence, false, user_data->get_uuid().str(), TEXT("Íæ¼Ò:%s ²ßÂÔID:%d ÈÕÖ¾:¶à´Î½Å±¾´íÎó¶¨ĞÔÎªÍâ¹Ò,ÒÑĞ´Èë¶ñĞÔÃûµ¥!"), usr_name.c_str(), req.task_id, reason.c_str());
+				write_txt(".\\æ¶æ€§å¼€æŒ‚äººå‘˜åå•.txt", trim_user_name(Utils::w2c(usr_name)));
+				user_log(LOG_TYPE_EVENT, silence, false, user_data->get_uuid().str(), TEXT("ç©å®¶:%s ç­–ç•¥ID:%d æ—¥å¿—:å¤šæ¬¡è„šæœ¬é”™è¯¯å®šæ€§ä¸ºå¤–æŒ‚,å·²å†™å…¥æ¶æ€§åå•!"), usr_name.c_str(), req.task_id, reason.c_str());
 			}
 
-			//user_log(LOG_TYPE_EVENT, silence, gm_show, user_data->get_uuid().str(), TEXT("Íæ¼Ò:%s ²ßÂÔID:%d ÈÕÖ¾:%s"), usr_name.c_str(), req.task_id, reason.c_str());
+			//user_log(LOG_TYPE_EVENT, silence, gm_show, user_data->get_uuid().str(), TEXT("ç©å®¶:%s ç­–ç•¥ID:%d æ—¥å¿—:%s"), usr_name.c_str(), req.task_id, reason.c_str());
 #if defined(ENABLE_POLICY_TIMEOUT_CHECK)
 			if (user_data->policy_recv_timeout_timer_) user_data->policy_recv_timeout_timer_->cancel(); 
 #endif
@@ -366,26 +366,26 @@ CLogicServer::CLogicServer()
 	REGISTER_TRANSPORT(SPKG_ID_C2S_RMC_DOWNLOAD_FILE);
 	REGISTER_TRANSPORT(SPKG_ID_C2S_RMC_UPLOAD_FILE);
 	REGISTER_TRANSPORT(SPKG_ID_C2S_RMC_ECHO);
-	// ¸üĞÂ¹ÜÀíÔ±²ßÂÔ
+	// æ›´æ–°ç®¡ç†å‘˜ç­–ç•¥
 	ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_UPLOAD_CFG, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto& req = msg.get().as<ProtocolOBC2LSUploadConfig>();
 		policy_mgr_.create_policy_file(req.file_name, req.data);
-		log(LOG_TYPE_EVENT, TEXT("¸üĞÂ²ßÂÔ:%s"), Utils::c2w(req.file_name).c_str());
+		log(LOG_TYPE_EVENT, TEXT("æ›´æ–°ç­–ç•¥:%s"), Utils::c2w(req.file_name).c_str());
 		});
 	ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_REMOVE_CFG, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto& req = msg.get().as<ProtocolOBC2LSRemoveConfig>();
 		policy_mgr_.remove_policy_file(req.file_name);
-		log(LOG_TYPE_EVENT, TEXT("Ğ¶ÔØ²ßÂÔ:%s"), Utils::c2w(req.file_name).c_str());
+		log(LOG_TYPE_EVENT, TEXT("å¸è½½ç­–ç•¥:%s"), Utils::c2w(req.file_name).c_str());
 		});
 	//ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_UPLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 	//    auto& req = msg.get().as<ProtocolOBC2LSUploadPlugin>();
 	//    plugin_mgr_.create_plugin_file(req.file_name, req.data);
-	//    log(LOG_TYPE_EVENT, TEXT("¸üĞÂ²å¼ş:%s"), Utils::c2w(req.file_name).c_str());
+	//    log(LOG_TYPE_EVENT, TEXT("æ›´æ–°æ’ä»¶:%s"), Utils::c2w(req.file_name).c_str());
 	//});
 	//ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_REMOVE_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 	//    auto& req = msg.get().as<ProtocolOBC2LSRemovePlugin>();
 	//    plugin_mgr_.remove_plugin_file(req.file_name);
-	//    log(LOG_TYPE_EVENT, TEXT("Ğ¶ÔØ²å¼ş:%s"), Utils::c2w(req.file_name).c_str());
+	//    log(LOG_TYPE_EVENT, TEXT("å¸è½½æ’ä»¶:%s"), Utils::c2w(req.file_name).c_str());
 	//});
 	ob_pkg_mgr_.register_handler(LSPKG_ID_C2S_ADD_LIST, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
 		auto& req = msg.get().as<ProtocolOBC2LSAddList>();
@@ -405,7 +405,7 @@ void CLogicServer::clear_txt(const std::string& file_name)
 	{
 		list << "";
 		list.close();
-		log(LOG_TYPE_EVENT, TEXT("Çå¿ÕÁĞ±í[%s]"), Utils::c2w(file_name).c_str());
+		log(LOG_TYPE_EVENT, TEXT("æ¸…ç©ºåˆ—è¡¨[%s]"), Utils::c2w(file_name).c_str());
 	}
 }
 class counter
@@ -459,7 +459,7 @@ void CLogicServer::write_txt(const std::string& file_name, const std::string& st
 			is_enable_write_txt = false;
 			}))
 		{
-			log(LOG_TYPE_EVENT, TEXT("´¥·¢Ğ´ÈëÁĞ±íÆµÂÊÉÏÏŞ£¬ÔİÊ±¹Ø±ÕĞ´ÁĞ±í¹¦ÄÜ"));
+			log(LOG_TYPE_EVENT, TEXT("è§¦å‘å†™å…¥åˆ—è¡¨é¢‘ç‡ä¸Šé™ï¼Œæš‚æ—¶å…³é—­å†™åˆ—è¡¨åŠŸèƒ½"));
 			return;
 		}
 		if (!is_enable_write_txt)
@@ -471,7 +471,7 @@ void CLogicServer::write_txt(const std::string& file_name, const std::string& st
 	{
 		list << str << std::endl;
 		list.close();
-		log(LOG_TYPE_EVENT, TEXT("¼ÓÈëÁĞ±í[%s]:%s"), Utils::c2w(file_name).c_str(), Utils::c2w(str).c_str());
+		log(LOG_TYPE_EVENT, TEXT("åŠ å…¥åˆ—è¡¨[%s]:%s"), Utils::c2w(file_name).c_str(), Utils::c2w(str).c_str());
 	}
 }
 
@@ -493,14 +493,14 @@ void CLogicServer::write_img(unsigned int session_id, std::vector<uint8_t>& data
 		fs::create_directories(save_dir, ec);
 	}
 
-	std::wstring user_name = L"Î´ÃüÃû";
+	std::wstring user_name = L"æœªå‘½å";
 	try
 	{
 		user_name = usr_sessions_mgr().get_user_data(session_id)->json.at("usrname").get<std::wstring>();
 	}
 	catch (...)
 	{
-		user_name = L"Î´ÃüÃû";
+		user_name = L"æœªå‘½å";
 	}
 
 	std::wstring file_name = user_name + L"_" + std::wstring(time_str) + L".jpg";
@@ -531,23 +531,23 @@ void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const 
 void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2)
 {
 	static std::map<PunishType, wchar_t*> punish_type_str = {
-	   {ENM_PUNISH_TYPE_KICK,TEXT("ÍË³öÓÎÏ·")},
-	   {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("²»´¦Àí")},
-	   {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("°×Ãûµ¥")},
-	   {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("·â»úÆ÷")},
-	   {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("½ØÍ¼")},
-	   {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("½ØÍ¼+ÍË³öÓÎÏ·")},
+	   {ENM_PUNISH_TYPE_KICK,TEXT("é€€å‡ºæ¸¸æˆ")},
+	   {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("ä¸å¤„ç†")},
+	   {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("ç™½åå•")},
+	   {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("å°æœºå™¨")},
+	   {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("æˆªå›¾")},
+	   {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("æˆªå›¾+é€€å‡ºæ¸¸æˆ")},
 	};
 	static std::map<PolicyType, wchar_t*> policy_type_str = {
-		{ENM_POLICY_TYPE_MODULE_NAME,TEXT("Ä£¿éÃû¼ì²â")},
-		{ENM_POLICY_TYPE_PROCESS_NAME,TEXT("½ø³ÌÃû¼ì²â")},
-		{ENM_POLICY_TYPE_FILE_NAME,TEXT("ÎÄ¼şÂ·¾¶")},
-		{ENM_POLICY_TYPE_WINDOW_NAME,TEXT("´°¿ÚÃû")},
-		{ENM_POLICY_TYPE_MACHINE,TEXT("»úÆ÷Âë")},
-		{ENM_POLICY_TYPE_MULTICLIENT,TEXT("¶à¿ªÏŞÖÆ")},
-		/*{ENM_POLICY_TYPE_SHELLCODE,TEXT("ÔÆ´úÂë")},*/
-		{ENM_POLICY_TYPE_SCRIPT,TEXT("½Å±¾")},
-		{ENM_POLICY_TYPE_THREAD_START,TEXT("Ïß³ÌÌØÕ÷")}
+		{ENM_POLICY_TYPE_MODULE_NAME,TEXT("æ¨¡å—åæ£€æµ‹")},
+		{ENM_POLICY_TYPE_PROCESS_NAME,TEXT("è¿›ç¨‹åæ£€æµ‹")},
+		{ENM_POLICY_TYPE_FILE_NAME,TEXT("æ–‡ä»¶è·¯å¾„")},
+		{ENM_POLICY_TYPE_WINDOW_NAME,TEXT("çª—å£å")},
+		{ENM_POLICY_TYPE_MACHINE,TEXT("æœºå™¨ç ")},
+		{ENM_POLICY_TYPE_MULTICLIENT,TEXT("å¤šå¼€é™åˆ¶")},
+		/*{ENM_POLICY_TYPE_SHELLCODE,TEXT("äº‘ä»£ç ")},*/
+		{ENM_POLICY_TYPE_SCRIPT,TEXT("è„šæœ¬")},
+		{ENM_POLICY_TYPE_THREAD_START,TEXT("çº¿ç¨‹ç‰¹å¾")}
 	};
 	auto user_data = usr_sessions_mgr().get_user_data(session_id);
 	bool gm_show = 688000 < policy.policy_id && policy.policy_id < 689000;
@@ -558,7 +558,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		ProtocolPolicy while_list_policy;
 		if (policy_mgr_.is_ip_or_mac_in_super_white_list(Utils::c2w(ip), while_list_policy))
 		{
-			user_log(LOG_TYPE_EVENT, true, gm_show, user_data->get_uuid().str(), TEXT("³¬¼¶°×Ãûµ¥Íæ¼Ò:%s ²ßÂÔÀàĞÍ:%s ²ßÂÔid:%d ´¦·£ÀàĞÍ:%s ´¦·£Ô­Òò:%s|%s"),
+			user_log(LOG_TYPE_EVENT, true, gm_show, user_data->get_uuid().str(), TEXT("è¶…çº§ç™½åå•ç©å®¶:%s ç­–ç•¥ç±»å‹:%s ç­–ç•¥id:%d å¤„ç½šç±»å‹:%s å¤„ç½šåŸå› :%s|%s"),
 				usr_name.c_str(),
 				policy_type_str[(PolicyType)policy.policy_type],
 				policy.policy_id,
@@ -570,7 +570,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		}
 		else if (policy_mgr_.is_ip_or_mac_in_super_white_list(user_data->mac, while_list_policy))
 		{
-			user_log(LOG_TYPE_EVENT, true, gm_show, user_data->get_uuid().str(), TEXT("³¬¼¶°×Ãûµ¥Íæ¼Ò:%s ²ßÂÔÀàĞÍ:%s ²ßÂÔid:%d ´¦·£ÀàĞÍ:%s ´¦·£Ô­Òò:%s|%s"),
+			user_log(LOG_TYPE_EVENT, true, gm_show, user_data->get_uuid().str(), TEXT("è¶…çº§ç™½åå•ç©å®¶:%s ç­–ç•¥ç±»å‹:%s ç­–ç•¥id:%d å¤„ç½šç±»å‹:%s å¤„ç½šåŸå› :%s|%s"),
 				usr_name.c_str(),
 				policy_type_str[(PolicyType)policy.policy_type],
 				policy.policy_id,
@@ -589,15 +589,15 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 				send(session, session_id, &resp);
 			}
 			});
-		// ´¦·£Íæ¼ÒĞ´µ½GMµÄ¿ª¹ÒÍæ¼ÒÁĞ±í.txt
-		punish_log(TEXT("´¦·£Íæ¼Ò:%s ´¦·£ÀàĞÍ:%s ´¦·£Ô­Òò:%s|%s"),
+		// å¤„ç½šç©å®¶å†™åˆ°GMçš„å¼€æŒ‚ç©å®¶åˆ—è¡¨.txt
+		punish_log(TEXT("å¤„ç½šç©å®¶:%s å¤„ç½šç±»å‹:%s å¤„ç½šåŸå› :%s|%s"),
 			usr_name.c_str(),
 			punish_type_str[(PunishType)policy.punish_type],
 			comment.c_str(),
 			comment_2.c_str()
 		);
 
-		user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("´¦·£Íæ¼Ò:%s ²ßÂÔÀàĞÍ:%s ²ßÂÔid:%d ´¦·£ÀàĞÍ:%s ´¦·£Ô­Òò:%s|%s"),
+		user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("å¤„ç½šç©å®¶:%s ç­–ç•¥ç±»å‹:%s ç­–ç•¥id:%d å¤„ç½šç±»å‹:%s å¤„ç½šåŸå› :%s|%s"),
 			usr_name.c_str(),
 			policy_type_str[(PolicyType)policy.policy_type],
 			policy.policy_id,
@@ -623,9 +623,9 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 
 			if (user_data->get_punish_times() >= 3)
 			{
-				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("´¦·£Ê§Ğ§£¬ÇëÊÖ¶¯´¦·£:%d"), user_data->session_id);
+				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("å¤„ç½šå¤±æ•ˆï¼Œè¯·æ‰‹åŠ¨å¤„ç½š:%d"), user_data->session_id);
 				std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-				//write_txt(".\\¶ñĞÔ¿ª¹ÒÈËÔ±Ãûµ¥.txt", trim_user_name(Utils::w2c(usr_name)));
+				//write_txt(".\\æ¶æ€§å¼€æŒ‚äººå‘˜åå•.txt", trim_user_name(Utils::w2c(usr_name)));
 			}
 		}
 
@@ -683,7 +683,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 	}
 	else
 	{
-		log(LOG_TYPE_ERROR, TEXT("´¦·£Íæ¼ÒÊ§°Ü"));
+		log(LOG_TYPE_ERROR, TEXT("å¤„ç½šç©å®¶å¤±è´¥"));
 	}
 }
 
@@ -699,17 +699,17 @@ void CLogicServer::detect(tcp_session_shared_ptr_t& session, unsigned int sessio
 		auto cur_usr_machine_count = usr_sessions_mgr().get_machine_count(mac);
 		if (cur_usr_machine_count > policy_mgr_.get_multi_client_limit_count())
 		{
-			punish(session, session_id, policy_mgr_.get_multi_client_policy(), L"³¬³öÔËĞĞ¿Í»§¶ËÏŞ¶¨");
+			punish(session, session_id, policy_mgr_.get_multi_client_policy(), L"è¶…å‡ºè¿è¡Œå®¢æˆ·ç«¯é™å®š");
 			return;
 		}
 		ProtocolPolicy policy;
 		if (policy_mgr_.is_ip_or_mac_ban(wstr_ip, policy))
 		{
-			punish(session, session_id, policy, L"·âIP", wstr_ip);
+			punish(session, session_id, policy, L"å°IP", wstr_ip);
 		}
 		if (policy_mgr_.is_ip_or_mac_ban(mac, policy))
 		{
-			punish(session, session_id, policy, L"·â»úÆ÷Âë", mac);
+			punish(session, session_id, policy, L"å°æœºå™¨ç ", mac);
 		}
 	}
 	VMProtectEnd();
@@ -745,7 +745,7 @@ void CLogicServer::OnlineCheck()
 	try
 	{
 		std::filesystem::path online_path = g_cur_dir;
-		online_path /= CONFIG_APP_NAME"Íø¹ØÔÚÏßÍæ¼Ò.txt";
+		online_path /= "ç½‘å…³åœ¨çº¿ç©å®¶.txt";
 		std::ofstream online(online_path, std::ios::out | std::ios::binary | std::ios::trunc);
 
 		std::string gamer, username;
@@ -769,7 +769,7 @@ void CLogicServer::OnlineCheck()
 	}
 	catch (...)
 	{
-		log(LOG_TYPE_ERROR, TEXT("---Íø¹ØÔÚÏßÍæ¼ÒĞ´Èë³ö´í,Çë¼ì²âÎÄ¼şÊÇ·ñ´æÔÚ!"));
+		log(LOG_TYPE_ERROR, TEXT("---ç½‘å…³åœ¨çº¿ç©å®¶å†™å…¥å‡ºé”™,è¯·æ£€æµ‹æ–‡ä»¶æ˜¯å¦å­˜åœ¨!"));
 	}
 	VMProtectEnd();
 }

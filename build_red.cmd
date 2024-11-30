@@ -1,7 +1,6 @@
 @ECHO OFF
 set ReleaseDir=.\build\bin\Release\Win32
 set ReleaseDir_red=.\build\bin\Release_red\Win32
-set ReleaseDir_blue=.\build\bin\Release_blue\Win32
 set bin_Dir=.\build\bin
 set "InstallerPath=D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE"
 if not exist "%InstallerPath%\devenv.exe" echo "VS2022 not found"&&exit /B 0
@@ -21,12 +20,10 @@ echo ***************Shell打包完成***************
 
 
 echo ***************执行网关加壳开始***************
-VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\g_Service.exe -pf ServiceRelease.vmp
-VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\g_LogicServer.exe -pf LogicRelease.vmp
-::VMProtect_Con.exe %ReleaseDir%\Gate.exe %bin_Dir%\gm_server\Gate.exe -pf GateRelease.vmp
-VMProtect_Con.exe %ReleaseDir_red%\Gate.exe %bin_Dir%\gm_server\及时雨鸿蒙.exe -pf GateRelease.vmp
-VMProtect_Con.exe %ReleaseDir_blue%\Gate.exe %bin_Dir%\gm_server\及时雨定制.exe -pf GateRelease.vmp
-::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\AdminGate.exe -pf AdminGateRelease.vmp
+VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\g_Service.exe -pf ServiceRelease_red.vmp
+VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\g_LogicServer.exe -pf LogicRelease_red.vmp
+VMProtect_Con.exe %ReleaseDir_red%\Gate.exe %bin_Dir%\gm_server\及时雨鸿蒙.exe -pf GateRelease_red.vmp
+VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\AdminGate.exe -pf AdminGateRelease_red.vmp
 echo ***************执行网关加壳完成***************
 
 echo ***************执行DLL加壳开始***************

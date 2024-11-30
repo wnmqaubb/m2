@@ -1,4 +1,4 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #if 0
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
@@ -48,7 +48,7 @@ bool ShowDumpResults(const wchar_t* dump_path,
     MDRawAssertionInfo* assertion,
     bool succeeded)
 {
-    MessageBoxA(*g_main_window_hwnd, "³ÌĞò¿ÉÄÜ±»½Ù³Ö£¬ÈôÆµ·±³öÏÖ£¬ÇëÊ¹ÓÃ360¼±¾ÈÏä»òÖØ×°ÏµÍ³", "ÌáÊ¾", MB_OK | MB_ICONERROR);
+    MessageBoxA(*g_main_window_hwnd, "ç¨‹åºå¯èƒ½è¢«åŠ«æŒï¼Œè‹¥é¢‘ç¹å‡ºç°ï¼Œè¯·ä½¿ç”¨360æ€¥æ•‘ç®±æˆ–é‡è£…ç³»ç»Ÿ", "æç¤º", MB_OK | MB_ICONERROR);
     return succeeded;
 }
 

@@ -27,7 +27,7 @@ extern uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* par
 extern void execute_tls_callback(HINSTANCE instance, uint32_t reason, void* param);
 extern void execute_entrypoint(HINSTANCE instance, uint32_t reason, void* param);
 extern void enable_seh_on_shellcode();
-extern asio::io_service g_game_io;
+extern std::shared_ptr<asio::io_service> g_game_io;
 void init_client_entry();
 std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key);
 void test_task_basic_dll(fs::path path);
@@ -35,7 +35,7 @@ void test_task_basic_dll(fs::path path);
 int main(int argc, char** argv)
 {	
 	init_client_entry();
-
+	
 	//wchar_t* user_profile = nullptr;
 	//size_t len = 0;
 	//FileChangeNotifier notifier;
@@ -71,9 +71,9 @@ void init_client_entry() {
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
 	//entry("43.139.236.115");
 	entry("");
-	/*Sleep(5000);
+	/*Sleep(30000);
 	uninit();
-	if(FreeLibrary(hmodule))
+	if (FreeLibrary(hmodule))
 		std::cout << "FreeLibrary ok!\n";*/
 }
 

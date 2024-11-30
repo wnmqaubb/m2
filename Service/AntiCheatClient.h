@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "NetUtils.h"
 #include "Protocol.h"
@@ -172,7 +172,7 @@ public:
 		}
 		catch (...)
 		{
-			OutputDebugStringA("Ğ´ÈëÈÕÖ¾Ê§°Ü");
+			OutputDebugStringA("å†™å…¥æ—¥å¿—å¤±è´¥");
 		}
     }
 
@@ -180,7 +180,7 @@ public:
 	{
         try
         {
-	        std::string log_file_name = "´¦·£Íæ¼ÒÈÕÖ¾.log";
+	        std::string log_file_name = "å¤„ç½šç©å®¶æ—¥å¿—.log";
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lck(mtx);
 			std::time_t now_time = time(0);
@@ -210,7 +210,7 @@ public:
 		}
 		catch (...)
 		{
-			OutputDebugStringA("Ğ´Èë´¦·£Íæ¼ÒÈÕÖ¾Ê§°Ü");
+			OutputDebugStringA("å†™å…¥å¤„ç½šç©å®¶æ—¥å¿—å¤±è´¥");
         }
 	}
 
@@ -248,7 +248,7 @@ public:
 		}
 		catch (...)
 		{
-			OutputDebugStringA("Ğ´ÈëÍæ¼ÒÈÕÖ¾Ê§°Ü");
+			OutputDebugStringA("å†™å…¥ç©å®¶æ—¥å¿—å¤±è´¥");
 		}
 	}
 
@@ -269,7 +269,7 @@ public:
     inline asio2::uuid& uuid() {  return uuid_.next(); }
     inline bool is_stop() { return is_stop_; }
     inline bool is_loaded_plugin() { return is_loaded_plugin_; }
-    inline void set_is_loaded_plugin(bool is_loaded_plugin) { is_loaded_plugin_ = is_loaded_plugin; }
+	inline void set_is_loaded_plugin(bool is_loaded_plugin) { is_loaded_plugin_ = is_loaded_plugin; }
     inline NetUtils::UsersData& user_data() { return user_data_; }
     inline std::unique_ptr<ProtocolCFGLoader>& cfg() { return cfg_; }
     inline NetUtils::EventMgr<package_handler_t>& package_mgr() { return package_mgr_; }

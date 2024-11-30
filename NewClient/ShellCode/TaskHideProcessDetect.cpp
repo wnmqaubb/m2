@@ -1,4 +1,4 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 
@@ -17,7 +17,7 @@ void HideProcess(CAntiCheatClient* client)
         if (window.is_hide_process)
         {
             resp.is_cheat = true;
-            resp.text = xorstr("¼ì²âµ½Òş²Ø½ø³Ì´°¿Ú");
+            resp.text = xorstr("æ£€æµ‹åˆ°éšè—è¿›ç¨‹çª—å£");
             cheat_time_hp++;
             break;
         }

@@ -1,4 +1,4 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 
@@ -13,7 +13,7 @@ void InitImageProtectCheck(CAntiCheatClient* client)
                 ProtocolC2STaskEcho resp;
                 resp.task_id = TASK_PKG_ID_IMAGE_PROTECT_DETECT;
                 resp.is_cheat = true;
-                resp.text = xorstr("·¢ÏÖAÀàÍâ¹Ò");
+                resp.text = xorstr("å‘çŽ°Aç±»å¤–æŒ‚");
                 client->send(&resp);
             }
         });

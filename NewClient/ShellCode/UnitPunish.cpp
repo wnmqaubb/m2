@@ -1,14 +1,14 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #include "TaskBasic.h"
 
 extern std::shared_ptr<HWND> g_main_window_hwnd;
 void __declspec(noinline) UnitPunishKick()
 {
 	if (*g_main_window_hwnd != 0) {
-		MessageBoxA(*g_main_window_hwnd, xorstr("ÇëÎğ¿ª¹Ò½øĞĞÓÎÏ·£¡·ñÔòÓĞ·âºÅÀ­ºÚ·çÏÕ´¦·£"), xorstr("·â¹ÒÌáÊ¾"), MB_OK | MB_ICONWARNING);
+		MessageBoxA(*g_main_window_hwnd, xorstr("è¯·å‹¿å¼€æŒ‚è¿›è¡Œæ¸¸æˆï¼å¦åˆ™æœ‰å°å·æ‹‰é»‘é£é™©å¤„ç½š"), xorstr("å°æŒ‚æç¤º"), MB_OK | MB_ICONWARNING);
 	}
 	else {
-		MessageBoxA(nullptr, xorstr("ÇëÎğ¿ª¹Ò½øĞĞÓÎÏ·£¡·ñÔòÓĞ·âºÅÀ­ºÚ·çÏÕ´¦·£"), xorstr("·â¹ÒÌáÊ¾"), MB_OK | MB_ICONWARNING);
+		MessageBoxA(nullptr, xorstr("è¯·å‹¿å¼€æŒ‚è¿›è¡Œæ¸¸æˆï¼å¦åˆ™æœ‰å°å·æ‹‰é»‘é£é™©å¤„ç½š"), xorstr("å°æŒ‚æç¤º"), MB_OK | MB_ICONWARNING);
 	}
 	g_game_io->post([]() {
 		Utils::CWindows::instance().exit_process();
@@ -20,5 +20,5 @@ void __declspec(noinline) UnitPunishKick()
 		Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(ntdll_name));
 		Utils::CWindows::instance().exit_process();
 	});
-    //GameLocalFuntion::instance().messagebox_call("½õÒÂÎÀ·â¹ÒÌáÊ¾£ºÇëÎğ¿ª¹Ò½øĞĞÓÎÏ·£¡·ñÔòÓĞÀ¶ÆÁ·âºÅ´¦·£");
+    //GameLocalFuntion::instance().messagebox_call("é”¦è¡£å«å°æŒ‚æç¤ºï¼šè¯·å‹¿å¼€æŒ‚è¿›è¡Œæ¸¸æˆï¼å¦åˆ™æœ‰è“å±å°å·å¤„ç½š");
 }

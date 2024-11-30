@@ -1,4 +1,4 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include "Service/SubServicePackage.h"
@@ -41,12 +41,12 @@ void TimeOutCheckRoutine()
     {
 
 		if (*g_main_window_hwnd != 0) {
-			MessageBoxA(*g_main_window_hwnd, xorstr("Óë·þÎñÆ÷¶Ï¿ªÁ¬½Ó"), xorstr("·â¹ÒÌáÊ¾"), MB_OK | MB_ICONWARNING);
+			MessageBoxA(*g_main_window_hwnd, xorstr("ä¸ŽæœåŠ¡å™¨æ–­å¼€è¿žæŽ¥"), xorstr("å°æŒ‚æç¤º"), MB_OK | MB_ICONWARNING);
 		}
 		else {
-			MessageBoxA(nullptr, xorstr("Óë·þÎñÆ÷¶Ï¿ªÁ¬½Ó"), xorstr("·â¹ÒÌáÊ¾"), MB_OK | MB_ICONWARNING);
+			MessageBoxA(nullptr, xorstr("ä¸ŽæœåŠ¡å™¨æ–­å¼€è¿žæŽ¥"), xorstr("å°æŒ‚æç¤º"), MB_OK | MB_ICONWARNING);
 		}
-		//GameLocalFuntion::instance().messagebox_call(xorstr("Óë·þÎñÆ÷¶Ï¿ªÁ¬½Ó"));
+		//GameLocalFuntion::instance().messagebox_call(xorstr("ä¸ŽæœåŠ¡å™¨æ–­å¼€è¿žæŽ¥"));
 		_client->post([]() {
             auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
             char ntdll_name[] = { 'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l' ,0 };
