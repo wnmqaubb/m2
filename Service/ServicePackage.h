@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "Protocol.h"
 
 enum ServicePackageId
@@ -22,7 +22,7 @@ enum ServicePackageId
     SPKG_ID_MAX_PACKAGE_ID_SIZE = 681999
 };
 
-//static_assert(SPKG_ID_C2S_QUERY_WINDOWSINFO == 15, "ServicePackageIdÖ»ÔÊĞíÔÚºóÃæ¼ÓÈëĞÂID");
+//static_assert(SPKG_ID_C2S_QUERY_WINDOWSINFO == 15, "ServicePackageIdåªå…è®¸åœ¨åé¢åŠ å…¥æ–°ID");
 
 struct ProtocolThreadInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_THREAD_INFO>
 {

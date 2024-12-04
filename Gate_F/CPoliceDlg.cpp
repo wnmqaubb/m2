@@ -172,20 +172,23 @@ void CPoliceDlg::OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult)
 
 }
 
+uint32_t CPoliceDlg::next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies) {
+	uint32_t policy_id = GATE_POLICY_ID + 1;
+
+	while (policies.find(policy_id) != policies.end()) {
+		policy_id++;
+		if (policy_id >= GATE_ADMIN_POLICY_ID) {
+			break;
+		}
+	}
+	return policy_id;
+}
+
 void CPoliceDlg::OnConfigAdd()
 {
 	OnConfigSave();
 	theApp.OpenConfig();
-	unsigned int uiLastPolicyId = 0;
-	uiLastPolicyId = 688000;
-	for (auto [uiPolicyId, Policy] : theApp.m_cfg->policies)
-	{
-		if (688000 < uiPolicyId && uiPolicyId < 689001)
-		{
-			uiLastPolicyId = uiPolicyId;
-		}
-	}
-	uiLastPolicyId++;
+	unsigned int uiLastPolicyId = next_gm_policy_id(theApp.m_cfg->policies);
 	ProtocolPolicy NewPolicy;
 	NewPolicy.policy_id = uiLastPolicyId;
 	theApp.m_cfg->policies[uiLastPolicyId] = NewPolicy;

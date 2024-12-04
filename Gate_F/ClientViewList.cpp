@@ -5,7 +5,8 @@
 #include "ClientViewList.h"
 
 BEGIN_MESSAGE_MAP(CGateFDlgList, CViewList)
-    ON_NOTIFY_REFLECT(NM_CUSTOMDRAW, &CGateFDlgList::OnNMCustomdraw)
+	ON_NOTIFY_REFLECT(NM_CUSTOMDRAW, &CGateFDlgList::OnNMCustomdraw)
+	ON_NOTIFY_REFLECT(NM_DBLCLK, &CGateFDlgList::OnClientListCtrlDblClick)
     ON_WM_CONTEXTMENU()
 END_MESSAGE_MAP()
 
@@ -47,4 +48,18 @@ void CGateFDlgList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult |= CDRF_NOTIFYPOSTPAINT;
     *pResult |= CDRF_NOTIFYITEMDRAW;
     *pResult |= CDRF_NOTIFYSUBITEMDRAW;
+}
+
+// 双击查看进程详细信息
+void CGateFDlgList::OnClientListCtrlDblClick(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+
+	// 获取当前被双击项的信息
+	int nItem = pNMItemActivate->iItem;
+	if (nItem != -1)
+	{
+		theApp.GetMainFrame()->m_games_dlg->OnQueryProcess();
+	}
+	*pResult = 0;
 }

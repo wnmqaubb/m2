@@ -1,4 +1,4 @@
-#include "pch.h"
+Ôªø#include "pch.h"
 #ifdef GATEF
     #include "GateF.h"
 #else
@@ -7,7 +7,7 @@
 #include "ObserverClientImpl.h"
 
 namespace fs = std::filesystem;
-#ifdef GATE_ADMIN
+
 CString get_current_time_str()
 {
     CTime tm = CTime::GetCurrentTime();
@@ -19,7 +19,7 @@ CString get_current_date_str()
     CTime tm = CTime::GetCurrentTime();
     return tm.Format(_T("%Y-%m-%d"));
 }
-#endif // GATE_ADMIN
+
 CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(auth_key)
 , user_count_(0)
 {
@@ -54,7 +54,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
         if (package_id == OBPKG_ID_S2C_SEND)
         {
-            log(LOG_TYPE_ERROR, TEXT("«∂Ã◊◊™∑¢"));
+            log(LOG_TYPE_ERROR, TEXT("ÂµåÂ•óËΩ¨Âèë"));
             return;
         }
         client_pkg_mgr_.dispatch(package_id, req.head.session_id, req, raw_msg);
@@ -74,7 +74,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
 				localtime_s(&tm_, &now_time);
 				strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
 				std::string result;
-				result = result + "[ ¬º˛]" + time_str + "|";
+				result = result + "[‰∫ã‰ª∂]" + time_str + "|";
                 LogPrint(LogicServerLog, TEXT("%s"), msg.c_str());
 #endif
 				log_to_punish_file(Utils::w2c(msg));
@@ -104,7 +104,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
 		}
 		catch (msgpack::v1::type_error)
 		{
-			TRACE("Ω‚ŒˆLogic»’÷æ ß∞‹");
+			TRACE("Ëß£ÊûêLogicÊó•ÂøóÂ§±Ë¥•");
 		}
     });
     package_mgr_.register_handler(OBPKG_ID_S2C_LOG, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
@@ -122,7 +122,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         }
         catch (msgpack::v1::type_error)
         {
-            TRACE("Ω‚ŒˆService»’÷æ ß∞‹");
+            TRACE("Ëß£ÊûêServiceÊó•ÂøóÂ§±Ë¥•");
         }
     });
 #ifdef GATE_ADMIN
@@ -130,12 +130,12 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
         if (msg.plugin_list.empty())
         {
-            log(LOG_TYPE_DEBUG, _T("Œ¥¿≠∆»Œ∫Œ‘∆¥˙¬Î"));
+            log(LOG_TYPE_DEBUG, _T("Êú™ÊãâËµ∑‰ªª‰Ωï‰∫ë‰ª£Á†Å"));
             return;
         }
         for (auto&[plugin_hash, module_info] : msg.plugin_list)
         {
-            log(LOG_TYPE_DEBUG, _T("‘∆¥˙¬Î:%08X %s 0x%llX 0x%08X"), plugin_hash,
+            log(LOG_TYPE_DEBUG, _T("‰∫ë‰ª£Á†Å:%08X %s 0x%llX 0x%08X"), plugin_hash,
                 module_info.module_name.c_str(),
                 module_info.base,
                 module_info.size_of_image);
@@ -145,26 +145,16 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
         if (msg.plugin_list.empty())
         {
-            log(LOG_TYPE_DEBUG, _T("Œ¥¿≠∆»Œ∫Œ‘∆¥˙¬Î"));
+            log(LOG_TYPE_DEBUG, _T("Êú™ÊãâËµ∑‰ªª‰Ωï‰∫ë‰ª£Á†Å"));
             return;
         }
         for (auto&[plugin_hash, module_info] : msg.plugin_list)
         {
-            log(LOG_TYPE_DEBUG, _T("‘∆¥˙¬Î:%08X %s 0x%llX 0x%08X"), plugin_hash,
+            log(LOG_TYPE_DEBUG, _T("‰∫ë‰ª£Á†Å:%08X %s 0x%llX 0x%08X"), plugin_hash,
                 module_info.module_name.c_str(),
                 module_info.base,
                 module_info.size_of_image);
         }
-    });
-
-    client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PROCESS, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        wchar_t file_name[255];
-        _snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.process"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_PROCESS);
-        std::ofstream file(cache_dir_ / file_name, std::ios::out | std::ios::binary);
-        auto buffer = package.release();
-        file.write(buffer.data(), buffer.size());
-        file.close();
-        OpenDocument(cache_dir_ / file_name);
     });
     client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_DRIVERINFO, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         wchar_t file_name[255];
@@ -184,28 +174,38 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         file.close();
         OpenDocument(cache_dir_ / file_name);
     });
-    client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+#endif // GATE_ADMIN   
+
+    client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PROCESS, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         wchar_t file_name[255];
+        _snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.process"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_PROCESS);
+        std::ofstream file(cache_dir_ / file_name, std::ios::out | std::ios::binary);
+        auto buffer = package.release();
+        file.write(buffer.data(), buffer.size());
+        file.close();
+        OpenDocument(cache_dir_ / file_name);
+	});
+
+	client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_SCREENSHOT, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+		wchar_t file_name[255];
 		_snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.jpg"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_SCREENSHOT);
 		std::filesystem::path filepath(theApp.m_ExeDir);
-        filepath /= "ÕÊº“ΩÿÕº";
-        if (!std::filesystem::exists(filepath))
-        {
-            std::filesystem::create_directory(filepath);
-        }
-        filepath /= get_current_date_str().GetBuffer();
-        if (!std::filesystem::exists(filepath))
-        {
-            std::filesystem::create_directory(filepath);
-        }
-        std::ofstream file(filepath / file_name, std::ios::out | std::ios::binary);
-        auto req = raw_msg.get().as<ProtocolC2SQueryScreenShot>();
-        file.write((char*)req.data.data(), req.data.size());
-        file.close();
-        OpenDocument(filepath / file_name);
-    });
-#endif // GATE_ADMIN
-    
+		filepath /= "Áé©ÂÆ∂Êà™Âõæ";
+		if (!std::filesystem::exists(filepath))
+		{
+			std::filesystem::create_directory(filepath);
+		}
+		filepath /= get_current_date_str().GetBuffer();
+		if (!std::filesystem::exists(filepath))
+		{
+			std::filesystem::create_directory(filepath);
+		}
+		std::ofstream file(filepath / file_name, std::ios::out | std::ios::binary);
+		auto req = raw_msg.get().as<ProtocolC2SQueryScreenShot>();
+		file.write((char*)req.data.data(), req.data.size());
+		file.close();
+		OpenDocument(filepath / file_name);
+	});
 }
 
 void CObserverClientImpl::log(int type, LPCTSTR format, ...)
@@ -221,13 +221,24 @@ void CObserverClientImpl::log(int type, LPCTSTR format, ...)
 void CObserverClientImpl::OpenDocument(const std::wstring& path)
 {
     theApp.m_WorkIo.post([path]() {
-        if (std::filesystem::path(path).filename().extension() == ".jpg")
+        auto& ext = std::filesystem::path(path).filename().extension();
+        if (ext == ".jpg")
         {
             theApp.OpenFolderAndSelectFile(path.c_str());
-        }
+		}
+#ifdef GATEF
+		else if (ext == ".process")
+		{
+            theApp.GetMainFrame()->SwitchToTab(3);
+			//theApp.GetMainFrame()->m_polices_dlg->RefreshViewList();
+            //theApp.GetMainFrame()->m_process_info_dlg->ShowWindow(SW_SHOW);
+			theApp.GetMainFrame()->m_process_info_dlg->LoadFile(path);
+		}
+#else
         else
         {
             theApp.OpenDocumentFile(path.c_str());
         }
+#endif
     });
 }

@@ -46,6 +46,8 @@ BOOL CLogDlg::OnInitDialog()
 	m_tab_log.InsertItem(1, _T("连接日志"));
 	m_tab_log.InsertItem(2, _T("外挂拦截日志"));
 	ShowAllDlgInTab();
+	m_tab_log.SetCurSel(2);
+	OnTcnSelchangeTabMain(nullptr, nullptr);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }

@@ -1,13 +1,13 @@
-#pragma once
+ï»¿#pragma once
 
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ViewList.h"
 
-// COutputList ´°¿Ú
+// COutputList çª—å£
 class CProcessSubViewWnd : public CDockablePane
 {
-    // ¹¹Ôì
+    // æ„é€ 
 public:
     CProcessSubViewWnd() noexcept;
 
@@ -18,7 +18,7 @@ public:
     void FillModuleWindow(const std::vector<ProtocolModuleInfo>& module);
     void FillThreadWindow(const std::map<uint32_t, ProtocolThreadInfo>& threads);
     void FillDirectoryWindow(const std::vector<ProtocolDirectoryInfo>& directories);
-    // ÌØĞÔ
+    // ç‰¹æ€§
 protected:
     CMFCTabCtrl	m_wndTabs;
     CViewList m_wndModuleInfo;
@@ -29,7 +29,7 @@ protected:
 
     void AdjustHorzScroll(CListBox& wndListBox);
 
-    // ÊµÏÖ
+    // å®ç°
 public:
     virtual ~CProcessSubViewWnd();
 protected:

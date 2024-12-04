@@ -12,5 +12,6 @@ public:
     ~CGateFDlgList();
     DECLARE_MESSAGE_MAP()
     afx_msg void OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult);
+    void OnClientListCtrlDblClick(NMHDR* pNMHDR, LRESULT* pResult);
 };
 

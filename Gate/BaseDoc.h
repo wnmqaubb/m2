@@ -1,5 +1,5 @@
-
-// GateDoc.h: CProcessDoc ÀàµÄ½Ó¿Ú
+ï»¿
+// GateDoc.h: CProcessDoc ç±»çš„æ¥å£
 //
 
 
@@ -8,22 +8,22 @@
 
 class CBaseDoc : public CDocument
 {
-protected: // ½ö´ÓĞòÁĞ»¯´´½¨
+protected: // ä»…ä»åºåˆ—åŒ–åˆ›å»º
     CBaseDoc() noexcept;
     DECLARE_DYNCREATE(CBaseDoc)
 
-    // ÌØĞÔ
+    // ç‰¹æ€§
 public:
 
-    // ²Ù×÷
+    // æ“ä½œ
 public:
 
-    // ÖØĞ´
+    // é‡å†™
 public:
     virtual BOOL OnNewDocument();
     virtual void Serialize(CArchive& ar);
 
-    // ÊµÏÖ
+    // å®ç°
 public:
     virtual ~CBaseDoc();
 #ifdef _DEBUG
@@ -39,7 +39,7 @@ public:
     std::shared_ptr<CObserverClientImpl> m_Client = nullptr;
 protected:
     CView*          m_View;
-    // Éú³ÉµÄÏûÏ¢Ó³Éäº¯Êı
+    // ç”Ÿæˆçš„æ¶ˆæ¯æ˜ å°„å‡½æ•°
 protected:
     DECLARE_MESSAGE_MAP()
 

@@ -21,7 +21,6 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 	afx_msg void OnCommand(UINT nID);
-	afx_msg void OnQueryProcess();
 	afx_msg void OnQueryWindows();
 	afx_msg void OnQueryDrivers();
 	afx_msg void OnQueryShellCode();
@@ -36,6 +35,7 @@ protected:
 	void OnRoleNameWhiteAdd();
 	void OnWhiteOrBlackAdd(const CString& list_name, CListBox* m_current_list);
 public:
+	afx_msg void OnQueryProcess();
 	template<typename T> void SendCurrentSelectedUserCommand(T* package);
 	afx_msg void OnBnClickedOnlineGamerSearch();
 	// 在线玩家列表

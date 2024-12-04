@@ -95,7 +95,8 @@ BOOL CGateFDlg::OnInitDialog()
 	m_tab_main.InsertItem(0, _T("在线玩家"));
 	m_tab_main.InsertItem(1, _T("封挂"));
 	m_tab_main.InsertItem(2, _T("策略"));
-	m_tab_main.InsertItem(3, _T("日志"));
+	m_tab_main.InsertItem(3, _T("进程"));
+	m_tab_main.InsertItem(4, _T("日志"));
 	ShowAllDlgInTab();
 
 	// 填入一些静态树视图数据(此处只需填入虚拟代码，而不是复杂的数据)
@@ -198,24 +199,35 @@ void CGateFDlg::SwitchToTab(int index)
 		m_games_dlg->ShowWindow(SW_SHOW);
 		m_anticheat_dlg->ShowWindow(SW_HIDE);
 		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_HIDE);
 		break;
 	case 1:
 		m_games_dlg->ShowWindow(SW_HIDE);
 		m_anticheat_dlg->ShowWindow(SW_SHOW);
 		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_HIDE);
 		break;
 	case 2:
 		m_games_dlg->ShowWindow(SW_HIDE);
 		m_anticheat_dlg->ShowWindow(SW_HIDE);
 		m_polices_dlg->ShowWindow(SW_SHOW);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_HIDE);
 		break;
 	case 3:
 		m_games_dlg->ShowWindow(SW_HIDE);
 		m_anticheat_dlg->ShowWindow(SW_HIDE);
 		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_SHOW);
+		m_logs_dlg->ShowWindow(SW_HIDE);
+		break;
+	case 4:
+		m_games_dlg->ShowWindow(SW_HIDE);
+		m_anticheat_dlg->ShowWindow(SW_HIDE);
+		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_SHOW);
 		break;
 	default:
@@ -240,6 +252,11 @@ void CGateFDlg::ShowAllDlgInTab()
 	m_polices_dlg->MoveWindow(m_tab_main_rect);
 	m_polices_dlg->ShowWindow(SW_HIDE);
 
+	m_process_info_dlg = std::make_unique<CProcessInfoDlg>();
+	m_process_info_dlg->Create(IDD_DIALOG_PROCESSINFO, &m_tab_main);
+	m_process_info_dlg->MoveWindow(m_tab_main_rect);
+	m_process_info_dlg->ShowWindow(SW_HIDE);
+
 	m_logs_dlg = std::make_unique<CLogDlg>();
 	m_logs_dlg->Create(IDD_DIALOG_LOG, &m_tab_main);
 	m_logs_dlg->MoveWindow(m_tab_main_rect);
@@ -254,24 +271,35 @@ void CGateFDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		m_games_dlg->ShowWindow(SW_SHOW);
 		m_anticheat_dlg->ShowWindow(SW_HIDE);
 		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_HIDE);
 		break;
 	case 1:
 		m_games_dlg->ShowWindow(SW_HIDE);
 		m_anticheat_dlg->ShowWindow(SW_SHOW);
 		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_HIDE);
 		break;
 	case 2:
 		m_games_dlg->ShowWindow(SW_HIDE);
 		m_anticheat_dlg->ShowWindow(SW_HIDE);
 		m_polices_dlg->ShowWindow(SW_SHOW);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_HIDE);
 		break;
 	case 3:
 		m_games_dlg->ShowWindow(SW_HIDE);
 		m_anticheat_dlg->ShowWindow(SW_HIDE);
 		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_SHOW);
+		m_logs_dlg->ShowWindow(SW_HIDE);
+		break;
+	case 4:
+		m_games_dlg->ShowWindow(SW_HIDE);
+		m_anticheat_dlg->ShowWindow(SW_HIDE);
+		m_polices_dlg->ShowWindow(SW_HIDE);
+		m_process_info_dlg->ShowWindow(SW_HIDE);
 		m_logs_dlg->ShowWindow(SW_SHOW);
 		break;
 	default:

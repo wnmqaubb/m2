@@ -78,6 +78,9 @@
     <ClInclude Include="COBSCLogicDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CProcessInfoDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GateF.cpp">
@@ -123,6 +126,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="COBSCLogicDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CProcessInfoDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -34,6 +34,7 @@ protected:
 private:
 	int m_nCurSelRow, m_nCurSelCol;
 public:
+	uint32_t next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies);
 	void RefreshViewList();
 	CListCtrl m_list_polices; 
 	CEdit m_editCtrl;

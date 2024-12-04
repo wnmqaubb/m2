@@ -1,5 +1,5 @@
-
-// ProcessDoc.cpp: CProcessDoc ÀàµÄÊµÏÖ
+ï»¿
+// ProcessDoc.cpp: CProcessDoc ç±»çš„å®ç°
 //
 
 #include "pch.h"
@@ -22,11 +22,11 @@ BEGIN_MESSAGE_MAP(CBaseDoc, CDocument)
 END_MESSAGE_MAP()
 
 
-// CProcessDoc ¹¹Ôì/Îö¹¹
+// CProcessDoc æ„é€ /ææ„
 
 CBaseDoc::CBaseDoc() noexcept
 {
-    // TODO: ÔÚ´ËÌí¼ÓÒ»´ÎĞÔ¹¹Ôì´úÂë
+    // TODO: åœ¨æ­¤æ·»åŠ ä¸€æ¬¡æ€§æ„é€ ä»£ç 
 
 }
 
@@ -41,7 +41,7 @@ BOOL CBaseDoc::OnNewDocument()
     return TRUE;
 }
 
-// CProcessDoc ĞòÁĞ»¯
+// CProcessDoc åºåˆ—åŒ–
 
 void CBaseDoc::Serialize(CArchive& ar)
 {
@@ -61,4 +61,4 @@ void CBaseDoc::Dump(CDumpContext& dc) const
 
 #endif //_DEBUG
 
-// CProcessDoc ÃüÁî
+// CProcessDoc å‘½ä»¤
