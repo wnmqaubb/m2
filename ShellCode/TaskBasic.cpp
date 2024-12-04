@@ -259,14 +259,17 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 		GameLocalFuntion::instance().messagebox_call("封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚");
 		g_game_io->post([]() {
 			VMP_VIRTUALIZATION_BEGIN();
-			std::error_code ec;
-			exit(-1);
-			abort();
-			Utils::CWindows::instance().exit_process();
-			UnitPunishKick(ec);
-			Utils::CWindows::instance().exit_process();
-			exit(-1);
-			abort();
+            if (*g_main_window_hwnd != 0) {
+                std::error_code ec;
+                std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5));
+                exit(-1);
+                abort();
+                Utils::CWindows::instance().exit_process();
+                UnitPunishKick(ec);
+                Utils::CWindows::instance().exit_process();
+                exit(-1);
+                abort();
+            }
 			VMP_VIRTUALIZATION_END();
 		});
 		break;

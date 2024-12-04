@@ -168,7 +168,45 @@ public:
         }
         wprintf(TEXT("%s\n"), buffer);
         OutputDebugStringW(buffer);
-    }
+	}
+
+	void log_to_punish_file(const std::string& text)
+	{
+		try
+		{
+			std::string log_file_name = "处罚玩家日志.log";
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lck(mtx);
+			std::time_t now_time = time(0);
+			char date_str[MAX_PATH] = { 0 };
+			char time_str[MAX_PATH] = { 0 };
+			tm tm_;
+			localtime_s(&tm_, &now_time);
+			strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m", &tm_);
+			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+
+			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
+			if (!std::filesystem::exists(file))
+			{
+				std::filesystem::create_directories(file);
+			}
+
+			file = file / log_file_name;
+
+			std::string result;
+			result = result + "[Event]" + time_str + "|";
+			std::ofstream output(file, std::ios::out | std::ios::app);
+
+			result = result + Utils::String::to_utf8(text) + "\n";
+
+			output << result;
+			output.close();
+		}
+		catch (...)
+		{
+			OutputDebugStringA("写入处罚玩家日志失败");
+		}
+	}
 
     void log_to_file(const std::string& identify, const std::string& text)
     {

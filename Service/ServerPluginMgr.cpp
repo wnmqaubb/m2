@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "LogicServer.h"
 #include "ServerPluginMgr.h"
 
@@ -32,7 +32,7 @@ void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlu
         raw_package.encode(buffer.data(), buffer.size());
         plugin.data.clear();
         plugin_cache_.emplace(std::make_pair(file_hash, std::make_pair(raw_package, plugin)));
-        printf("¼ÓÔØ²å¼ş:%s\n", plugin.plugin_name.c_str());
+        printf("åŠ è½½æ’ä»¶:%s\n", plugin.plugin_name.c_str());
     }
 }
 
@@ -41,7 +41,7 @@ void CServerPluginMgr::remove_plugin(unsigned int file_hash)
     std::unique_lock<std::shared_mutex> lck(mtx_);
     if (plugin_cache_.find(file_hash) != plugin_cache_.end())
     {
-        printf("Ğ¶ÔØ²å¼ş:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
+        printf("å¸è½½æ’ä»¶:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
         plugin_cache_.erase(file_hash);
     }
 }
@@ -209,7 +209,7 @@ void CServerPolicyMgr::add_policy(unsigned int file_hash, ProtocolS2CPolicy& pol
                     policy_.policies[policy_id] = sub_policy;
                 }
             }
-            printf("¼ÓÔØÅäÖÃ£º%08X\n", file_hash);
+            printf("åŠ è½½é…ç½®ï¼š%08X\n", file_hash);
         }
     }
     on_policy_reload();
@@ -256,7 +256,7 @@ void CServerPolicyMgr::remove_policy(unsigned int file_hash)
                     policy_.policies[policy_id] = sub_policy;
                 }
             }
-            printf("Ğ¶ÔØÅäÖÃ£º%08X\n", file_hash);
+            printf("å¸è½½é…ç½®ï¼š%08X\n", file_hash);
         }
     }
     on_policy_reload();
@@ -377,17 +377,17 @@ void CServerPolicyMgr::on_policy_reload()
 		ip_white_set_.clear();
 		rolename_white_set_.clear();
 		std::string path;
-		path = "»úÆ÷ÂëºÚÃûµ¥.txt";
+		path = "æœºå™¨ç é»‘åå•.txt";
 		read_file_white_and_black(g_cur_dir / path, mac_ban_set_);
-		path = "IPºÚÃûµ¥.txt";
+		path = "IPé»‘åå•.txt";
 		read_file_white_and_black(g_cur_dir / path, ip_ban_set_);
-		path = "½ÇÉ«ÃûºÚÃûµ¥.txt";
+		path = "è§’è‰²åé»‘åå•.txt";
 		read_file_white_and_black(g_cur_dir / path, rolename_ban_set_);
-        path = "»úÆ÷Âë°×Ãûµ¥.txt";
+        path = "æœºå™¨ç ç™½åå•.txt";
 		read_file_white_and_black(g_cur_dir / path, mac_white_set_);
-		path = "IP°×Ãûµ¥.txt";
+		path = "IPç™½åå•.txt";
 		read_file_white_and_black(g_cur_dir / path, ip_white_set_);
-		path = "½ÇÉ«Ãû°×Ãûµ¥.txt";
+		path = "è§’è‰²åç™½åå•.txt";
 		read_file_white_and_black(g_cur_dir / path, rolename_white_set_);
 	}
 }
@@ -407,7 +407,7 @@ void CServerPolicyMgr::read_file_white_and_black(const std::filesystem::path& fi
 		inFile.close();
 	}
 }
-// °×Ãûµ¥ÓÅÏÈ¼¶¸ßÓÚºÚÃûµ¥
+// ç™½åå•ä¼˜å…ˆçº§é«˜äºé»‘åå•
 bool CServerPolicyMgr::is_svip(const std::string& mac, const std::string& ip, const std::string& rolename) 
 {
 	std::shared_lock<std::shared_mutex> lck(mtx_);
@@ -423,7 +423,7 @@ bool CServerPolicyMgr::is_svip(const std::string& mac, const std::string& ip, co
     return false;
 }
 
-// ºÚÃûµ¥
+// é»‘åå•
 bool CServerPolicyMgr::is_ban(const std::string& mac, const std::string& ip, const std::string& rolename)
 {
 	std::shared_lock<std::shared_mutex> lck(mtx_);

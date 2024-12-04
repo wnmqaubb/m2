@@ -100,7 +100,7 @@ CLogicServer::CLogicServer()
 {
 	VMProtectBeginVirtualization(__FUNCTION__);
     is_logic_server_ = true;
-    set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+    set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
     start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(1), [this]() {
 		try {
             plugin_mgr_.reload_all_plugin();
@@ -146,9 +146,9 @@ CLogicServer::CLogicServer()
         }
 
 		// 白名单用户不检测心跳和策略
-		/*if (is_svip(package.head.session_id)) {
+		if (is_svip(package.head.session_id)) {
 			return;
-		}*/
+		}
         detect(session, req.data.session_id);
     });
     package_mgr_.register_handler(LSPKG_ID_C2S_REMOVE_USR_SESSION, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
@@ -198,10 +198,10 @@ CLogicServer::CLogicServer()
         {
             if (user_data->get_heartbeat_duration() > std::chrono::minutes(3))
             {
-    //            // 白名单用户不检测心跳和策略
-				//if (is_svip(package.head.session_id)) {
-				//	return;
-				//}
+                // 白名单用户不检测心跳和策略
+				if (is_svip(package.head.session_id)) {
+					return;
+				}
 				detect(session, package.head.session_id);
 				send_policy(user_data, session, package.head.session_id);
                 if (user_data->has_been_check_pkg())
@@ -278,9 +278,9 @@ CLogicServer::CLogicServer()
 			user_data->set_loaded_plugin(true);
             send_policy(user_data, session, package.head.session_id);
 			// 白名单用户不检测心跳和策略
-			//if (is_svip(package.head.session_id)) {
-			//	return;
-			//}
+			if (is_svip(package.head.session_id)) {
+				return;
+			}
             detect(session, package.head.session_id);
         }
     });
@@ -292,10 +292,10 @@ CLogicServer::CLogicServer()
             if (user_data->is_loaded_plugin() == false)
 			{
 				// 白名单用户不检测心跳和策略
-				//if (!is_svip(package.head.session_id)) {					
+				if (!is_svip(package.head.session_id)) {					
 					send_policy(user_data, session, package.head.session_id);
 					user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("断线重连:%s sid:[%d] 补发策略"), req.username.c_str(), user_data->session_id);
-				//}
+				}
             }
             set_field(session, package.head.session_id, "usrname", req.username);
             user_data->json["usrname"] = req.username;
@@ -535,13 +535,14 @@ void CLogicServer::write_img(unsigned int session_id, std::vector<uint8_t>& data
     }
 }
 
-void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify)
+void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag)
 {
     ProtocolLSLCLogPrint log;
     log.text = msg;
     log.identify = identify;
     log.silence = silence;
-    log.gm_show = gm_show;
+	log.gm_show = gm_show;
+	log.punish_flag = punish_flag;
     foreach_session([this, &log](tcp_session_shared_ptr_t& session) {
         for (auto session_id : obs_sessions_mgr().sessions())
         {
@@ -652,10 +653,10 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
             ProtocolS2CPunish resp;
             resp.type = PunishType::ENM_PUNISH_TYPE_KICK;
             send(session, session_id, &resp);
-            ProtocolPolicy policy;
-            policy.punish_type = PunishType::ENM_PUNISH_TYPE_KICK;
-            policy.policy_type = PolicyType::ENM_POLICY_TYPE_MACHINE;
-            policy_mgr_.add_policy(policy);
+			/*ProtocolPolicy policy;
+			policy.punish_type = PunishType::ENM_PUNISH_TYPE_KICK;
+			policy.policy_type = PolicyType::ENM_POLICY_TYPE_MACHINE;
+			policy_mgr_.add_policy(policy);*/
             break;
         }
         default:
@@ -716,7 +717,7 @@ void CLogicServer::detect(tcp_session_shared_ptr_t& session, unsigned int sessio
         ProtocolPolicy policy;
         if (policy_mgr_.is_ban(Utils::w2c(mac), ip, Utils::w2c(username)))
         {
-            policy.policy_id = 688888;
+            policy.policy_id = 689888;
             policy.policy_type = PolicyType::ENM_POLICY_TYPE_MACHINE;
             policy.punish_type = PunishType::ENM_PUNISH_TYPE_BAN_MACHINE;
             policy.config = mac + L"|" + wstr_ip + L"|" + username;

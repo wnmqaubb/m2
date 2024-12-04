@@ -6,7 +6,7 @@
 #include "ObserverServer.h"
 #include "ServerPluginMgr.h"
 
-#define CONFIG_APP_NAME "��ʱ��"
+#define CONFIG_APP_NAME "��ʱ��"
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr
@@ -123,7 +123,14 @@ public:
         super::send(session, &req);
     }
     virtual void write_img(unsigned int session_id, std::vector<uint8_t>& data);
-    virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify);
+    /**
+     * msg: 日志信息
+     * silence: 是否显示到界面日志窗口
+     * gm_show: 是否显示到gm
+     * identify: 玩家uuid标识符
+     * punish_flag: 是否是惩罚log
+     */
+    virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
     virtual void punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2 = L"");
     virtual bool is_svip(unsigned int session_id);
     virtual void detect(tcp_session_shared_ptr_t& session, unsigned int session_id);
