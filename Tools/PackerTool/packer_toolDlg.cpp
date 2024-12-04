@@ -151,6 +151,34 @@ void CpackertoolDlg::OnPaint()
     }
 }
 
+bool CpackertoolDlg::exec_cmd(CString cmd) {
+	if (cmd.IsEmpty()) {
+		return false;
+	}
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+	// 设置窗口隐藏
+	si.dwFlags = STARTF_USESHOWWINDOW;
+	si.wShowWindow = SW_HIDE;
+	// 拼接命令行
+	cmd.Insert(0, TEXT("cmd /c "));
+	cmd.Append(TEXT(" > result.txt"));
+	// 创建进程
+	if (!CreateProcess(NULL, cmd.GetBuffer(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+		//std::cerr << "CreateProcess failed." << std::endl;
+		return false;
+	}
+	// 等待进程结束
+	WaitForSingleObject(pi.hProcess, INFINITE);
+	// 关闭进程和线程句柄
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+	OnBnClickedLog();
+	return true;
+}
 //当用户拖动最小化窗口时系统调用此函数取得光标
 //显示。
 HCURSOR CpackertoolDlg::OnQueryDragIcon()
@@ -164,7 +192,8 @@ void CpackertoolDlg::OnBnClickedButtonPack()
 {
     // TODO: 在此添加控件通知处理程序代码
     CString cmd,cmd2,cmd3;
-    CString temp;
+	CString temp;
+	m_result_edit.SetWindowText(TEXT(""));
 	auto pa = std::filesystem::current_path();
     if (!std::filesystem::exists("packer.exe"))
     {
@@ -175,12 +204,12 @@ void CpackertoolDlg::OnBnClickedButtonPack()
     {
         m_result_edit.SetWindowText(TEXT("反作弊模块未找到"));
         return;
-    }
+	}
     m_pack_file_edit.GetWindowText(temp);
     std::filesystem::path pack_exe_path(temp.GetString());
 	std::wstring new_path = pack_exe_path.wstring();
 	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
-    cmd.Format(TEXT("packer.exe --pack_exe --exe %s --dll %s --output %s --config %s > result.txt"),
+    cmd.Format(TEXT("packer.exe --pack_exe --exe %s --dll %s --output %s --config %s"),
         pack_exe_path.wstring().c_str(),
         TEXT("NewClient.dll"),
 		new_path.c_str(),
@@ -188,26 +217,26 @@ void CpackertoolDlg::OnBnClickedButtonPack()
         );
 
 	USES_CONVERSION;
-	std::system(T2A(cmd));
-	OnBnClickedLog();
+	//std::system(T2A(cmd));
+	exec_cmd(cmd);
 	// vmp
 	std::wstring new_path_vmp = new_path;
 	new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
-	cmd2.Format(TEXT("\"D:\\tool\\52pojie\\Tools\\Packers\\VMProtect Ultimate3.4\\VMProtect_Con.exe\" %s %s -pf 1.vmp > result.txt"),
+	cmd2.Format(TEXT("\"D:\\tool\\52pojie\\Tools\\Packers\\VMProtect Ultimate3.4\\VMProtect_Con.exe\" %s %s -pf 1.vmp"),
 		new_path.c_str(),
 		new_path_vmp.c_str()
 	);
-	std::system(T2A(cmd2));
-	OnBnClickedLog();
+	//std::system(T2A(cmd2));
+	exec_cmd(cmd2);
 
 	// 复制附加数据
-	cmd3.Format(TEXT("packer.exe --copy_append_data --src %s --dst %s > result.txt"),
+	cmd3.Format(TEXT("packer.exe --copy_append_data --src %s --dst %s"),
 		pack_exe_path.wstring().c_str(),
 		new_path_vmp.c_str()
 	);
 
-	std::system(T2A(cmd3));
-	OnBnClickedLog();
+	//std::system(T2A(cmd3));
+	exec_cmd(cmd3);
 }
 //
 //void CpackertoolDlg::OnBnClickedButtonPack()
@@ -258,17 +287,24 @@ void CpackertoolDlg::OnBnClickedButtonPack()
 //}
 
 void CpackertoolDlg::OnBnClickedLog() {
-	USES_CONVERSION;
-	std::ifstream result("result.txt", std::ios::in | std::ios::binary);
-	result.seekg(0, result.end);
-	size_t size = result.tellg();
-	result.seekg(0);
-	std::string text;
-	text.resize(size);
-	result.read(text.data(), size);
-	CString str;
-	m_result_edit.GetWindowText(str);
-	m_result_edit.SetWindowText(str + "\n" + A2T(text.c_str()));
+	try
+	{
+		USES_CONVERSION;
+		std::ifstream result("result.txt", std::ios::in | std::ios::binary);
+		result.seekg(0, result.end);
+		size_t size = result.tellg();
+		result.seekg(0);
+		std::string text;
+		text.resize(size);
+		result.read(text.data(), size);
+		result.close();
+		CString str;
+		m_result_edit.GetWindowText(str);
+		m_result_edit.SetWindowText(str + "\n" + A2T(text.c_str()));
+	}
+	catch (CException* e)
+	{
+	}
 }
 
 void CpackertoolDlg::OnBnClickedVMP()
