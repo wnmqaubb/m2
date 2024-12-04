@@ -301,6 +301,7 @@ void CpackertoolDlg::OnBnClickedLog() {
 		CString str;
 		m_result_edit.GetWindowText(str);
 		m_result_edit.SetWindowText(str + "\n" + A2T(text.c_str()));
+		UpdateWindow();
 	}
 	catch (CException* e)
 	{
