@@ -221,7 +221,7 @@ GameLocalFuntion& GameLocalFuntion::instance()
 void GameLocalFuntion::messagebox_call(const std::string text, uint32_t mb_type)
 {
 	VMP_VIRTUALIZATION_BEGIN();
-	if (base_handle_offset_ && messagebox_call_addr_)
+	/*if (base_handle_offset_ && messagebox_call_addr_)
 	{
 		strings msg;
 		msg.top = -1;
@@ -242,7 +242,7 @@ void GameLocalFuntion::messagebox_call(const std::string text, uint32_t mb_type)
 			popad
 		}
 	}
-	else
+	else*/
 	{
 		auto msgbox = IMPORT(L"user32.dll", MessageBoxA);
 		msgbox(*g_main_window_hwnd, text.c_str(), "封挂提示", MB_OK | MB_ICONERROR);

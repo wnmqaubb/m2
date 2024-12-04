@@ -173,6 +173,8 @@ void CGamesDlg::OnRefreshUsers()
 					auto tDelta = tCur - t;
 					temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
 					m_list_games.SetItemText(rowNum, colIndex++, temp);
+					m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
+					m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
 				}
 				theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
 				});
@@ -230,8 +232,9 @@ void CGamesDlg::SendCurrentSelectedUserCommand(T* package)
 	if (selectedRow != -1)
 	{
 		const size_t session_id = atoi(CT2A(m_list_games.GetItemText(selectedRow, 1)));
-		const std::string ip = CT2A(m_list_games.GetItemText(selectedRow, 11));
-		const int port = atoi(CT2A(m_list_games.GetItemText(selectedRow, 12)));
+		const std::string ip = CT2A(m_list_games.GetItemText(selectedRow, 8));
+		const int port = atoi(CT2A(m_list_games.GetItemText(selectedRow, 9)));
+		OutputDebugStringA((ip+":"+std::to_string(port)).c_str ());
 		theApp.m_ObServerClientGroup(ip, port)->send(session_id, package);
 	}
 	else

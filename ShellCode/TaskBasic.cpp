@@ -255,7 +255,7 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	switch (msg.get().as<ProtocolS2CPunish>().type)
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
-	{
+    {
 		GameLocalFuntion::instance().messagebox_call("封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚");
 		g_game_io->post([]() {
 			VMP_VIRTUALIZATION_BEGIN();

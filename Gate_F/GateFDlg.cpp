@@ -329,6 +329,8 @@ void CGateFDlg::FillClientView()
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("系统版本"), LVCFMT_LEFT, 80);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 130);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("在线时长"), LVCFMT_LEFT, 80);
+	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 0);
+	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 0);
 	m_games_dlg->m_list_games.DeleteAllItems();
 }
 
