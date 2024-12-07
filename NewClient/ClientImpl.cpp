@@ -152,14 +152,12 @@ CClientImpl::CClientImpl() : super()
     });
 
     package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-		switch (msg.get().as<ProtocolS2CPunish>().type)
+		/*switch (msg.get().as<ProtocolS2CPunish>().type)
 		{
 			case PunishType::ENM_PUNISH_TYPE_KICK:
 			{
-				MessageBoxA(nullptr, xorstr("请勿开挂进行游戏,此账号已被封禁处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
 				post([]() {
 					VMP_VIRTUALIZATION_BEGIN();
-					std::error_code ec;
 					exit(-1);
 					abort();
 					Utils::CWindows::instance().exit_process();
@@ -171,7 +169,7 @@ CClientImpl::CClientImpl() : super()
 			}
 			default:
 				break;
-		}
+		}*/
     });
 }
 

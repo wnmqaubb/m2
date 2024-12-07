@@ -412,6 +412,7 @@ void CProcessInfoDlg::OnProcessNameBan()
 		output.write(str.data(), str.size());
 		output.close();
 		theApp.OnServiceSettings();
+		theApp.GetMainFrame()->m_polices_dlg->OnSelectItem(uiLastPolicyId);
 	}
 }
 

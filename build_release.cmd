@@ -1,7 +1,7 @@
 @ECHO OFF
 set InstallerPath="D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE"
 if not exist "%InstallerPath%\devenv.exe" echo "VS2022 not found"&&exit /B 0
-set "Path=%Path%;%InstallerPath%;D:\tool\52pojie\Tools\Packers\VMProtect Ultimate3.4;%ProgramFiles(x86)%\7-Zip"
+set "Path=%Path%;%InstallerPath%;D:\tool\52pojie\Tools\Packers\VMProtect Ultimate3.4_;%ProgramFiles(x86)%\7-Zip"
 set ReleaseDir=.\build\bin\Release\Win32
 set OutputDir=.\build\bin\%2
 set PATH=C:\Program Files\7-Zip\;D:\tool\52pojie\Tools\Packers\VMProtect Ultimate3.4\;%PATH%

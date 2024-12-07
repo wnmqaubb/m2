@@ -5,7 +5,6 @@ set "Path=%Path%;%InstallerPath%;D:\tool\52pojie\Tools\Packers\VMProtect Ultimat
 set ReleaseDir=.\build\bin\Release\Win32
 set ReleaseDir_vip=.\build\bin\Release_vip\Win32
 set OutputDir=.\build\bin\%2
-set PATH=C:\Program Files\7-Zip\;D:\tool\52pojie\Tools\Packers\VMProtect Ultimate3.4\;%PATH%
 mkdir %OutputDir%
 
 set gm_server=%OutputDir%gm_server_vip\%2

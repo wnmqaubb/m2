@@ -196,23 +196,20 @@ bool CServerPolicyMgr::is_policy_file_hash_exist(unsigned int file_hash)
 
 void CServerPolicyMgr::add_policy(unsigned int file_hash, ProtocolS2CPolicy& policy)
 {
-    {
-        std::unique_lock<std::shared_mutex> lck(mtx_);
-        if (policy_cache_.find(file_hash) == policy_cache_.end())
-        {
-            policy_cache_.emplace(std::make_pair(file_hash, policy));
-            policy_.policies.clear();
-            for (auto[file_hash, policy] : policy_cache_)
-            {
-                for (auto[policy_id, sub_policy] : policy.policies)
-                {
-                    policy_.policies[policy_id] = sub_policy;
-                }
-            }
-            printf("加载配置：%08X\n", file_hash);
-        }
-    }
-    on_policy_reload();
+	std::unique_lock<std::shared_mutex> lck(mtx_);
+	if (policy_cache_.find(file_hash) == policy_cache_.end())
+	{
+		policy_cache_.emplace(std::make_pair(file_hash, policy));
+		policy_.policies.clear();
+		for (auto [file_hash, policy] : policy_cache_)
+		{
+			for (auto [policy_id, sub_policy] : policy.policies)
+			{
+				policy_.policies[policy_id] = sub_policy;
+			}
+		}
+		printf("加载配置：%08X\n", file_hash);
+	}
 }
 
 void CServerPolicyMgr::add_policy(ProtocolPolicy& policy)
@@ -243,23 +240,20 @@ void CServerPolicyMgr::add_policy(ProtocolPolicy& policy)
 
 void CServerPolicyMgr::remove_policy(unsigned int file_hash)
 {
-    {
-        std::unique_lock<std::shared_mutex> lck(mtx_);
-        if (policy_cache_.find(file_hash) != policy_cache_.end())
-        {
-            policy_cache_.erase(file_hash);
-            policy_.policies.clear();
-            for (auto[file_hash, policy] : policy_cache_)
-            {
-                for (auto[policy_id, sub_policy] : policy.policies)
-                {
-                    policy_.policies[policy_id] = sub_policy;
-                }
-            }
-            printf("卸载配置：%08X\n", file_hash);
-        }
-    }
-    on_policy_reload();
+	std::unique_lock<std::shared_mutex> lck(mtx_);
+	if (policy_cache_.find(file_hash) != policy_cache_.end())
+	{
+		policy_cache_.erase(file_hash);
+		policy_.policies.clear();
+		for (auto [file_hash, policy] : policy_cache_)
+		{
+			for (auto [policy_id, sub_policy] : policy.policies)
+			{
+				policy_.policies[policy_id] = sub_policy;
+			}
+		}
+		printf("卸载配置：%08X\n", file_hash);
+	}
 }
 
 void CServerPolicyMgr::reload_all_policy()

@@ -41,7 +41,7 @@ public:
     ~GameLocalFuntion();
     static GameLocalFuntion& instance();
     bool hook_init();
-    void messagebox_call(const std::string msg, uint32_t mb_type = 0);
+    void messagebox_call(std::string msg, uint32_t mb_type = 0);
     void notice(const strings msg, uint32_t bgcolor = 0xFFFFFF, uint32_t font_color = 0x0000ff);
     void back_game_notice_countdown(unsigned char tick, std::function<void()> cb);
     void back_game_call(LightHook::Context ctx);

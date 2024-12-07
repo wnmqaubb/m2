@@ -193,13 +193,26 @@ void CPoliceDlg::OnConfigAdd()
 	NewPolicy.policy_id = uiLastPolicyId;
 	theApp.m_cfg->policies[uiLastPolicyId] = NewPolicy;
 	RefreshViewList();
-	m_list_polices.SetItemState(m_list_polices.GetItemCount() - 1, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-	m_list_polices.EnsureVisible(m_list_polices.GetItemCount() - 1, FALSE);
+	OnSelectItem(uiLastPolicyId);
+}
 
+void CPoliceDlg::OnSelectItem(int policy_id) {
+	for (int i = 0; i < m_list_polices.GetItemCount(); i++)
+	{
+		CString cstrPolicyId = m_list_polices.GetItemText(i, 1);
+		uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
+		if (uiPolicyId == policy_id) {
+			m_list_polices.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+			m_list_polices.EnsureVisible(i, FALSE);
+			m_list_polices.SetFocus();
+			return;
+		}
+	}
 }
 
 void CPoliceDlg::OnConfigDel()
 {
+	int selected_up;
 	auto selectedRow = (int)m_list_polices.GetFirstSelectedItemPosition() - 1;
 	if (selectedRow != -1)
 	{
@@ -207,10 +220,15 @@ void CPoliceDlg::OnConfigDel()
 		uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
 		theApp.OpenConfig();
 		theApp.m_cfg->policies.erase(uiPolicyId);
-
+		if (selectedRow > 1) {
+			CString cstrPolicyId1 = m_list_polices.GetItemText(selectedRow-1, 1);
+			selected_up = atoi(CT2A(cstrPolicyId1.GetBuffer()));
+		}
 		RefreshViewList();
+
 	}
 	OnConfigSave();
+	OnSelectItem(selected_up);
 }
 
 void CPoliceDlg::OnConfigSave()

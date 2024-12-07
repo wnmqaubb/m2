@@ -222,7 +222,7 @@ void CpackertoolDlg::OnBnClickedButtonPack()
 	// vmp
 	std::wstring new_path_vmp = new_path;
 	new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
-	cmd2.Format(TEXT("\"D:\\tool\\52pojie\\Tools\\Packers\\VMProtect Ultimate3.4\\VMProtect_Con.exe\" %s %s -pf 1.vmp"),
+	cmd2.Format(TEXT("VMProtect_Con.exe %s %s -pf 1.vmp"),
 		new_path.c_str(),
 		new_path_vmp.c_str()
 	);

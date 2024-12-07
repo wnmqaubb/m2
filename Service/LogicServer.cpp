@@ -101,10 +101,11 @@ CLogicServer::CLogicServer()
 	VMProtectBeginVirtualization(__FUNCTION__);
     is_logic_server_ = true;
     set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-    start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(1), [this]() {
+    start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(2), [this]() {
 		try {
             plugin_mgr_.reload_all_plugin();
-            policy_mgr_.reload_all_policy();
+            policy_mgr_.reload_all_policy(); 
+            policy_mgr_.on_policy_reload();
         }
         catch (...)
         {
@@ -276,11 +277,11 @@ CLogicServer::CLogicServer()
         if (user_data)
         {
 			user_data->set_loaded_plugin(true);
-            send_policy(user_data, session, package.head.session_id);
 			// 白名单用户不检测心跳和策略
 			if (is_svip(package.head.session_id)) {
 				return;
 			}
+            send_policy(user_data, session, package.head.session_id);
             detect(session, package.head.session_id);
         }
     });
@@ -363,7 +364,9 @@ CLogicServer::CLogicServer()
                 if (policy)
                 {
                     punish(session, package.head.session_id, *policy, row.information);
-                    return;
+                    if (policy->punish_type == PunishType::ENM_PUNISH_TYPE_KICK) {
+                        return;
+                    }
                 }
                 else
                 {
@@ -600,12 +603,14 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		});
         
 		// 处罚玩家写到GM的开挂玩家列表.txt
-		punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
-			usr_name.c_str(),
-			punish_type_str[(PunishType)policy.punish_type],
-			comment.c_str(),
-			comment_2.c_str()
-		);
+        if (!gm_show) {
+			punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
+				usr_name.c_str(),
+				punish_type_str[(PunishType)policy.punish_type],
+				comment.c_str(),
+				comment_2.c_str()
+			);
+        }
 
         user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
             usr_name.c_str(),

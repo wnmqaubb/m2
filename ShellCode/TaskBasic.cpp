@@ -23,6 +23,63 @@ void NotifyHook(CAntiCheatClient* client)
         client->notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
 }
+
+void refresh_name(CAntiCheatClient* client) {
+    if (client->cfg()->get_field<bool>(test_mode_field_id))
+    {
+        static bool is_already_send = false;
+        if (is_already_send == false)
+        {
+            client->cfg()->set_field<std::wstring>(usrname_field_id, TEXT("测试-1区 - 测试"));
+            ProtocolC2SUpdateUsername req;
+            req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
+            client->send(&req);
+            is_already_send = true;
+        }
+        return;
+    }
+    std::vector<Utils::CWindows::WindowInfo> windows;
+    if (!Utils::CWindows::instance().get_process_main_thread_hwnd(Utils::CWindows::instance().get_current_process_id(), windows))
+    {
+        return;
+    }
+    if (windows.size() > 0)
+    {
+        for (auto& window : windows)
+        {
+            transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
+            if (window.class_name == L"tfrmmain")
+            {
+                // if (is_debug_mode == false)
+                // {
+                //     BasicUtils::init_heartbeat_check(window.hwnd);
+                // }
+                g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
+                if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+                {
+                    ProtocolC2SUpdateUsername req;
+                    req.username = window.caption;
+                    client->send(&req);
+                    client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
+
+                    if (window.caption.find(L" - ") != std::wstring::npos)
+                    {
+                        //GameLocalFuntion::instance().call_sig_pattern();
+                        //GameLocalFuntion::instance().hook_init();
+                        /*static asio::steady_timer welcome_message_timer();
+                        welcome_message_timer.expires_after(std::chrono::seconds(20));
+                        welcome_message_timer.async_wait([](std::error_code ec) {
+                            GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
+                            GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
+                        });*/
+                    }
+                }
+                return;
+            }
+        }
+    }
+}
+
 void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 {
     VMP_VIRTUALIZATION_BEGIN();
@@ -98,60 +155,9 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 			client->send(&req);
 		}, std::chrono::seconds(std::rand() % 10 + 1));
     });
+    refresh_name(client);
     client->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
-        if (client->cfg()->get_field<bool>(test_mode_field_id))
-        {
-            static bool is_already_send = false;
-            if (is_already_send == false)
-            {
-                client->cfg()->set_field<std::wstring>(usrname_field_id, TEXT("测试-1区 - 测试"));
-                ProtocolC2SUpdateUsername req;
-                req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-                client->send(&req);
-                is_already_send = true;
-            }
-            return;
-        }
-        std::vector<Utils::CWindows::WindowInfo> windows;
-        if (!Utils::CWindows::instance().get_process_main_thread_hwnd(Utils::CWindows::instance().get_current_process_id(), windows))
-        {
-            return;
-        }
-        if (windows.size() > 0)
-        {
-            for (auto& window : windows)
-            {
-                transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
-                if (window.class_name == L"tfrmmain")
-                {
-                    // if (is_debug_mode == false)
-                    // {
-                    //     BasicUtils::init_heartbeat_check(window.hwnd);
-					// }
-					g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
-					if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
-					{
-						ProtocolC2SUpdateUsername req;
-						req.username = window.caption;
-						client->send(&req);
-						client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
-                        
-                        if (window.caption.find(L" - ") != std::wstring::npos)
-                        {
-                            GameLocalFuntion::instance().call_sig_pattern();
-                            GameLocalFuntion::instance().hook_init();
-                            /*static asio::steady_timer welcome_message_timer();
-                            welcome_message_timer.expires_after(std::chrono::seconds(20));
-                            welcome_message_timer.async_wait([](std::error_code ec) {
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
-                                GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
-                            });*/
-                        }
-					}
-					return;
-                }
-            }
-        }
+        refresh_name(client);
         return;
     });
 
@@ -256,28 +262,30 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
     {
-		GameLocalFuntion::instance().messagebox_call("封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚");
+        if (!(g_main_window_hwnd && *g_main_window_hwnd)) {
+            refresh_name(client);
+        }
 		g_game_io->post([]() {
 			VMP_VIRTUALIZATION_BEGIN();
-            if (*g_main_window_hwnd != 0) {
-                std::error_code ec;
-                std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5));
-                exit(-1);
-                abort();
-                Utils::CWindows::instance().exit_process();
-                UnitPunishKick(ec);
-                Utils::CWindows::instance().exit_process();
-                exit(-1);
-                abort();
-            }
+            std::error_code ec;
+            std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5 + 5));
+            exit(-1);
+            abort();
+            Utils::CWindows::instance().exit_process();
+            UnitPunishKick(ec);
+            Utils::CWindows::instance().exit_process();
+            exit(-1);
+            abort();
 			VMP_VIRTUALIZATION_END();
 		});
+		GameLocalFuntion::instance().messagebox_call(xorstr("封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚"));
 		break;
 	}
 	default:
 		break;
 	}
 }
+
 void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 {
 #if LOG_SHOW
@@ -292,6 +300,10 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     std::vector<ProtocolPolicy> thread_polices;
     for (auto& [policy_id , policy] : req.policies)
 	{
+		if (policy.config.empty())
+		{
+			continue;
+		}
 		switch (policy.policy_type)
 		{
 		case ENM_POLICY_TYPE_MODULE_NAME:
@@ -300,7 +312,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			break;
 		}
 		case ENM_POLICY_TYPE_PROCESS_NAME:
-		{
+        {
 			process_polices.push_back(policy);
 			break;
 		}
@@ -324,27 +336,8 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
             thread_polices.push_back(policy);
             break;
         }
-        case ENM_POLICY_TYPE_BACK_GAME:
-        {
-            GameLocalFuntion::instance().back_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
-            int back_game_lazy_time_ = std::stoi(policy.config);
-            GameLocalFuntion::instance().back_game_lazy_time_ = back_game_lazy_time_ >= 3 ? back_game_lazy_time_ : 3;
-            GameLocalFuntion::instance().can_back_exit_game_lazy_enable_ = !policy.comment.empty();
-            break;
-        }
-        case ENM_POLICY_TYPE_EXIT_GAME:
-        {
-            GameLocalFuntion::instance().exit_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
-            int exit_game_lazy_time_ = std::stoi(policy.config);
-            GameLocalFuntion::instance().exit_game_lazy_time_ = exit_game_lazy_time_ >= 3 ? exit_game_lazy_time_ : 3;
-            break;
-        }
         case ENM_POLICY_TYPE_SCRIPT:
 		{
-			if (policy.config.empty())
-			{
-				continue;
-			}
 #if 0
 			std::filesystem::create_directories(".\\temp_scripts");
 			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
@@ -357,59 +350,75 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 #endif
             async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
             break;
-        }        
-        case ENM_POLICY_TYPE_ACTION_SPEED_WALK:
-        {
-            if (GameLocalFuntion::instance().action_time_.empty()) break;
+		}
+		//case ENM_POLICY_TYPE_BACK_GAME:
+		//{
+		//	GameLocalFuntion::instance().back_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
+		//	int back_game_lazy_time_ = std::stoi(policy.config);
+		//	GameLocalFuntion::instance().back_game_lazy_time_ = back_game_lazy_time_ >= 3 ? back_game_lazy_time_ : 3;
+		//	GameLocalFuntion::instance().can_back_exit_game_lazy_enable_ = !policy.comment.empty();
+		//	break;
+		//}
+		//case ENM_POLICY_TYPE_EXIT_GAME:
+		//{
+		//	GameLocalFuntion::instance().exit_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
+		//	int exit_game_lazy_time_ = std::stoi(policy.config);
+		//	GameLocalFuntion::instance().exit_game_lazy_time_ = exit_game_lazy_time_ >= 3 ? exit_game_lazy_time_ : 3;
+		//	break;
+		//}
+        //case ENM_POLICY_TYPE_ACTION_SPEED_WALK:
+        //{
+        //    if (GameLocalFuntion::instance().action_time_.empty()) break;
 
-            auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_WALK);
-            if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-            {
-                threshold = std::stoi(policy.config);
-            }
-            else
-            {
-                threshold = 0;
-            }
-            break;
-        }
-        case ENM_POLICY_TYPE_ACTION_SPEED_HIT:
-        {
-            if (GameLocalFuntion::instance().action_time_.empty()) break;
+        //    auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_WALK);
+        //    if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
+        //    {
+        //        threshold = std::stoi(policy.config);
+        //    }
+        //    else
+        //    {
+        //        threshold = 0;
+        //    }
+        //    break;
+        //}
+        //case ENM_POLICY_TYPE_ACTION_SPEED_HIT:
+        //{
+        //    if (GameLocalFuntion::instance().action_time_.empty()) break;
 
-            auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_HIT);
-            if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-            {
-                threshold = std::stoi(policy.config);
-            }
-            else
-            {
-                threshold = 0;
-            }
-            break;
-        }
-        case ENM_POLICY_TYPE_ACTION_SPEED_SPELL:
-        {
-            if (GameLocalFuntion::instance().action_time_.empty()) break;
+        //    auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_HIT);
+        //    if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
+        //    {
+        //        threshold = std::stoi(policy.config);
+        //    }
+        //    else
+        //    {
+        //        threshold = 0;
+        //    }
+        //    break;
+        //}
+        //case ENM_POLICY_TYPE_ACTION_SPEED_SPELL:
+        //{
+        //    if (GameLocalFuntion::instance().action_time_.empty()) break;
 
-            auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_SPELL);
-            if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-            {
-                threshold = std::stoi(policy.config);
-            }
-            else
-            {
-                threshold = 0;
-            }
-            break;
-        }
-        default:
-            break;
-        }
+        //    auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_SPELL);
+        //    if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
+        //    {
+        //        threshold = std::stoi(policy.config);
+        //    }
+        //    else
+        //    {
+        //        threshold = 0;
+        //    }
+        //    break;
+        //}
+		default:
+			break;
+		}
     }
 
     auto& win = Utils::CWindows::instance();
     bool find_cheat = false;
+    bool is_cheat = false;
 	do
 	{
 		if (window_polices.size() == 0)
@@ -428,8 +437,11 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 				}
 				resp.results.push_back({ policy.policy_id,
 								combine_name });
-                find_cheat = true;
-				break;
+                is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                if (is_cheat) {
+					find_cheat = true;
+					break;
+                }
 			}
 			if (find_cheat) {
 				break;
@@ -444,7 +456,9 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 
 	if (resp.results.size() > 0) {
 		client->send(&resp);
-        return;
+        if (is_cheat) {
+            return;
+        }
 	}
 
 	win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
@@ -462,12 +476,15 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 						   policy.policy_id,
 						   process.name
 					});
-                break;
+				is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+				if (is_cheat) {
+					break;
+				}
 			}
             return true;
 		}
 
-		if (resp.results.size() > 0) {
+		if (resp.results.size() > 0 && is_cheat) {
 			return false;
 		}
 
@@ -485,11 +502,14 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 						   policy.policy_id,
 						   process_path
 					});
-				break;
+				is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+				if (is_cheat) {
+					break;
+				}
 			}
 		}
 
-		if (resp.results.size() > 0) {
+		if (resp.results.size() > 0 && is_cheat) {
 			return false;
 		}
 
@@ -515,12 +535,15 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 							   policy.policy_id,
 							   process_path
 						});
-					break;
+					is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+					if (is_cheat) {
+						break;
+					}
 				}
 			}
 		}
 
-		if (resp.results.size() > 0) {
+		if (resp.results.size() > 0 && is_cheat) {
 			return false;
 		}
 

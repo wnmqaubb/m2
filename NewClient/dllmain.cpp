@@ -20,7 +20,6 @@ void __declspec(dllexport) reference_to_api()
     ref.emplace(get_ptr(&Utils::CWindows::instance));
     ref.emplace(get_ptr(&Utils::get_screenshot));
     ref.emplace(get_ptr(&Utils::PEScan::calc_pe_ico_hash));
-    ref.emplace(get_ptr(&Utils::log));
 }
 
 void client_start_routine()

@@ -93,7 +93,6 @@ void CLogDlg::OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 		default:
 			break;
 	}
-	*pResult = 0;
 }
 
 void CLogDlg::LogPrint(int type, LPCTSTR format, ...)

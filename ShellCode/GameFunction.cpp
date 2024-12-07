@@ -218,7 +218,7 @@ GameLocalFuntion& GameLocalFuntion::instance()
 	return instance_;
 }
 
-void GameLocalFuntion::messagebox_call(const std::string text, uint32_t mb_type)
+void GameLocalFuntion::messagebox_call(std::string text, uint32_t mb_type)
 {
 	VMP_VIRTUALIZATION_BEGIN();
 	/*if (base_handle_offset_ && messagebox_call_addr_)
@@ -244,8 +244,21 @@ void GameLocalFuntion::messagebox_call(const std::string text, uint32_t mb_type)
 	}
 	else*/
 	{
-		auto msgbox = IMPORT(L"user32.dll", MessageBoxA);
-		msgbox(*g_main_window_hwnd, text.c_str(), "封挂提示", MB_OK | MB_ICONERROR);
+		do
+		{
+			auto msgbox = IMPORT(L"user32.dll", MessageBoxA);
+			if (!msgbox) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				continue;
+			}
+			if (g_main_window_hwnd && *g_main_window_hwnd) {
+				msgbox(*g_main_window_hwnd, text.c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
+			}
+			else {
+				msgbox(NULL, text.c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
+			}
+			break;
+		} while (true);
 	}
 
 	VMP_VIRTUALIZATION_END();
@@ -284,7 +297,7 @@ void GameLocalFuntion::back_game_notice_countdown(unsigned char tick, std::funct
 			return;
 		}
 		strings msg = { -1, 27, "" };
-		snprintf(msg.text, sizeof(msg.text) - 1, "锦衣卫封挂提示游戏即将退出%d", tick);
+		snprintf(msg.text, sizeof(msg.text) - 1, "封挂提示游戏即将退出%d", tick);
 		notice(msg);
 		if (tick - 1 == 0)
 		{
