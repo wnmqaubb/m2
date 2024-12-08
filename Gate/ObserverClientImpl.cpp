@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "Gate.h"
 #include "ObserverClientImpl.h"
 
@@ -46,7 +46,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
         if (package_id == OBPKG_ID_S2C_SEND)
         {
-            log(LOG_TYPE_ERROR, TEXT("Ç¶Ì××ª·¢"));
+            log(LOG_TYPE_ERROR, TEXT("åµŒå¥—è½¬å‘"));
             return;
         }
         client_pkg_mgr_.dispatch(package_id, req.head.session_id, req, raw_msg);
@@ -66,8 +66,8 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
 				localtime_s(&tm_, &now_time);
 				strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
 				std::string result;
-				result = result + "[ÊÂ¼ş]" + time_str + "|";
-                // gm ½çÃæ¹ö¶¯ÏÔÊ¾±»´¦·£ĞÅÏ¢
+				result = result + "[äº‹ä»¶]" + time_str + "|";
+                // gm ç•Œé¢æ»šåŠ¨æ˜¾ç¤ºè¢«å¤„ç½šä¿¡æ¯
                 theApp.GetMainFrame()->SetScrollText((Utils::c2w(result) + msg).c_str());
 #endif
                 log_to_punish_file(Utils::w2c(msg));
@@ -97,7 +97,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         }
         catch (msgpack::v1::type_error)
         {
-            TRACE("½âÎöLogicÈÕÖ¾Ê§°Ü");
+            TRACE("è§£æLogicæ—¥å¿—å¤±è´¥");
         }
     });
     package_mgr_.register_handler(OBPKG_ID_S2C_LOG, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
@@ -116,19 +116,19 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         }
         catch (msgpack::v1::type_error)
         {
-            TRACE("½âÎöServiceÈÕÖ¾Ê§°Ü");
+            TRACE("è§£æServiceæ—¥å¿—å¤±è´¥");
         }
     });
     //client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
     //    auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
     //    if (msg.plugin_list.empty())
     //    {
-    //        log(LOG_TYPE_DEBUG, _T("Î´À­ÆğÈÎºÎÔÆ´úÂë"));
+    //        log(LOG_TYPE_DEBUG, _T("æœªæ‹‰èµ·ä»»ä½•äº‘ä»£ç "));
     //        return;
     //    }
     //    for (auto&[plugin_hash, module_info] : msg.plugin_list)
     //    {
-    //        log(LOG_TYPE_DEBUG, _T("ÔÆ´úÂë:%08X %s 0x%llX 0x%08X"), plugin_hash,
+    //        log(LOG_TYPE_DEBUG, _T("äº‘ä»£ç :%08X %s 0x%llX 0x%08X"), plugin_hash,
     //            module_info.module_name.c_str(),
     //            module_info.base,
     //            module_info.size_of_image);
@@ -138,12 +138,12 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
     //    auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
     //    if (msg.plugin_list.empty())
     //    {
-    //        log(LOG_TYPE_DEBUG, _T("Î´À­ÆğÈÎºÎÔÆ´úÂë"));
+    //        log(LOG_TYPE_DEBUG, _T("æœªæ‹‰èµ·ä»»ä½•äº‘ä»£ç "));
     //        return;
     //    }
     //    for (auto&[plugin_hash, module_info] : msg.plugin_list)
     //    {
-    //        log(LOG_TYPE_DEBUG, _T("ÔÆ´úÂë:%08X %s 0x%llX 0x%08X"), plugin_hash,
+    //        log(LOG_TYPE_DEBUG, _T("äº‘ä»£ç :%08X %s 0x%llX 0x%08X"), plugin_hash,
     //            module_info.module_name.c_str(),
     //            module_info.base,
     //            module_info.size_of_image);
@@ -181,7 +181,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         wchar_t file_name[255];
 		_snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.jpg"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_SCREENSHOT);
 		std::filesystem::path filepath(theApp.m_ExeDir);
-        filepath /= "Íæ¼Ò½ØÍ¼";
+        filepath /= "ç©å®¶æˆªå›¾";
         if (!std::filesystem::exists(filepath))
         {
             std::filesystem::create_directory(filepath);

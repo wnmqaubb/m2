@@ -1,4 +1,4 @@
-
+ï»¿
 #include "pch.h"
 #include "Gate.h"
 #include "framework.h"
@@ -31,7 +31,7 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
     }
     else if (CDDS_ITEMPREPAINT == pLVCD->nmcd.dwDrawStage)
     {
-        //´¦Àí£¬½«item¸Ä±ä±³¾°ÑÕÉ«   
+        //å¤„ç†ï¼Œå°†itemæ”¹å˜èƒŒæ™¯é¢œè‰²   
         for (auto& m : m_suspicious_uuids)
         {
 #ifndef GATE_ADMIN
@@ -39,7 +39,7 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
 #endif
             std::wstring uuid = this->GetItemText(pLVCD->nmcd.dwItemSpec, 7);
             if (m.first == uuid)
-            {   //µ±Ç°Ñ¡ÖĞµÄitem   
+            {   //å½“å‰é€‰ä¸­çš„item   
                 pLVCD->clrTextBk = RGB(235, 0, 0);
             }
         }
@@ -50,12 +50,12 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult |= CDRF_NOTIFYSUBITEMDRAW;
 }
 
-// Ë«»÷²é¿´½ø³ÌÏêÏ¸ĞÅÏ¢
+// åŒå‡»æŸ¥çœ‹è¿›ç¨‹è¯¦ç»†ä¿¡æ¯
 void CClientViewList::OnClientListCtrlDblClick(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
 
-	// »ñÈ¡µ±Ç°±»Ë«»÷ÏîµÄĞÅÏ¢
+	// è·å–å½“å‰è¢«åŒå‡»é¡¹çš„ä¿¡æ¯
 	int nItem = pNMItemActivate->iItem;
 	if (nItem != -1)
 	{

@@ -1,5 +1,5 @@
-
-// GateView.cpp: CProcessView ÀàµÄÊµÏÖ
+ï»¿
+// GateView.cpp: CProcessView ç±»çš„å®ç°
 //
 
 #include "pch.h"
@@ -31,7 +31,7 @@ BEGIN_MESSAGE_MAP(CConfigSettingView, CView)
     ON_NOTIFY(LVN_ITEMCHANGED, ID_CFG_ADD, &CConfigSettingView::OnListItemChanged)
 END_MESSAGE_MAP()
 
-// CProcessView ¹¹Ôì/Îö¹¹
+// CProcessView æ„é€ /ææ„
 
 CConfigSettingView::CConfigSettingView() noexcept
 {
@@ -44,18 +44,18 @@ CConfigSettingView::~CConfigSettingView()
 
 BOOL CConfigSettingView::PreCreateWindow(CREATESTRUCT& cs)
 {
-    // TODO: ÔÚ´Ë´¦Í¨¹ıĞŞ¸Ä
-    //  CREATESTRUCT cs À´ĞŞ¸Ä´°¿ÚÀà»òÑùÊ½
+    // TODO: åœ¨æ­¤å¤„é€šè¿‡ä¿®æ”¹
+    //  CREATESTRUCT cs æ¥ä¿®æ”¹çª—å£ç±»æˆ–æ ·å¼
 
     return CView::PreCreateWindow(cs);
 }
 
-// CProcessView »æÍ¼
+// CProcessView ç»˜å›¾
 
 void CConfigSettingView::OnDraw(CDC* pDC)
 {
     CView::OnDraw(pDC);
-    // TODO: ÔÚ´Ë´¦Îª±¾»úÊı¾İÌí¼Ó»æÖÆ´úÂë
+    // TODO: åœ¨æ­¤å¤„ä¸ºæœ¬æœºæ•°æ®æ·»åŠ ç»˜åˆ¶ä»£ç 
 }
 
 void CConfigSettingView::OnRButtonUp(UINT /* nFlags */, CPoint point)
@@ -73,7 +73,7 @@ void CConfigSettingView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
 }
 
 
-// CProcessView Õï¶Ï
+// CProcessView è¯Šæ–­
 #ifdef _DEBUG
 void CConfigSettingView::AssertValid() const
 {
@@ -85,7 +85,7 @@ void CConfigSettingView::Dump(CDumpContext& dc) const
     CView::Dump(dc);
 }
 
-CConfigSettingDoc* CConfigSettingView::GetDocument() const // ·Çµ÷ÊÔ°æ±¾ÊÇÄÚÁªµÄ
+CConfigSettingDoc* CConfigSettingView::GetDocument() const // éè°ƒè¯•ç‰ˆæœ¬æ˜¯å†…è”çš„
 {
     ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(CConfigSettingDoc)));
     return (CConfigSettingDoc*)m_pDocument;
@@ -98,7 +98,7 @@ CConfigSettingChildFrame* CConfigSettingView::GetParentCChild() const
     ASSERT(GetParent()->IsKindOf(RUNTIME_CLASS(CConfigSettingChildFrame)));
     return (CConfigSettingChildFrame*)GetParent();
 }
-// CProcessView ÏûÏ¢´¦Àí³ÌĞò
+// CProcessView æ¶ˆæ¯å¤„ç†ç¨‹åº
 
 
 int CConfigSettingView::OnCreate(LPCREATESTRUCT lpCreateStruct)
@@ -111,12 +111,12 @@ int CConfigSettingView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     CRect rectDummy;
     GetClientRect(&rectDummy);
 
-    // ´´½¨ÊÓÍ¼: 
+    // åˆ›å»ºè§†å›¾: 
     const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 
     if (!m_ViewList.Create(dwViewStyle, rectDummy, this, ID_CFG_ADD))
     {
-        TRACE0("Î´ÄÜ´´½¨ÁĞ±íÊÓÍ¼\n");
+        TRACE0("æœªèƒ½åˆ›å»ºåˆ—è¡¨è§†å›¾\n");
     }
 
     InitConfigSettingView();
@@ -129,13 +129,13 @@ void CConfigSettingView::InitConfigSettingView()
     m_ViewList.SetRedraw(FALSE);
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     int colIndex = 0;
-    m_ViewList.InsertColumn(colIndex++, TEXT("ĞòºÅ"), LVCFMT_LEFT, 38);
-    m_ViewList.InsertColumn(colIndex++, TEXT("²ßÂÔID"), LVCFMT_LEFT, 60);
-    m_ViewList.InsertColumn(colIndex++, TEXT("²ßÂÔÀàĞÍ"), LVCFMT_LEFT, 80);
-    m_ViewList.InsertColumn(colIndex++, TEXT("´¦ÀíÀàĞÍ"), LVCFMT_LEFT, 110);
-    m_ViewList.InsertColumn(colIndex++, TEXT("ÅäÖÃ"), LVCFMT_LEFT, 470);
-    m_ViewList.InsertColumn(colIndex++, TEXT("±¸×¢"), LVCFMT_LEFT, 150);
-    m_ViewList.InsertColumn(colIndex++, TEXT("ÊÇ·ñ¹ÜÀíÔ±´´½¨"), LVCFMT_LEFT, 0);
+    m_ViewList.InsertColumn(colIndex++, TEXT("åºå·"), LVCFMT_LEFT, 38);
+    m_ViewList.InsertColumn(colIndex++, TEXT("ç­–ç•¥ID"), LVCFMT_LEFT, 60);
+    m_ViewList.InsertColumn(colIndex++, TEXT("ç­–ç•¥ç±»å‹"), LVCFMT_LEFT, 80);
+    m_ViewList.InsertColumn(colIndex++, TEXT("å¤„ç†ç±»å‹"), LVCFMT_LEFT, 110);
+    m_ViewList.InsertColumn(colIndex++, TEXT("é…ç½®"), LVCFMT_LEFT, 470);
+    m_ViewList.InsertColumn(colIndex++, TEXT("å¤‡æ³¨"), LVCFMT_LEFT, 150);
+    m_ViewList.InsertColumn(colIndex++, TEXT("æ˜¯å¦ç®¡ç†å‘˜åˆ›å»º"), LVCFMT_LEFT, 0);
     m_ViewList.SetRedraw(TRUE);
 }
 
@@ -192,7 +192,7 @@ void CConfigSettingView::OnSize(UINT nType, int cx, int cy)
 {
     CView::OnSize(nType, cx, cy);
     AdjustLayout();
-    // TODO: ÔÚ´Ë´¦Ìí¼ÓÏûÏ¢´¦Àí³ÌĞò´úÂë
+    // TODO: åœ¨æ­¤å¤„æ·»åŠ æ¶ˆæ¯å¤„ç†ç¨‹åºä»£ç 
 }
 
 

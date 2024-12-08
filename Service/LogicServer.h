@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "AntiCheatClient.h"
 #include "AntiCheatServer.h"
 #include "ObserverClient.h"
@@ -6,7 +6,7 @@
 #include "ObserverServer.h"
 #include "ServerPluginMgr.h"
 
-#define CONFIG_APP_NAME "¼°Ê±Óê"
+#define CONFIG_APP_NAME "åŠæ—¶é›¨"
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr
@@ -124,11 +124,11 @@ public:
     }
     virtual void write_img(unsigned int session_id, std::vector<uint8_t>& data);
     /**
-     * msg: ÈÕÖ¾ĞÅÏ¢
-     * silence: ÊÇ·ñÏÔÊ¾µ½½çÃæÈÕÖ¾´°¿Ú
-     * gm_show: ÊÇ·ñÏÔÊ¾µ½gm
-     * identify: Íæ¼Òuuid±êÊ¶·û
-     * punish_flag: ÊÇ·ñÊÇ³Í·£log
+     * msg: æ—¥å¿—ä¿¡æ¯
+     * silence: æ˜¯å¦æ˜¾ç¤ºåˆ°ç•Œé¢æ—¥å¿—çª—å£
+     * gm_show: æ˜¯å¦æ˜¾ç¤ºåˆ°gm
+     * identify: ç©å®¶uuidæ ‡è¯†ç¬¦
+     * punish_flag: æ˜¯å¦æ˜¯æƒ©ç½šlog
      */
     virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
     virtual void punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2 = L"");
