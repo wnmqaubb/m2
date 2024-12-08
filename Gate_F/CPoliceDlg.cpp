@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "GateF.h"
 #include "CPoliceDlg.h"
+#include "Service/Ini_tool.h"
 
 
 // CPoliceDlg 对话框
@@ -15,6 +16,7 @@ CPoliceDlg::CPoliceDlg(CWnd* pParent /*=nullptr*/)
 	, m_check_base_policy(TRUE)
 	, m_check_better_policy(TRUE)
 	, m_check_best_policy(FALSE)
+	, m_policy_detect_interval(0)
 {
 
 }
@@ -30,6 +32,11 @@ void CPoliceDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_BASE_POLICY, m_check_base_policy);
 	DDX_Check(pDX, IDC_CHECK_BETTER_POLICY, m_check_better_policy);
 	DDX_Check(pDX, IDC_CHECK_BEST_POLICY, m_check_best_policy);
+	DDX_Text(pDX, IDC_EDIT_POLICY_DETECT_INTERVAL, m_policy_detect_interval);
+	DDV_MinMaxInt(pDX, m_policy_detect_interval, 1, 10);
+	DDX_Control(pDX, IDC_SPIN_POLICY_DETECT_INTERVAL, m_spin_detect_interval);
+	m_spin_detect_interval.SetRange(1, 10);
+	m_spin_detect_interval.SetBuddy(GetDlgItem(IDC_EDIT_POLICY_DETECT_INTERVAL));
 }
 
 
@@ -45,6 +52,7 @@ BEGIN_MESSAGE_MAP(CPoliceDlg, CDialogEx)
 	ON_WM_CTLCOLOR()
 	ON_BN_CLICKED(IDC_BUTTON_POLICY_COMMIT, &CPoliceDlg::OnConfigSave)
 	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CPoliceDlg::OnBnClickedRefreshPolicy)
+	ON_NOTIFY(UDN_DELTAPOS, IDC_SPIN_POLICY_DETECT_INTERVAL, &CPoliceDlg::OnDeltaposSpin1)
 END_MESSAGE_MAP()
 
 BOOL CPoliceDlg::OnInitDialog()
@@ -70,6 +78,9 @@ BOOL CPoliceDlg::OnInitDialog()
 	// 填充处罚类型下拉框
 	m_combo_punish_type.Create(WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, CRect(0, 0, 0, 0), this, IDC_LIST_COMBOBOX_PUNISH);
 	RefreshViewList();
+	m_policy_detect_interval = IniTool::read_ini<int>(".\\jishiyu.ini", "Gate", "Policy_Detect_Interval", 3);
+	m_spin_detect_interval.SetPos(m_policy_detect_interval);
+
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
 }
@@ -490,4 +501,34 @@ void CPoliceDlg::OnBnClickedRefreshPolicy()
 {
 	theApp.OpenConfig();
 	RefreshViewList();
+}
+
+
+void CPoliceDlg::OnDeltaposSpin1(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
+	// 根据旋转按钮的增减方向来改变整型变量的值
+	if (pNMUpDown->iDelta > 0)
+	{
+		if (m_policy_detect_interval < 10)
+		{
+			m_policy_detect_interval++;
+		}
+		else {
+			m_policy_detect_interval = 10;
+		}
+	}
+	else
+	{
+		if (m_policy_detect_interval > 1)
+		{
+			m_policy_detect_interval--;  // 向下调整（减少1）
+		}else {
+			m_policy_detect_interval = 1;
+		}
+	}
+	//m_spin_detect_interval.SetPos(m_policy_detect_interval);
+	IniTool::write_ini<int>(".\\jishiyu.ini", "Gate", "Policy_Detect_Interval", m_policy_detect_interval);
+	UpdateData(FALSE);  // 将改变后的变量值更新显示到文本框中
+	*pResult = 0;
 }

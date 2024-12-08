@@ -252,10 +252,10 @@ void GameLocalFuntion::messagebox_call(std::string text, uint32_t mb_type)
 				continue;
 			}
 			if (g_main_window_hwnd && *g_main_window_hwnd) {
-				msgbox(*g_main_window_hwnd, text.c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
+				msgbox(*g_main_window_hwnd, Utils::String::to_utf8(text).c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
 			}
 			else {
-				msgbox(NULL, text.c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
+				msgbox(NULL, Utils::String::to_utf8(text).c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
 			}
 			break;
 		} while (true);

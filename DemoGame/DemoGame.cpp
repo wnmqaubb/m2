@@ -12,6 +12,7 @@
 #include "asio2/util/sha1.hpp"
 #include "asio2/util/base64.hpp"
 #include "Gate/cmdline.h"
+#include "Service/Ini_tool.h"
 
 using client_entry_t = decltype(&client_entry);
 namespace fs = std::filesystem;
@@ -19,6 +20,10 @@ void on_recv_pkg_policy(ProtocolS2CPolicy& req);
 int main(int argc, char** argv)
 {
 #ifdef _DEBUG
+	IniTool::write_ini<int>(".\\jishiyu.ini", "Gate", "Policy_Detect_Interval", 8);
+	auto policy_detect_interval = IniTool::read_ini<int>(".\\jishiyu.ini", "Gate", "Policy_Detect_Interval", 3);
+	auto jishiyu_ini = toml::parse_file(".\\jishiyu.ini");
+	std::cout << jishiyu_ini << std::endl;
 	//while (true)
 	//{
 		//ProtocolS2CPolicy req;
@@ -39,7 +44,7 @@ int main(int argc, char** argv)
 		//std::cout << "结束运行" << elapsed << std::endl;
 		//std::this_thread::sleep_for(std::chrono::minutes(1));
 	//}
-	auto hmodule = LoadLibraryA("NewClient.dll");
+	/*auto hmodule = LoadLibraryA("NewClient.dll");
 	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
 	share_data_ptr_t param = new share_data_t();
 	param->stage = 1;
@@ -50,7 +55,7 @@ int main(int argc, char** argv)
 	auto cfg_bin = cfg.dump();
 	param->cfg_size = cfg_bin.size();
 	memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
-	entry(param);
+	entry(param);*/
 	/*std::wstring volume_serial_number = std::any_cast<std::wstring>(Utils::HardwareInfo::get_volume_serial_number());
 	unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
     std::cout << volume_serial_number_hash_val << std::endl;

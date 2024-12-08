@@ -65,8 +65,9 @@
 #define IDC_CHECK7                      1029
 #define IDC_EDIT_BACK                   1030
 #define IDC_LIST_WHITE_MACHINA          1031
-#define IDC_LIST_WHITE_MACHINE          1032
+#define IDC_EDIT_POLICY_DETECT_INTERVAL 1032
 #define IDC_CHECK_EXIT                  1033
+#define IDC_STATIC_POLICY_INTERVAL1     1033
 #define IDC_LIST_BLACK_MACHINE          1034
 #define IDC_EDIT_EXIT                   1035
 #define IDC_LIST_WHITE_IP               1036
@@ -93,6 +94,9 @@
 #define ID_GET_GAMEUSER_FILE            1057
 #define IDR_PROCESS_RIGHT_MENU          1058
 #define IDC_LIST_DIRECTORYINFO          1059
+#define IDC_STATIC_POLICY_INTERVAL      1060
+#define IDC_SPIN_POLICY_DETECT_INTERVAL 1061
+#define IDC_LIST_WHITE_MACHINE          1062
 #define IDC_LIST_EDIT                   10010
 #define IDC_LIST_COMBOBOX_POLICY        10011
 #define IDC_LIST_COMBOBOX_PUNISH        10012
@@ -130,7 +134,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         32778
-#define _APS_NEXT_CONTROL_VALUE         1029
+#define _APS_NEXT_CONTROL_VALUE         1034
 #define _APS_NEXT_SYMED_VALUE           115
 #endif
 #endif

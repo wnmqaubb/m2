@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "AntiCheatClient.h"
 #include "AntiCheatServer.h"
 #include "ObserverClient.h"
@@ -6,7 +6,7 @@
 #include "ObserverServer.h"
 #include "ServerPluginMgr.h"
 
-#define CONFIG_APP_NAME "��ʱ��"
+#define CONFIG_APP_NAME "及时雨"
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr

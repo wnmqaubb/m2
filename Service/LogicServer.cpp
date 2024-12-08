@@ -2,8 +2,9 @@
 #include "LogicServer.h"
 #include "../version.build"
 #include "vmprotect/VMProtectSDK.h"
+#include "Ini_tool.h"
 std::filesystem::path g_cur_dir;
-
+using namespace std::literals;
 #if 1
 #define ENABLE_POLICY_TIMEOUT_CHECK
 #define ENABLE_POLICY_TIMEOUT_CHECK_TIMES 3
@@ -197,7 +198,8 @@ CLogicServer::CLogicServer()
         auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
         if (user_data)
         {
-            if (user_data->get_heartbeat_duration() > std::chrono::minutes(3))
+            auto policy_detect_interval  = IniTool::read_ini<int>(".\\jishiyu.ini","Gate","Policy_Detect_Interval",3);
+            if (user_data->get_heartbeat_duration() > std::chrono::minutes(policy_detect_interval))
             {
                 // 白名单用户不检测心跳和策略
 				if (is_svip(package.head.session_id)) {

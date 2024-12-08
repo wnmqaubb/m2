@@ -55,4 +55,7 @@ public:
 	BOOL m_check_best_policy;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnBnClickedRefreshPolicy();
+	int m_policy_detect_interval;
+	CSpinButtonCtrl m_spin_detect_interval;
+	afx_msg void OnDeltaposSpin1(NMHDR* pNMHDR, LRESULT* pResult);
 };

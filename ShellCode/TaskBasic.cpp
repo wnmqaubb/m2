@@ -10,7 +10,9 @@
 #else
 #define LOG(x,...)
 #endif
+
 bool is_debug_mode = false;
+bool is_detect_finish = false;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
 std::shared_ptr<HWND> g_main_window_hwnd;
@@ -291,6 +293,13 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 #if LOG_SHOW
     OutputDebugStringA("on_recv_pkg_policy===");
 #endif
+	VMP_VIRTUALIZATION_BEGIN();
+	if (!is_detect_finish)
+    {
+        return;
+    }
+	is_detect_finish = false;
+	VMP_VIRTUALIZATION_END();
     ProtocolC2SPolicy resp;
     std::vector<ProtocolPolicy> module_polices;
     std::vector<ProtocolPolicy> process_polices;
@@ -415,7 +424,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			break;
 		}
     }
-
+    
     auto& win = Utils::CWindows::instance();
     bool find_cheat = false;
     bool is_cheat = false;
@@ -607,7 +616,10 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 	});
     if (resp.results.size() > 0) {
         client->send(&resp);
-    }
+	}
+	VMP_VIRTUALIZATION_BEGIN();
+	is_detect_finish = true;
+	VMP_VIRTUALIZATION_END();
 }
 
 void __declspec(dllexport) UnLoadPlugin(CAntiCheatClient* client)

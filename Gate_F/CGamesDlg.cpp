@@ -267,6 +267,7 @@ void CGamesDlg::OnIpBan()
 		return;
 	}
 	OnWhiteOrBlackAdd(ip, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_ip));
+	OnExitGame();
 }
 
 void CGamesDlg::OnMacBan()
@@ -282,6 +283,7 @@ void CGamesDlg::OnMacBan()
 		return;
 	}
 	OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_machine));
+	OnExitGame();
 }
 
 void CGamesDlg::OnRoleNameBan()
@@ -302,6 +304,7 @@ void CGamesDlg::OnRoleNameBan()
 		return;
 	}
 	OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_rolename));
+	OnExitGame();
 }
 
 void CGamesDlg::OnIpWhiteAdd()
