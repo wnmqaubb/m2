@@ -29,18 +29,18 @@ public:
         notify_mgr_.register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
             is_auth_ = false;
             get_gate_notify_mgr().dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("失去连接:%s:%u"), Utils::c2w(get_address()).c_str(),
-                get_port());
+            log(LOG_TYPE_DEBUG, TEXT("失去连接:%s:%s"), Utils::c2w(get_address()).c_str(),
+                Utils::c2w(get_port()).c_str());
         });
         notify_mgr_.register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
             get_gate_notify_mgr().dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("连接失败:%s:%u"), Utils::c2w(get_address()).c_str(),
-                get_port());
+            log(LOG_TYPE_DEBUG, TEXT("连接失败:%s:%s"), Utils::c2w(get_address()).c_str(),
+                Utils::c2w(get_port()).c_str());
         });
         notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
             get_gate_notify_mgr().dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("建立连接:%s:%u"), Utils::c2w(get_address()).c_str(),
-                get_port());
+            log(LOG_TYPE_DEBUG, TEXT("建立连接:%s:%s"), Utils::c2w(get_address()).c_str(),
+                Utils::c2w(get_port()).c_str());
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
             super::send(&handshake);
