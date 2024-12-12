@@ -556,7 +556,7 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
 	//握手超时检查取消
     session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
 	//心跳超时检查
-	session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_, [this, session]() {
+	session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_/*60s*/, [this, session]() {
 		auto userdata = get_user_data_(session);
 		auto duration = userdata->get_heartbeat_duration();
 		if (duration > heartbeat_timeout_)

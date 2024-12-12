@@ -138,6 +138,8 @@ public:
 	std::string trim_user_name(const std::string& username_);
 	inline CObsSessionMgr& obs_sessions_mgr() { return obs_sessions_mgr_; }
     inline CSessionMgr& usr_sessions_mgr() { return usr_sessions_mgr_; }
+	inline int get_policy_detect_interval() { return policy_detect_interval_; }
+	inline void set_policy_detect_interval(int interval) { policy_detect_interval_ = interval; }
 private:
     void OnlineCheck();
 protected:
@@ -148,4 +150,5 @@ protected:
     NetUtils::EventMgr<observer_package_type> policy_pkg_mgr_;
     CObsSessionMgr obs_sessions_mgr_;
     CSessionMgr usr_sessions_mgr_;
+    int policy_detect_interval_;
 };

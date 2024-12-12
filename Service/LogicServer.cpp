@@ -72,7 +72,7 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
 #if defined(ENABLE_POLICY_TIMEOUT_CHECK)
     do 
     {
-        user_data->policy_recv_timeout_timer_->expires_from_now(std::chrono::minutes(3));
+        user_data->policy_recv_timeout_timer_->expires_from_now(std::chrono::minutes(get_policy_detect_interval()));
         user_data->policy_recv_timeout_timer_->async_wait([this, user_data = user_data, service_session_id = session->hash_key()](std::error_code ec) {
             if (ec != asio::error::operation_aborted)
             {
@@ -198,8 +198,11 @@ CLogicServer::CLogicServer()
         auto user_data = usr_sessions_mgr().get_user_data(package.head.session_id);
         if (user_data)
         {
-            auto policy_detect_interval  = IniTool::read_ini<int>(".\\jishiyu.ini","Gate","Policy_Detect_Interval",3);
-            if (user_data->get_heartbeat_duration() > std::chrono::minutes(policy_detect_interval))
+            set_policy_detect_interval(IniTool::read_ini<int>(".\\jishiyu.ini","Gate","Policy_Detect_Interval",3));
+            wchar_t usr_name[256] = { 0 };
+            swprintf_s(usr_name, 256, TEXT("get_policy_detect_interval %d"), get_policy_detect_interval());
+            OutputDebugString(usr_name);
+            if (user_data->get_send_policy_duration() > std::chrono::minutes(get_policy_detect_interval()))
             {
                 // 白名单用户不检测心跳和策略
 				if (is_svip(package.head.session_id)) {
@@ -219,7 +222,7 @@ CLogicServer::CLogicServer()
 					else
 					{
 						auto dura_689060 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[689060];
-						if (dura_689060 > std::chrono::minutes(5))
+						if (dura_689060 > std::chrono::minutes(get_policy_detect_interval()+2))
 						{
 							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689060超时:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689060).count());
 						}
@@ -234,7 +237,7 @@ CLogicServer::CLogicServer()
 					else
 					{
 						auto dura_689051 = std::chrono::system_clock::now() - user_data->pkg_id_time_map()[689051];
-						if (dura_689051 > std::chrono::minutes(5))
+						if (dura_689051 > std::chrono::minutes(get_policy_detect_interval()+2))
 						{
 							user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("689051超时:%d s"), std::chrono::duration_cast<std::chrono::seconds>(dura_689051).count());
 							std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
@@ -257,8 +260,9 @@ CLogicServer::CLogicServer()
                     user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("下发查看进程:%d"), user_data->session_id);
                 }
 
-                user_data->last_heartbeat_time = std::chrono::system_clock::now();
+                user_data->last_send_policy_time = std::chrono::system_clock::now();
             }
+            user_data->last_heartbeat_time = std::chrono::system_clock::now();
         }
         
     });
@@ -605,14 +609,12 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		});
         
 		// 处罚玩家写到GM的开挂玩家列表.txt
-        if (!gm_show) {
-			punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
-				usr_name.c_str(),
-				punish_type_str[(PunishType)policy.punish_type],
-				comment.c_str(),
-				comment_2.c_str()
-			);
-        }
+		punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
+			usr_name.c_str(),
+			punish_type_str[(PunishType)policy.punish_type],
+			comment.c_str(),
+			comment_2.c_str()
+		);
 
         user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
             usr_name.c_str(),

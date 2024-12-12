@@ -62,7 +62,13 @@ struct ProtocolUserData : ProtocolBase<SPKG_SERIALIZE_TYPE_USERDATA>
     inline std::chrono::system_clock::duration get_heartbeat_duration()
     {
         return std::chrono::system_clock::now() - last_heartbeat_time;
-    }
+	}
+
+	inline std::chrono::system_clock::duration get_send_policy_duration()
+	{
+		return std::chrono::system_clock::now() - last_send_policy_time;
+	}
+
     inline asio2::uuid& get_uuid()
     {
         return *(asio2::uuid*)uuid;
@@ -88,7 +94,7 @@ struct ProtocolUserData : ProtocolBase<SPKG_SERIALIZE_TYPE_USERDATA>
 
     unsigned int session_id = 0;
     bool has_handshake = false;
-    std::chrono::system_clock::time_point last_heartbeat_time = std::chrono::system_clock::now();
+	std::chrono::system_clock::time_point last_heartbeat_time = std::chrono::system_clock::now();
     json json;
     std::wstring mac;
     std::shared_ptr<asio::steady_timer> policy_recv_timeout_timer_;
@@ -98,6 +104,7 @@ struct ProtocolUserData : ProtocolBase<SPKG_SERIALIZE_TYPE_USERDATA>
     int policy_timeout_times_ = 0;
     int punish_times_ = 0;
     std::chrono::system_clock::time_point last_punish_time = std::chrono::system_clock::now();
+	std::chrono::system_clock::time_point last_send_policy_time = std::chrono::system_clock::now();
     std::unordered_map<unsigned int, std::chrono::system_clock::time_point> pkg_id_time_map_;
     MSGPACK_DEFINE(uuid_1, uuid_2, uuid_3, uuid_4, session_id, has_handshake, last_heartbeat_time, json);
 };
