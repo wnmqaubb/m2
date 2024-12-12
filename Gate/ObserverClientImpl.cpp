@@ -91,7 +91,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
 #else
 			if (req.gm_show)
 			{
-				if (!req.silence)
+				if (!req.silence && !req.punish_flag)
 				{
 					LogPrint(LogicServerLog, TEXT("%s"), msg.c_str());
 				}

@@ -616,14 +616,14 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 			comment_2.c_str()
 		);
 
-        user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
-            usr_name.c_str(),
-            policy_type_str[(PolicyType)policy.policy_type],
-            policy.policy_id,
-            punish_type_str[(PunishType)policy.punish_type],
-            comment.c_str(),
-            comment_2.c_str()
-        );
+		user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
+			usr_name.c_str(),
+			policy_type_str[(PolicyType)policy.policy_type],
+			policy.policy_id,
+			punish_type_str[(PunishType)policy.punish_type],
+			comment.c_str(),
+			comment_2.c_str()
+		);
 
 		if (policy.punish_type != ENM_PUNISH_TYPE_NO_OPEARATION)
 		{
