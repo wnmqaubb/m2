@@ -12,7 +12,7 @@
 #endif
 
 bool is_debug_mode = false;
-bool is_detect_finish = false;
+bool is_detect_finish = true;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
 std::shared_ptr<HWND> g_main_window_hwnd;
@@ -271,9 +271,9 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 			VMP_VIRTUALIZATION_BEGIN();
             std::error_code ec;
             std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5 + 5));
+            Utils::CWindows::instance().exit_process();
             exit(-1);
             abort();
-            Utils::CWindows::instance().exit_process();
             UnitPunishKick(ec);
             Utils::CWindows::instance().exit_process();
             exit(-1);
@@ -290,9 +290,6 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 
 void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 {
-#if LOG_SHOW
-    OutputDebugStringA("on_recv_pkg_policy===");
-#endif
 	VMP_VIRTUALIZATION_BEGIN();
 	if (!is_detect_finish)
     {
@@ -300,6 +297,9 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     }
 	is_detect_finish = false;
 	VMP_VIRTUALIZATION_END();
+#if LOG_SHOW
+	OutputDebugStringA("on_recv_pkg_policy===");
+#endif
     ProtocolC2SPolicy resp;
     std::vector<ProtocolPolicy> module_polices;
     std::vector<ProtocolPolicy> process_polices;
@@ -465,7 +465,8 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 
 	if (resp.results.size() > 0) {
 		client->send(&resp);
-        if (is_cheat) {
+		if (is_cheat) {
+			is_detect_finish = true;
             return;
         }
 	}
