@@ -244,21 +244,23 @@ void GameLocalFuntion::messagebox_call(std::string text, uint32_t mb_type)
 	}
 	else*/
 	{
-		do
-		{
-			auto msgbox = IMPORT(L"user32.dll", MessageBoxA);
-			if (!msgbox) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				continue;
-			}
+		/*do
+		{*/
+			//auto msgbox = IMPORT(L"user32.dll", MessageBoxW);
+			//if (!msgbox) {
+			//	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			//	continue;
+			//}
 			if (g_main_window_hwnd && *g_main_window_hwnd) {
-				msgbox(*g_main_window_hwnd, Utils::String::to_utf8(text).c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
+				//MessageBoxW(*g_main_window_hwnd, Utils::String::c2w(text).c_str(), Utils::String::c2w(xorstr("封挂提示")).c_str(), MB_OK | MB_ICONERROR);
+				//OutputDebugString(L"MessageBoxW2");
+				MessageBoxW(*g_main_window_hwnd, Utils::String::c2w(text).c_str(), L"封挂提示", MB_OK | MB_ICONERROR);
 			}
 			else {
-				msgbox(NULL, Utils::String::to_utf8(text).c_str(), xorstr("封挂提示"), MB_OK | MB_ICONERROR);
+				MessageBoxW(NULL, Utils::String::c2w(text).c_str(), L"封挂提示", MB_OK | MB_ICONERROR);
 			}
-			break;
-		} while (true);
+		//	break;
+		//} while (true);
 	}
 
 	VMP_VIRTUALIZATION_END();
