@@ -1,48 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Document
-	Version="2"
-	>
-	<Protection
-		InputFileName="build\bin\Release\Win32\TaskBasic.dll"
-		Options="0"
-		>
-		<Messages
-		/>
-		<Folders
-		/>
-		<Procedures>
-			<Procedure
-				MapAddress="UnitPunishBsod(class std::error_code)"
-			/>
-			<Procedure
-				MapAddress="UnitPunishKick(class std::error_code)"
-			/>
-			<Procedure
-				MapAddress="BasicUtils::manual_load_ntdll(void *,unsigned int,struct HINSTANCE__ * *)"
-			/>
-			<Procedure
-				MapAddress="BasicUtils::manual_load_ntdll_and_bsod(void)"
-			/>
-			<Procedure
-				MapAddress="BasicUtils::scan_tcp_table(class std::vector&lt;class std::tuple&lt;class std::basic_string&lt;char,struct std::char_traits&lt;char&gt;,class std::allocator&lt;char&gt; &gt;,class std::basic_string&lt;char,struct std::char_traits&lt;char&gt;,class std::allocator&lt;char&gt; &gt; &gt;,class std::allocator&lt;class std::tuple&lt;class std::basic_string&lt;char,struct std::char_traits&lt;char&gt;,class std::allocator&lt;char&gt; &gt;,class std::basic_string&lt;char,struct std::char_traits&lt;char&gt;,class std::allocator&lt;char&gt; &gt; &gt; &gt; &gt;)"
-			/>
-			<Procedure
-				MapAddress="BasicUtils::infinite_exit(void)"
-			/>
-			<Procedure
-				MapAddress="BasicUtils::bsod(void)"
-			/>
-			<Procedure
-				MapAddress="on_recv_punish(class CAntiCheatClient *,class RawProtocol&lt;class RawProtocolHead,class RawProtocolBody,1,1,1&gt; const &amp;,class msgpack::v1::object_handle const &amp;)"
-			/>
-		</Procedures>
-	</Protection>
-	<Script
-	/>
-	<DLLBox>
-		<Folders
-		/>
-	</DLLBox>
-	<LicenseManager
-	/>
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document Version="2">
+    <Protection InputFileName="build\bin\Release\Win32\TaskBasic.dll" Options="0">
+        <Messages />
+        <Folders />
+        <Procedures />
+        <Objects />
+    </Protection>
+    <Script />
+    <DLLBox>
+        <Folders />
+    </DLLBox>
+    <LicenseManager />
 </Document>

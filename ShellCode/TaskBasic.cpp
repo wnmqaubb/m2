@@ -245,12 +245,12 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 	InitTimeoutCheck(client);
 	InitJavaScript(client);
 
-    if (is_debug_mode == false)
-    {
+	if (is_debug_mode == false)
+	{
 		InitHideProcessDetect(client);
 		InitSpeedDetect(client);
 		InitShowWindowHookDetect(client);
-    }
+	}
 
     ProtocolC2SLoadedPlugin req;
     req.loaded = true;
@@ -290,13 +290,11 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 
 void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 {
-	VMP_VIRTUALIZATION_BEGIN();
 	if (!is_detect_finish)
     {
         return;
     }
 	is_detect_finish = false;
-	VMP_VIRTUALIZATION_END();
 #if LOG_SHOW
 	OutputDebugStringA("on_recv_pkg_policy===");
 #endif
@@ -359,67 +357,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 #endif
             async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
             break;
-		}
-		//case ENM_POLICY_TYPE_BACK_GAME:
-		//{
-		//	GameLocalFuntion::instance().back_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
-		//	int back_game_lazy_time_ = std::stoi(policy.config);
-		//	GameLocalFuntion::instance().back_game_lazy_time_ = back_game_lazy_time_ >= 3 ? back_game_lazy_time_ : 3;
-		//	GameLocalFuntion::instance().can_back_exit_game_lazy_enable_ = !policy.comment.empty();
-		//	break;
-		//}
-		//case ENM_POLICY_TYPE_EXIT_GAME:
-		//{
-		//	GameLocalFuntion::instance().exit_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
-		//	int exit_game_lazy_time_ = std::stoi(policy.config);
-		//	GameLocalFuntion::instance().exit_game_lazy_time_ = exit_game_lazy_time_ >= 3 ? exit_game_lazy_time_ : 3;
-		//	break;
-		//}
-        //case ENM_POLICY_TYPE_ACTION_SPEED_WALK:
-        //{
-        //    if (GameLocalFuntion::instance().action_time_.empty()) break;
-
-        //    auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_WALK);
-        //    if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-        //    {
-        //        threshold = std::stoi(policy.config);
-        //    }
-        //    else
-        //    {
-        //        threshold = 0;
-        //    }
-        //    break;
-        //}
-        //case ENM_POLICY_TYPE_ACTION_SPEED_HIT:
-        //{
-        //    if (GameLocalFuntion::instance().action_time_.empty()) break;
-
-        //    auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_HIT);
-        //    if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-        //    {
-        //        threshold = std::stoi(policy.config);
-        //    }
-        //    else
-        //    {
-        //        threshold = 0;
-        //    }
-        //    break;
-        //}
-        //case ENM_POLICY_TYPE_ACTION_SPEED_SPELL:
-        //{
-        //    if (GameLocalFuntion::instance().action_time_.empty()) break;
-
-        //    auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_SPELL);
-        //    if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-        //    {
-        //        threshold = std::stoi(policy.config);
-        //    }
-        //    else
-        //    {
-        //        threshold = 0;
-        //    }
-        //    break;
-        //}
+		}		
 		default:
 			break;
 		}
@@ -439,7 +377,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			std::wstring combine_name = window.caption + L"|" + window.class_name;
 			for (auto& policy : window_polices)
 			{
-				//std::this_thread::sleep_for(std::chrono::milliseconds(2));
 				if (combine_name.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -477,7 +414,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_polices)
 			{
-				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (process.name.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -503,7 +439,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_polices)
 			{
-				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (process_path.find(policy.config) == std::wstring::npos)
 				{
 					continue;
@@ -527,7 +462,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 		{
 			for (auto& policy : process_name_and_size_polices)
 			{
-				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				std::wstring process_name;
 				uint32_t process_size;
 				size_t pos = policy.config.find(L"|");
@@ -568,7 +502,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 				if (file_count > 100) break;
 				for (auto& policy : file_polices)
 				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
 					{
 						continue;
@@ -597,7 +530,6 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			{
 				for (auto& policy : module_polices)
 				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					if (module.path.find(policy.config) == std::wstring::npos)
 					{
 						continue;
@@ -618,9 +550,7 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
     if (resp.results.size() > 0) {
         client->send(&resp);
 	}
-	VMP_VIRTUALIZATION_BEGIN();
 	is_detect_finish = true;
-	VMP_VIRTUALIZATION_END();
 }
 
 void __declspec(dllexport) UnLoadPlugin(CAntiCheatClient* client)

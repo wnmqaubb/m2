@@ -199,9 +199,6 @@ CLogicServer::CLogicServer()
         if (user_data)
         {
             set_policy_detect_interval(IniTool::read_ini<int>(".\\jishiyu.ini","Gate","Policy_Detect_Interval",3));
-            wchar_t usr_name[256] = { 0 };
-            swprintf_s(usr_name, 256, TEXT("get_policy_detect_interval %d"), get_policy_detect_interval());
-            OutputDebugString(usr_name);
             if (user_data->get_send_policy_duration() > std::chrono::minutes(get_policy_detect_interval()))
             {
                 // 白名单用户不检测心跳和策略
@@ -300,7 +297,7 @@ CLogicServer::CLogicServer()
 			{
 				// 白名单用户不检测心跳和策略
 				if (!is_svip(package.head.session_id)) {					
-					send_policy(user_data, session, package.head.session_id);
+					//send_policy(user_data, session, package.head.session_id);
 					user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("断线重连:%s sid:[%d] 补发策略"), req.username.c_str(), user_data->session_id);
 				}
             }
