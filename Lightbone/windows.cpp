@@ -802,17 +802,13 @@ CWindows::WindowsList CWindows::enum_windows()
     DWORD thread_id;
     for (HWND hwnd : hwnds)
     {
-        /*WCHAR caption[MAX_PATH] = { 0 };
-        WCHAR class_name[MAX_PATH] = { 0 };
-        GetWindowTextW(hwnd, caption, MAX_PATH - 1);
-        GetClassNameW(hwnd, class_name, MAX_PATH - 1);*/
         PSTR pszMem = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
         PSTR pszCls = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
         if (pszMem != NULL)
         {
             ::GetWindowText(hwnd, (LPWSTR)pszMem, MAX_PATH);
-            ::GetClassNameW(hwnd, (LPWSTR)pszCls, MAX_PATH);
-            if (_wcsicmp((LPWSTR)pszMem, L"") != NULL && _wcsicmp((LPWSTR)pszCls, L"") != NULL && !IsIconic(hwnd) && IsWindowVisible(hwnd))
+			::GetClassNameW(hwnd, (LPWSTR)pszCls, MAX_PATH);
+			if (_wcsicmp((LPWSTR)pszMem, L"") != NULL || _wcsicmp((LPWSTR)pszCls, L"") != NULL/* && !IsIconic(hwnd) && IsWindowVisible(hwnd)*/)
             {
                 thread_id = GetWindowThreadProcessId(hwnd, &process_id);
                 WindowInfo window;
