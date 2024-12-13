@@ -1,76 +1,33 @@
-ï»¿// dllmain.cpp : å®šä¹‰ DLL åº”ç”¨ç¨‹åºçš„å…¥å£ç‚¹ã€‚
 #include "pch.h"
 #include "ClientImpl.h"
 #include "WndProcHook.h"
 #include "version.build"
 #include "../lf_rungate_server_plug/lf_plug_sdk.h"
 #include "Lightbone/lighthook.h"
-#include "anti_monitor_directory/ReadDirectoryChanges.h"
+//#include "anti_monitor_directory/ReadDirectoryChanges.h"
 
 #define RUNGATE_API void __stdcall
+using namespace lfengine::client;
 
-std::shared_ptr<lfengine::client::TAppFuncDefExt> g_AppFunc;
+std::shared_ptr<TAppFuncDefExt> g_AppFunc;
 std::shared_ptr<HINSTANCE> dll_base;
 std::shared_ptr<asio::io_service> g_game_io;
 std::shared_ptr<asio::detail::thread_group> g_thread_group;
 std::shared_ptr<int> g_client_rev_version;
 std::shared_ptr<CClientImpl> client_;
-// dll é€€å‡ºä¿¡å·
+// dll ÍË³öĞÅºÅ
 //std::shared_ptr<HANDLE> dll_exit_event_handle_;
+RUNGATE_API Init(PAppFuncDef AppFunc, int AppFuncCrc);
+RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen);
+RUNGATE_API DoUnInit() noexcept;
+void client_start_routine();
+RUNGATE_API client_entry(const std::string& guard_gate_ip);
 
-
-void client_start_routine()
+#pragma comment(linker, "/EXPORT:Init=?Init@@YGXPAUTAppFuncDef@client@lfengine@@H@Z")
+RUNGATE_API Init(PAppFuncDef AppFunc, int AppFuncCrc)
 {
-	LOG("client_start_routine ");
-    WndProcHook::install_hook();
-    auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
-	auto port = client_->cfg()->get_field<int>(port_field_id);
-	client_->start(ip, port);
-	LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
-	
-}
-//#ifdef _DEBUG
-#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
-//#endif
-/*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip) //noexcept
-{
-	using namespace lfengine::client;
-#if 0
 	g_client_rev_version = std::make_shared<int>(REV_VERSION);
-	g_AppFunc = std::make_shared<lfengine::client::TAppFuncDefExt>();
-	g_game_io = std::make_shared<asio::io_service>();
-	g_thread_group = std::make_shared<asio::detail::thread_group>();
-	dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
-#endif
-	VMP_VIRTUALIZATION_BEGIN();
-	setlocale(LC_CTYPE, ""); 
-	ProtocolCFGLoader cfg;
-	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty () ? "127.0.0.1" : guard_gate_ip);
-	cfg.set_field<int>(port_field_id, 23268);
-	client_ = std::make_shared<CClientImpl>();
-	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
-	client_->cfg()->set_field<bool>(test_mode_field_id, false);
-	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
-#if defined(_DEBUG)
-	client_->cfg()->set_field<bool>(test_mode_field_id, true);
-	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
-#endif
-	try
-	{
-		client_start_routine();
-	}
-	catch (...)
-	{
-		LOG("client_start_routine å¼‚å¸¸");
-	}
-	VMP_VIRTUALIZATION_END();
-}
-
-RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)// noexcept
-{
-	using namespace lfengine::client;
-	g_client_rev_version = std::make_shared<int>(REV_VERSION);
-	g_AppFunc = std::make_shared<lfengine::client::TAppFuncDefExt>();
+	g_AppFunc = std::make_shared<TAppFuncDefExt>();
 	g_game_io = std::make_shared<asio::io_service>();
 	g_thread_group = std::make_shared<asio::detail::thread_group>();
 	//dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
@@ -80,16 +37,60 @@ RUNGATE_API Init(lfengine::client::PAppFuncDef AppFunc, int AppFuncCrc)// noexce
 	AddChatText = AppFunc->AddChatText;
 	SendSocket = AppFunc->SendSocket;
 
-	LOG("lfå®¢æˆ·ç«¯æ’ä»¶æ‹‰èµ·æˆåŠŸ dll_base:%p", dll_base);
-	//AddChatText("lfå®¢æˆ·ç«¯æ’ä»¶æ‹‰èµ·æˆåŠŸ", 0x0000ff, 0);
+	LOG("lf¿Í»§¶Ë²å¼şÀ­Æğ³É¹¦ dll_base:%p", dll_base);
+	//AddChatText("lf¿Í»§¶Ë²å¼şÀ­Æğ³É¹¦", 0x0000ff, 0);
 	lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
 	SendSocket(&initok, 0, 0);
 }
 
+//#ifdef _DEBUG
+#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
+//#endif
+/*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip)
+{
+#if 0
+	g_client_rev_version = std::make_shared<int>(REV_VERSION);
+	g_AppFunc = std::make_shared<TAppFuncDefExt>();
+	g_game_io = std::make_shared<asio::io_service>();
+	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+#endif
+	VMP_VIRTUALIZATION_BEGIN();
+	setlocale(LC_CTYPE, "");
+	ProtocolCFGLoader cfg;
+	cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty() ? "127.0.0.1" : guard_gate_ip);
+	cfg.set_field<int>(port_field_id, 23268);
+	client_ = std::make_shared<CClientImpl>();
+	client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
+	client_->cfg()->set_field<bool>(test_mode_field_id, false);
+	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+#ifdef _DEBUG
+	client_->cfg()->set_field<bool>(test_mode_field_id, true);
+	client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+#endif
+	try
+	{
+		client_start_routine();
+	}
+	catch (...)
+	{
+		LOG("client_start_routine Òì³£");
+	}
+	VMP_VIRTUALIZATION_END();
+}
+
+void client_start_routine()
+{
+	LOG("client_start_routine ");
+	WndProcHook::install_hook();
+	auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
+	auto port = client_->cfg()->get_field<int>(port_field_id);
+	client_->start(ip, port);
+	LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+}
 
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
 {
-	using namespace lfengine::client; 
 	if (defMsg->ident == 10001)
 	{
 		try
@@ -98,58 +99,59 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 		}
 		catch (...)
 		{
-			LOG("client_entry å¼‚å¸¸");
+			LOG("client_entry Òì³£");
 		}
 		//AddChatText(lpData, 0x0000ff, 0);
-		LOG("lfå®¢æˆ·ç«¯æ’ä»¶HookRecv--gate_ip: %s ", lpData);
+		LOG("lf¿Í»§¶Ë²å¼şHookRecv--gate_ip: %s ", lpData);
 	}
 
 	if (defMsg->ident == 10002 || defMsg->ident == 10003)
-	{		
+	{
 		AddChatText(lpData, 0x0000ff, 0);
 	}
 
 }
+
 //std::unique_ptr<FileChangeNotifier> notifier;
 RUNGATE_API DoUnInit() noexcept
 {
 	try
-	{	
-		LOG("æ’ä»¶å¸è½½å¼€å§‹");
+	{
+		LOG("²å¼şĞ¶ÔØ¿ªÊ¼");
 		//SetEvent(dll_exit_event_handle_);
 
 		//client_->wait_stop();
 		//if (notifier) {
 		//	notifier->join_all();
 		//}
-		LOG("æ’ä»¶å¸è½½ FileChangeNotifier -- join_all ok");
+		LOG("²å¼şĞ¶ÔØ FileChangeNotifier -- join_all ok");
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
-		LOG("æ’ä»¶å¸è½½  -- restore_hook ok");
+		LOG("²å¼şĞ¶ÔØ  -- restore_hook ok");
 		g_game_io->stop();
 		g_game_io->reset();
 		client_->stop_all_timers();
 		client_->stop_all_timed_tasks();
-		/*ä½œè€…å»ºè®®ï¼š
-		if(!game_io->stopped()) æŠŠè¿™ä¸ªåˆ¤æ–­åˆ äº†ï¼Œç›´æ¥stopå³å¯
-		ä½ åœ¨è¿™ä¸ªuninité‡ŒåŠ ä¸ªæ—¥å¿—ï¼Œæ£€æµ‹ä¸€ä¸‹æ˜¯åœ¨å“ªä¸ªæ­¥éª¤é˜»å¡çš„ï¼Œå¥½åˆ¤æ–­é—®é¢˜èŒƒå›´
-		client.post([&client](){client.socket().close();})  å…ˆæŠŠsocketç›´æ¥å…³äº†å°±è¡Œ è¿™æ ·åç»­çš„åŒ…å°±ä¸ä¼šå‘é€äº†ï¼Œå¾ˆå¿«å°±ç»“æŸ äº†
+		/*×÷Õß½¨Òé£º
+		if(!game_io->stopped()) °ÑÕâ¸öÅĞ¶ÏÉ¾ÁË£¬Ö±½Óstop¼´¿É
+		ÄãÔÚÕâ¸öuninitÀï¼Ó¸öÈÕÖ¾£¬¼ì²âÒ»ÏÂÊÇÔÚÄÄ¸ö²½Öè×èÈûµÄ£¬ºÃÅĞ¶ÏÎÊÌâ·¶Î§
+		client.post([&client](){client.socket().close();})  ÏÈ°ÑsocketÖ±½Ó¹ØÁË¾ÍĞĞ ÕâÑùºóĞøµÄ°ü¾Í²»»á·¢ËÍÁË£¬ºÜ¿ì¾Í½áÊø ÁË
 		client.stop();
 		*/
-		LOG("æ’ä»¶å¸è½½stop 1");
-		auto start = std::chrono::steady_clock::now(); // è®°å½•å¼€å§‹æ—¶é—´
-		/*client_->post([]() {LOG("æ’ä»¶å¸è½½socket close 1");
-			client_->socket().close(); LOG("æ’ä»¶å¸è½½socket close 2");
-		});*/ 
+		LOG("²å¼şĞ¶ÔØstop 1");
+		auto start = std::chrono::steady_clock::now(); // ¼ÇÂ¼¿ªÊ¼Ê±¼ä
+		/*client_->post([]() {LOG("²å¼şĞ¶ÔØsocket close 1");
+			client_->socket().close(); LOG("²å¼şĞ¶ÔØsocket close 2");
+		});*/
 		client_->socket().close();
 		client_->stop();
 
-		auto end = std::chrono::steady_clock::now(); // è®°å½•ç»“æŸæ—¶é—´
+		auto end = std::chrono::steady_clock::now(); // ¼ÇÂ¼½áÊøÊ±¼ä
 		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-		LOG("æ’ä»¶å¸è½½stop 2 %d ms", elapsed);
+		LOG("²å¼şĞ¶ÔØstop 2 %d ms", elapsed);
 		/*
-		* set_terminate_threads å¼ºåˆ¶é€€å‡ºasioçš„çº¿ç¨‹,å¦åˆ™ä¼šå¯¼è‡´çº¿ç¨‹æ— æ³•é€€å‡º, å¯¼è‡´çº¿ç¨‹å¥æŸ„æ³„éœ², å¯¼è‡´å´©æºƒ
-		å¿…é¡»è¦destroy, å¦åˆ™ä¼šå¯¼è‡´å®šæ—¶å™¨æ— æ³•é”€æ¯, å¯¼è‡´å®šæ—¶å™¨çš„çº¿ç¨‹è¿˜åœ¨æ‰§è¡Œ, å°é€€å†å¼€å§‹æ¸¸æˆæ—¶çº¿ç¨‹è¿˜åœ¨æ‰§è¡Œä¹‹å‰dllçš„åœ°å€, ä¼šå¯¼è‡´å´©æºƒ
+		* set_terminate_threads Ç¿ÖÆÍË³öasioµÄÏß³Ì,·ñÔò»áµ¼ÖÂÏß³ÌÎŞ·¨ÍË³ö, µ¼ÖÂÏß³Ì¾ä±úĞ¹Â¶, µ¼ÖÂ±ÀÀ£
+		±ØĞëÒªdestroy, ·ñÔò»áµ¼ÖÂ¶¨Ê±Æ÷ÎŞ·¨Ïú»Ù, µ¼ÖÂ¶¨Ê±Æ÷µÄÏß³Ì»¹ÔÚÖ´ĞĞ, Ğ¡ÍËÔÙ¿ªÊ¼ÓÎÏ·Ê±Ïß³Ì»¹ÔÚÖ´ĞĞÖ®Ç°dllµÄµØÖ·, »áµ¼ÖÂ±ÀÀ£
 		*/
 		asio::detail::win_thread::set_terminate_threads(true);
 		client_->destroy();
@@ -157,32 +159,31 @@ RUNGATE_API DoUnInit() noexcept
 		/*if(dll_exit_event_handle_){
 			CloseHandle(dll_exit_event_handle_);
 		}*/
-		LOG("æ’ä»¶å¸è½½å®Œæˆ");
+		LOG("²å¼şĞ¶ÔØÍê³É");
 	}
 	catch (...)
 	{
-		LOG("DoUnInit å¼‚å¸¸");
+		LOG("DoUnInit Òì³£");
 	}
 }
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+BOOL APIENTRY DllMain(HMODULE hModule,
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+)
 {
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-		dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH"); break;
-    case DLL_THREAD_ATTACH:
-		LOG("DLL_THREAD_ATTACH"); break;
-	case DLL_THREAD_DETACH:
-		LOG("DLL_THREAD_DETACH"); break;
-    case DLL_PROCESS_DETACH:
-		//DoUnInit();ä¸èƒ½åœ¨è¿™é‡Œè°ƒç”¨DoUnInit-->>ä¸èƒ½åœ¨Windows Dllçš„DLL_PROCESS_DETACHå—ä¸­è°ƒç”¨asio2çš„serveræˆ–clientå¯¹è±¡çš„stopå‡½æ•°ï¼Œä¼šå¯¼è‡´stopå‡½æ•°æ°¸è¿œé˜»å¡æ— æ³•è¿”å›ã€‚
-		//åŸå› æ˜¯ç”±äºåœ¨DLL_PROCESS_DETACHæ—¶ï¼Œé€šè¿‡PostQueuedCompletionStatusæŠ•é€’çš„IOCPäº‹ä»¶æ°¸è¿œå¾—ä¸åˆ°æ‰§è¡Œã€‚
-		LOG("DLL_PROCESS_DETACH"); break;
-    }
-    return TRUE;
+	switch (ul_reason_for_call)
+	{
+		case DLL_PROCESS_ATTACH:
+			dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH"); break;
+		case DLL_THREAD_ATTACH:
+			LOG("DLL_THREAD_ATTACH"); break;
+		case DLL_THREAD_DETACH:
+			LOG("DLL_THREAD_DETACH"); break;
+		case DLL_PROCESS_DETACH:
+			//DoUnInit();²»ÄÜÔÚÕâÀïµ÷ÓÃDoUnInit-->>²»ÄÜÔÚWindows DllµÄDLL_PROCESS_DETACH¿éÖĞµ÷ÓÃasio2µÄserver»òclient¶ÔÏóµÄstopº¯Êı£¬»áµ¼ÖÂstopº¯ÊıÓÀÔ¶×èÈûÎŞ·¨·µ»Ø¡£
+			//Ô­ÒòÊÇÓÉÓÚÔÚDLL_PROCESS_DETACHÊ±£¬Í¨¹ıPostQueuedCompletionStatusÍ¶µİµÄIOCPÊÂ¼şÓÀÔ¶µÃ²»µ½Ö´ĞĞ¡£
+			LOG("DLL_PROCESS_DETACH"); break;
+	}
+	return TRUE;
 }
-

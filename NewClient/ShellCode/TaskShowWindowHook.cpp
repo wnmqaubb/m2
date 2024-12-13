@@ -1,10 +1,12 @@
 #include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
+#include "ClientImpl.h"
 
 extern std::shared_ptr<asio::io_service> g_game_io;
+extern std::shared_ptr<CClientImpl> client_;
 
-void report_show_window(CAntiCheatClient* client, bool is_cheat, const std::string& reason)
+void report_show_window(bool is_cheat, const std::string& reason)
 {
     VMP_VIRTUALIZATION_BEGIN();
     static uint32_t last_tick_count = NULL;
@@ -14,14 +16,14 @@ void report_show_window(CAntiCheatClient* client, bool is_cheat, const std::stri
         resp.task_id = TASK_PKG_ID_SHOW_WINDOW_HOOK_DETECT;
         resp.is_cheat = true;
         resp.text = xorstr("非法窗口:") + reason;
-        client->send(&resp);
+        client_->send(&resp);
         last_tick_count = GetTickCount();
     }
     VMP_VIRTUALIZATION_END();
 }
 
 const unsigned int DEFINE_TIMER_ID(kShowWindowHookTimerId);
-void InitShowWindowHookDetect(CAntiCheatClient* client)
+void InitShowWindowHookDetect()
 {
     auto ShowWindow = IMPORT(L"user32.dll", ShowWindow);
     LightHook::HookMgr::instance().add_context_hook(ShowWindow, [](LightHook::Context& ctx) {
@@ -37,14 +39,14 @@ void InitShowWindowHookDetect(CAntiCheatClient* client)
             GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)return_address, &thread_module);
             if (thread_module == nullptr)
             {
-                report_show_window((CAntiCheatClient*)ctx.custom_param, true, xorstr("外挂窗口"));
+                report_show_window(true, xorstr("外挂窗口"));
                 return;
             }
             else
             {
                 if (*(uint32_t*)return_address == 0x65399090)
                 {
-                    report_show_window((CAntiCheatClient*)ctx.custom_param, true, xorstr("外挂窗口"));
+                    report_show_window(true, xorstr("外挂窗口"));
                     return;
                 }
             }
@@ -67,11 +69,11 @@ void InitShowWindowHookDetect(CAntiCheatClient* client)
         {
             if ('0' <= ch && ch <= '9')
             {
-                report_show_window((CAntiCheatClient*)ctx.custom_param, true, Utils::String::w2c(class_name));
+                report_show_window(true, Utils::String::w2c(class_name));
                 break;
             }
         }
-    }, client);
+    });
     auto GetDlgItem = IMPORT(L"user32.dll", GetDlgItem);
     LightHook::HookMgr::instance().add_context_hook(GetDlgItem, [](LightHook::Context& ctx) {
         uintptr_t* esp = (uintptr_t*)ctx.esp;
@@ -98,7 +100,7 @@ void InitShowWindowHookDetect(CAntiCheatClient* client)
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)return_address, &module);
         if (module == NULL)
         {
-            report_show_window((CAntiCheatClient*)ctx.custom_param, true, xorstr("外挂窗口2"));
+            report_show_window(true, xorstr("外挂窗口2"));
         }
-    }, client);
+    });
 }

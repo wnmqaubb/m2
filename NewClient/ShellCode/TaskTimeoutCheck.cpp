@@ -4,8 +4,8 @@
 #include "Service/SubServicePackage.h"
 #include <filesystem>
 #include "GameFunction.h"
+#include "ClientImpl.h"
 
-//extern NetUtils::CTimerMgr g_game_timer_mgr;
 extern std::shared_ptr<asio::io_service> g_game_io;
 std::shared_ptr<std::chrono::system_clock::time_point> last_send_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
 std::shared_ptr<std::chrono::system_clock::time_point> last_recv_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
@@ -13,7 +13,7 @@ std::shared_ptr<std::chrono::system_clock::time_point> last_recv_heartbeat_timep
 std::shared_ptr<std::chrono::system_clock::time_point> last_js_report_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
 std::shared_ptr<std::chrono::system_clock::time_point> last_time_out_check_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
 extern std::shared_ptr<int> reconnect_count;
-static CAntiCheatClient* _client;
+extern std::shared_ptr<CClientImpl> client_;
 extern std::shared_ptr<HWND> g_main_window_hwnd;
 
 void __forceinline unmap_ntdll()
@@ -28,11 +28,11 @@ void TimeOutCheckRoutine()
 {
     VMP_VIRTUALIZATION_BEGIN()
 	last_time_out_check_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
-    if ((std::chrono::system_clock::now() - *last_recv_timepoint > (_client->heartbeat_duration() * 12 * 3))
+    if ((std::chrono::system_clock::now() - *last_recv_timepoint > (client_->heartbeat_duration() * 12 * 3))
         ||
-        (std::chrono::system_clock::now() - *last_send_timepoint > (_client->heartbeat_duration() * 12 * 3))
+        (std::chrono::system_clock::now() - *last_send_timepoint > (client_->heartbeat_duration() * 12 * 3))
         ||
-        (std::chrono::system_clock::now() - *last_recv_heartbeat_timepoint > (_client->heartbeat_duration() * 12 * 3))
+        (std::chrono::system_clock::now() - *last_recv_heartbeat_timepoint > (client_->heartbeat_duration() * 12 * 3))
 		||
 		(std::chrono::system_clock::now() - *last_js_report_timepoint > std::chrono::minutes(5))
 		||
@@ -47,7 +47,7 @@ void TimeOutCheckRoutine()
 			MessageBoxA(nullptr, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
 		}
 		//GameLocalFuntion::instance().messagebox_call(xorstr("与服务器断开连接"));
-		_client->post([]() {
+		client_->post([]() {
             auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
             char ntdll_name[] = { 'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l' ,0 };
             Utils::ImageProtect::instance().unmap_image(GetModuleHandleA(ntdll_name));
@@ -57,7 +57,7 @@ void TimeOutCheckRoutine()
 }
 #pragma optimize("",on)
 
-void hack_check(CAntiCheatClient* client)
+void hack_check()
 {
 	VMP_VIRTUALIZATION_BEGIN()
 	char path[MAX_PATH] = { 0 };
@@ -66,34 +66,33 @@ void hack_check(CAntiCheatClient* client)
 	std::error_code ec;
 	if (std::filesystem::exists(p.parent_path() / "version.dll", ec))
 	{
-		client->cfg()->set_field<bool>(hack_type_version_dll_field_id, true);
+		client_->cfg()->set_field<bool>(hack_type_version_dll_field_id, true);
 	}
 	VMP_VIRTUALIZATION_END()
 }
 
-void InitTimeoutCheck(CAntiCheatClient* client)
+void InitTimeoutCheck()
 {
-	_client = client;
 #if 0
-    g_game_timer_mgr.start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client->heartbeat_duration(), []() {
+    g_game_timer_mgr.start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client_->heartbeat_duration(), []() {
         TimeOutCheckRoutine();
     });
 #endif
-	client->cfg()->set_field<bool>(hack_type_version_dll_field_id, false);
-	hack_check(client);
+	client_->cfg()->set_field<bool>(hack_type_version_dll_field_id, false);
+	hack_check();
 
 	LOG(__FUNCTION__);
-	client->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
+	client_->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
 		*reconnect_count = 0;
 	});
-    static auto last_recv_package_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
-    client->notify_mgr().replace_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID, [client]() {
+    static auto last_recv_package_notify_handler = client_->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
+    client_->notify_mgr().replace_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID, []() {
         last_recv_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
         if (last_recv_package_notify_handler)
             last_recv_package_notify_handler();
     });
-    static auto last_send_package_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_SEND_PACKAGE_NOTIFY_ID);
-    client->notify_mgr().replace_handler(CLIENT_ON_SEND_PACKAGE_NOTIFY_ID, [client]() {
+    static auto last_send_package_notify_handler = client_->notify_mgr().get_handler(CLIENT_ON_SEND_PACKAGE_NOTIFY_ID);
+    client_->notify_mgr().replace_handler(CLIENT_ON_SEND_PACKAGE_NOTIFY_ID, []() {
 		if (!last_send_package_notify_handler)
 		{
 			if (std::chrono::system_clock::now() - *last_time_out_check_timepoint > std::chrono::minutes(10))
@@ -105,9 +104,9 @@ void InitTimeoutCheck(CAntiCheatClient* client)
         if (last_send_package_notify_handler)
             last_send_package_notify_handler();
     });
-    static auto last_recv_heartbeat_notify_handler = client->notify_mgr().get_handler(ON_RECV_HEARTBEAT_NOTIFY_ID);
-	client->notify_mgr().replace_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [client]() {
-		if (client->cfg()->get_field<bool>(hack_type_version_dll_field_id))
+    static auto last_recv_heartbeat_notify_handler = client_->notify_mgr().get_handler(ON_RECV_HEARTBEAT_NOTIFY_ID);
+	client_->notify_mgr().replace_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, []() {
+		if (client_->cfg()->get_field<bool>(hack_type_version_dll_field_id))
 		{
 			unmap_ntdll();
 		}
@@ -115,8 +114,8 @@ void InitTimeoutCheck(CAntiCheatClient* client)
         if (last_recv_heartbeat_notify_handler)
             last_recv_heartbeat_notify_handler();
     });
-	static auto last_js_report_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_JS_REPORT_NOTIFY_ID);
-	client->notify_mgr().replace_handler(CLIENT_ON_JS_REPORT_NOTIFY_ID, [client]() {
+	static auto last_js_report_notify_handler = client_->notify_mgr().get_handler(CLIENT_ON_JS_REPORT_NOTIFY_ID);
+	client_->notify_mgr().replace_handler(CLIENT_ON_JS_REPORT_NOTIFY_ID, []() {
 		last_js_report_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
 		if (last_js_report_notify_handler)
 			last_js_report_notify_handler();

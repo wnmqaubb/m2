@@ -2,8 +2,10 @@
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include <MMSystem.h>
+#include "ClientImpl.h"
+extern std::shared_ptr<CClientImpl> client_;
 
-void SpeedDetect(CAntiCheatClient* client)
+void SpeedDetect()
 {
     ProtocolC2STaskEcho resp;
     resp.task_id = TASK_PKG_ID_SPEED_DETECT;
@@ -54,15 +56,15 @@ void SpeedDetect(CAntiCheatClient* client)
     }
     if (resp.is_cheat)
     {
-        client->send(&resp);
+        client_->send(&resp);
     }
 };
 
 const unsigned int DEFINE_TIMER_ID(kSpeedDetectTimerId);
-void InitSpeedDetect(CAntiCheatClient* client)
+void InitSpeedDetect()
 {
 	LOG(__FUNCTION__);
-	client->start_timer(kSpeedDetectTimerId, std::chrono::seconds(5), [&client]() {
-        SpeedDetect(client);
+	client_->start_timer(kSpeedDetectTimerId, std::chrono::seconds(5), []() {
+        SpeedDetect();
     });
 }

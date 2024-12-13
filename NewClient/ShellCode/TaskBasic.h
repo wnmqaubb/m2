@@ -1,4 +1,5 @@
 #pragma once
+#include "ClientImpl.h"
 #include <Lightbone/utils.h>
 #include <iostream>
 #include "Service/AntiCheatClient.h"
@@ -11,19 +12,20 @@
 extern std::shared_ptr<asio::io_service> g_game_io;
 extern std::shared_ptr<asio::detail::thread_group> g_thread_group;
 extern std::shared_ptr<int> g_client_rev_version;
+extern std::shared_ptr<CClientImpl> client_;
 
-void LoadPlugin(CAntiCheatClient* client);
-void InitRmc(CAntiCheatClient* client);
-void InitJavaScript(CAntiCheatClient* client);
-void InitTimeoutCheck(CAntiCheatClient* client);
-void InitHideProcessDetect(CAntiCheatClient* client);
-void InitShowWindowHookDetect(CAntiCheatClient* client);
-void InitSpeedDetect(CAntiCheatClient* client);
+void LoadPlugin();
+void InitRmc();
+void InitJavaScript();
+void InitTimeoutCheck();
+void InitHideProcessDetect();
+void InitShowWindowHookDetect();
+void InitSpeedDetect();
 void InitMiniDump();
-void InitImageProtectCheck(CAntiCheatClient* client);
-void InitDirectoryChangsDetect(CAntiCheatClient* client);
+void InitImageProtectCheck();
+void InitDirectoryChangsDetect();
 void async_execute_javascript(const std::string& code, uint32_t script_id);
-void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg);
-void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req);
+void on_recv_punish(const RawProtocolImpl& package, const msgpack::v1::object_handle& msg);
+void on_recv_pkg_policy(const ProtocolS2CPolicy& req);
 
 void __declspec(noinline) UnitPunishKick();

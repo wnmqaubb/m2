@@ -3,8 +3,9 @@
 #include "Service/AntiCheatClient.h"
 #include "Service/SubServicePackage.h"
 #include <filesystem>
+#include "ClientImpl.h"
 
-
+extern std::shared_ptr<CClientImpl> client_;
 struct ConsoleProperties {
     std::string console_application;
     std::string working_directory;
@@ -176,10 +177,21 @@ public:
         }
         file_handle_ = CreateFileA(path.c_str(), access, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         r = file_handle_ != INVALID_HANDLE_VALUE;
-        if (r)
-        {
-            size_ = get_file_size();
-        }
+
+		size_ = std::filesystem::file_size(path);
+		if (size_ <= 0)
+		{
+			LARGE_INTEGER fileSize;
+			HANDLE hFile = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile != INVALID_HANDLE_VALUE)
+			{
+				if (GetFileSizeEx(hFile, &fileSize))
+				{
+					size_ = fileSize.QuadPart;
+				}
+				CloseHandle(hFile);
+			}
+		}
         return r;
     }
     std::size_t read(void* buffer, unsigned num_count)
@@ -249,7 +261,7 @@ public:
     }
 
     std::size_t get_file_size()
-    {
+	{
         return GetFileSize(file_handle_, NULL);
     }
 
@@ -267,9 +279,9 @@ public:
 std::unique_ptr<Console> console_ptr;
 const unsigned int DEFINE_TIMER_ID(kCmdPipeTimerId);
 const unsigned int DEFINE_TIMER_ID(kCmdBindSessionId);
-void InitRmc(CAntiCheatClient* client)
+void InitRmc()
 {
-    client->package_mgr().register_handler(SPKG_ID_S2C_RMC_CREATE_CMD, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_CREATE_CMD, [](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
         if (console_ptr)
         {
             console_ptr.reset();
@@ -285,36 +297,36 @@ void InitRmc(CAntiCheatClient* client)
         console_ptr->open();
 
         RmcProtocolC2SCreateCommandLine resp;
-        client->send(&resp, package.head.session_id);
-        client->stop_timer(kCmdPipeTimerId);
+        client_->send(&resp, package.head.session_id);
+        client_->stop_timer(kCmdPipeTimerId);
 		LOG(__FUNCTION__);
-		client->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [client, session_id = package.head.session_id]() {
+		client_->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [session_id = package.head.session_id]() {
             if (!console_ptr)
                 return;
-            console_ptr->read([client, session_id](const std::string& text) {
+            console_ptr->read([session_id](const std::string& text) {
                 if (text.size())
                 {
                     RmcProtocolC2SEcho resp;
                     resp.text = text;
-                    client->send(&resp, session_id);
+                    client_->send(&resp, session_id);
                 }
             });
         });
     });
-    client->package_mgr().register_handler(SPKG_ID_S2C_RMC_EXECUTE_CMD, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_EXECUTE_CMD, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         if (console_ptr)
         {
             console_ptr->write(msg.get().as<RmcProtocolS2CExecuteCommandLine>().cmd + "\n");
         }
     });
-    client->package_mgr().register_handler(SPKG_ID_S2C_RMC_CLOSE_CMD, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_CLOSE_CMD, [](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
         if (console_ptr)
         {
             console_ptr.reset();
-            client->stop_timer(kCmdPipeTimerId);
+            client_->stop_timer(kCmdPipeTimerId);
         }
     });
-    client->package_mgr().register_handler(SPKG_ID_S2C_RMC_DOWNLOAD_FILE, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_DOWNLOAD_FILE, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         
         auto req = msg.get().as<RmcProtocolS2CDownloadFile>();
         RmcProtocolC2SDownloadFile resp;
@@ -325,7 +337,7 @@ void InitRmc(CAntiCheatClient* client)
             {
                 resp.path = req.path;
                 resp.status = -1;
-                client->send(&resp, package.head.session_id);
+                client_->send(&resp, package.head.session_id);
                 return;
             }
 
@@ -333,7 +345,7 @@ void InitRmc(CAntiCheatClient* client)
             {
                 resp.path = req.path;
                 resp.status = -1;
-                client->send(&resp, package.head.session_id);
+                client_->send(&resp, package.head.session_id);
                 return;
             }
 
@@ -353,7 +365,7 @@ void InitRmc(CAntiCheatClient* client)
             resp.path = req.path;
             resp.pos = 0;
             resp.piece_size = 0x10000;
-            client->send(&resp, package.head.session_id);
+            client_->send(&resp, package.head.session_id);
         }
         else
         {
@@ -362,7 +374,7 @@ void InitRmc(CAntiCheatClient* client)
             {
                 resp.path = req.path;
                 resp.status = -1;
-                client->send(&resp, package.head.session_id);
+                client_->send(&resp, package.head.session_id);
                 return;
             }
             file.seek(req.pos, FILE_BEGIN);
@@ -373,7 +385,7 @@ void InitRmc(CAntiCheatClient* client)
                 resp.path = req.path;
                 resp.pos = req.pos + req.piece.size();
                 resp.piece_size = 0x10000;
-                client->send(&resp, package.head.session_id);
+                client_->send(&resp, package.head.session_id);
             }
             else
             {
@@ -382,7 +394,7 @@ void InitRmc(CAntiCheatClient* client)
         }
     });
 
-    client->package_mgr().register_handler(SPKG_ID_S2C_RMC_UPLOAD_FILE, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_UPLOAD_FILE, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto req = msg.get().as<RmcProtocolS2CUploadFile>();
         RmcProtocolC2SUploadFile resp;
         if (req.status == 0 && req.pos == 0 && req.piece_size == 0)
@@ -391,15 +403,15 @@ void InitRmc(CAntiCheatClient* client)
             if (!file.open_file(req.path, 'r'))
             {
                 resp.status = -1;
-                client->send(&resp, package.head.session_id);
+                client_->send(&resp, package.head.session_id);
                 return;
             }
             
             resp.status = 0;
             resp.path = req.path;
             resp.pos = 0;
-            resp.total_size = file.get_file_size();
-            client->send(&resp, package.head.session_id);
+            resp.total_size = file.size_;
+            client_->send(&resp, package.head.session_id);
             return;
         }
 
@@ -409,10 +421,10 @@ void InitRmc(CAntiCheatClient* client)
             if (!file.open_file(req.path, 'r'))
             {
                 resp.status = -1;
-                client->send(&resp, package.head.session_id);
+                client_->send(&resp, package.head.session_id);
                 return;
             }
-            const size_t file_size = file.get_file_size();
+            const size_t file_size = file.size_;
             const size_t piece_size = (std::min)(req.piece_size, file_size);
             resp.piece.resize(piece_size);
             file.seek(req.pos, FILE_BEGIN);
@@ -422,14 +434,14 @@ void InitRmc(CAntiCheatClient* client)
             resp.status = 1;
             resp.pos = req.pos;
             resp.path = req.path;
-            resp.total_size = file.get_file_size();
-            client->send(&resp, package.head.session_id);
+            resp.total_size = file.size_;
+            client_->send(&resp, package.head.session_id);
         }
     });
 
-    client->package_mgr().register_handler(SPKG_ID_S2C_RMC_ECHO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_ECHO, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         RmcProtocolC2SEcho resp;
         resp.text = msg.get().as<RmcProtocolS2CEcho>().text;
-        client->send(&resp, package.head.session_id);
+        client_->send(&resp, package.head.session_id);
     });
 }

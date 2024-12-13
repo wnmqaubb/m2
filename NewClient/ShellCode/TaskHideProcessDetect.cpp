@@ -1,9 +1,11 @@
 ﻿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
+#include "ClientImpl.h"
 
+extern std::shared_ptr<CClientImpl> client_;
 int cheat_time_hp = 0;
-void HideProcess(CAntiCheatClient* client)
+void HideProcess()
 {
     ProtocolC2STaskEcho resp;
     resp.task_id = TASK_PKG_ID_HIDE_PROCESS_DETECT;
@@ -26,7 +28,7 @@ void HideProcess(CAntiCheatClient* client)
 
     if (resp.is_cheat && cheat_time_hp >= 4)
     {
-        client->send(&resp);
+        client_->send(&resp);
         cheat_time_hp = 0;
     }
 
@@ -37,10 +39,10 @@ void HideProcess(CAntiCheatClient* client)
 };
 
 const unsigned int DEFINE_TIMER_ID(kHideProcessTimerId);
-void InitHideProcessDetect(CAntiCheatClient* client)
+void InitHideProcessDetect()
 {
 	LOG(__FUNCTION__);
-	client->start_timer(kHideProcessTimerId, std::chrono::seconds(15), [&client]() {
-        HideProcess(client);
+	client_->start_timer(kHideProcessTimerId, std::chrono::seconds(15), []() {
+        HideProcess();
     });
 }

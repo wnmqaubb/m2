@@ -12,7 +12,6 @@
 
 std::shared_ptr<qjs::Runtime> g_runtime = std::make_shared<qjs::Runtime>();
 std::shared_ptr<qjs::Context> g_context = std::make_shared<qjs::Context>(*g_runtime);
-//CAntiCheatClient* g_client;
 extern std::shared_ptr<CClientImpl> client_;
 std::shared_ptr<uint8_t> ANONYMOUS_COUNT = std::make_shared<uint8_t>(0);
 
@@ -664,7 +663,7 @@ static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_
 	}
 	return ret;
 }
-void InitJavaScript(CAntiCheatClient* client)
+void InitJavaScript()
 {
     //g_client = client;
     //g_thread_group.create_thread([]() {

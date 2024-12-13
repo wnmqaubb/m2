@@ -1,25 +1,26 @@
-ï»¿#include "../pch.h"
+#include "../pch.h"
 #include "TaskBasic.h"
 
 std::shared_ptr<bool> is_debug_mode = std::make_shared<bool>(false);
+std::shared_ptr<bool> is_detect_finish = std::make_shared<bool>(true);
 std::shared_ptr<int> reconnect_count = std::make_shared<int>(0);
 std::shared_ptr<HWND> g_main_window_hwnd;
-void NotifyHook(CAntiCheatClient* client)
+void NotifyHook()
 {
-    auto client_connect_success_handler = client->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
-    client->notify_mgr().replace_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [client, client_connect_success_handler]() {
+    auto client_connect_success_handler = client_->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
+    client_->notify_mgr().replace_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [client_connect_success_handler]() {
         client_connect_success_handler();
-        client->notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
+        client_->notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
 }
-void LoadPlugin(CAntiCheatClient* client)
+void LoadPlugin()
 {
-    client->set_is_loaded_plugin(true);
-    LOG("åŠ è½½æ’ä»¶æˆåŠŸ---");
+    client_->set_is_loaded_plugin(true);
+    LOG("¼ÓÔØ²å¼ş³É¹¦---");
     VMP_VIRTUALIZATION_BEGIN();
     srand(time(0));
     //InitMiniDump();
-    std::wstring volume_serial_number = std::any_cast<std::wstring>(client->user_data().get_field(vol_field_id));
+    std::wstring volume_serial_number = std::any_cast<std::wstring>(client_->user_data().get_field(vol_field_id));
     unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
     if (volume_serial_number_hash_val == 1770936153)
     {
@@ -27,74 +28,74 @@ void LoadPlugin(CAntiCheatClient* client)
         ProtocolC2STaskEcho echo;
         echo.task_id = 689999;
         echo.is_cheat = false;
-        echo.text = "æµ‹è¯•";
-        client->send(&echo);
+        echo.text = "²âÊÔ";
+        client_->send(&echo);
     }
 
     if(*g_client_rev_version != REV_VERSION)
     {
-        LOG("æ’ä»¶ç‰ˆæœ¬ä¸åŒ¹é…");
+        LOG("²å¼ş°æ±¾²»Æ¥Åä");
     }
-    LOG("åŠ è½½æ’ä»¶");
-	client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, std::bind(&on_recv_punish, client, std::placeholders::_1, std::placeholders::_2));
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_PROCESS,[client](const RawProtocolImpl& package, const msgpack::v1::object_handle&){
-        LOG("æŸ¥è¯¢è¿›ç¨‹:%u", package.head.session_id);
+    LOG("¼ÓÔØ²å¼ş");
+	client_->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, std::bind(&on_recv_punish, std::placeholders::_1, std::placeholders::_2));
+    client_->package_mgr().register_handler(SPKG_ID_S2C_QUERY_PROCESS,[](const RawProtocolImpl& package, const msgpack::v1::object_handle&){
+        LOG("²éÑ¯½ø³Ì:%u", package.head.session_id);
         auto processes = Utils::CWindows::instance().enum_process_with_dir();
         ProtocolC2SQueryProcess resp;
         resp.data = cast(processes);
-        LOG("è¿”å›æŸ¥è¯¢è¿›ç¨‹:%d", resp.package_id);
-        client->send(&resp, package.head.session_id);
+        LOG("·µ»Ø²éÑ¯½ø³Ì:%d", resp.package_id);
+        client_->send(&resp, package.head.session_id);
     });
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_DRIVERINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_QUERY_DRIVERINFO, [](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
         auto drivers = Utils::CWindows::instance().enum_drivers();
         ProtocolC2SQueryDriverInfo resp;
         resp.data = cast(drivers);
-        client->send(&resp, package.head.session_id);
+        client_->send(&resp, package.head.session_id);
     });
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_WINDOWSINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_QUERY_WINDOWSINFO, [](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
         auto windows = Utils::CWindows::instance().enum_windows_ex();
         ProtocolC2SQueryWindowsInfo resp;
         resp.data = cast(windows);
-        client->send(&resp, package.head.session_id);
+        client_->send(&resp, package.head.session_id);
     });
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_SCREENSHOT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+    client_->package_mgr().register_handler(SPKG_ID_S2C_QUERY_SCREENSHOT, [](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
         size_t sz = 0;
         auto jpg = Utils::get_screenshot(&sz);
         ProtocolC2SQueryScreenShot resp;
         resp.data.resize(sz);
         memcpy(resp.data.data(), jpg.get(), sz);
-        client->send(&resp, package.head.session_id);
+        client_->send(&resp, package.head.session_id);
     });
-    client->package_mgr().replace_handler(SPKG_ID_S2C_SCRIPT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    client_->package_mgr().replace_handler(SPKG_ID_S2C_SCRIPT, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         async_execute_javascript(msg.get().as<ProtocolS2CScript>().code, -1);
     });
-    // æ¥æ”¶logic_serverçš„GMç­–ç•¥åˆ—è¡¨
-    client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    // ½ÓÊÕlogic_serverµÄGM²ßÂÔÁĞ±í
+    client_->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         //if (is_debug_mode == false)
         {
-            on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+            on_recv_pkg_policy(msg.get().as<ProtocolS2CPolicy>());
         }
     });	
   
-    client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
-        //é˜²æ­¢é‡å¯æœåŠ¡å™¨çš„æ—¶å€™è¿‡äºé›†ä¸­å‘åŒ…
-        client->post([client]() {
+    client_->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [](){
+        //·ÀÖ¹ÖØÆô·şÎñÆ÷µÄÊ±ºò¹ıÓÚ¼¯ÖĞ·¢°ü
+        client_->post([]() {
             ProtocolC2SUpdateUsername req;
-            req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-            client->send(&req);
+            req.username = client_->cfg()->get_field<std::wstring>(usrname_field_id);
+            client_->send(&req);
          }, std::chrono::seconds(std::rand() % 10 + 1));
     });
 	LOG(__FUNCTION__);
-	client->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
-        if (client->cfg()->get_field<bool>(test_mode_field_id))
+	client_->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), []() {
+        if (client_->cfg()->get_field<bool>(test_mode_field_id))
         {
             static bool is_already_send = false;
             if (is_already_send == false)
             {
-                client->cfg()->set_field<std::wstring>(usrname_field_id, TEXT("æµ‹è¯•-1åŒº - æµ‹è¯•"));
+                client_->cfg()->set_field<std::wstring>(usrname_field_id, TEXT("²âÊÔ-1Çø - ²âÊÔ"));
                 ProtocolC2SUpdateUsername req;
-                req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-                client->send(&req);
+                req.username = client_->cfg()->get_field<std::wstring>(usrname_field_id);
+                client_->send(&req);
                 is_already_send = true;
             }
             return;
@@ -112,12 +113,12 @@ void LoadPlugin(CAntiCheatClient* client)
                 if (window.class_name == L"tfrmmain")
                 {
                     g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
-                    if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+                    if (client_->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                     {
                         ProtocolC2SUpdateUsername req;
                         req.username = window.caption;
-                        client->send(&req);
-                        client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
+                        client_->send(&req);
+                        client_->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                     }
                     return;
                 }
@@ -131,61 +132,61 @@ void LoadPlugin(CAntiCheatClient* client)
     {
         auto black_ip_table = std::make_shared<std::vector<std::tuple<std::string, std::string>>>(
             std::initializer_list<std::tuple<std::string, std::string>>{
-                { xorstr("61.139.126.216"), xorstr("æ°´ä»™") },
-                { xorstr("103.26.79.221"), xorstr("æ¨ªåˆ€è¾…åŠ©") },
-                { xorstr("220.166.64.104"), xorstr("çŒæ‰‹") },
-                { xorstr("2.59.155.42"), xorstr("æš—é¾™") },
-                { xorstr("49.234.118.114"), xorstr("æš—é¾™") },
-                { xorstr("39.98.211.193"), xorstr("é€šæ€") },
-                { xorstr("103.90.172.154"), xorstr("å°å¯çˆ±") },
-                { xorstr("106.51.123.114"), xorstr("å°å¯çˆ±") },
-                { xorstr("119.28.129.124"), xorstr("åˆºå®¢") },
-                { xorstr("103.45.161.70"), xorstr("è£è€€") },
-                { xorstr("129.226.72.103"), xorstr("å†°æ©™å­") },
-                { xorstr("27.159.67.241"), xorstr("ç§’æ€è¾…åŠ©") },
-                { xorstr("117.34.61.140"), xorstr("æ”¶è´¹å˜é€Ÿé½¿è½®") },
-                { xorstr("1.117.175.89"), xorstr("åŒ—æ–—é©±åŠ¨å˜é€Ÿ") },
-                { xorstr("110.42.1.84"), xorstr("é£˜åˆ€é©±åŠ¨å˜é€Ÿ") },
-                { xorstr("43.243.223.84"), xorstr("æ¸¸è¡Œé©±åŠ¨å˜é€Ÿ") },
-                { xorstr("58.87.82.104"), xorstr("æ¸¸è¡Œé©±åŠ¨å˜é€Ÿ") },
-                { xorstr("81.70.9.132"), xorstr("æ¸¸è¡Œé©±åŠ¨å˜é€Ÿ") },
-                { xorstr("203.78.41.224"), xorstr("å¤§åè¾…åŠ©") },
-                { xorstr("212.64.51.87"), xorstr("å¯å¯åŠ é€Ÿå™¨") },
-                { xorstr("47.96.14.91"), xorstr("å®šåˆ¶è„±æœºå›æ”¶") },
-                { xorstr("203.78.41.225"), xorstr("å¤©ä½¿å¤–æŒ‚") },
-                { xorstr("203.78.41.226"), xorstr("å¤©ä½¿å¤–æŒ‚") },
-                { xorstr("1.117.12.101"), xorstr("å®šåˆ¶è„±æœºå¤–æŒ‚") },
-                { xorstr("150.138.81.222"), xorstr("GEEé«˜ç«¯å®šåˆ¶å¤–æŒ‚") },
-                { xorstr("43.155.77.111"), xorstr("æš—é¾™") },
-                { xorstr("81.68.81.124"), xorstr("æš—é¾™") },		
-                { xorstr("120.26.96.96"), xorstr("å®šåˆ¶è„±æœºGEE") },		
-                { xorstr("47.97.193.19"), xorstr("å®šåˆ¶è„±æœºGEE") },		
-                { xorstr("110.42.3.77"), xorstr("å®šåˆ¶è„±æœºGEE") },		
-                { xorstr("124.70.141.59"), xorstr("ç§äººå®šåˆ¶") },  
-                { xorstr("23.224.81.232"), xorstr("æš—å…µåŠ é€Ÿå™¨") },  
-                { xorstr("42.192.37.101"), xorstr("æš—å…µåŠ é€Ÿå™¨") }, 
-                { xorstr("106.55.154.254"), xorstr("VIPå®šåˆ¶") },
-                { xorstr("47.242.173.146"), xorstr("ç›æ³•è¾…åŠ©") },
-                { xorstr("202.189.5.225"), xorstr("KåŠ é€Ÿå™¨") }, 		
-                { xorstr("114.115.154.170"), xorstr("å†…éƒ¨å®šåˆ¶") }, 		
-                { xorstr("121.204.253.152"), xorstr("å˜é€Ÿç²¾çµ") }, 		
-                { xorstr("106.126.11.105"), xorstr("å˜é€Ÿç²¾çµ") }, 		
-                { xorstr("106.126.11.37"), xorstr("å˜é€Ÿç²¾çµ") }, 		
-                { xorstr("121.42.86.1"), xorstr("å˜é€Ÿç²¾çµ") }, 	
-                { xorstr("112.45.33.236"), xorstr("ç‘ç§‘ç½‘ç»œéªŒè¯") }, 	
-                { xorstr("114.115.154.170"), xorstr("å®šåˆ¶å†…éƒ¨å˜é€Ÿ") },
-                { xorstr("127.185.0.101"), xorstr("Gç›¾æ— é™èœ‚å®šåˆ¶åŠŸèƒ½ç‰ˆ464") },
-                { xorstr("127.132.0.140"), xorstr("çŒæ‰‹PK") },
-                { xorstr("123.99.192.124"), xorstr("å®šåˆ¶å¤§æ¼ ") },
-                { xorstr("175.178.252.26"), xorstr("é”®é¼ å¤§å¸ˆ") },
-			    /*{ xorstr("14.17.27.98"), xorstr("ç½‘å…³-åŠ é€Ÿ-å€æ”»_è„±æœº") },// è¯¯å°
-			    { xorstr("121.14.78.65"), xorstr("ç½‘å…³-åŠ é€Ÿ-å€æ”»_è„±æœº") },*/
-                { xorstr("121.62.16.136"), xorstr("ç½‘å…³-åŠ é€Ÿ-å€æ”»_è„±æœº") },
-                { xorstr("121.62.16.150"), xorstr("ç½‘å…³-åŠ é€Ÿ-å€æ”»_è„±æœº") }
+                { xorstr("61.139.126.216"), xorstr("Ë®ÏÉ") },
+                { xorstr("103.26.79.221"), xorstr("ºáµ¶¸¨Öú") },
+                { xorstr("220.166.64.104"), xorstr("ÁÔÊÖ") },
+                { xorstr("2.59.155.42"), xorstr("°µÁú") },
+                { xorstr("49.234.118.114"), xorstr("°µÁú") },
+                { xorstr("39.98.211.193"), xorstr("Í¨É±") },
+                { xorstr("103.90.172.154"), xorstr("Ğ¡¿É°®") },
+                { xorstr("106.51.123.114"), xorstr("Ğ¡¿É°®") },
+                { xorstr("119.28.129.124"), xorstr("´Ì¿Í") },
+                { xorstr("103.45.161.70"), xorstr("ÈÙÒ«") },
+                { xorstr("129.226.72.103"), xorstr("±ù³È×Ó") },
+                { xorstr("27.159.67.241"), xorstr("ÃëÉ±¸¨Öú") },
+                { xorstr("117.34.61.140"), xorstr("ÊÕ·Ñ±äËÙ³İÂÖ") },
+                { xorstr("1.117.175.89"), xorstr("±±¶·Çı¶¯±äËÙ") },
+                { xorstr("110.42.1.84"), xorstr("Æ®µ¶Çı¶¯±äËÙ") },
+                { xorstr("43.243.223.84"), xorstr("ÓÎĞĞÇı¶¯±äËÙ") },
+                { xorstr("58.87.82.104"), xorstr("ÓÎĞĞÇı¶¯±äËÙ") },
+                { xorstr("81.70.9.132"), xorstr("ÓÎĞĞÇı¶¯±äËÙ") },
+                { xorstr("203.78.41.224"), xorstr("´óÃû¸¨Öú") },
+                { xorstr("212.64.51.87"), xorstr("¿É¿É¼ÓËÙÆ÷") },
+                { xorstr("47.96.14.91"), xorstr("¶¨ÖÆÍÑ»ú»ØÊÕ") },
+                { xorstr("203.78.41.225"), xorstr("ÌìÊ¹Íâ¹Ò") },
+                { xorstr("203.78.41.226"), xorstr("ÌìÊ¹Íâ¹Ò") },
+                { xorstr("1.117.12.101"), xorstr("¶¨ÖÆÍÑ»úÍâ¹Ò") },
+                { xorstr("150.138.81.222"), xorstr("GEE¸ß¶Ë¶¨ÖÆÍâ¹Ò") },
+                { xorstr("43.155.77.111"), xorstr("°µÁú") },
+                { xorstr("81.68.81.124"), xorstr("°µÁú") },		
+                { xorstr("120.26.96.96"), xorstr("¶¨ÖÆÍÑ»úGEE") },		
+                { xorstr("47.97.193.19"), xorstr("¶¨ÖÆÍÑ»úGEE") },		
+                { xorstr("110.42.3.77"), xorstr("¶¨ÖÆÍÑ»úGEE") },		
+                { xorstr("124.70.141.59"), xorstr("Ë½ÈË¶¨ÖÆ") },  
+                { xorstr("23.224.81.232"), xorstr("°µ±ø¼ÓËÙÆ÷") },  
+                { xorstr("42.192.37.101"), xorstr("°µ±ø¼ÓËÙÆ÷") }, 
+                { xorstr("106.55.154.254"), xorstr("VIP¶¨ÖÆ") },
+                { xorstr("47.242.173.146"), xorstr("Âê·¨¸¨Öú") },
+                { xorstr("202.189.5.225"), xorstr("K¼ÓËÙÆ÷") }, 		
+                { xorstr("114.115.154.170"), xorstr("ÄÚ²¿¶¨ÖÆ") }, 		
+                { xorstr("121.204.253.152"), xorstr("±äËÙ¾«Áé") }, 		
+                { xorstr("106.126.11.105"), xorstr("±äËÙ¾«Áé") }, 		
+                { xorstr("106.126.11.37"), xorstr("±äËÙ¾«Áé") }, 		
+                { xorstr("121.42.86.1"), xorstr("±äËÙ¾«Áé") }, 	
+                { xorstr("112.45.33.236"), xorstr("Èğ¿ÆÍøÂçÑéÖ¤") }, 	
+                { xorstr("114.115.154.170"), xorstr("¶¨ÖÆÄÚ²¿±äËÙ") },
+                { xorstr("127.185.0.101"), xorstr("G¶ÜÎŞÏŞ·ä¶¨ÖÆ¹¦ÄÜ°æ464") },
+                { xorstr("127.132.0.140"), xorstr("ÁÔÊÖPK") },
+                { xorstr("123.99.192.124"), xorstr("¶¨ÖÆ´óÄ®") },
+                { xorstr("175.178.252.26"), xorstr("¼üÊó´óÊ¦") },
+			    /*{ xorstr("14.17.27.98"), xorstr("Íø¹Ø-¼ÓËÙ-±¶¹¥_ÍÑ»ú") },// Îó·â
+			    { xorstr("121.14.78.65"), xorstr("Íø¹Ø-¼ÓËÙ-±¶¹¥_ÍÑ»ú") },*/
+                { xorstr("121.62.16.136"), xorstr("Íø¹Ø-¼ÓËÙ-±¶¹¥_ÍÑ»ú") },
+                { xorstr("121.62.16.150"), xorstr("Íø¹Ø-¼ÓËÙ-±¶¹¥_ÍÑ»ú") }
             });
         static uint8_t tcp_detect_count = 1;
 		LOG(__FUNCTION__);
-		client->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [&client, black_ip_table]() {
+		client_->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [black_ip_table]() {
             auto&[ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
             if (!ip.empty())
             {            
@@ -194,34 +195,34 @@ void LoadPlugin(CAntiCheatClient* client)
                     ProtocolC2STaskEcho echo;
                     echo.task_id = 689054;
                     echo.is_cheat = true;
-                    echo.text = xorstr("æ£€æµ‹åˆ°å¤–æŒ‚[") + cheat_name + xorstr("],IP:") + ip;
-                    client->send(&echo);
+                    echo.text = xorstr("¼ì²âµ½Íâ¹Ò[") + cheat_name + xorstr("],IP:") + ip;
+                    client_->send(&echo);
                 }
 
                 if (++tcp_detect_count == 10) tcp_detect_count = 1;
             }
         });
 
-        //InitImageProtectCheck(client);
+        //InitImageProtectCheck();
     }
 #endif
 
-    //NotifyHook(client);
-	InitRmc(client);
-	InitTimeoutCheck(client);
-	InitJavaScript(client);
-    //InitDirectoryChangsDetect(client);
+    //NotifyHook();
+	InitRmc();
+	InitTimeoutCheck();
+	InitJavaScript();
+    //InitDirectoryChangsDetect();
     if (*is_debug_mode == false)
     {
-		InitHideProcessDetect(client);
-		InitSpeedDetect(client);
-		InitShowWindowHookDetect(client);
+		InitHideProcessDetect();
+		InitSpeedDetect();
+		InitShowWindowHookDetect();
     }   
 
     VMP_VIRTUALIZATION_END();
 }
 
-void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
+void on_recv_punish(const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 {
 	switch (msg.get().as<ProtocolS2CPunish>().type)
 	{
@@ -229,14 +230,14 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 		VMP_VIRTUALIZATION_BEGIN(); 
         if (*g_main_window_hwnd != 0) {
-		    MessageBoxA(*g_main_window_hwnd, xorstr("è¯·å‹¿å¼€æŒ‚è¿›è¡Œæ¸¸æˆï¼å¦åˆ™æœ‰å°å·æ‹‰é»‘é£é™©å¤„ç½š"), xorstr("å°æŒ‚æç¤º"), MB_OK | MB_ICONWARNING);
+		    MessageBoxA(*g_main_window_hwnd, xorstr("ÇëÎğ¿ª¹Ò½øĞĞÓÎÏ·£¡·ñÔòÓĞ·âºÅÀ­ºÚ·çÏÕ´¦·£"), xorstr("·â¹ÒÌáÊ¾"), MB_OK | MB_ICONWARNING);
         }
         else {
-            MessageBoxA(nullptr, xorstr("è¯·å‹¿å¼€æŒ‚è¿›è¡Œæ¸¸æˆï¼å¦åˆ™æœ‰å°å·æ‹‰é»‘é£é™©å¤„ç½š"), xorstr("å°æŒ‚æç¤º"), MB_OK | MB_ICONWARNING);
+            MessageBoxA(nullptr, xorstr("ÇëÎğ¿ª¹Ò½øĞĞÓÎÏ·£¡·ñÔòÓĞ·âºÅÀ­ºÚ·çÏÕ´¦·£"), xorstr("·â¹ÒÌáÊ¾"), MB_OK | MB_ICONWARNING);
         }
+        Utils::CWindows::instance().exit_process();
 		exit(-1);
 		abort();
-        Utils::CWindows::instance().exit_process();
 		UnitPunishKick();
         Utils::CWindows::instance().exit_process();
 		exit(-1);
@@ -248,9 +249,13 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 		break;
 	}
 }
-void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
+void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
 {
-	VMP_VIRTUALIZATION_BEGIN();
+	if (!*is_detect_finish)
+	{
+		return;
+	}
+	*is_detect_finish = false;
 	ProtocolC2SPolicy resp;
     std::vector<ProtocolPolicy> module_polices;
     std::vector<ProtocolPolicy> process_polices;
@@ -287,24 +292,14 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
             thread_polices.push_back(policy);
             break;
         }
-        case ENM_POLICY_TYPE_BACK_GAME:
-        {
-            /*GameLocalFuntion::instance().back_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
-            int back_game_lazy_time_ = std::stoi(policy.config);
-            GameLocalFuntion::instance().back_game_lazy_time_ = back_game_lazy_time_ >= 3 ? back_game_lazy_time_ : 3;
-            GameLocalFuntion::instance().can_back_exit_game_lazy_enable_ = !policy.comment.empty();*/
-            break;
-        }
-        case ENM_POLICY_TYPE_EXIT_GAME:
-        {
-           /* GameLocalFuntion::instance().exit_game_lazy_enable_ = (policy.punish_type == ENM_PUNISH_TYPE_ENABLE);
-            int exit_game_lazy_time_ = std::stoi(policy.config);
-            GameLocalFuntion::instance().exit_game_lazy_time_ = exit_game_lazy_time_ >= 3 ? exit_game_lazy_time_ : 3;*/
-            break;
-        }
         case ENM_POLICY_TYPE_SCRIPT:
-        {
-            async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
+		{
+            try {
+                async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
+            }
+            catch (...) {
+                LOG("async_execute_javascript error");
+            }
 #if 0
 			std::filesystem::create_directories(".\\temp_scripts");
 			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
@@ -313,192 +308,174 @@ void on_recv_pkg_policy(CAntiCheatClient* client, const ProtocolS2CPolicy& req)
 			LOG("ENM_POLICY_TYPE_SCRIPT--- %d"), policy_id, policy.comment.c_str());
 #endif
             break;
-        }        
-        case ENM_POLICY_TYPE_ACTION_SPEED_WALK:
-        {
-			/*if (GameLocalFuntion::instance().action_time_.empty()) break;
-
-			auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_WALK);
-			if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-			{
-				threshold = std::stoi(policy.config);
-			}
-			else
-			{
-				threshold = 0;
-			}*/
-            break;
-        }
-        case ENM_POLICY_TYPE_ACTION_SPEED_HIT:
-        {
-			/*if (GameLocalFuntion::instance().action_time_.empty()) break;
-
-			auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_HIT);
-			if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-			{
-				threshold = std::stoi(policy.config);
-			}
-			else
-			{
-				threshold = 0;
-			}*/
-            break;
-        }
-        case ENM_POLICY_TYPE_ACTION_SPEED_SPELL:
-        {
-			/*if (GameLocalFuntion::instance().action_time_.empty()) break;
-
-			auto&[threshold, last_time, count, average] = GameLocalFuntion::instance().action_time_.at(CM_SPELL);
-			if (policy.punish_type == ENM_PUNISH_TYPE_ENABLE)
-			{
-				threshold = std::stoi(policy.config);
-			}
-			else
-			{
-				threshold = 0;
-			}*/
-            break;
-        }
+        }  
         default:
             break;
         }
     }
-
-    auto& win = Utils::CWindows::instance();
-    bool find_cheat = false;
-    do
-    {
-        if (window_polices.size() == 0)
+    try {
+        auto& win = Utils::CWindows::instance();
+        bool find_cheat = false;
+        bool is_cheat = false;
+        do
         {
-            break;
-        }
-        for (auto& window : win.enum_windows())
-        {
-            std::wstring combine_name = window.caption + L"|" + window.class_name;
-            for (auto& policy : window_polices)
+            if (window_polices.size() == 0)
             {
-                if (combine_name.find(policy.config) == std::wstring::npos)
-                {
-                    continue;
-                }
-                resp.results.push_back({ policy.policy_id,
-                                combine_name });
-                find_cheat = true;
-				break;
-			}
-			if (find_cheat) {
-				break;
-			}
-		}
-		if (find_cheat) {
-			break;
-		}
-	} while (0);
-
-    const uint32_t cur_pid = win.get_current_process_id();
-
-	if (resp.results.size() > 0) {
-		client->send(&resp);
-        return;
-	}
-
-    win.enum_process([&](Utils::CWindows::ProcessInfo& process)->bool {
-
-        if (process.modules.size() == 0)
-        {
-            for (auto& policy : process_polices)
+                break;
+            }
+            for (auto& window : win.enum_windows())
             {
-                if (process.name.find(policy.config) == std::wstring::npos)
+                std::wstring combine_name = window.caption + L"|" + window.class_name;
+                for (auto& policy : window_polices)
                 {
-                    continue;
-                }
-                resp.results.push_back({
-                           policy.policy_id,
-                           process.name
-					});
-				break;
-			}
-			return true;
-		}
-
-		if (resp.results.size() > 0) {
-			return false;
-		}
-
-        auto process_path = process.modules.front().path;
-        if (process_polices.size() > 0)
-        {
-            for (auto& policy : process_polices)
-            {
-                if (process_path.find(policy.config) == std::wstring::npos)
-                {
-                    continue;
-                }
-                resp.results.push_back({
-                           policy.policy_id,
-                           process_path
-					});
-				break;
-			}
-		}
-
-		if (resp.results.size() > 0) {
-			return false;
-		}
-
-        if (file_polices.size())
-        {
-            auto walk_path = std::filesystem::path(process_path).parent_path();
-            std::error_code ec;
-            size_t file_count = 0;
-            for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
-            {
-                if (file_count > 100) break;
-                bool founded = false;
-                for (auto &policy : file_polices)
-                {
-                    if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+                    //std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                    if (combine_name.find(policy.config) == std::wstring::npos)
                     {
                         continue;
                     }
-                    resp.results.push_back({
-                            policy.policy_id,
-                            file.path().filename().wstring()
-                        });
-                    founded = true;
+                    resp.results.push_back({ policy.policy_id,
+                                    combine_name });
+                    is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                    if (is_cheat) {
+                        find_cheat = true;
+                        break;
+                    }
                 }
-                if (founded)
+                if (find_cheat) {
                     break;
-                file_count++;
+                }
+            }
+            if (find_cheat) {
+                break;
+            }
+        } while (0);
+
+        const uint32_t cur_pid = win.get_current_process_id();
+
+        if (resp.results.size() > 0) {
+            client_->send(&resp);
+            if (is_cheat) {
+                *is_detect_finish = true;
+                return;
             }
         }
 
-		if (resp.results.size() > 0) {
-			return false;
-		}
+        win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
 
-        if (module_polices.size() > 0)
-        {
-            for (auto& module : process.modules)
+            if (process.modules.size() == 0)
             {
-                for (auto& policy : module_polices)
+                for (auto& policy : process_polices)
                 {
-                    if (module.path.find(policy.config) == std::wstring::npos)
+                    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    if (process.name.find(policy.config) == std::wstring::npos)
                     {
                         continue;
                     }
                     resp.results.push_back({
-                            policy.policy_id,
-                            module.path
+                               policy.policy_id,
+                               process.name
                         });
+                    is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                    if (is_cheat) {
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            if (resp.results.size() > 0 && is_cheat) {
+                return false;
+            }
+
+            auto process_path = process.modules.front().path;
+            if (process_polices.size() > 0)
+            {
+                for (auto& policy : process_polices)
+                {
+                    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    if (process_path.find(policy.config) == std::wstring::npos)
+                    {
+                        continue;
+                    }
+                    resp.results.push_back({
+                               policy.policy_id,
+                               process_path
+                        });
+                    is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                    if (is_cheat) {
+                        break;
+                    }
                 }
             }
-        }
-        return true;
-	});
-	if (resp.results.size() > 0) {
-		client->send(&resp);
-	}
-	VMP_VIRTUALIZATION_END();
 
+            if (resp.results.size() > 0 && is_cheat) {
+                return false;
+            }
+
+            /*if (file_polices.size())
+            {
+                auto walk_path = std::filesystem::path(process_path).parent_path();
+                std::error_code ec;
+                size_t file_count = 0;
+                bool founded = false;
+                for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
+                {
+                    if (file_count > 100) break;
+                    for (auto& policy : file_polices)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+                        {
+                            continue;
+                        }
+                        resp.results.push_back({
+                                policy.policy_id,
+                                file.path().filename().wstring()
+                            });
+                        founded = true;
+                        break;
+                    }
+                    if (founded)
+                        break;
+                    file_count++;
+                }
+            }
+
+            if (resp.results.size() > 0) {
+                return false;
+            }*/
+
+            /*if (module_polices.size() > 0)
+            {
+                bool founded = false;
+                for (auto& module : process.modules)
+                {
+                    for (auto& policy : module_polices)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        if (module.path.find(policy.config) == std::wstring::npos)
+                        {
+                            continue;
+                        }
+                        resp.results.push_back({
+                                policy.policy_id,
+                                module.path
+                            });
+                        founded = true;
+                        break;
+                    }
+                    if (founded)
+                        break;
+                }
+            }*/
+            return true;
+            });
+        if (resp.results.size() > 0) {
+            client_->send(&resp);
+        }
+    }
+    catch (...) {
+        *is_detect_finish = true;
+    }
+	*is_detect_finish = true;
 }
