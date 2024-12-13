@@ -19,12 +19,12 @@ echo ***************Shell打包开始***************
 echo ***************Shell打包完成***************
 
 
-
+mkdir %bin_Dir%\gm_server\及时雨定制
 echo ***************执行网关加壳开始***************
-VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\g_Service.exe -pf ServiceRelease_blue.vmp
-VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\g_LogicServer.exe -pf LogicRelease_blue.vmp
-VMProtect_Con.exe %ReleaseDir_blue%\Gate.exe %bin_Dir%\gm_server\及时雨定制.exe -pf GateRelease_blue.vmp
-VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\AdminGate.exe -pf AdminGateRelease_blue.vmp
+VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\及时雨定制\g_Service.exe -pf ServiceRelease_blue.vmp
+VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\及时雨定制\g_LogicServer.exe -pf LogicRelease_blue.vmp
+VMProtect_Con.exe %ReleaseDir_blue%\Gate.exe %bin_Dir%\gm_server\及时雨定制\及时雨定制.exe -pf GateRelease_blue.vmp
+::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\AdminGate.exe -pf AdminGateRelease_blue.vmp
 echo ***************执行网关加壳完成***************
 
 echo ***************执行DLL加壳开始***************

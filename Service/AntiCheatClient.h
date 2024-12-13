@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 
 #include "NetUtils.h"
 #include "Protocol.h"
@@ -172,7 +172,7 @@ public:
 		}
 		catch (...)
 		{
-			OutputDebugStringA("å†™å…¥æ—¥å¿—å¤±è´¥");
+			OutputDebugStringA("Ð´ÈëÈÕÖ¾Ê§°Ü");
 		}
     }
 
@@ -180,7 +180,7 @@ public:
 	{
         try
         {
-	        std::string log_file_name = "å¤„ç½šçŽ©å®¶æ—¥å¿—.log";
+	        std::string log_file_name = "´¦·£Íæ¼ÒÈÕÖ¾.log";
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lck(mtx);
 			std::time_t now_time = time(0);
@@ -210,7 +210,7 @@ public:
 		}
 		catch (...)
 		{
-			OutputDebugStringA("å†™å…¥å¤„ç½šçŽ©å®¶æ—¥å¿—å¤±è´¥");
+			OutputDebugStringA("Ð´Èë´¦·£Íæ¼ÒÈÕÖ¾Ê§°Ü");
         }
 	}
 
@@ -248,7 +248,7 @@ public:
 		}
 		catch (...)
 		{
-			OutputDebugStringA("å†™å…¥çŽ©å®¶æ—¥å¿—å¤±è´¥");
+			OutputDebugStringA("Ð´ÈëÍæ¼ÒÈÕÖ¾Ê§°Ü");
 		}
 	}
 
