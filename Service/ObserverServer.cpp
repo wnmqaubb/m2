@@ -7,7 +7,7 @@ CObserverServer::CObserverServer()
 	static VmpSerialValidator vmp(this);
 	logic_client_ = std::make_shared<CLogicClient>();
 	is_observer_server_ = true;
-	set_log_cb(std::bind(&CObserverServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+	set_log_cb(std::bind(&CObserverServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 	logic_client_->sub_notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
 		foreach_session([this](tcp_session_shared_ptr_t& session) {
 			auto user_data = get_user_data_(session);
@@ -276,7 +276,7 @@ void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned sh
 	logic_client_->start(ip, port);
 }
 
-void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify)
+void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag)
 {
 	ProtocolOBS2OBCLogPrint log;
 	log.text = msg;

@@ -13,7 +13,7 @@ public:
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
     virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg);
     virtual void connect_to_logic_server(const std::string& ip, unsigned short port);;
-    virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify);
+    virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
     void logic_client_stop() { if (logic_client_) { logic_client_->stop_all_timers();  logic_client_->stop(); } };
     void stop() { logic_client_->stop(); super::stop(); }
     std::wstring& get_vmp_expire() { return vmp_expire_; }

@@ -84,21 +84,10 @@ void refresh_name(CAntiCheatClient* client) {
 
 void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 {
-    VMP_VIRTUALIZATION_BEGIN();
+	VMP_VIRTUALIZATION_BEGIN();
+	OutputDebugStringA("tb0");
     srand(time(0));
     InitMiniDump();
-
-    std::wstring volume_serial_number = std::any_cast<std::wstring>(client->user_data().get_field(vol_field_id));
-    unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
-    if (volume_serial_number_hash_val == 1770936153)
-    {
-        is_debug_mode = false;
-        ProtocolC2STaskEcho echo;
-        echo.task_id = 689999;
-        echo.is_cheat = false;
-        echo.text = "测试";
-        client->send(&echo);
-    }
 
     if(*g_client_rev_version != REV_VERSION)
     {
@@ -255,6 +244,7 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
     ProtocolC2SLoadedPlugin req;
     req.loaded = true;
     client->send(&req);
+	OutputDebugStringA("tb1");
     VMP_VIRTUALIZATION_END();
 }
 

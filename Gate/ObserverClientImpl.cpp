@@ -107,6 +107,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
 			TRACE("解析Logic日志失败");
 		}
     });
+    //service --> admin
     package_mgr_.register_handler(OBPKG_ID_S2C_LOG, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         try
         {
