@@ -17,15 +17,8 @@ using namespace std::literals;
 #define LOG(x)
 #endif
 
-// 创建一个文件日志记录器
-std::shared_ptr<spdlog::logger> log = spdlog::basic_logger_mt("basic_logger", "gate_log.txt");
 int main(int argc, char** argv)
 {
-    // 设置日志级别为调试
-    spdlog::set_level(spdlog::level::debug);
-    // 设置日志消息的格式模式
-    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
-    log->info("LogicServer v{} started.", "test_log");
 	VMProtectBeginVirtualization(__FUNCTION__);
     // 创建互斥体，检查是否已存在实例
     HANDLE hMutex =CreateMutex(NULL, FALSE, TEXT("mtx_logic_server"));
