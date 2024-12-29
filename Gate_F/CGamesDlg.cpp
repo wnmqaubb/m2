@@ -186,7 +186,7 @@ void CGamesDlg::OnRefreshUsers()
 	m_list_games.DeleteAllItems();
 	szUserCount = 0;
 	ProtocolOBC2OBSQueryUsers req;
-	theApp.m_ObServerClientGroup.send(&req);
+	theApp.m_ObServerClientGroup.async_send(&req);
 }
 
 void CGamesDlg::OnQueryProcess()
@@ -232,19 +232,42 @@ void CGamesDlg::OnBnClickedOnlineGamerSearch()
 template<typename T>
 void CGamesDlg::SendCurrentSelectedUserCommand(T* package)
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	if (selectedRow != -1)
-	{
-		const size_t session_id = atoi(CT2A(m_list_games.GetItemText(selectedRow, 1)));
-		const std::string ip = CT2A(m_list_games.GetItemText(selectedRow, 8));
-		const int port = atoi(CT2A(m_list_games.GetItemText(selectedRow, 9)));
-		OutputDebugStringA((ip+":"+std::to_string(port)).c_str ());
-		theApp.m_ObServerClientGroup(ip, port)->send(session_id, package);
-	}
-	else
-	{
-		AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
-	}
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString session_id_str = m_list_games.GetItemText(selectedRow, 1);
+        CString ip = m_list_games.GetItemText(selectedRow, 8);
+        CString port_str = m_list_games.GetItemText(selectedRow, 9);
+
+        // 检查 session_id 是否为空或无效
+        size_t session_id = 0;
+        if (session_id_str.IsEmpty() || !_stscanf_s(session_id_str, _T("%zu"), &session_id))
+        {
+            AfxMessageBox(TEXT("无效的 session_id!"), MB_OK);
+            return;
+        }
+
+        // 检查 ip 是否为空
+        if (ip.IsEmpty())
+        {
+            AfxMessageBox(TEXT("IP 地址不能为空!"), MB_OK);
+            return;
+        }
+
+        // 检查 port 是否为空或无效
+        int port = 0;
+        if (port_str.IsEmpty() || !_stscanf_s(port_str, _T("%d"), &port))
+        {
+            AfxMessageBox(TEXT("无效的端口号!"), MB_OK);
+            return;
+        }
+		const std::string s_ip = CT2A(ip);
+        theApp.m_ObServerClientGroup(s_ip, port)->async_send(session_id, package);
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnExitGame()
@@ -256,107 +279,137 @@ void CGamesDlg::OnExitGame()
 
 void CGamesDlg::OnIpBan()
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	CString ip;
-	if (selectedRow != -1)
-	{
-		ip = m_list_games.GetItemText(selectedRow, 3);
-	}
-	else
-	{
-		return;
-	}
-	OnWhiteOrBlackAdd(ip, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_ip));
-	OnExitGame();
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString ip = m_list_games.GetItemText(selectedRow, 3);
+
+        // 检查 ip 是否为空
+        if (ip.IsEmpty())
+        {
+            AfxMessageBox(TEXT("IP 地址不能为空!"), MB_OK);
+            return;
+        }
+
+        OnWhiteOrBlackAdd(ip, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_ip));
+        OnExitGame();
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnMacBan()
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	CString strMac;
-	if (selectedRow != -1)
-	{
-		strMac = m_list_games.GetItemText(selectedRow, 4);
-	}
-	else
-	{
-		return;
-	}
-	OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_machine));
-	OnExitGame();
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString strMac = m_list_games.GetItemText(selectedRow, 4);
+        // 检查 strMac 是否为空
+        if (strMac.IsEmpty())
+        {
+            AfxMessageBox(TEXT("MAC 地址不能为空!"), MB_OK);
+            return;
+        }
+        OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_machine));
+        OnExitGame();
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnRoleNameBan()
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	CString str_rolename;
-	if (selectedRow != -1)
-	{
-		str_rolename = m_list_games.GetItemText(selectedRow, 2);
-		int nPos = str_rolename.Find(_T(" - "));
-		if (nPos != -1)
-		{
-			str_rolename = str_rolename.Mid(nPos + 3);
-		}
-	}
-	else
-	{
-		return;
-	}
-	OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_rolename));
-	OnExitGame();
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString str_rolename = m_list_games.GetItemText(selectedRow, 2);
+        // 检查 str_rolename 是否为空
+        if (str_rolename.IsEmpty())
+        {
+            AfxMessageBox(TEXT("角色名不能为空!"), MB_OK);
+            return;
+        }
+        int nPos = str_rolename.Find(_T(" - "));
+        if (nPos != -1)
+        {
+            str_rolename = str_rolename.Mid(nPos + 3);
+        }
+        OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_black_rolename));
+        OnExitGame();
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnIpWhiteAdd()
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	CString strIP;
-	if (selectedRow != -1)
-	{
-		strIP = m_list_games.GetItemText(selectedRow, 3);
-	}
-	else
-	{
-		return;
-	}
-
-	OnWhiteOrBlackAdd(strIP, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_ip));
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString strIP = m_list_games.GetItemText(selectedRow, 3);
+        // 检查 strIP 是否为空
+        if (strIP.IsEmpty())
+        {
+            AfxMessageBox(TEXT("IP 地址不能为空!"), MB_OK);
+            return;
+        }
+        OnWhiteOrBlackAdd(strIP, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_ip));
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnMacWhiteAdd()
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	CString strMac;
-	if (selectedRow != -1)
-	{
-		strMac = m_list_games.GetItemText(selectedRow, 4);
-	}
-	else
-	{
-		return;
-	}
-	OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_machine));
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString strMac = m_list_games.GetItemText(selectedRow, 4);
+        // 检查 strMac 是否为空
+        if (strMac.IsEmpty())
+        {
+            AfxMessageBox(TEXT("MAC 地址不能为空!"), MB_OK);
+            return;
+        }
+        OnWhiteOrBlackAdd(strMac, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_machine));
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnRoleNameWhiteAdd()
 {
-	auto selectedRow = (int)m_list_games.GetFirstSelectedItemPosition() - 1;
-	CString str_rolename;
-	if (selectedRow != -1)
-	{
-		str_rolename = m_list_games.GetItemText(selectedRow, 2);
-		int nPos = str_rolename.Find(_T(" - "));
-		if (nPos != -1)
-		{
-			str_rolename = str_rolename.Mid(nPos + 3);
-		}
-	}
-	else
-	{
-		return;
-	}
-
-	OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_rolename));
+    int selectedRow = m_list_games.GetSelectionMark();
+    if (selectedRow != -1)
+    {
+        CString str_rolename = m_list_games.GetItemText(selectedRow, 2);
+        // 检查 str_rolename 是否为空
+        if (str_rolename.IsEmpty())
+        {
+            AfxMessageBox(TEXT("角色名不能为空!"), MB_OK);
+            return;
+        }
+        int nPos = str_rolename.Find(_T(" - "));
+        if (nPos != -1)
+        {
+            str_rolename = str_rolename.Mid(nPos + 3);
+        }
+        OnWhiteOrBlackAdd(str_rolename, &(theApp.GetMainFrame()->m_anticheat_dlg->m_list_white_rolename));
+    }
+    else
+    {
+        AfxMessageBox(TEXT("请选择一个玩家!"), MB_OK);
+    }
 }
 
 void CGamesDlg::OnWhiteOrBlackAdd(const CString& list_name, CListBox* m_current_list)

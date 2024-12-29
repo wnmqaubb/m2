@@ -9,7 +9,7 @@
 #include "api_resolver.h"
 #define LIGHT_BONE_UTILS_HEADER_INCLUDE 1
 #define LIGHT_BONE_API __declspec(dllexport)
-#if 1
+#if 0
 #ifdef _DEBUG
 #define VMP_VIRTUALIZATION_BEGIN()
 #define VMP_VIRTUALIZATION_END()

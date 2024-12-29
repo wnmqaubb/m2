@@ -443,7 +443,7 @@ void CClientView::FillClientView()
     m_ViewList.InsertColumn(colIndex++, TEXT("uuid"), LVCFMT_LEFT, 240);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程ID"), LVCFMT_LEFT, 60);
 #endif
-    m_ViewList.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 130);
+    m_ViewList.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 120);
     m_ViewList.InsertColumn(colIndex++, TEXT("在线时长"), LVCFMT_LEFT, 80);
 #ifndef GATE_ADMIN
     m_ViewList.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 0);

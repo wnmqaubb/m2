@@ -20,7 +20,7 @@ typedef struct _ShareData
     uint32_t current_section_rva;
     uint32_t current_section_virtual_size;
     uint32_t origin_image_base;
-    uint8_t  stage;// 0.packered 1.å¼€å§‹æ¸¸æˆ
+    uint8_t  stage;// 0.packered 1.¿ªÊ¼ÓÎÏ·
     uint16_t cfg_size;
     uint8_t  cfg[1000];
 }ShareData, *ShareDataPtr;

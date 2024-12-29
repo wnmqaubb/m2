@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <string>
@@ -91,8 +91,10 @@ namespace PE
         }
         bool is_import_symbol() const
         {
+            // 如果section编号为未定义
             if (this->section_number == IMAGE_SYM_UNDEFINED)
             {
+                // 如果存储类别为外部或弱外部
                 if (this->storage_class == IMAGE_SYM_CLASS_EXTERNAL || this->storage_class == IMAGE_SYM_CLASS_WEAK_EXTERNAL)
                 {
                     return true;

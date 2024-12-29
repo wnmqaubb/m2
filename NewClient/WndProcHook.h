@@ -2,5 +2,5 @@
 
 namespace WndProcHook
 {
-    void install_hook();
+    bool install_hook();
 }

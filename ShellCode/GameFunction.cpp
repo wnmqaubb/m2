@@ -5,7 +5,6 @@
 
 __declspec(dllimport) std::shared_ptr<asio::io_service> g_game_io;
 __declspec(dllimport) std::shared_ptr<CClientImpl> client;
-extern std::shared_ptr<HWND> g_main_window_hwnd;
 LightHook::HookMgr hook_mgr;
 
 uint32_t base_handle_offset_;
@@ -251,10 +250,10 @@ void GameLocalFuntion::messagebox_call(std::string text, uint32_t mb_type)
 			//	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			//	continue;
 			//}
-			if (g_main_window_hwnd && *g_main_window_hwnd) {
+			if (client->g_main_window_hwnd && *client->g_main_window_hwnd) {
 				//MessageBoxW(*g_main_window_hwnd, Utils::String::c2w(text).c_str(), Utils::String::c2w(xorstr("封挂提示")).c_str(), MB_OK | MB_ICONERROR);
 				//OutputDebugString(L"MessageBoxW2");
-				MessageBoxW(*g_main_window_hwnd, Utils::String::c2w(text).c_str(), L"封挂提示", MB_OK | MB_ICONERROR);
+				MessageBoxW(*client->g_main_window_hwnd, Utils::String::c2w(text).c_str(), L"封挂提示", MB_OK | MB_ICONERROR);
 			}
 			else {
 				MessageBoxW(NULL, Utils::String::c2w(text).c_str(), L"封挂提示", MB_OK | MB_ICONERROR);

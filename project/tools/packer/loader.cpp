@@ -38,6 +38,7 @@ void enable_seh_on_shellcode();
 
 uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
 {
+    // 定义API函数指针
     DEFINEAPI(VirtualAlloc);
     DEFINEAPI(GetModuleHandleA);
     DEFINEAPI(LoadLibraryA);
@@ -45,6 +46,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
     DEFINEAPI(GetProcAddress);
     DEFINEAPI(IsBadWritePtr);
 
+    // 导入API函数
     VirtualAlloc = IMPORT(L"kernel32.dll", VirtualAlloc);
     GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
     LoadLibraryA = IMPORT(L"kernel32.dll", LoadLibraryA);
@@ -52,13 +54,20 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
     GetProcAddress = IMPORT(L"kernel32.dll", GetProcAddress);
     IsBadWritePtr = IMPORT(L"kernel32.dll", IsBadWritePtr);
 
+    // 检查数据大小是否合法
     if (size < sizeof(IMAGE_DOS_HEADER))
         return ERROR_INVALID_DATA;
+
+    // 获取DOS头
     PIMAGE_DOS_HEADER dos_header = get_image_dos_header(buffer);
+    // 检查DOS头是否合法
     if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
         return ERROR_INVALID_MODULETYPE;
+
+    // 获取NT头
     PIMAGE_NT_HEADERS nt_header = get_image_nt_header(buffer);
 
+    // 处理params参数
     if (params)
     {
         int n = nt_header->FileHeader.NumberOfSections - 1;
@@ -67,22 +76,26 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
         *(uintptr_t*)params = (uintptr_t)buffer + section[n].PointerToRawData + copy_size;
     }
 
+    // 分配内存
     void* image_base = nullptr;
 
     do
     {
+        // 分配内存空间
         image_base = VirtualAlloc(NULL,
             nt_header->OptionalHeader.SizeOfImage,
             MEM_RESERVE | MEM_COMMIT,
             PAGE_EXECUTE_READWRITE);
     } while (0);
 
-
+    // 检查内存分配是否成功
     if (!image_base)
         return ERROR_OUTOFMEMORY;
 
+    // 复制头部数据到分配的内存中
     __movsb((BYTE*)image_base, (BYTE*)buffer, nt_header->OptionalHeader.SizeOfHeaders);
 
+    // 遍历节表，复制节数据到分配的内存中
     IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(nt_header);
     for (size_t n = 0; n < nt_header->FileHeader.NumberOfSections; n++)
     {
@@ -93,7 +106,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             {
                 copy_size = nt_header->OptionalHeader.SizeOfInitializedData;
             }
-            else if (section[n].Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA)
+            else if (section[n].Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA)
             {
                 copy_size = nt_header->OptionalHeader.SizeOfUninitializedData;
             }
@@ -103,12 +116,13 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             }
         }
 
+        // 复制节数据
         __movsb(rva2va<unsigned char*>(image_base, section[n].VirtualAddress),
             (BYTE*)buffer + section[n].PointerToRawData,
             copy_size);
-
     }
 
+    // 处理导入表
     for (PIMAGE_IMPORT_DESCRIPTOR import_desc = get_image_import_directory(image_base);
         import_desc->Name;
         import_desc++)
@@ -125,6 +139,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             }
         }
 
+        // 处理IAT和Thunk表
         PIMAGE_THUNK_DATA iat = rva2va<PIMAGE_THUNK_DATA>(image_base, import_desc->FirstThunk);
         PIMAGE_THUNK_DATA thunk = import_desc->OriginalFirstThunk ?
             rva2va<PIMAGE_THUNK_DATA>(image_base, import_desc->OriginalFirstThunk) :
@@ -152,8 +167,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
         }
     }
 
-
-    //重定位修正
+    // 重定位修正
     if (get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_BASERELOC).Size)
     {
         ULONG_PTR dist = (ULONG_PTR)image_base - nt_header->OptionalHeader.ImageBase;
@@ -162,7 +176,6 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             reloc_desc->SizeOfBlock;
             reloc_desc = (PIMAGE_BASE_RELOCATION)((BYTE*)reloc_desc + reloc_desc->SizeOfBlock))
         {
-
             PTYPEOFFSET offset = (PTYPEOFFSET)&reloc_desc[1];
             for (size_t n = 0; n < get_reloc_desc_typeoffset_size(reloc_desc); n++)
             {
@@ -174,7 +187,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
                 {
                     *fix += dist;
                 }
-                else if (offset[n].Type == IMAGE_REL_BASED_HIGHLOW)
+                else if (offset[n].Type == IMAGE_REL_BASED_HIGH)
                 {
                     *fix += HIWORD(dist);
                 }
@@ -186,9 +199,10 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
         }
     }
 
-    //修正ImageBase
+    // 修正ImageBase
     get_image_nt_header(image_base)->OptionalHeader.ImageBase = (ULONG_PTR)image_base;
 
+    // 返回实例句柄
     *instance = (HINSTANCE)image_base;
     return ERROR_SUCCESS;
 }

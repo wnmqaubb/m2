@@ -417,7 +417,7 @@ uint32_t PELoader::peload(PELoaderAPIPtr api, HINSTANCE* instance, void* buffer,
             {
                 copy_size = nt_header->OptionalHeader.SizeOfInitializedData;
             }
-            else if (section[n].Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA)
+            else if (section[n].Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA)
             {
                 copy_size = nt_header->OptionalHeader.SizeOfUninitializedData;
             }
@@ -460,9 +460,9 @@ uint32_t PELoader::peload(PELoaderAPIPtr api, HINSTANCE* instance, void* buffer,
     //    {
     //        iat->u1.Function = (ULONG_PTR)api->kernel32.GetProcAddress(import_module_handle,
     //            IMAGE_SNAP_BY_ORDINAL(thunk->u1.Ordinal) ?
-    //            (LPCSTR)IMAGE_ORDINAL(thunk->u1.Ordinal) /*Í¨¹ýº¯ÊýÐòºÅ»ñÈ¡*/
+    //            (LPCSTR)IMAGE_ORDINAL(thunk->u1.Ordinal) /*Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å»ï¿½È?/
     //            :
-    //            (LPCSTR)(((PIMAGE_IMPORT_BY_NAME)RVA2VA(image_base, thunk->u1.AddressOfData))->Name)/*Í¨¹ýº¯ÊýÃû»ñÈ¡*/
+    //            (LPCSTR)(((PIMAGE_IMPORT_BY_NAME)RVA2VA(image_base, thunk->u1.AddressOfData))->Name)/*Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡*/
     //        );
     //    }
     //}

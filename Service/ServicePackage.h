@@ -130,54 +130,54 @@ namespace Utils {
 inline std::vector<ProtocolModuleInfo> cast(const std::vector<CWindows::ModuleInfo>& src)
 {
     std::vector<ProtocolModuleInfo> result;
-    std::transform(src.begin(),
-        src.end(),
-        std::insert_iterator<std::vector<ProtocolModuleInfo>>(result, result.begin()),
-        [](CWindows::ModuleInfo child)->ProtocolModuleInfo {
-        ProtocolModuleInfo new_child;
-        new_child.base = child.base;
-        new_child.module_name = child.module_name;
-        new_child.path = child.path;
-        new_child.size_of_image = child.size_of_image;
-        return new_child;
-    });
-    return std::move(result);
+    result.reserve(src.size());
+    std::transform(src.begin(), src.end(), std::back_inserter(result),
+        [](const CWindows::ModuleInfo& child) {
+            ProtocolModuleInfo new_child;
+            new_child.base = child.base;
+            new_child.module_name = child.module_name;
+            new_child.path = child.path;
+            new_child.size_of_image = child.size_of_image;
+            return new_child;
+        });
+
+    return result;
 }
 
 inline std::vector<ProtocolWindowInfo> cast(const std::vector<CWindows::WindowInfo>& src)
 {
     std::vector<ProtocolWindowInfo> result;
-    std::transform(src.begin(),
-        src.end(),
-        std::insert_iterator<std::vector<ProtocolWindowInfo>>(result, result.begin()),
-        [](CWindows::WindowInfo child)->ProtocolWindowInfo {
-        ProtocolWindowInfo new_child;
-        new_child.hwnd = (uint32_t)child.hwnd;
-        new_child.caption = child.caption;
-        new_child.class_name = child.class_name;
-        new_child.pid = child.pid;
-        new_child.tid = child.tid;
-        new_child.is_hide_process = child.is_hide_process;
-        new_child.process_name = child.process_name;
-        return new_child;
-    });
-    return std::move(result);
+    result.reserve(src.size());
+    std::transform(src.begin(), src.end(), std::back_inserter(result),
+        [](const CWindows::WindowInfo& child) {
+            ProtocolWindowInfo new_child;
+            new_child.hwnd = reinterpret_cast<uint32_t>(child.hwnd);
+            new_child.caption = child.caption;
+            new_child.class_name = child.class_name;
+            new_child.pid = child.pid;
+            new_child.tid = child.tid;
+            new_child.is_hide_process = child.is_hide_process;
+            new_child.process_name = child.process_name;
+            return new_child;
+        });
+    return result;
 }
 
 inline std::vector<ProtocolDriverInfo> cast(const std::vector<CWindows::DriverInfo>& src)
 {
     std::vector<ProtocolDriverInfo> result;
-    std::transform(src.begin(),
-        src.end(),
-        std::insert_iterator<std::vector<ProtocolDriverInfo>>(result, result.begin()),
-        [](CWindows::DriverInfo child)->ProtocolDriverInfo {
-        ProtocolDriverInfo new_child;
-        new_child.image_base = (uint64_t)child.image_base;
-        new_child.image_size = (uint32_t)child.image_size;
-        new_child.image_name = child.image_name;
-        return new_child;
-    });
-    return std::move(result);
+    result.reserve(src.size());
+
+    std::transform(src.begin(), src.end(), std::back_inserter(result),
+        [](const CWindows::DriverInfo& child) {
+            ProtocolDriverInfo new_child;
+            new_child.image_base = reinterpret_cast<uint64_t>(child.image_base);
+            new_child.image_size = static_cast<uint32_t>(child.image_size);
+            new_child.image_name = child.image_name;
+            return new_child;
+        });
+
+    return result;
 }
 
 inline std::map<uint32_t, ProtocolThreadInfo> cast(const std::map<uint32_t, CWindows::ThreadInfo>& src, std::vector<CWindows::ModuleInfo>& moduleinfos)
@@ -187,30 +187,31 @@ inline std::map<uint32_t, ProtocolThreadInfo> cast(const std::map<uint32_t, CWin
         src.end(),
         std::insert_iterator<std::map<uint32_t, ProtocolThreadInfo>>(result, result.begin()),
         [&moduleinfos](std::pair<uint32_t, CWindows::ThreadInfo> child)->std::pair<uint32_t, ProtocolThreadInfo> {
-        ProtocolThreadInfo new_child;
-        new_child.is_main_thread = child.second.is_main_thread;
-        new_child.start_address = child.second.start_address;
-        new_child.tid = child.second.tid;
-        Utils::CWindows::ModuleInfo module_info;
-        Utils::CWindows::instance().get_module_from_address(child.first, child.second.start_address, moduleinfos, module_info);
-        new_child.owner_module = module_info.path;
-        return std::pair<uint32_t, ProtocolThreadInfo>(child.first, new_child);
-    });
-    return std::move(result);
+            ProtocolThreadInfo new_child;
+            new_child.is_main_thread = child.second.is_main_thread;
+            new_child.start_address = child.second.start_address;
+            new_child.tid = child.second.tid;
+            Utils::CWindows::ModuleInfo module_info;
+            Utils::CWindows::instance().get_module_from_address(child.first, child.second.start_address, moduleinfos, module_info);
+            new_child.owner_module = module_info.path;
+            return std::pair<uint32_t, ProtocolThreadInfo>(child.first, std::move(new_child));
+        });
+
+    return result;
 }
 inline std::vector<ProtocolDirectoryInfo> cast(const std::vector<CWindows::DirectoryInfo>& src)
 {
     std::vector<ProtocolDirectoryInfo> result;
-    std::transform(src.begin(),
-        src.end(),
-        std::insert_iterator<std::vector<ProtocolDirectoryInfo>>(result, result.begin()),
-        [](CWindows::DirectoryInfo child)->ProtocolDirectoryInfo {
-        ProtocolDirectoryInfo new_child;
-        new_child.is_directory = child.is_directory;
-        new_child.path = child.path;
-        return new_child;
-    });
-    return std::move(result);
+    result.reserve(src.size());
+    std::transform(src.begin(), src.end(), std::back_inserter(result),
+        [](const CWindows::DirectoryInfo& child) {
+            ProtocolDirectoryInfo new_child;
+            new_child.is_directory = child.is_directory;
+            new_child.path = child.path;
+            return new_child;
+        });
+
+    return result;
 }
 
 inline std::map<uint32_t, ProtocolProcessInfo> cast(const std::map<uint32_t, CWindows::ProcessInfo>& src)
@@ -220,19 +221,20 @@ inline std::map<uint32_t, ProtocolProcessInfo> cast(const std::map<uint32_t, CWi
         src.end(),
         std::insert_iterator<std::map<uint32_t, ProtocolProcessInfo>>(result, result.begin()),
         [](std::pair<uint32_t, CWindows::ProcessInfo> child)->std::pair<uint32_t, ProtocolProcessInfo> {
-        ProtocolProcessInfo new_child;
-        new_child.pid = child.second.pid;
-        new_child.parent_pid = child.second.parent_pid;
-        new_child.name = child.second.name;
-        new_child.threads = cast(child.second.threads, child.second.modules);
-        new_child.modules = cast(child.second.modules);
-        new_child.directories = cast(child.second.directories);
-        new_child.no_access = child.second.no_access;
-        new_child.is_64bits = child.second.is_64bits;
-        new_child.process_file_size = child.second.process_file_size;
-        return std::pair<uint32_t, ProtocolProcessInfo>(child.first, new_child);
-    });
-    return std::move(result);
+            ProtocolProcessInfo new_child;
+            new_child.pid = child.second.pid;
+            new_child.parent_pid = child.second.parent_pid;
+            new_child.name = child.second.name;
+            new_child.threads = cast(child.second.threads, child.second.modules);
+            new_child.modules = cast(child.second.modules);
+            new_child.directories = cast(child.second.directories);
+            new_child.no_access = child.second.no_access;
+            new_child.is_64bits = child.second.is_64bits;
+            new_child.process_file_size = child.second.process_file_size;
+            return std::pair<uint32_t, ProtocolProcessInfo>(child.first, std::move(new_child));
+        });
+
+    return result;
 }
 };
 #endif

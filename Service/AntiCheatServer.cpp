@@ -177,19 +177,17 @@ bool CAntiCheatServer::check_timer(bool slience)
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
+    auto remote_address = session->remote_address();
 	// 黑名单
-	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
-		//printf("拦截ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+	if (ddos_black_List.find(remote_address) != ddos_black_List.end() && remote_address != kDefaultLocalhost) {
 		session->stop();
-		if (ddos_black_map[session->remote_address()] > 0) {
-			ddos_black_map[session->remote_address()] -= 1;
-			log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"), Utils::c2w(session->remote_address()).c_str());
+		if (ddos_black_map[remote_address] > 0) {
+			ddos_black_map[remote_address] -= 1;
+			log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"), Utils::c2w(remote_address).c_str());
 		}
 	}
-	log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"),
-		Utils::c2w(session->remote_address()).c_str(),
-		session->remote_port());
-	get_user_data_(session)->set_field("is_local_client", session->remote_address() == kDefaultLocalhost);
+	get_user_data_(session)->set_field("is_local_client", remote_address == kDefaultLocalhost);
+	log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"), Utils::c2w(remote_address).c_str(), session->remote_port());
 }
 
 void CAntiCheatServer::on_init()
@@ -249,21 +247,29 @@ void CAntiCheatServer::log(int type, LPCTSTR format, ...)
 {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lck(mtx);
+#ifndef _DEBUG
     if ((log_level_ & type) == 0)
         return;
-    std::time_t now_time = time(0);
-    TCHAR date_str[MAX_PATH] = { 0 };
-    TCHAR time_str[MAX_PATH] = { 0 };
-    tm tm_;
+#endif // _DEBUG
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
     localtime_s(&tm_, &now_time);
-    wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
-    std::wcout << time_str << ":";
-
-    TCHAR buffer[1024];
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::wstring time_str = Utils::c2w(ss.str());
+    std::wcout << time_str.c_str() << ":";
+    std::wstring buffer;
+    buffer.resize(1024);
     va_list ap;
     va_start(ap, format);
-    _vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
     va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringW(L"[Error] Log message too long\n");
+        return;
+    }
 
     switch (type)
     {
@@ -282,7 +288,7 @@ void CAntiCheatServer::log(int type, LPCTSTR format, ...)
     wprintf(TEXT("%s\n"), buffer);
 
     if (log_cb_)
-        log_cb_(buffer, false, true, "", false);
+        log_cb_(buffer.c_str(), false, true, "", false);
 }
 
 void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...)
@@ -291,19 +297,25 @@ void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std:
     std::lock_guard<std::mutex> lck(mtx);
     if ((log_level_ & type) == 0)
         return;
-    std::time_t now_time = time(0);
-    TCHAR date_str[MAX_PATH] = { 0 };
-    TCHAR time_str[MAX_PATH] = { 0 };
-    tm tm_;
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
     localtime_s(&tm_, &now_time);
-    wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
-    std::wcout << time_str << ":";
-
-    TCHAR buffer[1024];
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::wstring time_str = Utils::c2w(ss.str());
+    std::wcout << time_str.c_str() << ":";
+    std::wstring buffer;
+    buffer.resize(1024);
     va_list ap;
     va_start(ap, format);
-    _vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
     va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringW(L"[Error] Log message too long\n");
+        return;
+    }
 
     switch (type)
     {
@@ -322,31 +334,37 @@ void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std:
     wprintf(TEXT("%s\n"), buffer);
 
     if (log_cb_)
-        log_cb_(buffer, silense, gm_show, identify, false);
+        log_cb_(buffer.c_str(), silense, gm_show, identify, false);
 }
 
 void CAntiCheatServer::punish_log(LPCTSTR format, ...)
 {
 	static std::mutex mtx;
 	std::lock_guard<std::mutex> lck(mtx);
-	std::time_t now_time = time(0);
-	TCHAR date_str[MAX_PATH] = { 0 };
-	TCHAR time_str[MAX_PATH] = { 0 };
-	tm tm_;
-	localtime_s(&tm_, &now_time);
-	wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
-	std::wcout << time_str << ":";
-
-	TCHAR buffer[1024];
-	va_list ap;
-	va_start(ap, format);
-	_vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
-	va_end(ap);
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
+    localtime_s(&tm_, &now_time);
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::wstring time_str = Utils::c2w(ss.str());
+    std::wcout << time_str.c_str() << ":";
+    std::wstring buffer;
+    buffer.resize(1024);
+    va_list ap;
+    va_start(ap, format);
+    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringW(L"[Error] Log message too long\n");
+        return;
+    }
 	std::wcout << L"[Event]";
 	wprintf(TEXT("%s\n"), buffer);
 
 	if (log_cb_)
-		log_cb_(buffer, true, true, "", true);
+		log_cb_(buffer.c_str(), true, true, "", true);
 }
 
 void CAntiCheatServer::close(unsigned int session_id)
@@ -382,24 +400,14 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
 		return;
 	}
-	if (sv.size() == 0)
-	{
-		//printf("1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-		if (ddos_black_map.find(remote_address) != ddos_black_map.end()) {
-			//printf("2添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-			if (ddos_black_map[remote_address] >= 10) {
-				//printf("3 >= 50添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-				if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
-					//printf("添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-					ddos_black_List.emplace(remote_address);
-			}
-		}
-			else {
-				//printf("4 += 1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-				ddos_black_map[remote_address] += 1;
-			}
-	}
-		else {
+	if (sv.size() == 0 && remote_address != kDefaultLocalhost)
+	{   
+        auto it = ddos_black_map.find(remote_address);
+		if (it != ddos_black_map.end()) {
+			if (++it->second >= 10) {
+				ddos_black_List.emplace(remote_address);
+            }
+		} else {
 			ddos_black_map[remote_address] = 1;
 		}
 
@@ -411,7 +419,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 			sv.size());
 		session->stop();
 		return;
-}
+    }
     if (is_enable_proxy_tunnel())
     {
 #if ENABLE_PROXY_TUNNEL
@@ -547,39 +555,46 @@ void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, cons
 
 void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)
 {
-    log(LOG_TYPE_DEBUG, TEXT("握手 %s:%d"),
-        Utils::c2w(session->remote_address()).c_str(),
-        session->remote_port());
-	auto userdata = get_user_data_(session);
-	memcpy(userdata->uuid, msg.uuid, sizeof(msg.uuid));
-	userdata->has_handshake = true;
-	//握手超时检查取消
-    session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
-	//心跳超时检查
-	session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_/*60s*/, [this, session]() {
-		auto userdata = get_user_data_(session);
-		auto duration = userdata->get_heartbeat_duration();
-		if (duration > heartbeat_timeout_)
-		{
-			log(LOG_TYPE_ERROR, TEXT("%s:%d 心跳超时%d秒"), Utils::c2w(session->remote_address()).c_str(),
-				session->remote_port(), std::chrono::duration_cast<std::chrono::seconds>(duration).count());
-			session->stop();
-		}
-	});
+    try 
+    {
+	    log(LOG_TYPE_DEBUG, TEXT("握手 %s:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
+	    auto userdata = get_user_data_(session);
+	    memcpy(userdata->uuid, msg.uuid, sizeof(msg.uuid));
+	    userdata->has_handshake = true;
+	    //握手超时检查取消
+        session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
+	    //心跳超时检查
+	    session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_/*60s*/, [this, session]() {
+		    auto userdata = get_user_data_(session);
+		    auto duration = userdata->get_heartbeat_duration();
+		    if (duration > heartbeat_timeout_)
+		    {
+			    log(LOG_TYPE_ERROR, TEXT("%s:%d 心跳超时%d秒"), Utils::c2w(session->remote_address()).c_str(),
+				    session->remote_port(), std::chrono::duration_cast<std::chrono::seconds>(duration).count());
+			    session->stop();
+                session->clear_user_data();
+		    }
+	    });
 
-    userdata->set_field("sysver", msg.system_version);
-    userdata->set_field("64bits", msg.is_64bit_system);
-    userdata->set_field("cpuid", msg.cpuid);
-    userdata->set_field("mac", msg.mac);
-    userdata->set_field("vol", msg.volume_serial_number);
-    userdata->set_field("rev_ver", msg.rev_version);
-    userdata->set_field("commit_ver", msg.commited_hash);
-    userdata->set_field("ip", session->remote_address());
-    userdata->set_field("logintime", time(0));
-    userdata->set_field("pid", msg.pid);
+        userdata->set_field("sysver", msg.system_version);
+        userdata->set_field("64bits", msg.is_64bit_system);
+        userdata->set_field("cpuid", msg.cpuid);
+        userdata->set_field("mac", msg.mac);
+        userdata->set_field("vol", msg.volume_serial_number);
+        userdata->set_field("rev_ver", msg.rev_version);
+        userdata->set_field("commit_ver", msg.commited_hash);
+        userdata->set_field("ip", session->remote_address());
+        userdata->set_field("logintime", std::time(nullptr));
+        userdata->set_field("pid", msg.pid);
 
-    user_notify_mgr_.dispatch(CLIENT_HANDSHAKE_NOTIFY_ID, session);
-    ProtocolS2CHandShake resp;
-    memcpy(resp.uuid, msg.uuid, sizeof(resp.uuid));
-	send(session, &resp);
+        user_notify_mgr_.dispatch(CLIENT_HANDSHAKE_NOTIFY_ID, session);
+        ProtocolS2CHandShake resp;
+        memcpy(resp.uuid, msg.uuid, sizeof(resp.uuid));
+	    send(session, &resp);
+        OutputDebugString(TEXT("s->c 握手成功"));
+    }
+    catch (const std::exception& e)
+    {
+        log(LOG_TYPE_ERROR, TEXT("握手异常:%s"), Utils::c2w(e.what()).c_str());
+    }
 }

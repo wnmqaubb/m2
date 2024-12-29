@@ -15,9 +15,9 @@ namespace WndProcHook
 		return old_read_file_ptr(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
 	}
 
-	void install_hook()
+	bool install_hook()
 	{
-		read_file_hook.install(&::ReadFile, &read_file_ptr, &old_read_file_ptr);
+		return read_file_hook.install(&::ReadFile, &read_file_ptr, &old_read_file_ptr);
 	}
 
 	void restore_hook()

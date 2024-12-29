@@ -25,13 +25,7 @@ CGateFDlg::CGateFDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_GATEF_DIALOG, pParent)
 {
 	m_pAutoProxy = nullptr;
-	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-#ifdef VERSION_RED
-	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
-#endif
-#ifdef VERSION_VIP
-	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
-#endif
+
 }
 
 CGateFDlg::~CGateFDlg()
@@ -72,17 +66,18 @@ BOOL CGateFDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-#ifdef VERSION_BLUE
+	// 设置此对话框的图标。  当应用程序主窗口不是对话框时，框架将自动
+	//  执行此操作
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_BLUE);
 	SetWindowText(TEXT("及时雨定制版"));
-#endif
 #ifdef VERSION_RED
 	SetWindowText(TEXT("及时雨鸿蒙版"));
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
 #endif
 #ifdef VERSION_VIP
 	SetWindowText(TEXT("及时雨内部版"));
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
 #endif
-	// 设置此对话框的图标。  当应用程序主窗口不是对话框时，框架将自动
-	//  执行此操作
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
@@ -334,8 +329,8 @@ void CGateFDlg::SendCurrentSelectedUserServiceCommand(T* package)
 	if (selectedRow != -1)
 	{
 		const std::string ip = CT2A(m_games_dlg->m_list_games.GetItemText(selectedRow, 11));
-		const int port = atoi(CT2A(m_games_dlg->m_list_games.GetItemText(selectedRow, 12)));
-		theApp.m_ObServerClientGroup(ip, port)->send(package);
+		const int port = _ttoi(m_games_dlg->m_list_games.GetItemText(selectedRow, 12));
+		theApp.m_ObServerClientGroup(ip, port)->async_send(package);
 	}
 	else
 	{
@@ -355,7 +350,7 @@ void CGateFDlg::FillClientView()
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登录IP地址"), LVCFMT_LEFT, 110);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("机器码"), LVCFMT_LEFT, 270);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("系统版本"), LVCFMT_LEFT, 80);
-	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 130);
+	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("登陆时间"), LVCFMT_LEFT, 115);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("在线时长"), LVCFMT_LEFT, 80);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 0);
 	m_games_dlg->m_list_games.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 0);
@@ -426,9 +421,12 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 				if (!isProcessRunning("g_Service.exe")) {
 					// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
 					ReleaseMutex(existingMutex);
+					CloseHandle(existingMutex);
+					service_stoped = true;
 				}
-				CloseHandle(existingMutex);
-
+				else {
+					CloseHandle(existingMutex);
+				}
 			}
 			else {
 				service_stoped = true;
@@ -439,8 +437,12 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 				if (!isProcessRunning("g_LogicServer.exe")) {
 					// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
 					ReleaseMutex(existingMutex1);
+					CloseHandle(existingMutex1);
+					logic_server_stoped = true;
 				}
-				CloseHandle(existingMutex1);
+				else {
+					CloseHandle(existingMutex1);
+				}
 			}
 			else {
 				logic_server_stoped = true;
@@ -458,10 +460,6 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 						TerminateProcess(hProcess, 0);
 						CloseHandle(hProcess);
 					}
-					while (existingMutex) {
-						ReleaseMutex(existingMutex);
-						CloseHandle(existingMutex);
-					}
 				}
 				// 进程已停止，尝试重启		
 				if (logic_server_stoped)
@@ -471,16 +469,13 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
 						TerminateProcess(hProcess, 0);
 						CloseHandle(hProcess);
 					}
-					while (existingMutex1) {
-						ReleaseMutex(existingMutex1);
-						CloseHandle(existingMutex1);
-					}
 				}
 				theApp.OnServiceStop1();
 				theApp.OnServiceStart();
 				SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
 			}
 			break;
+
 		}
 	}
 	CDialogEx::OnTimer(nIDEvent);

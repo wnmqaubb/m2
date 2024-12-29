@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Protocol.h"
 #include "NetUtils.h"
@@ -26,55 +26,60 @@ public:
         package_mgr_.register_handler(PKG_ID_S2C_HANDSHAKE, std::bind(&CAntiCheatClient::on_recv_handshake, this, std::placeholders::_1, std::placeholders::_2));
         package_mgr_.register_handler(PKG_ID_S2C_HEARTBEAT, std::bind(&CAntiCheatClient::on_recv_heartbeat, this, std::placeholders::_1, std::placeholders::_2));
 	}
-	virtual void start(const std::string& ip, unsigned short port)
+
+	virtual bool start(const std::string& ip, unsigned short port)
 	{
-		is_stop_ = false;
-		ip_ = ip;
-		port_ = std::to_string(port);
-		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-		super::start(ip, port, RawProtocolImpl());
+        if (super::start(ip, port, RawProtocolImpl())) {
+            is_stop_ = false;
+            ip_ = ip;
+            port_ = std::to_string(port);
+            notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+            return true;
+        }
+        return false;
 	}
-	virtual void async_start(const std::string& ip, unsigned short port)
+
+	virtual bool async_start(const std::string& ip, unsigned short port)
 	{
-		is_stop_ = false;
-		ip_ = ip;
-		port_ = std::to_string(port);
-		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-		super::async_start(ip, port, RawProtocolImpl());
+		if (super::async_start(ip, port, RawProtocolImpl())) {
+			is_stop_ = false;
+			ip_ = ip;
+			port_ = std::to_string(port);
+			notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+			return true;
+		}
+		return false;
 	}
+
     virtual void stop()
     {
         super::stop();
         is_stop_ = true;
     }
+
 	virtual void on_connect()
     {
         if (!asio2::get_last_error())
         {
-            //stop_timer(CLIENT_RECONNECT_TIMER_ID);
             notify_mgr_.dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
         }
         else
         {
             notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-            /*auto self(shared_from_this());
-            start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [this]() {
-                super::start(get_address(), get_port());
-            });*/
+
         }
     }
+
 	virtual void on_disconnect()
     {
-        //auto self(shared_from_this());
         if (is_stop_ == false)
         {
             stop_timer<int>(CLIENT_HEARTBEAT_TIMER_ID);
-            /* start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [this]() {
-                 super::start(get_address(), get_port());
-             });*/
+
         }
         notify_mgr_.dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
 	}
+
 	virtual void on_recv(std::string_view sv)
 	{
 		notify_mgr_.dispatch(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
@@ -103,10 +108,12 @@ public:
             notify_mgr_.dispatch(SEND_PACKAGE_ERROR_NOTIFY_ID);
         }
     }
+
     virtual void send(const std::string& text)
     {
         super::send(text);
     }
+
     virtual void send(msgpack::sbuffer& buffer, unsigned int session_id)
     {
         RawProtocolImpl raw_package;
@@ -115,6 +122,41 @@ public:
         step_++;
         raw_package.head.step = step_;
         super::send(raw_package.release());
+    }
+
+    template <typename T>
+    void send(T* package, unsigned int session_id = 0)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        send(buffer, session_id);
+    }
+
+    virtual void async_send(const std::string& text)
+    {
+        super::async_send(text);
+    }
+
+    virtual void async_send(msgpack::sbuffer& buffer, unsigned int session_id)
+    {
+        RawProtocolImpl raw_package;
+        raw_package.encode(buffer.data(), buffer.size());
+        raw_package.head.session_id = session_id;
+        step_++;
+        raw_package.head.step = step_;
+        super::async_send(raw_package.release());
+    }
+
+    template <typename T>
+    void async_send(T* package, unsigned int session_id = 0)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        async_send(buffer, session_id);
     }
 
     virtual void on_recv_handshake(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
@@ -128,6 +170,7 @@ public:
         has_handshake_ = true;
         notify_mgr_.dispatch(ON_RECV_HANDSHAKE_NOTIFY_ID);
     }
+
     virtual void on_recv_heartbeat(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
     {
         auto& msg = raw_msg.get().as<ProtocolS2CHeartBeat>();
@@ -139,19 +182,25 @@ public:
     {
         static std::mutex mtx;
         std::lock_guard<std::mutex> lck(mtx);
-        std::time_t now_time = time(0);
-        TCHAR date_str[MAX_PATH] = { 0 };
-        TCHAR time_str[MAX_PATH] = { 0 };
-        tm tm_;
+        auto now_time = std::time(nullptr);
+        std::tm tm_;
         localtime_s(&tm_, &now_time);
-        wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
-        wprintf(L"[%s]:", time_str);
-        TCHAR buffer[1024];
+        std::stringstream ss;
+        ss << std::put_time(&tm_, "%H:%M:%S");
+        std::wstring time_str = Utils::String::c2w(ss.str());
+        wprintf(L"[%s]:", time_str.c_str());
+        std::wstring buffer;
+        buffer.resize(1024);
         va_list ap;
         va_start(ap, format);
-        _vsnwprintf_s(buffer, sizeof(buffer) / sizeof(buffer[0]) - 1, format, ap);
+        int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
         va_end(ap);
-
+        if (result < 0)
+        {
+            // å¤„ç†ç¼“å†²åŒºæº¢å‡º
+            OutputDebugStringW(L"[Error] Log message too long\n");
+            return;
+        }
         switch (type)
         {
         case LOG_TYPE_DEBUG:
@@ -166,24 +215,27 @@ public:
         default:
             break;
         }
-        wprintf(TEXT("%s\n"), buffer);
-        OutputDebugStringW(buffer);
-	}
+        wprintf(L" %s\n", buffer.c_str());
+        OutputDebugStringW(buffer.c_str());
+    }
 
 	void log_to_punish_file(const std::string& text)
 	{
 		try
 		{
-			std::string log_file_name = "´¦·£Íæ¼ÒÈÕÖ¾.log";
+			std::string log_file_name = "å¤„ç½šçŽ©å®¶æ—¥å¿—.log";
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lck(mtx);
-			std::time_t now_time = time(0);
-			char date_str[MAX_PATH] = { 0 };
-			char time_str[MAX_PATH] = { 0 };
-			tm tm_;
-			localtime_s(&tm_, &now_time);
-			strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m", &tm_);
-			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+            auto now_time = std::chrono::system_clock::now();
+            auto now_time_t = std::chrono::system_clock::to_time_t(now_time);
+            std::tm tm_;
+            localtime_s(&tm_, &now_time_t);
+            std::stringstream ss_date;
+            ss_date << std::put_time(&tm_, "%Y-%m-%d");
+            std::string date_str = ss_date.str();
+            std::stringstream ss_time;
+            ss_time << std::put_time(&tm_, "%H:%M:%S");
+            std::string time_str = ss_time.str();
 
 			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
 			if (!std::filesystem::exists(file))
@@ -195,16 +247,14 @@ public:
 
 			std::string result;
 			result = result + "[Event]" + time_str + "|";
-			std::ofstream output(file, std::ios::out | std::ios::app);
-
 			result = result + Utils::String::to_utf8(text) + "\n";
-
+			std::ofstream output(file, std::ios::out | std::ios::app);
 			output << result;
 			output.close();
 		}
 		catch (...)
 		{
-			OutputDebugStringA("Ð´Èë´¦·£Íæ¼ÒÈÕÖ¾Ê§°Ü");
+			OutputDebugStringA("å†™å…¥å¤„ç½šçŽ©å®¶æ—¥å¿—å¤±è´¥");
 		}
 	}
 
@@ -213,41 +263,29 @@ public:
         std::string log_file_name = identify.empty() ? "default.log" : identify + ".log";
         static std::mutex mtx;
         std::lock_guard<std::mutex> lck(mtx);
-        std::time_t now_time = time(0);
-        char date_str[MAX_PATH] = { 0 };
-        char time_str[MAX_PATH] = { 0 };
-        tm tm_;
-        localtime_s(&tm_, &now_time);
-        strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m-%d", &tm_);
-        strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
-
+        auto now_time = std::chrono::system_clock::now();
+        auto now_time_t = std::chrono::system_clock::to_time_t(now_time);
+        std::tm tm_;
+        localtime_s(&tm_, &now_time_t);
+        std::stringstream ss_date;
+        ss_date << std::put_time(&tm_, "%Y-%m-%d");
+        std::string date_str = ss_date.str();
+        std::stringstream ss_time;
+        ss_time << std::put_time(&tm_, "%H:%M:%S");
+        std::string time_str = ss_time.str();
         std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
         if (!std::filesystem::exists(file))
         {
             std::filesystem::create_directories(file);
         }
-
         file = file / log_file_name;
-
         std::string result;
         result = result + "[Event]" + time_str + "|";
-        std::ofstream output(file, std::ios::out | std::ios::app);
-
         result = result + Utils::String::to_utf8(text) + "\n";
-
+        std::ofstream output(file, std::ios::out | std::ios::app);
         output << result;
         output.close();
     }
-
-	template <typename T>
-	void send(T* package, unsigned int session_id = 0)
-	{
-		if (!package)
-			__debugbreak();
-		msgpack::sbuffer buffer;
-		msgpack::pack(buffer, *package);
-        send(buffer, session_id);
-	}
 
     inline std::chrono::system_clock::duration& reconnect_duration() { return reconnect_duration_; }
     inline std::chrono::system_clock::duration& heartbeat_duration() { return heartbeat_duration_; }
@@ -267,7 +305,7 @@ protected:
 	std::chrono::system_clock::time_point last_recv_hearbeat_time_;
     bool has_handshake_ = false;
 	asio2::uuid uuid_;
-    bool is_stop_ = false;
+    bool is_stop_ = true;
     NetUtils::UsersData user_data_;
     NetUtils::EventMgr<package_handler_t> package_mgr_;
     NetUtils::EventMgr<notify_handler_t> notify_mgr_;

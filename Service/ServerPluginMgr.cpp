@@ -352,7 +352,7 @@ void CServerPolicyMgr::on_policy_reload()
     auto multi_client_limit_policy = find_policy(ENM_POLICY_TYPE_MULTICLIENT);
     if (multi_client_limit_policy)
     {
-        multi_client_limit_count_ = atoi(Utils::w2c(multi_client_limit_policy->config).c_str());
+        multi_client_limit_count_ = _wtoi(multi_client_limit_policy->config.c_str());
         multi_client_limit_punish_type_ = (PunishType)multi_client_limit_policy->punish_type;
         multi_client_policy_ = *multi_client_limit_policy;
     }

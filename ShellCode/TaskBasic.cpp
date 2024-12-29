@@ -15,72 +15,6 @@ bool is_debug_mode = false;
 bool is_detect_finish = true;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
-std::shared_ptr<HWND> g_main_window_hwnd;
-
-void NotifyHook(CAntiCheatClient* client)
-{
-    auto client_connect_success_handler = client->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
-    client->notify_mgr().replace_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [client, client_connect_success_handler]() {
-        client_connect_success_handler();
-        client->notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
-    });
-}
-
-void refresh_name(CAntiCheatClient* client) {
-    if (client->cfg()->get_field<bool>(test_mode_field_id))
-    {
-        static bool is_already_send = false;
-        if (is_already_send == false)
-        {
-            client->cfg()->set_field<std::wstring>(usrname_field_id, TEXT("测试-1区 - 测试"));
-            ProtocolC2SUpdateUsername req;
-            req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-            client->send(&req);
-            is_already_send = true;
-        }
-        return;
-    }
-    std::vector<Utils::CWindows::WindowInfo> windows;
-    if (!Utils::CWindows::instance().get_process_main_thread_hwnd(Utils::CWindows::instance().get_current_process_id(), windows))
-    {
-        return;
-    }
-    if (windows.size() > 0)
-    {
-        for (auto& window : windows)
-        {
-            transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
-            if (window.class_name == L"tfrmmain")
-            {
-                // if (is_debug_mode == false)
-                // {
-                //     BasicUtils::init_heartbeat_check(window.hwnd);
-                // }
-                g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
-                if (client->cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
-                {
-                    ProtocolC2SUpdateUsername req;
-                    req.username = window.caption;
-                    client->send(&req);
-                    client->cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
-
-                    if (window.caption.find(L" - ") != std::wstring::npos)
-                    {
-                        //GameLocalFuntion::instance().call_sig_pattern();
-                        //GameLocalFuntion::instance().hook_init();
-                        /*static asio::steady_timer welcome_message_timer();
-                        welcome_message_timer.expires_after(std::chrono::seconds(20));
-                        welcome_message_timer.async_wait([](std::error_code ec) {
-                            GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
-                            GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
-                        });*/
-                    }
-                }
-                return;
-            }
-        }
-    }
-}
 
 void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 {
@@ -145,11 +79,6 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 			req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
 			client->send(&req);
 		}, std::chrono::seconds(std::rand() % 10 + 1));
-    });
-    refresh_name(client);
-    client->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [client]() {
-        refresh_name(client);
-        return;
     });
 
 #if 1
@@ -229,7 +158,6 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
     }
 #endif
 
-    //NotifyHook(client);
 	InitRmc(client);
 	InitTimeoutCheck(client);
 	InitJavaScript(client);
@@ -254,9 +182,6 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
     {
-        if (!(g_main_window_hwnd && *g_main_window_hwnd)) {
-            refresh_name(client);
-        }
 		g_game_io->post([]() {
 			VMP_VIRTUALIZATION_BEGIN();
             std::error_code ec;

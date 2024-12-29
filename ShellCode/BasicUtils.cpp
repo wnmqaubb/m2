@@ -66,7 +66,7 @@ namespace BasicUtils
                 {
                     copy_size = nt_header->OptionalHeader.SizeOfInitializedData;
                 }
-                else if (section[n].Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA)
+                else if (section[n].Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA)
                 {
                     copy_size = nt_header->OptionalHeader.SizeOfUninitializedData;
                 }

@@ -52,13 +52,27 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
     static std::unique_ptr<ProtocolC2SHandShake> load(const char* buf, size_t len)
     {
         RawProtocolImpl raw_msg;
-        if (raw_msg.decode(std::string_view(buf, len)) == false)
+        if (!raw_msg.decode(std::string_view(buf, len)))
         {
             return nullptr;
         }
-        auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
-        auto res = std::make_unique<ProtocolC2SHandShake>(msg.get().as<ProtocolC2SHandShake>());
-        return std::move(res);
+        try
+        {
+            auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
+            return std::make_unique<ProtocolC2SHandShake>(msg.get().as<ProtocolC2SHandShake>());
+        }
+        catch (const msgpack::type_error& e)
+        {
+            return nullptr;
+        }
+        catch (const msgpack::parse_error& e)
+        {
+            return nullptr;
+        }
+        catch (const std::exception& e)
+        {
+            return nullptr;
+        }
     }
 
     std::string dump() const

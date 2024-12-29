@@ -172,11 +172,12 @@ inline AntiCheatUserData* get_user_data_(const CAntiCheatServer::tcp_session_sha
     auto userdata = session->get_user_data<AntiCheatUserData*>();
     if (userdata == nullptr)
     {
+        OutputDebugStringA("new AntiCheatUserData()");
         userdata = new AntiCheatUserData();
 #if ENABLE_PROXY_TUNNEL
         userdata->game_proxy_tunnel = std::make_shared<GameProxyTunnel>(session->io().context());
 #endif
-        session->set_user_data<AntiCheatUserData*>(std::move(userdata));
+        session->set_user_data<AntiCheatUserData*>(std::forward<AntiCheatUserData*>(userdata));
     }
     return userdata;
 }

@@ -55,6 +55,7 @@ CObserverServer::CObserverServer()
 				}
 			}
 		});
+	// 踢人 CLogicServer::close_socket
 	logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_KICK, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 		{
 			auto param = msg.get().as<ProtocolLS2LCKick>();
@@ -65,10 +66,16 @@ CObserverServer::CObserverServer()
 			}
 		});
 	notify_mgr_.register_handler(SERVER_START_NOTIFY_ID, [this]() {
-		io().context().post(std::bind(&VmpSerialValidator::validate_timer, vmp, false));
-		start_timer(AUTH_CHECK_TIMER_ID, auth_check_timer_, std::bind(&VmpSerialValidator::validate_timer, vmp, true));
-		connect_to_logic_server(kDefaultLocalhost, kDefaultLogicServicePort);
-		});
+		for (int i = 0; i < 10; i++) {
+			if (vmp.validate_timer(false))
+			{
+				start_timer(AUTH_CHECK_TIMER_ID, auth_check_timer_, std::bind(&VmpSerialValidator::validate_timer, vmp, true));
+				connect_to_logic_server(kDefaultLocalhost, kDefaultLogicServicePort);
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	});
 	package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 #if _DEBUG
 		get_user_data_(session)->set_field("is_observer_client", true);
@@ -121,6 +128,7 @@ CObserverServer::CObserverServer()
 		auto req = raw_msg.get().as<ProtocolOBC2OBSSend>();
 		send(sessions().find(req.package.head.session_id), req.package, session->hash_key());
 		});
+	// 踢人 
 	ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_KICK, [this](tcp_session_shared_ptr_t&, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 		auto req = raw_msg.get().as<ProtocolOBC2OBSKick>();
 		auto session = sessions().find(req.session_id);
@@ -158,7 +166,7 @@ CObserverServer::CObserverServer()
 		GetModuleFileNameA(NULL, full_path, sizeof(full_path));
 		std::filesystem::path path = full_path;
 		path = path.parent_path();
-		auto exe_path = path / "LogicServer.exe";
+		auto exe_path = path / "g_LogicServer.exe";
 		std::ofstream output(exe_path, std::ios::out | std::ios::binary);
 		output.write((char*)buf.data(), buf.size());
 		output.close();
@@ -273,7 +281,17 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
 
 void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned short port)
 {
-	logic_client_->start(ip, port);
+	try
+	{
+		if (logic_client_->start(ip, port))
+		{
+			printf("连接g_LogicServer成功\n");
+		}
+	}
+	catch (...)
+	{
+		printf("连接g_LogicServer失败:错误号: %d, 错误信息: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
+	}
 }
 
 void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag)

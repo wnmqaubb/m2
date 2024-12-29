@@ -211,7 +211,7 @@ void CPoliceDlg::OnSelectItem(int policy_id) {
 	for (int i = 0; i < m_list_polices.GetItemCount(); i++)
 	{
 		CString cstrPolicyId = m_list_polices.GetItemText(i, 1);
-		uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
+		uint32_t uiPolicyId = _ttoi(cstrPolicyId);
 		if (uiPolicyId == policy_id) {
 			m_list_polices.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 			m_list_polices.EnsureVisible(i, FALSE);
@@ -228,12 +228,12 @@ void CPoliceDlg::OnConfigDel()
 	if (selectedRow != -1)
 	{
 		CString cstrPolicyId = m_list_polices.GetItemText(selectedRow, 1);
-		uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
+		uint32_t uiPolicyId = _ttoi(cstrPolicyId);
 		theApp.OpenConfig();
 		theApp.m_cfg->policies.erase(uiPolicyId);
 		if (selectedRow > 1) {
 			CString cstrPolicyId1 = m_list_polices.GetItemText(selectedRow-1, 1);
-			selected_up = atoi(CT2A(cstrPolicyId1.GetBuffer()));
+			selected_up = _ttoi(cstrPolicyId1);
 		}
 		RefreshViewList();
 
@@ -248,7 +248,7 @@ void CPoliceDlg::OnConfigSave()
 	for (int i = 0; i < m_list_polices.GetItemCount(); i++)
 	{
 		CString cstrPolicyId = m_list_polices.GetItemText(i, 1);
-		uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
+		uint32_t uiPolicyId = _ttoi(cstrPolicyId);
 		CString policy_type_str = m_list_polices.GetItemText(i, 2);
 		PolicyType policy_type = ConvertToPolicyType(policy_type_str);
 		CString punish_type_str = m_list_polices.GetItemText(i, 3);
@@ -256,7 +256,7 @@ void CPoliceDlg::OnConfigSave()
 		CString config_str = m_list_polices.GetItemText(i, 4);
 		CString comment_str = m_list_polices.GetItemText(i, 5);
 		CString create_by_admin_str = m_list_polices.GetItemText(i, 6);
-		bool create_by_admin = atoi(CT2A(create_by_admin_str.GetBuffer()));
+		bool create_by_admin = _ttoi(create_by_admin_str);
 		ProtocolPolicy policy;
 		policy.policy_id = uiPolicyId;
 		policy.policy_type = policy_type;
@@ -397,14 +397,27 @@ void CPoliceDlg::EditCell(int nRow, int nCol)
 
 void CPoliceDlg::OnEnKillfocusEditCtrl()
 {
-	CString strText;
-	m_editCtrl.GetWindowText(strText);
-	if (m_nCurSelRow >= 0 && m_nCurSelCol >= 0) {
-		m_list_polices.SetItemText(m_nCurSelRow, m_nCurSelCol, strText);
-	}
+    CString strText;
+    m_editCtrl.GetWindowText(strText);
 
-	// 销毁编辑控件
-	m_editCtrl.DestroyWindow();
+    if (m_nCurSelRow >= 0 && m_nCurSelCol >= 0) {
+        // 当是多开策略时，需要判断配置的值是否为大于0的整数
+        if (m_nCurSelCol == 4) {
+            CString policy_type_str = m_list_polices.GetItemText(m_nCurSelRow, 2);
+			if (!policy_type_str.IsEmpty() && ConvertToPolicyType(policy_type_str) == ENM_POLICY_TYPE_MULTICLIENT) {
+                // 判断配置的值是否为大于0的整数
+                int value = _ttoi(strText);
+                if (value <= 0) {
+                    AfxMessageBox(L"多开限制配置值必须大于0的整数");
+                    return;
+                }
+            }
+        }
+        m_list_polices.SetItemText(m_nCurSelRow, m_nCurSelCol, strText);
+    }
+
+    // 销毁编辑控件
+    m_editCtrl.ShowWindow(SW_HIDE);
 }
 
 void CPoliceDlg::OnCbnKillfocusComboPunishType()

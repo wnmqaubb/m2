@@ -7,6 +7,7 @@ class CObserverClient : public CAntiCheatClient
     using super = CAntiCheatClient;
 public:
     using super::send;
+    using super::async_send;
     CObserverClient(const std::string& auth_key) : auth_key_(auth_key), is_auth_(false)
     {
         package_mgr_.register_handler(OBPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
@@ -81,6 +82,31 @@ public:
         msgpack::sbuffer buffer;
         msgpack::pack(buffer, *package);
         send(session_id, buffer);
+    }
+
+    virtual void async_send(unsigned int session_id, RawProtocolImpl& package)
+    {
+        ProtocolOBC2OBSSend req;
+        req.package = package;
+        req.package.head.session_id = session_id;
+        super::async_send(&req);
+    }
+
+    virtual void async_send(unsigned int session_id, msgpack::sbuffer& buffer)
+    {
+        RawProtocolImpl raw_package;
+        raw_package.encode(buffer.data(), buffer.size());
+        async_send(session_id, raw_package);
+    }
+
+    template <typename T>
+    void async_send(unsigned int session_id, T* package)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        async_send(session_id, buffer);
     }
 
     inline NetUtils::EventMgr<notify_handler_t>& get_gate_notify_mgr() { return gate_notify_mgr_; }

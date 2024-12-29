@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "ClientImpl.h"
+#include "WndProcHook.h"
 #include "version.build"
 
 using namespace Utils;
@@ -10,167 +11,278 @@ using namespace Utils;
 #define log(LOG_TYPE,x,...)
 #endif
 
-CClientImpl::CClientImpl() : super()
+CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
 {
+    cfg_ = std::move(cfg);
     char path[MAX_PATH] = { 0 };
     GetModuleFileNameA(GetModuleHandleA(NULL), path, sizeof(path));
     exe_path_ = path;
     cache_dir_ = exe_path_.parent_path() / "cache";
     std::error_code ec;
-    if (fs::is_directory(cache_dir_, ec) == false)
+    if (!fs::is_directory(cache_dir_, ec))
     {
         fs::create_directory(cache_dir_, ec);
     }
+#ifdef _DEBUG
+    init();
+    client_start_routine();
+#else
+    log(LOG_TYPE_DEBUG, TEXT("===std::thread==="));
+    std::thread([this]() {
+        // 用户登录后才进行初始化和开始连接
+        while (true) {
+            if (user_is_login()) {
+                log(LOG_TYPE_DEBUG, TEXT("===user_is_login==="));
+                init();
+                client_start_routine();
+                log(LOG_TYPE_DEBUG, TEXT("===user_is_login end==="));
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }).detach();
+#endif
+}
+
+void CClientImpl::client_start_routine()
+{
+    for (int i=0; i<10; i++) {
+        if (WndProcHook::install_hook())
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    std::string ip = cfg()->get_field<std::string>(ip_field_id);
+    std::transform(ip.begin(), ip.end(), ip.begin(), ::tolower);
+    if (ip[0] == '0' && ip[1] == 'x')
+    {
+        char* ip_ptr = NULL;
+        sscanf_s(ip.c_str(), "0x%x", &ip_ptr);
+        cfg()->set_field<std::string>(ip_field_id, ip_ptr);
+    }
+    start(cfg()->get_field<std::string>(ip_field_id), cfg()->get_field<unsigned int>(port_field_id));
+
+#if 0 // 多玩家测试
+    g_thread_group.create_thread([client]() {
+        static std::vector<std::shared_ptr<CClientImpl>> client_vec;
+        for (int i = 0; i < 200; i++)
+        {
+            auto client_ = std::make_shared<CClientImpl>();
+            cfg_ = std::make_unique<ProtocolCFGLoader>();
+            cfg_->data = cfg_->data;
+            cfg_->json = cfg_->json;/*
+            std::this_thread::sleep_for(std::chrono::seconds(1));*/
+            start(cfg_->get_field<std::string>(ip_field_id), cfg_->get_field<unsigned int>(port_field_id));
+            client_vec.push_back(std::move(client_));
+        }
+        });
+#endif
+}
+
+void CClientImpl::init()
+{
+    log(LOG_TYPE_DEBUG, TEXT("===client init==="));
     plugin_mgr_ = std::make_unique<CClientPluginMgr>(cache_dir_);
     plugin_mgr_->set_client_instance(this);
 
-    notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
+    register_notify_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("失去连接"));
     });
-    notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
+
+    register_notify_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("连接失败"));
     });
-    notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+
+    register_notify_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("握手"));
-        ProtocolC2SHandShake handshake;
-        memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
-        handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
-        handshake.is_64bit_system = std::any_cast<bool>(user_data().get_field(is_64bits_field_id));
-        handshake.cpuid = std::any_cast<std::wstring>(user_data().get_field(cpuid_field_id));
-        handshake.mac = std::any_cast<std::wstring>(user_data().get_field(mac_field_id));
-        handshake.volume_serial_number = std::any_cast<std::wstring>(user_data().get_field(vol_field_id));
-        handshake.rev_version = std::any_cast<int>(user_data().get_field(rev_version_field_id));
-        handshake.commited_hash = std::any_cast<std::string>(user_data().get_field(commited_hash_field_id));
-        handshake.pid = GetCurrentProcessId();
-		this->save_uuid(handshake);
-        send(&handshake);
-        start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
-            ProtocolC2SHeartBeat heartbeat;
-            heartbeat.tick = time(0);
-            send(&heartbeat);
-            log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
-		});
-		// 发送用户名 防止断开后重连时网关用户名为空
-		notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
+        send_handshake();
+        start_heartbeat_timer();
+        notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
-	notify_mgr().register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
-            ProtocolC2SQueryPlugin req;
-            send(&req);
-            log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
+
+    register_notify_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
+        query_plugin_list();
     });
-    notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
+
+    register_notify_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("接收心跳"));
-#if 0
-		/*ProtocolC2SQueryPlugin req;
-		send(&req);
-		log(Debug, TEXT("查询插件列表"));*/
-		start_timer<unsigned int>(19051, std::chrono::minutes(2), [this]() {
-			ProtocolC2STaskEcho echo;
-			echo.task_id = 689051;
-			echo.is_cheat = false;
-			echo.text = Utils::String::from_utf8("9051_test");
-			send(&echo);
-			echo.task_id = 689060;
-			echo.is_cheat = false;
-			echo.text = Utils::String::from_utf8("9060_test");
-			send(&echo);
-			notify_mgr().dispatch(CLIENT_ON_JS_REPORT_NOTIFY_ID);
-			log(LOG_TYPE_DEBUG, TEXT("9051_test_and_9060_test"));
-		});
-#endif
+        query_plugin_list_periodically();
     });
-    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
-        ProtocolC2SQueryPlugin req;
-        send(&req);
-        log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
-    });
-    notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
-		log(LOG_TYPE_DEBUG, TEXT("客户端初始化成功"));
-		user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
-		user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
-		user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
-		user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
-		user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
-		user_data().set_field(rev_version_field_id, (int)REV_VERSION);
-        user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
+
+    start_plugin_list_timer();
+
+    register_notify_handler(CLIENT_START_NOTIFY_ID, [this]() {
+        log(LOG_TYPE_DEBUG, TEXT("客户端初始化成功"));
+        initialize_user_data();
         this->load_uuid();
-		});
-    package_mgr().register_handler(SPKG_ID_S2C_QUERY_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-		auto msg = raw_msg.get().as<ProtocolS2CQueryPlugin>();
-		log(LOG_TYPE_DEBUG, TEXT("收到插件列表：%d"), msg.plugin_list.size());
-		auto& resp = raw_msg.get().as<ProtocolS2CQueryPlugin>();
-		for (auto [plugin_hash, plugin_name] : resp.plugin_list)
-		{
-			if (plugin_mgr_->is_plugin_cache_exist(plugin_hash))
-			{
-				if (!plugin_mgr_->is_plugin_loaded(plugin_hash))
-				{
-					post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
-						if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
-						{
-							log(LOG_TYPE_DEBUG, TEXT("加载缓存插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
-						}
-						else
-						{
-							log(LOG_TYPE_DEBUG, TEXT("加载缓存插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
-						}
-						});
-				}
-			}
-			else
-			{
-				ProtocolC2SDownloadPlugin req;
-				req.plugin_hash = plugin_hash;
-				send(&req);
-			}
-		}
     });
 
-	package_mgr().register_handler(SPKG_ID_S2C_DOWNLOAD_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-		auto& resp = msg.get().as<ProtocolS2CDownloadPlugin>();
-		if (plugin_mgr_->is_plugin_cache_exist(resp.plugin_hash))
-		{
-			return;
-		}
-		plugin_mgr_->save_plugin(package, resp); 
-		post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
-			if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
-			{
-				log(LOG_TYPE_DEBUG, TEXT("加载远程插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
-			}
-			else
-			{
-				log(LOG_TYPE_DEBUG, TEXT("加载远程插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
-			}
-			});
+    register_package_handler(SPKG_ID_S2C_QUERY_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+        handle_plugin_list_response(raw_msg);
     });
 
-    package_mgr().register_handler(SPKG_ID_S2C_CHECK_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-		ProtocolC2SCheckPlugin resp;
-        resp.plugin_list = plugin_mgr_->get_plugin_list();
-		send(&resp, package.head.session_id);
+    register_package_handler(SPKG_ID_S2C_DOWNLOAD_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+        handle_download_plugin_response(package, msg);
     });
 
-    package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-		/*switch (msg.get().as<ProtocolS2CPunish>().type)
-		{
-			case PunishType::ENM_PUNISH_TYPE_KICK:
-			{
-				post([]() {
-					VMP_VIRTUALIZATION_BEGIN();
-					exit(-1);
-					abort();
-					Utils::CWindows::instance().exit_process();
-					exit(-1);
-					abort();
-					VMP_VIRTUALIZATION_END();
-					}, std::chrono::seconds(std::rand() % 5 + 5));
-				break;
-			}
-			default:
-				break;
-		}*/
+    register_package_handler(SPKG_ID_S2C_CHECK_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+        send_plugin_check_response(package);
     });
+
+    register_package_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+        handle_punish_response(msg);
+    });
+    log(LOG_TYPE_DEBUG, TEXT("===client init end==="));
+}
+
+void CClientImpl::register_notify_handler(unsigned int notify_id, std::function<void()> handler)
+{
+    notify_mgr().register_handler(notify_id, handler);
+}
+
+void CClientImpl::register_package_handler(unsigned int package_id, std::function<void(const RawProtocolImpl&, const msgpack::v1::object_handle&)> handler)
+{
+    package_mgr().register_handler(package_id, handler);
+}
+
+void CClientImpl::send_handshake()
+{
+    ProtocolC2SHandShake handshake;
+    memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
+    handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
+    handshake.is_64bit_system = std::any_cast<bool>(user_data().get_field(is_64bits_field_id));
+    handshake.cpuid = std::any_cast<std::wstring>(user_data().get_field(cpuid_field_id));
+    handshake.mac = std::any_cast<std::wstring>(user_data().get_field(mac_field_id));
+    handshake.volume_serial_number = std::any_cast<std::wstring>(user_data().get_field(vol_field_id));
+    handshake.rev_version = std::any_cast<int>(user_data().get_field(rev_version_field_id));
+    handshake.commited_hash = std::any_cast<std::string>(user_data().get_field(commited_hash_field_id));
+    handshake.pid = GetCurrentProcessId();
+    this->save_uuid(handshake);
+    send(&handshake);
+}
+
+void CClientImpl::start_heartbeat_timer()
+{
+    start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
+        ProtocolC2SHeartBeat heartbeat;
+        heartbeat.tick = time(0);
+        send(&heartbeat);
+        log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
+
+        ProtocolC2SUpdateUsername req;
+        req.username = cfg()->get_field<std::wstring>(usrname_field_id);
+        send(&req);
+    });
+}
+
+void CClientImpl::query_plugin_list()
+{
+    ProtocolC2SQueryPlugin req;
+    send(&req);
+    log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
+}
+
+void CClientImpl::query_plugin_list_periodically()
+{
+    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
+        query_plugin_list();
+    });
+}
+
+void CClientImpl::start_plugin_list_timer()
+{
+    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
+        query_plugin_list();
+    });
+}
+
+void CClientImpl::initialize_user_data()
+{
+    user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
+    user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
+    user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
+    user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
+    user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
+    user_data().set_field(rev_version_field_id, (int)REV_VERSION);
+    user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
+}
+
+void CClientImpl::handle_plugin_list_response(const msgpack::v1::object_handle& raw_msg)
+{
+    auto& resp = raw_msg.get().as<ProtocolS2CQueryPlugin>();
+    log(LOG_TYPE_DEBUG, TEXT("收到插件列表：%d"), resp.plugin_list.size());
+    for (auto [plugin_hash, plugin_name] : resp.plugin_list)
+    {
+        if (plugin_mgr_->is_plugin_cache_exist(plugin_hash))
+        {
+            if (!plugin_mgr_->is_plugin_loaded(plugin_hash))
+            {
+                post([this, plugin_hash = plugin_hash, plugin_name = plugin_name]() {
+                    if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
+                    {
+                        log(LOG_TYPE_DEBUG, TEXT("加载缓存插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
+                    }
+                    else
+                    {
+                        log(LOG_TYPE_DEBUG, TEXT("加载缓存插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
+                    }
+                });
+            }
+        }
+        else
+        {
+            ProtocolC2SDownloadPlugin req;
+            req.plugin_hash = plugin_hash;
+            send(&req);
+        }
+    }
+}
+
+void CClientImpl::handle_download_plugin_response(const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
+{
+    auto& resp = msg.get().as<ProtocolS2CDownloadPlugin>();
+    if (plugin_mgr_->is_plugin_cache_exist(resp.plugin_hash))
+    {
+        return;
+    }
+    plugin_mgr_->save_plugin(package, resp);
+    post([this, plugin_hash = resp.plugin_hash, plugin_name = resp.plugin_name]() {
+        if (plugin_mgr_->load_plugin(plugin_hash, plugin_name))
+        {
+            log(LOG_TYPE_DEBUG, TEXT("加载远程插件成功：%s"), Utils::String::c2w(plugin_name).c_str());
+        }
+        else
+        {
+            log(LOG_TYPE_DEBUG, TEXT("加载远程插件失败：%s"), Utils::String::c2w(plugin_name).c_str());
+        }
+    });
+}
+
+void CClientImpl::send_plugin_check_response(const RawProtocolImpl& package)
+{
+    ProtocolC2SCheckPlugin resp;
+    resp.plugin_list = plugin_mgr_->get_plugin_list();
+    send(&resp, package.head.session_id);
+}
+
+void CClientImpl::handle_punish_response(const msgpack::v1::object_handle& msg)
+{
+    switch (msg.get().as<ProtocolS2CPunish>().type)
+    {
+        case PunishType::ENM_PUNISH_TYPE_KICK:
+        {            
+            VMP_VIRTUALIZATION_BEGIN();
+            ::MessageBoxA((*g_main_window_hwnd ? *g_main_window_hwnd : NULL), "封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚", "封挂提示", MB_OK | MB_ICONERROR);
+            Utils::CWindows::instance().exit_process();
+            exit(-1);
+            abort();
+            VMP_VIRTUALIZATION_END();
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)
@@ -208,4 +320,40 @@ void CClientImpl::save_uuid(const ProtocolC2SHandShake& handshake)
         file.write(str.data(), str.size());
         file.close();
     }
+}
+
+bool CClientImpl::user_is_login() {    
+    std::vector<Utils::CWindows::WindowInfo> windows;
+    if (!Utils::CWindows::instance().get_process_main_thread_hwnd(Utils::CWindows::instance().get_current_process_id(), windows))
+    {
+        return false;
+    }
+
+    for (auto& window : windows)
+    {
+        transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
+        if (window.class_name == L"tfrmmain")
+        {
+            g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
+            if (cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+            {                
+                cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
+
+                if (window.caption.find(L" - ") != std::wstring::npos)
+                {
+                    log(LOG_TYPE_DEBUG, TEXT("登录成功:%s"), window.caption.c_str());
+                    return true;
+                    //GameLocalFuntion::instance().call_sig_pattern();
+                    //GameLocalFuntion::instance().hook_init();
+                    /*static asio::steady_timer welcome_message_timer();
+                    welcome_message_timer.expires_after(std::chrono::seconds(20));
+                    welcome_message_timer.async_wait([](std::error_code ec) {
+                        GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
+                        GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
+                    });*/
+                }
+            }
+        }
+    }
+    return false;
 }

@@ -242,7 +242,7 @@ void CProcessInfoDlg::OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 			int nItem = pNMListView->iItem;
 			CString csPid = m_list_process_info.GetItemText(nItem, 1);
-			uint32_t pid = atoi(CT2A(csPid.GetBuffer()));
+			uint32_t pid = _ttoi(csPid);
 			auto& process = processes.data.find(pid)->second;
 			FillModuleWindow(process.modules);
 			FillThreadWindow(process.threads);

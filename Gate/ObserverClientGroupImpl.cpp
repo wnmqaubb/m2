@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "ObserverClientGroupImpl.h"
 #include <asio2/util/md5.hpp>
-
-
  
 CObserverClientGroupImpl::CObserverClientGroupImpl()
 {
@@ -21,20 +19,33 @@ CObserverClientGroupImpl::~CObserverClientGroupImpl()
 std::shared_ptr<CObserverClientImpl> CObserverClientGroupImpl::operator()(const std::string& ip, unsigned short port)
 {
     auto address = ip + ":" + std::to_string(port);
+    std::shared_ptr<CObserverClientImpl> client;
+
+    std::shared_lock<std::shared_mutex> lck(mtx_);
+    auto it = group_.find(address);
+    if (it != group_.end())
     {
-        std::shared_lock<std::shared_mutex> lck(mtx_);
-        if (group_.find(address) != group_.end())
+        client = it->second;
+    }
+    else
+    {
+        lck.unlock(); // 释放共享锁，准备获取独占锁
+
+        std::unique_lock<std::shared_mutex> ulck(mtx_);
+        it = group_.find(address); // 再次检查，避免竞态条件
+        if (it == group_.end())
         {
-            return group_[address];
+            client = std::make_shared<CObserverClientImpl>(io_, asio2::md5(ip + ",./;").str());
+            group_[address] = client;
+        }
+        else
+        {
+            client = it->second;
         }
     }
-    {
-        std::unique_lock<std::shared_mutex> lck(mtx_);
-        group_[address] = std::make_shared<CObserverClientImpl>(io_, asio2::md5(ip + ",./;").str());
-        return group_[address];
-    }
-}
 
+    return client;
+}
 
 void CObserverClientGroupImpl::create_threads(int count)
 {

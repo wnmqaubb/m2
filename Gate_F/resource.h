@@ -17,6 +17,7 @@
 #define ID_SERVICE_ADD_LIST             114
 #define ID_SERVICE_CLEAR_LIST           115
 #define IDR_MAINFRAME                   116
+#define IDR_MAINFRAME1                  116
 #define IDR_ACCELERATOR1                117
 #define IDD_DIALOG1                     118
 #define IDD_DIALOG_GAMES                119
@@ -33,6 +34,8 @@
 #define IDR_MENU_WHITE_LIST             136
 #define IDI_ICON1                       137
 #define IDI_ICON_RED                    137
+#define IDI_ICON2                       139
+#define IDI_ICON_BLUE                   141
 #define IDC_TAB_MAIN                    1001
 #define IDC_EDIT_POLICY_ID              1002
 #define IDC_EDIT_POLICY_CONFIG          1003
@@ -132,7 +135,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32778
 #define _APS_NEXT_CONTROL_VALUE         1034
 #define _APS_NEXT_SYMED_VALUE           115

@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 	{
 		if (asio2::get_last_error())
 			printf("service启动失败:错误号: %d, 错误信息: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
-		return 1;
+		//return 1;
 	}
 	g_thread_group->create_thread([]() {
 		auto work_guard = asio::make_work_guard(*io);

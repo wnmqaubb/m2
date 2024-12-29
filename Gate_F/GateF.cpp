@@ -51,180 +51,191 @@ const GUID CDECL BASED_CODE _tlid =
 const WORD _wVerMajor = 1;
 const WORD _wVerMinor = 0;
 
-
-// CGateFApp 初始化
 BOOL CGateFApp::InitInstance()
 {
-	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
-	if (strCmdLine == TEXT("/StartService"))
-	{
-		is_parent_gate = false;
-		giInstancePid = GetCurrentProcessId();		
-		std::filesystem::path path(m_ExeDir);
-		path = path / "g_Service.exe";
-		STARTUPINFOA si = {};
-		HANDLE pHandles[2] = {};
-		si.dwFlags = STARTF_USESHOWWINDOW;
-		si.wShowWindow = SW_HIDE;
-		PROCESS_INFORMATION pi = {};
-		const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
-		std::string strServiceCmdline = path.string() + strCmdLine;
-		BOOL res = CreateProcessA(NULL,
-			(char*)strServiceCmdline.c_str(),
-			0,
-			0,
-			FALSE,
-			NORMAL_PRIORITY_CLASS,
-			NULL,
-			m_ExeDir,
-			&si,
-			&pi);
-		if (res == FALSE)
-		{
-			AfxMessageBox(TEXT("启动Service失败"));
-		}
-		pHandles[0] = pi.hProcess;
-		path = path.parent_path() / "g_LogicServer.exe";
-		std::string strLogicServerCmdline = path.string() + strCmdLine;
-		res = CreateProcessA(NULL,
-			(char*)strLogicServerCmdline.c_str(),
-			0,
-			0,
-			FALSE,
-			NORMAL_PRIORITY_CLASS,
-			NULL,
-			m_ExeDir,
-			&si,
-			&pi);
-		if (res == FALSE)
-		{
-			AfxMessageBox(TEXT("启动LogicServer失败"));
-		}
-		pHandles[1] = pi.hProcess;
-		WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
-		ExitProcess(0);
-		return FALSE;
-	}
-	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
-	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
-	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-		m_WorkIo.post([this]() {
-			GetMainFrame()->OnServiceCommand(ID_SERVICE_START);
-			});
-		});
-	m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
-		m_WorkIo.post([this]() {
-			GetMainFrame()->OnServiceCommand(ID_SERVICE_STOP);
-			});
-		});
-	m_ObServerClientGroup.create_threads();
-// TODO: 调用 AfxInitRichEdit2() 以初始化 richedit2 库。\n"	// 如果一个运行在 Windows XP 上的应用程序清单指定要
-	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
-	//则需要 InitCommonControlsEx()。  否则，将无法创建窗口。
-	INITCOMMONCONTROLSEX InitCtrls;
-	InitCtrls.dwSize = sizeof(InitCtrls);
-	// 将它设置为包括所有要在应用程序中使用的
-	// 公共控件类。
-	InitCtrls.dwICC = ICC_WIN95_CLASSES;
-	InitCommonControlsEx(&InitCtrls);
+    CString strCmdLine = AfxGetApp()->m_lpCmdLine;
+    if (strCmdLine == TEXT("/StartService"))
+    {
+        is_parent_gate = false;
+        std::filesystem::path path(m_ExeDir);
+        giInstancePid = GetCurrentProcessId();
+        STARTUPINFOA si = {};
+        HANDLE pHandles[2] = {};
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        PROCESS_INFORMATION pi = {};
+        const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
 
-	CWinApp::InitInstance();
+        path = path / "g_LogicServer.exe";
+        std::string strLogicServerCmdline = path.string() + strCmdLine;
+        BOOL res = CreateProcessA(NULL,
+            (char*)strLogicServerCmdline.c_str(),
+            0,
+            0,
+            FALSE,
+            NORMAL_PRIORITY_CLASS,
+            NULL,
+            m_ExeDir,
+            &si,
+            &pi);
+        if (res == FALSE)
+        {
+            if(si.wShowWindow == SW_SHOW)
+            {
+                DWORD error = GetLastError();
+                CString errorMessage;
+                errorMessage.Format(TEXT("启动LogicServer失败，错误码: %d"), error);
+                AfxMessageBox(errorMessage);
+            }
+        }
+        pHandles[1] = pi.hProcess;
 
+        path = path.parent_path() / "g_Service.exe";
+        std::string strServiceCmdline = path.string() + strCmdLine;
+        res = CreateProcessA(NULL,
+            (char*)strServiceCmdline.c_str(),
+            0,
+            0,
+            FALSE,
+            NORMAL_PRIORITY_CLASS,
+            NULL,
+            m_ExeDir,
+            &si,
+            &pi);
+        if (res == FALSE)
+        {
+            if (si.wShowWindow == SW_SHOW)
+            {
+                DWORD error = GetLastError();
+                CString errorMessage;
+                errorMessage.Format(TEXT("启动Service失败，错误码: %d"), error);
+                AfxMessageBox(errorMessage);
+            }
+        }
+        pHandles[0] = pi.hProcess;
 
-	// 初始化 OLE 库
-	if (!AfxOleInit())
-	{
-		AfxMessageBox(IDP_OLE_INIT_FAILED);
-		return FALSE;
-	}
-	// 初始化 OLE 库
-	hriched = LoadLibrary(L"RICHED20.DLL");
-	if (hriched == NULL || !AfxInitRichEdit2()) {
-		AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
-		return FALSE;
-	}
+        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
+        ExitProcess(0);
+        return FALSE;
+    }
 
-	m_bHiColorIcons = TRUE;
-	m_childpHandle = NULL;
-	// 加载策略配置文件
-	InitConfig();
-	// 创建 shell 管理器，以防对话框包含
-	// 任何 shell 树视图控件或 shell 列表视图控件。
-	//CShellManager *pShellManager = new CShellManager;
+    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
+    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
+    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+        m_WorkIo.post([this]() {
+            GetMainFrame()->OnServiceCommand(ID_SERVICE_START);
+            });
+        });
+    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
+        m_WorkIo.post([this]() {
+            GetMainFrame()->OnServiceCommand(ID_SERVICE_STOP);
+            });
+        });
+    m_ObServerClientGroup.create_threads();
 
-	// 激活“Windows Native”视觉管理器，以便在 MFC 控件中启用主题
-	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+    // 初始化 richedit2 库
+    if (!AfxInitRichEdit2()) {
+        AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
+        return FALSE;
+    }
 
-	// 标准初始化
-	// 如果未使用这些功能并希望减小
-	// 最终可执行文件的大小，则应移除下列
-	// 不需要的特定初始化例程
-	// 更改用于存储设置的注册表项
-	// TODO: 应适当修改该字符串，
-	// 例如修改为公司或组织名
-	SetRegistryKey(_T("应用程序向导生成的本地应用程序"));
-	// 分析自动化开关或注册/注销开关的命令行。
-	CCommandLineInfo cmdInfo;
-	ParseCommandLine(cmdInfo);
+    // 初始化 OLE 库
+    if (!AfxOleInit())
+    {
+        AfxMessageBox(IDP_OLE_INIT_FAILED);
+        return FALSE;
+    }
 
-	// 应用程序是用 /Embedding 或 /Automation 开关启动的。
-	//使应用程序作为自动化服务器运行。
-	if (cmdInfo.m_bRunEmbedded || cmdInfo.m_bRunAutomated)
-	{
-		// 通过 CoRegisterClassObject() 注册类工厂。
-		COleTemplateServer::RegisterAll();
-	}
-	// 应用程序是用 /Unregserver 或 /Unregister 开关启动的。  移除
-	// 注册表中的项。
-	else if (cmdInfo.m_nShellCommand == CCommandLineInfo::AppUnregister)
-	{
-		COleObjectFactory::UpdateRegistryAll(FALSE);
-		AfxOleUnregisterTypeLib(_tlid, _wVerMajor, _wVerMinor);
-		return FALSE;
-	}
-	// 应用程序是以独立方式或用其他开关(如 /Register
-	// 或 /Regserver)启动的。  更新注册表项，包括类型库。
-	else
-	{
-		COleObjectFactory::UpdateRegistryAll();
-		AfxOleRegisterTypeLib(AfxGetInstanceHandle(), _tlid);
-		if (cmdInfo.m_nShellCommand == CCommandLineInfo::AppRegister)
-			return FALSE;
-	}
+    // 加载 richedit2 库
+    HINSTANCE hriched = LoadLibrary(L"RICHED20.DLL");
+    if (hriched == NULL) {
+        AfxMessageBox(L"无法加载 richedit2 库。可能是由于系统不支持该 DLL 版本。");
+        return FALSE;
+    }
 
-	CGateFDlg dlg;
-	m_pMainWnd = &dlg;
+    m_bHiColorIcons = TRUE;
+    m_childpHandle = NULL;
+    // 加载策略配置文件
+    InitConfig();
 
-	OnServiceStart();
-	INT_PTR nResponse = dlg.DoModal();
-	if (nResponse == IDOK)
-	{
-		// TODO: 在此放置处理何时用
-		//  “确定”来关闭对话框的代码
-	}
-	else if (nResponse == IDCANCEL)
-	{
-		// TODO: 在此放置处理何时用
-		//  “取消”来关闭对话框的代码
-	}
-	else if (nResponse == -1)
-	{
-		TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
-		TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
-	}
+    // 创建 shell 管理器，以防对话框包含
+    // 任何 shell 树视图控件或 shell 列表视图控件。
+    //CShellManager *pShellManager = new CShellManager;
 
-	// 删除上面创建的 shell 管理器。
-	//if (pShellManager != nullptr)
-	//{
-	//	delete pShellManager;
-	//}
+    // 激活“Windows Native”视觉管理器，以便在 MFC 控件中启用主题
+    CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+
+    // 标准初始化
+    // 如果未使用这些功能并希望减小
+    // 最终可执行文件的大小，则应移除下列
+    // 不需要的特定初始化例程
+    // 更改用于存储设置的注册表项
+    // TODO: 应适当修改该字符串，
+    // 例如修改为公司或组织名
+    SetRegistryKey(_T("应用程序向导生成的本地应用程序"));
+    // 分析自动化开关或注册/注销开关的命令行。
+    CCommandLineInfo cmdInfo;
+    ParseCommandLine(cmdInfo);
+
+    // 应用程序是用 /Embedding 或 /Automation 开关启动的。
+    //使应用程序作为自动化服务器运行。
+    if (cmdInfo.m_bRunEmbedded || cmdInfo.m_bRunAutomated)
+    {
+        // 通过 CoRegisterClassObject() 注册类工厂。
+        COleTemplateServer::RegisterAll();
+    }
+    // 应用程序是用 /Unregserver 或 /Unregister 开关启动的。  移除
+    // 注册表中的项。
+    else if (cmdInfo.m_nShellCommand == CCommandLineInfo::AppUnregister)
+    {
+        COleObjectFactory::UpdateRegistryAll(FALSE);
+        AfxOleUnregisterTypeLib(_tlid, _wVerMajor, _wVerMinor);
+        return FALSE;
+    }
+    // 应用程序是以独立方式或用其他开关(如 /Register
+    // 或 /Regserver)启动的。  更新注册表项，包括类型库。
+    else
+    {
+        COleObjectFactory::UpdateRegistryAll();
+        AfxOleRegisterTypeLib(AfxGetInstanceHandle(), _tlid);
+        if (cmdInfo.m_nShellCommand == CCommandLineInfo::AppRegister)
+            return FALSE;
+    }
+
+    CGateFDlg dlg;
+    m_pMainWnd = &dlg;
+
+    OnServiceStart();
+    INT_PTR nResponse = dlg.DoModal();
+    if (nResponse == IDOK)
+    {
+        // TODO: 在此放置处理何时用
+        //  “确定”来关闭对话框的代码
+    }
+    else if (nResponse == IDCANCEL)
+    {
+        // TODO: 在此放置处理何时用
+        //  “取消”来关闭对话框的代码
+    }
+    else if (nResponse == -1)
+    {
+        TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+        TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+    }
 
 #if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
-	ControlBarCleanUp();
+    ControlBarCleanUp();
 #endif
-	// 由于对话框已关闭，所以将返回 FALSE 以便退出应用程序，
-	//  而不是启动应用程序的消息泵。
-	return TRUE;
+
+    // 释放加载的库
+    if (hriched != NULL)
+    {
+        FreeLibrary(hriched);
+    }
+
+    // 由于对话框已关闭，所以将返回 FALSE 以便退出应用程序，
+    //  而不是启动应用程序的消息泵。
+    return TRUE;
 }
 
 CGateFDlg* CGateFApp::GetMainFrame()
@@ -236,10 +247,6 @@ CGateFDlg* CGateFApp::GetMainFrame()
 int CGateFApp::ExitInstance()
 {
 	AfxOleTerm(FALSE);
-	if (hriched!= NULL)
-	{
-		FreeLibrary(hriched);
-	}
 	return CWinApp::ExitInstance();
 }
 

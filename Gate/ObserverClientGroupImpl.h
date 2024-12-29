@@ -33,7 +33,17 @@ public:
         std::shared_lock<std::shared_mutex> lck(mtx_);
         for (auto[address, client] : group_)
         {
-            client->send(req);
+            client->send(std::move(req));
+        }
+    }
+
+    template <typename T> 
+    void async_send(T* req)
+    {
+        std::shared_lock<std::shared_mutex> lck(mtx_);
+        for (auto[address, client] : group_)
+        {
+            client->async_send(std::move(req));
         }
     }
 

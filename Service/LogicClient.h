@@ -6,7 +6,7 @@ class CLogicClient : public CAntiCheatClient
 {
     using super = CAntiCheatClient;
 public:
-    CLogicClient() : super()
+    CLogicClient()
     {
         notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
             ProtocolC2SHandShake handshake;

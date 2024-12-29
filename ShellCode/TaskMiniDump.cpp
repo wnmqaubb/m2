@@ -41,7 +41,6 @@ void InitMiniDump()
 #include <client/windows/handler/exception_handler.h>
 #include <client/windows/common/ipc_protocol.h>
 using namespace google_breakpad;
-extern std::shared_ptr<HWND> g_main_window_hwnd;
 
 bool ShowDumpResults(const wchar_t* dump_path,
     const wchar_t* minidump_id,

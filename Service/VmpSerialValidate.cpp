@@ -16,7 +16,8 @@ bool VmpSerialValidator::validate_timer(bool slience)
 #ifdef _DEBUG
 	server()->set_auth_ticket("");
 	server()->auth_success();
-	server_->get_vmp_expire() = TEXT("测试");;
+	server_->get_vmp_expire() = TEXT("测试");
+	status = true;
 #else
 	is_multi_serial_ = false;
 	server_->get_vmp_expire() = L"";
@@ -143,18 +144,23 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
 
 std::string VmpSerialValidator::read_license(const std::string& path)
 {
-	std::string serial(
-		std::istreambuf_iterator<char>(std::ifstream(path) >> std::skipws),
-		std::istreambuf_iterator<char>());
-	std::find_if(serial.begin(), serial.end(), [&serial](char f)->bool {
-		if (f == '\r' || f == '\n')
-		{
-			serial.erase(serial.find(f), 1);
-		}
-		return false;
-		});
-	return serial;
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("无法打开文件: " + path);
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string serial = buffer.str();
+
+    serial.erase(std::remove_if(serial.begin(), serial.end(), [](char c) {
+        return c == '\r' || c == '\n';
+    }), serial.end());
+
+    return serial;
 }
+
 
 int VmpSerialValidator::http_query_sn_status(const std::string& sn)
 {
@@ -191,15 +197,13 @@ int VmpSerialValidator::http_query_sn_status(const std::string& sn)
 
 void VmpSerialValidator::write_hwid()
 {
-	VMProtectBeginVirtualization(__FUNCTION__);
-	int sz = VMProtectGetCurrentHWID(NULL, 0);
-	std::string buf;
-	buf.resize(sz);
-	VMProtectGetCurrentHWID((char*)buf.c_str(), sz);
-	std::filesystem::path file(std::filesystem::current_path() / "HWID.txt");
-	std::ofstream output(file, std::ios::trunc);
-	output << buf.c_str();
-	output.flush();
-	output.close();
-	VMProtectEnd();
+    VMProtectBeginVirtualization(__FUNCTION__);
+    int sz = VMProtectGetCurrentHWID(nullptr, 0);
+    std::vector<char> buf(sz);
+    VMProtectGetCurrentHWID(buf.data(), sz);
+    std::filesystem::path file = std::filesystem::current_path() / "HWID.txt";
+    std::ofstream output(file, std::ios::trunc);
+    output << buf.data();
+    output.flush();
+    VMProtectEnd();
 }

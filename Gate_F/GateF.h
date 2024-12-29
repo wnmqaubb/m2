@@ -49,7 +49,6 @@ public:
 	CString m_cCfgPath;
 	UINT  m_nAppLook;
 	BOOL  m_bHiColorIcons;
-	HMODULE hriched;
 	CObserverClientGroupImpl m_ObServerClientGroup;
 	asio::io_service m_WorkIo;
 	CDocument* m_ConfigDoc = nullptr;

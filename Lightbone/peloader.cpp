@@ -39,6 +39,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
     DEFINEAPI(VirtualFree);
     DEFINEAPI(GetProcAddress);
     DEFINEAPI(IsBadWritePtr);
+    DEFINEAPI(OutputDebugStringA);
     DEFINEAPI(NtUnmapViewOfSection);
 
     VirtualAlloc = IMPORT(L"kernel32.dll", VirtualAlloc);
@@ -47,6 +48,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
     VirtualFree = IMPORT(L"kernel32.dll", VirtualFree);
     GetProcAddress = IMPORT(L"kernel32.dll", GetProcAddress);
     IsBadWritePtr = IMPORT(L"kernel32.dll", IsBadWritePtr);
+    OutputDebugStringA = IMPORT(L"kernel32.dll", OutputDebugStringA);
     NtUnmapViewOfSection = IMPORT(L"ntdll.dll", NtUnmapViewOfSection);
 
     if (size < sizeof(IMAGE_DOS_HEADER))
@@ -90,7 +92,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             {
                 copy_size = nt_header->OptionalHeader.SizeOfInitializedData;
             }
-            else if (section[n].Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA)
+            else if (section[n].Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA)
             {
                 copy_size = nt_header->OptionalHeader.SizeOfUninitializedData;
             }
@@ -134,6 +136,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             rva2va<PIMAGE_THUNK_DATA>(image_base, import_desc->OriginalFirstThunk) :
             rva2va<PIMAGE_THUNK_DATA>(image_base, import_desc->FirstThunk);
 
+        OutputDebugStringA(import_module_name);
         for (;
             iat && thunk && thunk->u1.AddressOfData;
             iat++, thunk++)
@@ -144,13 +147,14 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
                 (LPCSTR)IMAGE_ORDINAL(thunk->u1.Ordinal)
                 :
                 function_name
-            );
+            );       
             if (iat->u1.Function == NULL)
             {
                 iat->u1.Function = (ULONG_PTR)get_proc_address(import_module_handle, hash(function_name));
             }
             if (iat->u1.Function == NULL)
             {
+                OutputDebugStringA(function_name);
                 VirtualFree(image_base, nt_header->OptionalHeader.SizeOfImage, MEM_RELEASE);
                 return ERROR_FUNCTION_NOT_CALLED;
             }

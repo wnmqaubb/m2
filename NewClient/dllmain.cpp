@@ -3,7 +3,6 @@
 #include "ClientImpl.h"
 #include "Tools/Packer/loader.h"
 #include "CreateProcessHook.h"
-#include "WndProcHook.h"
 #include "version.build"
 
 share_data_ptr_t share_data = nullptr;
@@ -20,40 +19,7 @@ void __declspec(dllexport) reference_to_api()
     ref.emplace(get_ptr(&Utils::CWindows::instance));
     ref.emplace(get_ptr(&Utils::get_screenshot));
     ref.emplace(get_ptr(&Utils::PEScan::calc_pe_ico_hash));
-}
-
-void client_start_routine()
-{
-    WndProcHook::install_hook();
-    std::string ip = client->cfg()->get_field<std::string>(ip_field_id);
-    std::transform(ip.begin(), ip.end(), ip.begin(), ::tolower);
-    if (ip[0] == '0' && ip[1] == 'x')
-    {
-        char* ip_ptr = NULL;
-        sscanf_s(ip.c_str(), "0x%x", &ip_ptr);
-		client->cfg()->set_field<std::string>(ip_field_id, ip_ptr);
-		client->start(client->cfg()->get_field<std::string>(ip_field_id), client->cfg()->get_field<unsigned int>(port_field_id));
-    }
-    else
-    {
-        client->start(client->cfg()->get_field<std::string>(ip_field_id), client->cfg()->get_field<unsigned int>(port_field_id));
-    }
-    
-#if 0
-    g_thread_group.create_thread([client](){
-        static std::vector<std::shared_ptr<CClientImpl>> client_vec;
-        for (int i = 0; i < 200; i++)
-        {
-            auto client_ = std::make_shared<CClientImpl>();
-            client_->cfg_ = std::make_unique<ProtocolCFGLoader>();
-            client_->cfg_->data = client->cfg_->data;
-            client_->cfg_->json = client_->cfg_->json;/*
-            std::this_thread::sleep_for(std::chrono::seconds(1));*/
-            client_->start(client->cfg_->get_field<std::string>(ip_field_id), client->cfg_->get_field<unsigned int>(port_field_id));
-            client_vec.push_back(std::move(client_));
-        }
-    });
-#endif
+    ref.emplace(get_ptr(&Utils::ImageProtect::instance));
 }
 
 void __stdcall client_entry(share_data_ptr_t param) noexcept
@@ -78,14 +44,13 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
 		g_client_rev_version = std::make_shared<int>(REV_VERSION);
 		g_game_io = std::make_shared<asio::io_service>();
 		g_thread_group = std::make_shared<asio::detail::thread_group>();
-        client = std::make_shared<CClientImpl>();
-        client->cfg() = ProtocolCFGLoader::load((char*)param->cfg, param->cfg_size);
+        client = std::make_shared<CClientImpl>(std::move(ProtocolCFGLoader::load((char*)param->cfg, param->cfg_size)));
         if (client->cfg()->get_field<bool>(test_mode_field_id))
         {
             ::MessageBoxA(NULL, "test mode", "test", MB_OK);
         }
 
-        if (client->cfg()->get_field<bool>(sec_no_change_field_id))
+        /*if (client->cfg()->get_field<bool>(sec_no_change_field_id))
         {
             Utils::ImageProtect::instance().register_callback(client_start_routine);
             Utils::ImageProtect::instance().install();
@@ -93,7 +58,7 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
         else
         {
             client_start_routine();
-        }
+        }*/
     }
     VMP_VIRTUALIZATION_END();
 }

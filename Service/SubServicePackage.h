@@ -114,10 +114,25 @@ struct ProtocolCFGLoader : ProtocolBase<SPKG_ID_CFG_LOADER>
         {
             return nullptr;
         }
-        auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
-        auto res = std::make_unique<ProtocolCFGLoader>(msg.get().as<ProtocolCFGLoader>());
-        res->json = json::parse(res->data);
-        return std::move(res);
+        try
+        {
+            auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
+            auto res = std::make_unique<ProtocolCFGLoader>(msg.get().as<ProtocolCFGLoader>());
+            res->json = json::parse(res->data);
+            return res;
+        }
+        catch (const msgpack::type_error& e)
+        {
+            return nullptr;
+        }
+        catch (const msgpack::parse_error& e)
+        {
+            return nullptr;
+        }
+        catch (const std::exception& e)
+        {
+            return nullptr;
+        }
     }
     std::string dump()
     {
@@ -191,9 +206,17 @@ struct ProtocolS2CPolicy : ProtocolBase<SPKG_ID_S2C_POLICY>
         {
             return nullptr;
         }
-        auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
-        auto res = std::make_unique<ProtocolS2CPolicy>(msg.get().as<ProtocolS2CPolicy>());
-        return std::move(res);
+        try
+        {
+            auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
+            return std::make_unique<ProtocolS2CPolicy>(msg.get().as<ProtocolS2CPolicy>());
+        }
+        catch(const std::exception& e)
+        {
+            return nullptr;
+        }
+        
+        return nullptr;
     }
     std::string dump()
     {

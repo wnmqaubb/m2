@@ -58,21 +58,22 @@ namespace Utils
     }
     inline std::wstring get_current_date_str()
     {
-        std::time_t now_time = time(0);
-        TCHAR time_str[MAX_PATH] = { 0 };
-        tm tm_;
+        std::time_t now_time = std::time(nullptr);
+        std::tm tm_;
         localtime_s(&tm_, &now_time);
-        wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%Y_%m_%d"), &tm_);
-        return time_str;
+        std::wostringstream oss;
+        oss << std::put_time(&tm_, L"%Y_%m_%d");
+        return oss.str();
     }
+
     inline std::wstring get_current_time_str()
     {
-        std::time_t now_time = time(0);
-        TCHAR time_str[MAX_PATH] = { 0 };
-        tm tm_;
+        std::time_t now_time = std::time(nullptr);
+        std::tm tm_;
         localtime_s(&tm_, &now_time);
-        wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%I_%M_%S"), &tm_);
-        return time_str;
+        std::wostringstream oss;
+        oss << std::put_time(&tm_, L"%H_%M_%S");
+        return oss.str();
     }
 }
 
