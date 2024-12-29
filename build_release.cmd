@@ -13,8 +13,9 @@ mkdir %OutputDir%
 ::echo ***************构建方案***************
 ::devenv.exe AntiCheat.sln /rebuild "Release2|x86"
 
-set gm_server=%OutputDir%gm_server\%2
+set gm_server=%OutputDir%及时雨定制版\%2
 set admin_server=%OutputDir%admin_server\%2
+mkdir %gm_server%
 
 ::echo ***************构建方案***************
 ::echo D|xcopy %ReleaseDir%\Service.exe %gm_server% /y

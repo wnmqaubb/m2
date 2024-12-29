@@ -7,7 +7,7 @@ set ReleaseDir_vip=.\build\bin\Release_vip\Win32
 set OutputDir=.\build\bin\%2
 mkdir %OutputDir%
 
-set gm_server=%OutputDir%gm_server_vip\%2
+set gm_server=%OutputDir%及时雨内部版\%2
 set admin_server=%OutputDir%admin_server\%2
 mkdir %gm_server%
 
