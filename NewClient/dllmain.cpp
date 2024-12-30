@@ -15,21 +15,32 @@ std::shared_ptr<asio::io_service> g_game_io;
 std::shared_ptr<asio::detail::thread_group> g_thread_group;
 std::shared_ptr<int> g_client_rev_version;
 std::shared_ptr<CClientImpl> client_;
+std::shared_ptr<asio2::timer> g_timer;
 // dll 退出信号
 //std::shared_ptr<HANDLE> dll_exit_event_handle_;
-RUNGATE_API Init(PAppFuncDef AppFunc, int AppFuncCrc);
+RUNGATE_API Init(PAppFuncDef AppFunc);
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen);
 RUNGATE_API DoUnInit() noexcept;
 void client_start_routine();
-RUNGATE_API client_entry(const std::string& guard_gate_ip);
+RUNGATE_API client_entry(std::string guard_gate_ip);
 
-#pragma comment(linker, "/EXPORT:Init=?Init@@YGXPAUTAppFuncDef@client@lfengine@@H@Z")
-RUNGATE_API Init(PAppFuncDef AppFunc, int AppFuncCrc)
+RUNGATE_API Init(PAppFuncDef AppFunc)
 {
+	if (AppFunc->AddChatText && AppFunc->SendSocket) {
+		LOG("===== Plugin Init OK =====");
+
+		lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
+		AppFunc->SendSocket(&initok, 0, 0);
+	}
+	else {
+		LOG("Init 异常");
+		return;
+	}
 	g_client_rev_version = std::make_shared<int>(REV_VERSION);
 	g_AppFunc = std::make_shared<TAppFuncDefExt>();
 	g_game_io = std::make_shared<asio::io_service>();
 	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	g_timer = std::make_shared<asio2::timer>();
 	//dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
 	g_AppFunc->AddChatText = AppFunc->AddChatText;
 	g_AppFunc->SendSocket = AppFunc->SendSocket;
@@ -39,20 +50,19 @@ RUNGATE_API Init(PAppFuncDef AppFunc, int AppFuncCrc)
 
 	LOG("lf客户端插件拉起成功 dll_base:%p", dll_base);
 	//AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
-	lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
-	SendSocket(&initok, 0, 0);
 }
 
-//#ifdef _DEBUG
-#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
-//#endif
-/*__declspec(dllexport)*/ RUNGATE_API client_entry(const std::string& guard_gate_ip)
+#ifdef _DEBUG
+#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
+#endif
+RUNGATE_API client_entry(std::string guard_gate_ip)
 {
 #if 0
 	g_client_rev_version = std::make_shared<int>(REV_VERSION);
 	g_AppFunc = std::make_shared<TAppFuncDefExt>();
 	g_game_io = std::make_shared<asio::io_service>();
 	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	g_timer = std::make_shared<asio2::timer>();
 	dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
 #endif
 	VMP_VIRTUALIZATION_BEGIN();
@@ -125,13 +135,13 @@ RUNGATE_API DoUnInit() noexcept
 		//	notifier->join_all();
 		//}
 		LOG("插件卸载 FileChangeNotifier -- join_all ok");
+		g_timer->stop();
+		g_timer->destroy();
 		WndProcHook::restore_hook();
 		LightHook::HookMgr::instance().restore();
 		LOG("插件卸载  -- restore_hook ok");
 		g_game_io->stop();
 		g_game_io->reset();
-		client_->stop_all_timers();
-		client_->stop_all_timed_tasks();
 		/*作者建议：
 		if(!game_io->stopped()) 把这个判断删了，直接stop即可
 		你在这个uninit里加个日志，检测一下是在哪个步骤阻塞的，好判断问题范围
@@ -143,9 +153,22 @@ RUNGATE_API DoUnInit() noexcept
 		/*client_->post([]() {LOG("插件卸载socket close 1");
 			client_->socket().close(); LOG("插件卸载socket close 2");
 		});*/
-		client_->socket().close();
-		client_->stop();
-
+		if (client_->is_started())
+		{
+			client_->stop_all_timers();
+			client_->stop_all_timed_tasks();
+			client_->stop_all_timed_events();
+			if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {				
+				LOG("win_version > WINDOWS_7");
+			}
+			else {
+				LOG("win_version <= WINDOWS_7");
+				asio::detail::win_thread::set_terminate_threads(true);
+				// 判断是否是win7系统，如果是，则设置线程终止标志
+			}
+			client_->socket().close();
+			client_->stop();
+		}
 		auto end = std::chrono::steady_clock::now(); // 记录结束时间
 		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		LOG("插件卸载stop 2 %d ms", elapsed);
@@ -153,9 +176,8 @@ RUNGATE_API DoUnInit() noexcept
 		* set_terminate_threads 强制退出asio的线程,否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
 		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
 		*/
-		asio::detail::win_thread::set_terminate_threads(true);
 		client_->destroy();
-		client_ = nullptr;
+		client_.reset();
 		/*if(dll_exit_event_handle_){
 			CloseHandle(dll_exit_event_handle_);
 		}*/
@@ -167,10 +189,7 @@ RUNGATE_API DoUnInit() noexcept
 	}
 }
 
-BOOL APIENTRY DllMain(HMODULE hModule,
-	DWORD  ul_reason_for_call,
-	LPVOID lpReserved
-)
+BOOL APIENTRY DllMain(HMODULE hModule,	DWORD  ul_reason_for_call,	LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{

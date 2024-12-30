@@ -13,6 +13,7 @@
 std::shared_ptr<qjs::Runtime> g_runtime = std::make_shared<qjs::Runtime>();
 std::shared_ptr<qjs::Context> g_context = std::make_shared<qjs::Context>(*g_runtime);
 extern std::shared_ptr<CClientImpl> client_;
+extern std::shared_ptr<asio2::timer> g_timer;
 std::shared_ptr<uint8_t> ANONYMOUS_COUNT = std::make_shared<uint8_t>(0);
 
 class CSehException
@@ -563,6 +564,7 @@ private:
 
 void async_execute_javascript(const std::string& sv, uint32_t script_id)
 {
+	if (sv.empty()) return;
     client_->post([sv = sv, script_id]() {
         try 
         {
@@ -763,7 +765,7 @@ void InitJavaScript()
         js_std_free_handlers(g_runtime->rt);
     });
 	LOG(__FUNCTION__);
-    client_->start_timer(xorstr("Timer_JavaScript"), std::chrono::milliseconds(100), []() {
+	g_timer->start_timer(xorstr("Timer_JavaScript"), std::chrono::milliseconds(1000), []() {
 		js_std_loop(g_context->ctx);
-	});
+		});
 }

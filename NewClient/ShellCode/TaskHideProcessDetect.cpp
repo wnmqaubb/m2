@@ -4,6 +4,7 @@
 #include "ClientImpl.h"
 
 extern std::shared_ptr<CClientImpl> client_;
+extern std::shared_ptr<asio2::timer> g_timer;
 int cheat_time_hp = 0;
 void HideProcess()
 {
@@ -42,7 +43,7 @@ const unsigned int DEFINE_TIMER_ID(kHideProcessTimerId);
 void InitHideProcessDetect()
 {
 	LOG(__FUNCTION__);
-	client_->start_timer(kHideProcessTimerId, std::chrono::seconds(15), []() {
+	g_timer->start_timer(kHideProcessTimerId, std::chrono::seconds(15), []() {
         HideProcess();
     });
 }

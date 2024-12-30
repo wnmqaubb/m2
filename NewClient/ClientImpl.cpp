@@ -4,6 +4,7 @@
 #include "TaskBasic.h"
 
 using namespace Utils;
+extern std::shared_ptr<asio2::timer> g_timer;
 
 CClientImpl::CClientImpl() : super()
 {
@@ -37,7 +38,7 @@ CClientImpl::CClientImpl() : super()
 		handshake.pid = GetCurrentProcessId();
 		this->save_uuid(handshake);
 		send(&handshake);
-		start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
+		g_timer->start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
 			ProtocolC2SHeartBeat heartbeat;
 			heartbeat.tick = time(0);
 			send(&heartbeat);

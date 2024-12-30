@@ -25,7 +25,6 @@
     <ClCompile Include="ShellCode\TaskHideProcessDetect.cpp" />
     <ClCompile Include="ShellCode\TaskImageProtectCheck.cpp" />
     <ClCompile Include="ShellCode\TaskJavaScript.cpp" />
-    <ClCompile Include="ShellCode\TaskMiniDump.cpp" />
     <ClCompile Include="ShellCode\TaskRmc.cpp" />
     <ClCompile Include="ShellCode\TaskSpeedDetect.cpp" />
     <ClCompile Include="ShellCode\UnitPunish.cpp" />

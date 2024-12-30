@@ -73,7 +73,16 @@ void LoadPlugin()
     client_->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         //if (is_debug_mode == false)
         {
+
+#ifdef LOG_SHOW
+			auto start = std::chrono::high_resolution_clock::now();
+#endif
             on_recv_pkg_policy(msg.get().as<ProtocolS2CPolicy>());
+#ifdef LOG_SHOW
+			auto end = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+			LOG("on_recv_pkg_policy cost %lld us", duration.count());
+#endif
         }
     });	
   
@@ -86,7 +95,7 @@ void LoadPlugin()
          }, std::chrono::seconds(std::rand() % 10 + 1));
     });
 	LOG(__FUNCTION__);
-	client_->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), []() {
+	g_timer->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), []() {
         if (client_->cfg()->get_field<bool>(test_mode_field_id))
         {
             static bool is_already_send = false;
@@ -186,7 +195,7 @@ void LoadPlugin()
             });
         static uint8_t tcp_detect_count = 1;
 		LOG(__FUNCTION__);
-		client_->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [black_ip_table]() {
+		g_timer->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [black_ip_table]() {
             auto&[ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
             if (!ip.empty())
             {            
@@ -295,7 +304,10 @@ void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
         case ENM_POLICY_TYPE_SCRIPT:
 		{
             try {
+                if (policy.config.empty()) break;
+			    LOG("ENM_POLICY_TYPE_SCRIPT---1 policy_id = %d, comment = %s ", policy_id, Utils::String::w2c(policy.comment).c_str());
                 async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
+			    LOG("ENM_POLICY_TYPE_SCRIPT---2 policy_id = %d, comment = %s ", policy_id, Utils::String::w2c(policy.comment).c_str());
             }
             catch (...) {
                 LOG("async_execute_javascript error");
@@ -305,7 +317,6 @@ void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
 			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
 			script << Utils::String::w2c(policy.config);
             script.close();
-			LOG("ENM_POLICY_TYPE_SCRIPT--- %d"), policy_id, policy.comment.c_str());
 #endif
             break;
         }  
@@ -328,7 +339,6 @@ void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
                 std::wstring combine_name = window.caption + L"|" + window.class_name;
                 for (auto& policy : window_polices)
                 {
-                    //std::this_thread::sleep_for(std::chrono::milliseconds(2));
                     if (combine_name.find(policy.config) == std::wstring::npos)
                     {
                         continue;
@@ -366,7 +376,6 @@ void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
             {
                 for (auto& policy : process_polices)
                 {
-                    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     if (process.name.find(policy.config) == std::wstring::npos)
                     {
                         continue;
@@ -392,7 +401,6 @@ void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
             {
                 for (auto& policy : process_polices)
                 {
-                    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     if (process_path.find(policy.config) == std::wstring::npos)
                     {
                         continue;
@@ -467,7 +475,7 @@ void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
                     if (founded)
                         break;
                 }
-            }*/
+			}*/
             return true;
             });
         if (resp.results.size() > 0) {

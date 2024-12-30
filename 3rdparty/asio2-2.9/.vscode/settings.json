@@ -12,6 +12,10 @@
         "xlocale": "cpp",
         "*.ipp": "cpp",
         "xthread": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "system_error": "cpp",
+        "filesystem": "cpp",
+        "memory": "cpp",
+        "vector": "cpp"
     }
 }

@@ -113,9 +113,8 @@ CLogicServer::CLogicServer()
 	VMProtectBeginVirtualization(__FUNCTION__);
 	is_logic_server_ = true;
 	set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-	start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(1), [this]() {
+ 	start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(5), [this]() {
 		try {
-			//plugin_mgr_.reload_all_plugin();
 			policy_mgr_.reload_all_policy();
 		}
 		catch (...)

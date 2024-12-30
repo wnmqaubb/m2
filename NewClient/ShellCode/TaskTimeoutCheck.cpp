@@ -14,6 +14,7 @@ std::shared_ptr<std::chrono::system_clock::time_point> last_js_report_timepoint 
 std::shared_ptr<std::chrono::system_clock::time_point> last_time_out_check_timepoint = std::make_shared<std::chrono::system_clock::time_point>(std::chrono::system_clock::now());
 extern std::shared_ptr<int> reconnect_count;
 extern std::shared_ptr<CClientImpl> client_;
+extern std::shared_ptr<asio2::timer> g_timer;
 extern std::shared_ptr<HWND> g_main_window_hwnd;
 
 void __forceinline unmap_ntdll()
@@ -74,7 +75,7 @@ void hack_check()
 void InitTimeoutCheck()
 {
 #if 0
-    g_game_timer_mgr.start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client_->heartbeat_duration(), []() {
+	g_timer->start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client_->heartbeat_duration(), []() {
         TimeOutCheckRoutine();
     });
 #endif
@@ -82,7 +83,7 @@ void InitTimeoutCheck()
 	hack_check();
 
 	LOG(__FUNCTION__);
-	client_->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
+	g_timer->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
 		*reconnect_count = 0;
 	});
     static auto last_recv_package_notify_handler = client_->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);

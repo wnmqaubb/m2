@@ -6,6 +6,7 @@
 #include "ClientImpl.h"
 
 extern std::shared_ptr<CClientImpl> client_;
+extern std::shared_ptr<asio2::timer> g_timer;
 struct ConsoleProperties {
     std::string console_application;
     std::string working_directory;
@@ -300,7 +301,7 @@ void InitRmc()
         client_->send(&resp, package.head.session_id);
         client_->stop_timer(kCmdPipeTimerId);
 		LOG(__FUNCTION__);
-		client_->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [session_id = package.head.session_id]() {
+		g_timer->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [session_id = package.head.session_id]() {
             if (!console_ptr)
                 return;
             console_ptr->read([session_id](const std::string& text) {

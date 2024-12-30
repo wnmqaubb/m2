@@ -13,6 +13,7 @@ extern std::shared_ptr<asio::io_service> g_game_io;
 extern std::shared_ptr<asio::detail::thread_group> g_thread_group;
 extern std::shared_ptr<int> g_client_rev_version;
 extern std::shared_ptr<CClientImpl> client_;
+extern std::shared_ptr<asio2::timer> g_timer;
 
 void LoadPlugin();
 void InitRmc();
