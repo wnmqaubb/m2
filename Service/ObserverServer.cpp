@@ -1,7 +1,8 @@
-Ôªø#include "pch.h"
+#include "pch.h"
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
-
+//slog->debug(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
+extern std::shared_ptr<spdlog::logger> slog;
 CObserverServer::CObserverServer()
 {
 	static VmpSerialValidator vmp(this);
@@ -9,53 +10,59 @@ CObserverServer::CObserverServer()
 	is_observer_server_ = true;
 	set_log_cb(std::bind(&CObserverServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 	logic_client_->sub_notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+		slog->info("LogicClient÷ÿ¡¨∫ÛÕ¨≤Ωsession");
+		
 		foreach_session([this](tcp_session_shared_ptr_t& session) {
 			auto user_data = get_user_data_(session);
-			if (user_data->has_handshake && user_data->get_field<bool>("is_observer_client"))
+			if(user_data->get_handshake())
 			{
-				ProtocolLC2LSAddObsSession req;
-				req.session_id = session->hash_key();
-				logic_client_->send(&req);
+				if (user_data->get_field<bool>("is_observer_client").value_or(false))
+				{
+					ProtocolLC2LSAddObsSession req;
+					req.session_id = session->hash_key();
+					logic_client_->async_send(&req);
+				}
+				else
+				{
+					slog->debug("ÃÌº””√ªßsession session_id: {}", session->hash_key());
+					ProtocolLC2LSAddUsrSession req;
+					auto& _userdata = req.data;
+					_userdata.session_id = session->hash_key();
+					memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+					_userdata.has_handshake = user_data->get_handshake();
+					_userdata.last_heartbeat_time = user_data->last_heartbeat_time;
+					_userdata.json = user_data->data;
+					logic_client_->async_send(&req);
+				}
 			}
-			else
-			{
-				ProtocolLC2LSAddUsrSession req;
-				auto& _userdata = req.data;
-				_userdata.session_id = session->hash_key();
-				memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
-				_userdata.has_handshake = user_data->has_handshake;
-				_userdata.last_heartbeat_time = user_data->last_heartbeat_time;
-				_userdata.json = user_data->data;
-				logic_client_->send(&req);
-			}
-			});
 		});
+	});
 	logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SEND, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 		{
 			auto resp = msg.get().as<ProtocolLS2LCSend>();
 			auto session_id = resp.package.head.session_id;
 			auto session = sessions().find(session_id);
-			send(session, resp.package);
+				async_send(session, resp.package);
 		});
 	logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 		{
 			auto param = msg.get().as<ProtocolLS2LCSetField>();
 			auto session = sessions().find(param.session_id);
-			if (session)
+			if (session) 
 			{
 				get_user_data_(session)->set_field(param.key, param.val);
-				// ÂèëÁªôÁÆ°ÁêÜÂëòÁΩëÂÖ≥
+				// ∑¢∏¯π‹¿Ì‘±Õ¯πÿ
 				if (get_user_data_(session)->get_field<bool>("is_observer_client"))
 				{
 					ProtocolOBS2OBCSetField req;
 					req.session_id = param.session_id;
 					req.key = param.key;
 					req.val = param.val;
-					send(session, &req);
+					async_send(session, &req);
 				}
 			}
 		});
-	// Ë∏¢‰∫∫ CLogicServer::close_socket
+	// Ãﬂ»À CLogicServer::close_socket
 	logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_KICK, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 		{
 			auto param = msg.get().as<ProtocolLS2LCKick>();
@@ -75,21 +82,27 @@ CObserverServer::CObserverServer()
 			}
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
-	});
+		});
 	package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-#if _DEBUG
+#ifdef _DEBUG
 		get_user_data_(session)->set_field("is_observer_client", true);
 		log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
 			session->remote_port());
 		ProtocolLC2LSAddObsSession req;
 		req.session_id = session->hash_key();
-		logic_client_->send(&req);
+		logic_client_->async_send(&req);
 		ProtocolOBS2OBCAuth auth;
 		auth.status = true;
-		send(session, &auth);
+		async_send(session, &auth);
 		ProtocolOBS2OBCQueryVmpExpire resp;
 		resp.vmp_expire = get_vmp_expire();
-		send(session, &resp);
+		async_send(session, &resp);
+		// ∑¢ÀÕ”––ß∆⁄»’∆⁄
+		session->start_timer("query_vmp_expire", 1000, 20, [this, resp, weak_session = std::weak_ptr(session)]() {
+			if (auto session = weak_session.lock()) {
+				async_send(session, &resp);
+			}
+			});
 		return;
 #else
 		auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
@@ -97,38 +110,44 @@ CObserverServer::CObserverServer()
 		if (auth_key == auth_ticket_)
 		{
 			get_user_data_(session)->set_field("is_observer_client", true);
-			log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
-				session->remote_port());
+			slog->debug(" ⁄»®π€≤Ï’ﬂøÕªß∂À≥…π¶ client_addr: {}:{}, session_id: {}",
+				session->remote_address(), session->remote_port(), session->hash_key());
 			ProtocolLC2LSAddObsSession req;
 			req.session_id = session->hash_key();
-			logic_client_->send(&req);
+			logic_client_->async_send(&req);
 			ProtocolOBS2OBCAuth auth;
 			auth.status = true;
-			send(session, &auth);
+			async_send(session, &auth);
 			ProtocolOBS2OBCQueryVmpExpire resp;
 			resp.vmp_expire = get_vmp_expire();
-			send(session, &resp);
+			async_send(session, &resp);
+			// ∑¢ÀÕ”––ß∆⁄»’∆⁄
+			session->start_timer("query_vmp_expire", 1000, 20, [this, resp, weak_session = std::weak_ptr(session)]() {
+				if (auto session = weak_session.lock()) {
+					async_send(session, &resp);
+				}
+			});
 		}
 		else
 		{
 			get_user_data_(session)->set_field("is_observer_client", false);
-			log(LOG_TYPE_ERROR, TEXT("observer client auth fail:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
-				session->remote_port());
+			slog->debug(" ⁄»®π€≤Ï’ﬂøÕªß∂À ß∞‹ client_addr: {}:{}, session_id: {}",
+				session->remote_address(), session->remote_port(), session->hash_key());
 			ProtocolOBS2OBCAuth auth;
 			auth.status = false;
-			send(session, &auth);
+			async_send(session, &auth);
 		}
 		std::wstring username = TEXT("(NULL)");
 		get_user_data_(session)->set_field("usrname", username);
 #endif
-		});
+	});
 
 	// Gate to Service
 	ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 		auto req = raw_msg.get().as<ProtocolOBC2OBSSend>();
-		send(sessions().find(req.package.head.session_id), req.package, session->hash_key());
+		async_send(sessions().find(req.package.head.session_id), req.package, session->hash_key());
 		});
-	// Ë∏¢‰∫∫ 
+	// Ãﬂ»À 
 	ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_KICK, [this](tcp_session_shared_ptr_t&, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 		auto req = raw_msg.get().as<ProtocolOBC2OBSKick>();
 		auto session = sessions().find(req.session_id);
@@ -141,22 +160,22 @@ CObserverServer::CObserverServer()
 		foreach_session([&resp](tcp_session_shared_ptr_t& session) {
 			ProtocolUserData _userdata;
 			auto user_data = get_user_data_(session);
-			if (user_data->has_handshake)
+			if (user_data->get_handshake())
 			{
 				_userdata.session_id = session->hash_key();
 				memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
-				_userdata.has_handshake = user_data->has_handshake;
+				_userdata.has_handshake = user_data->get_handshake();
 				_userdata.last_heartbeat_time = user_data->last_heartbeat_time;
 				_userdata.json = user_data->data;
 				resp.data.emplace(std::pair(_userdata.session_id, _userdata));
 			}
 			});
-		send(session, &resp);
-		});
+		async_send(session, &resp);
+	});
 	ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_UPDATE_LOGIC, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 		auto buf = raw_msg.get().as<ProtocolOBC2OBSUpdateLogic>().data;
 		ProtocolLC2LSClose req;
-		logic_client_->send(&req);
+		logic_client_->async_send(&req);
 		while (logic_client_->is_started())
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -186,30 +205,30 @@ CObserverServer::CObserverServer()
 			&pi);
 		if (res == FALSE)
 		{
-			log(LOG_TYPE_EVENT, TEXT("Êõ¥Êñ∞LogicServerÂ§±Ë¥•"));
+			log(LOG_TYPE_EVENT, TEXT("∏¸–¬LogicServer ß∞‹"));
 		}
 		else
 		{
-			log(LOG_TYPE_EVENT, TEXT("Êõ¥Êñ∞LogicServerÊàêÂäü"));
+			log(LOG_TYPE_EVENT, TEXT("∏¸–¬LogicServer≥…π¶"));
 		}
 		});
 	user_notify_mgr_.register_handler(CLIENT_HANDSHAKE_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
 		ProtocolLC2LSAddUsrSession req;
 		auto user_data = get_user_data_(session);
 		ProtocolUserData& _userdata = req.data;
-		if (user_data->has_handshake)
+		if (user_data->get_handshake())
 		{
 			_userdata.session_id = session->hash_key();
 			memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
-			_userdata.has_handshake = user_data->has_handshake;
+			_userdata.has_handshake = user_data->get_handshake();
 			_userdata.last_heartbeat_time = user_data->last_heartbeat_time;
 			_userdata.json = user_data->data;
-			logic_client_->send(&req);
+			logic_client_->async_send(&req);
 		}
 
 		});
 	user_notify_mgr_.register_handler(CLIENT_HEARTBEAT_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
-		if (get_user_data_(session)->get_field<bool>("is_observer_client"))
+		if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))
 			return;
 		ProtocolLC2LSSend req;
 		ProtocolC2SHeartBeat heartbeat;
@@ -221,59 +240,72 @@ CObserverServer::CObserverServer()
 		req.package.head = package.head;
 		req.package.body = package.body;
 		req.package.head.session_id = session->hash_key();
-		logic_client_->send(&req, package.head.session_id);
+		logic_client_->async_send(&req, package.head.session_id);
 		});
 }
 
 void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
 	super::on_post_disconnect(session);
-	if (get_user_data_(session)->get_field<bool>("is_observer_client"))
+
+	slog->debug("ºÏ≤‚µΩ¡¨Ω”∂œø™ client_addr: {}:{}, session_id: {}",
+		session->remote_address(), session->remote_port(), session->hash_key());
+
+	if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))
 	{
+		slog->debug("“∆≥˝π€≤Ï’ﬂsession session_id: {}", session->hash_key());
 		ProtocolLC2LSRemoveObsSession req;
 		req.session_id = session->hash_key();
-		logic_client_->send(&req);
+		logic_client_->async_send(&req);
 	}
+
+	slog->debug("“∆≥˝”√ªßsession session_id: {}", session->hash_key());
 	ProtocolLC2LSRemoveUsrSession req;
 	req.data.session_id = session->hash_key();
-	logic_client_->send(&req);
+	logic_client_->async_send(&req);
 }
-
+// ◊™∑¢µΩlogic_server
 bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
 {
+	//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
 	if (is_auth_success_ == false)
 	{
 		return true;
 	}
+
 	if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE)
 	{
-		ProtocolLC2LSSend req;
-		req.package = package;
-		req.package.head.session_id = session->hash_key();
-		logic_client_->send(&req, package.head.session_id);
-		return true;
+			// ◊™∑¢–ƒÃ¯∞¸µΩLogicServer
+			ProtocolLC2LSSend req;
+			req.package = package;
+			req.package.head.session_id = session->hash_key();
+			logic_client_->async_send(&req, package.head.session_id);
+			return true;
 	}
-	else if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END)
+
+	auto user_data = get_user_data_(session);
+	//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
+	auto is_observer_client = user_data->get_field<bool>("is_observer_client");
+	//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
+	if (!(is_observer_client.has_value() && is_observer_client.value()))
 	{
-		if (get_user_data_(session)->get_field<bool>("is_observer_client") == false)
-		{
-			log(LOG_TYPE_ERROR, TEXT("Êú™ÊéàÊùÉServiceË∞ÉÁî®"));
-			return false;
-		}
+		log(LOG_TYPE_ERROR, TEXT("Œ¥ ⁄»®Serviceµ˜”√"));
+		return false;
+	}
+
+	if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END)
+	{
+		//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
 		ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
+		//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
 		return true;
 	}
 	else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END)
 	{
-		if (get_user_data_(session)->get_field<bool>("is_observer_client") == false)
-		{
-			log(LOG_TYPE_ERROR, TEXT("Êú™ÊéàÊùÉLogicServerË∞ÉÁî®"));
-			return false;
-		}
 		ProtocolLC2LSSend req;
 		req.package = package;
 		req.package.head.session_id = session->hash_key();
-		logic_client_->send(&req, package.head.session_id);
+		logic_client_->async_send(&req, package.head.session_id);
 		return true;
 	}
 	return false;
@@ -285,12 +317,12 @@ void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned sh
 	{
 		if (logic_client_->start(ip, port))
 		{
-			printf("ËøûÊé•g_LogicServerÊàêÂäü\n");
+			printf("¡¨Ω”g_LogicServer≥…π¶\n");
 		}
 	}
 	catch (...)
 	{
-		printf("ËøûÊé•g_LogicServerÂ§±Ë¥•:ÈîôËØØÂè∑: %d, ÈîôËØØ‰ø°ÊÅØ: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
+		printf("¡¨Ω”g_LogicServer ß∞‹:¥ÌŒÛ∫≈: %d, ¥ÌŒÛ–≈œ¢: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
 	}
 }
 
@@ -301,10 +333,11 @@ void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, con
 	log.identify = identify;
 	log.silence = silence;
 	log.gm_show = gm_show;
+	log.punish_flag = punish_flag;
 	foreach_session([this, &log](tcp_session_shared_ptr_t& session) {
-		if (get_user_data_(session)->get_field<bool>("is_observer_client"))//adminÁΩëÂÖ≥
+		if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))//adminÕ¯πÿ
 		{
-			send(session, &log);
+			async_send(session, &log);
 		}
 		});
 }

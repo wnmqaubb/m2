@@ -1,4 +1,5 @@
 #pragma once
+#include "SubServicePackage.h"
 class CServerPluginMgr
 {
 public:

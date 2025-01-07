@@ -6,7 +6,7 @@ class CObserverClientImpl : public CObserverClient
 {
     using super = CObserverClient;
 public:
-    CObserverClientImpl(asio::io_service& io_, const std::string& auth_key);
+    CObserverClientImpl(asio::io_service& io_);
     virtual void log(int type, LPCTSTR format, ...) override;
     void OpenDocument(const std::wstring& path);
     using observer_package_type = std::function<void(unsigned int session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;

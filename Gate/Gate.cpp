@@ -143,14 +143,15 @@ BOOL CGateApp::InitInstance()
         ExitProcess(0);
         return FALSE;
     }
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+    auto observer_client_ = m_ObServerClientGroup.get_observer_client(kDefaultLocalhost, kDefaultServicePort);
+    observer_client_->start(kDefaultLocalhost, kDefaultServicePort);
+    observer_client_->set_auth_key(ReadAuthKey());
+    observer_client_->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
             GetMainFrame()->OnServiceCommand(ID_SERVICE_START);
         });
 });
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
+    observer_client_->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
             GetMainFrame()->OnServiceCommand(ID_SERVICE_STOP);
         });
@@ -532,8 +533,9 @@ void CGateApp::ConnectionLicenses()
             const std::string ip = licenses[i]["ip"];
             const std::string snhash = licenses[i]["snhash"];
             const int port = licenses[i].find("port") != licenses[i].end() ? licenses[i]["port"] : kDefaultServicePort;
-            m_ObServerClientGroup(ip, port)->start(ip, port);
-            m_ObServerClientGroup(ip, port)->set_auth_key(snhash);
+            auto observer_client = m_ObServerClientGroup.get_observer_client(ip, port);
+            observer_client->async_start(ip, port);
+            observer_client->set_auth_key(snhash);
         }
     }
     catch (...)

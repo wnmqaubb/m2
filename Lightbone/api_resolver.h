@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #define DEFINEAPI(x) decltype(&x) ##x
 #define CT_HASH(x) ApiResolver::GetValue<ApiResolver::hash(x)>::value

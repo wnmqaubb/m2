@@ -32,5 +32,6 @@
     <ClCompile Include="code_verify.cpp" />
     <ClCompile Include="peloader.cpp" />
     <ClCompile Include="..\3rdparty\rewolf-wow64ext\src\wow64ext.cpp" />
+    <ClCompile Include="logger.cpp" />
   </ItemGroup>
 </Project>

@@ -1,8 +1,27 @@
 ﻿#include "pch.h"
-#include "VmpSerialValidate.h"
 #include "3rdparty/vmprotect/VMProtectSDK.h"
+#include "NetUtils.h"
+#include "ObserverServer.h"
+#include "VmpSerialValidate.h"
+#include <algorithm>
+#include <asio2/base/error.hpp>
+#include <asio2/bho/beast/http/field.hpp>
+#include <asio2/bho/beast/http/verb.hpp>
+#include <asio2/http/detail/http_util.hpp>
+#include <asio2/http/http_client.hpp>
+#include <asio2/http/request.hpp>
 #include <asio2/util/base64.hpp>
 #include <asio2/util/sha1.hpp>
+#include <cstdint>
+#include <filesystem>
+#include <iosfwd>
+#include <stdexcept>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <vector>
+#include <WinNT.h>
+#include <WinUser.h>
 
 VmpSerialValidator::VmpSerialValidator(CObserverServer* ac_server)
 {

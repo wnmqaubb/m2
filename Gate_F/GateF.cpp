@@ -26,9 +26,21 @@ END_MESSAGE_MAP()
 
 
 // CGateFApp 构造
-
+std::shared_ptr<spdlog::logger> slog;
 CGateFApp::CGateFApp()
 {
+    slog = spdlog::basic_logger_mt("GateF_logger", "gatef_log.txt");
+    // 设置日志级别为调试
+#ifndef _DEBUG
+    spdlog::set_level(spdlog::level::debug);
+#else
+    spdlog::set_level(spdlog::level::warn);
+#endif
+    // 设置日志消息的格式模式
+    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
+    slog->flush_on(spdlog::level::warn);
+    spdlog::flush_every(std::chrono::seconds(3));
+
 	// 支持重新启动管理器
 	m_dwRestartManagerSupportFlags = AFX_RESTART_MANAGER_SUPPORT_RESTART;
 
@@ -119,14 +131,15 @@ BOOL CGateFApp::InitInstance()
         return FALSE;
     }
 
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+    auto observer_client_ = m_ObServerClientGroup.get_observer_client(kDefaultLocalhost, kDefaultServicePort);
+    observer_client_->async_start(kDefaultLocalhost, kDefaultServicePort);
+    observer_client_->set_auth_key(ReadAuthKey());
+    observer_client_->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
             GetMainFrame()->OnServiceCommand(ID_SERVICE_START);
             });
         });
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
+    observer_client_->get_gate_notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
             GetMainFrame()->OnServiceCommand(ID_SERVICE_STOP);
             });

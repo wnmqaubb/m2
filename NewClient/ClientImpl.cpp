@@ -107,7 +107,6 @@ void CClientImpl::init()
 
     register_notify_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("接收心跳"));
-        query_plugin_list_periodically();
     });
 
     start_plugin_list_timer();
@@ -158,6 +157,7 @@ void CClientImpl::send_handshake()
     handshake.rev_version = std::any_cast<int>(user_data().get_field(rev_version_field_id));
     handshake.commited_hash = std::any_cast<std::string>(user_data().get_field(commited_hash_field_id));
     handshake.pid = GetCurrentProcessId();
+    handshake.is_client = true;
     this->save_uuid(handshake);
     send(&handshake);
 }
@@ -170,6 +170,7 @@ void CClientImpl::start_heartbeat_timer()
         send(&heartbeat);
         log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
 
+        user_is_login();
         ProtocolC2SUpdateUsername req;
         req.username = cfg()->get_field<std::wstring>(usrname_field_id);
         send(&req);
@@ -181,13 +182,6 @@ void CClientImpl::query_plugin_list()
     ProtocolC2SQueryPlugin req;
     send(&req);
     log(LOG_TYPE_DEBUG, TEXT("查询插件列表"));
-}
-
-void CClientImpl::query_plugin_list_periodically()
-{
-    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
-        query_plugin_list();
-    });
 }
 
 void CClientImpl::start_plugin_list_timer()
@@ -206,6 +200,7 @@ void CClientImpl::initialize_user_data()
     user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
     user_data().set_field(rev_version_field_id, (int)REV_VERSION);
     user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
+    user_data().set_field(is_client_field_id, true);
 }
 
 void CClientImpl::handle_plugin_list_response(const msgpack::v1::object_handle& raw_msg)
@@ -335,23 +330,24 @@ bool CClientImpl::user_is_login() {
         if (window.class_name == L"tfrmmain")
         {
             g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
-            if (cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
+            
+            if (window.caption.find(L" - ") != std::wstring::npos)
             {                
-                cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
 
-                if (window.caption.find(L" - ") != std::wstring::npos)
+                if (cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                 {
-                    log(LOG_TYPE_DEBUG, TEXT("登录成功:%s"), window.caption.c_str());
-                    return true;
-                    //GameLocalFuntion::instance().call_sig_pattern();
-                    //GameLocalFuntion::instance().hook_init();
-                    /*static asio::steady_timer welcome_message_timer();
-                    welcome_message_timer.expires_after(std::chrono::seconds(20));
-                    welcome_message_timer.async_wait([](std::error_code ec) {
-                        GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
-                        GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
-                    });*/
+                    cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
                 }
+                //log(LOG_TYPE_DEBUG, TEXT("登录成功:%s"), window.caption.c_str());
+                //GameLocalFuntion::instance().call_sig_pattern();
+                //GameLocalFuntion::instance().hook_init();
+                /*static asio::steady_timer welcome_message_timer();
+                welcome_message_timer.expires_after(std::chrono::seconds(20));
+                welcome_message_timer.async_wait([](std::error_code ec) {
+                    GameLocalFuntion::instance().notice({ (DWORD)-1, 68, CONFIG_APP_NAME });
+                    GameLocalFuntion::instance().notice({ (DWORD)-1, 81, CONFIG_TITLE });
+                });*/
+                return true;
             }
         }
     }

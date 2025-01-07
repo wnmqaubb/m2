@@ -112,7 +112,7 @@ void CLogDlg::LogPrint(int type, LPCTSTR format, ...)
 				//AdjustHorzScroll(m_wndObserverClientLog);
 				break;
 			case ServiceLog:
-				theApp.GetMainFrame()->m_logs_dlg->m_obsc_service_dlg->AddLog(buf, RGB(5, 5, 255));
+				theApp.GetMainFrame()->m_logs_dlg->m_obsc_service_dlg->AddLog(buf, RGB(25, 25, 205));
 				//AdjustHorzScroll(m_wndServiceLog);
 				break;
 			case LogicServerLog:

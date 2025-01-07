@@ -25,7 +25,7 @@ CString get_current_date_str()
  * @param io_ 异步IO服务
  * @param auth_key 认证密钥
  */
-CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(auth_key), user_count_(0)
+CObserverClientImpl::CObserverClientImpl(asio::io_service& io_) : super(), user_count_(0)
 {
     // 初始化日志缓存目录
     std::error_code ec;

@@ -1,11 +1,37 @@
 ﻿#include "pch.h"
-#include <iostream>
+#include "NetUtils.h"
 #include "ObserverServer.h"
-
+#include <asio/detail/thread_group.hpp>
+#include <asio/executor_work_guard.hpp>
+#include <asio/io_service.hpp>
+#include <asio2/base/error.hpp>
+#include <chrono>
+#include <clocale>
+#include <cstdio>
+#include <memory>
+#include <string>
+#include <thread>
+#include <WinBase.h>
+#include <WinDef.h>
+#include <WinError.h>
+#include <WinNT.h>
 
 std::shared_ptr<asio::io_service> io = std::make_shared<asio::io_service>();
+std::shared_ptr<spdlog::logger> slog;
 int main(int argc, char** argv)
 {
+	slog = spdlog::basic_logger_mt("Service_logger", "service_log.txt");
+	// 设置日志级别为调试
+#ifndef _DEBUG
+	spdlog::set_level(spdlog::level::debug);
+#else
+	spdlog::set_level(spdlog::level::warn);
+#endif
+	// 设置日志消息的格式模式
+	spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
+	slog->flush_on(spdlog::level::warn);
+	spdlog::flush_every(std::chrono::seconds(3));
+
 	std::shared_ptr<asio::detail::thread_group> g_thread_group = std::make_shared<asio::detail::thread_group>();
 	std::shared_ptr<CObserverServer> server = std::make_shared<CObserverServer>();
 	auto hEvent = CreateMutex(NULL, FALSE, TEXT("mtx_service"));

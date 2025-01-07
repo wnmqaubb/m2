@@ -1,12 +1,12 @@
 #pragma once
-#include <memory>
+#include "api_resolver.h"
+#include <algorithm>
+#include <functional>
 #include <intrin.h>
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <map>
-#include <functional>
-#include <algorithm>
-#include "api_resolver.h"
 #define LIGHT_BONE_UTILS_HEADER_INCLUDE 1
 #define LIGHT_BONE_API __declspec(dllexport)
 #if 0

@@ -317,7 +317,7 @@ void CClientView::SendCurrentSelectedUserCommand(T* package)
         const size_t session_id = atoi(CT2A(m_ViewList.GetItemText(selectedRow, 1)));
         const std::string ip = CT2A(m_ViewList.GetItemText(selectedRow, 11));
         const int port = atoi(CT2A(m_ViewList.GetItemText(selectedRow, 12)));
-        theApp.m_ObServerClientGroup(ip, port)->send(session_id, package);
+        theApp.m_ObServerClientGroup.get_observer_client(ip, port)->send(session_id, package);
     }
     else
     {
@@ -333,7 +333,7 @@ void CClientView::SendCurrentSelectedUserServiceCommand(T* package)
     {
         const std::string ip = CT2A(m_ViewList.GetItemText(selectedRow, 11));
         const int port = atoi(CT2A(m_ViewList.GetItemText(selectedRow, 12)));
-        theApp.m_ObServerClientGroup(ip, port)->send(package);
+        theApp.m_ObServerClientGroup.get_observer_client(ip, port)->send(package);
     }
     else
     {
@@ -349,7 +349,7 @@ void CClientView::SendCurrentSelectedServiceCommand(T* package)
     {
         const std::string ip = CT2A(m_ServiceViewList.GetItemText(selectedRow, 2));
         const int port = atoi(CT2A(m_ServiceViewList.GetItemText(selectedRow, 3)));
-        theApp.m_ObServerClientGroup(ip, port)->send(package);
+        theApp.m_ObServerClientGroup.get_observer_client(ip, port)->send(package);
     }
 }
 void CClientView::OnQueryProcess()
@@ -879,7 +879,7 @@ void CClientView::OnServiceAllUploadCfg()
             {
                 ip = CT2A(m_ServiceViewList.GetItemText(row_index, 2));
                 port = atoi(CT2A(m_ServiceViewList.GetItemText(row_index, 3)));
-                theApp.m_ObServerClientGroup(ip, port)->send(&req);
+                theApp.m_ObServerClientGroup.get_observer_client(ip, port)->send(&req);
             }
         }
     }
@@ -1045,9 +1045,10 @@ void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
 		{
 			std::string ip = CT2A(m_ServiceViewList.GetItemText(nItem, 2));
 			int port = atoi(CT2A(m_ServiceViewList.GetItemText(nItem, 3)));
-			for (auto session_id : theApp.m_ObServerClientGroup(ip, port)->session_ids())
+            auto observer_client = theApp.m_ObServerClientGroup.get_observer_client(ip, port);
+			for (auto session_id : observer_client->session_ids())
 			{
-				theApp.m_ObServerClientGroup(ip, port)->send(session_id, package);
+                observer_client->send(session_id, package);
 			}
 		}
 	}

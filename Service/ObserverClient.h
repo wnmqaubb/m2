@@ -8,7 +8,7 @@ class CObserverClient : public CAntiCheatClient
 public:
     using super::send;
     using super::async_send;
-    CObserverClient(const std::string& auth_key) : auth_key_(auth_key), is_auth_(false)
+    CObserverClient() : is_auth_(false)
     {
         package_mgr_.register_handler(OBPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
             auto req = msg.get().as<ProtocolOBS2OBCSetField>();

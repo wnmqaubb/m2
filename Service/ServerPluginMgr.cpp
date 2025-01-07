@@ -1,6 +1,29 @@
 ﻿#include "pch.h"
 #include "LogicServer.h"
 #include "ServerPluginMgr.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <iosfwd>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <shared_mutex>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+#include <msgpack/v1/object_fwd.hpp>
+#include <msgpack/v1/pack.hpp>
+#include <msgpack/v1/sbuffer.hpp>
+#include <msgpack/v3/unpack.hpp>
+#include "NetUtils.h"
+#include "Protocol.h"
+#include "SubServicePackage.h"
 
 RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash)
 {

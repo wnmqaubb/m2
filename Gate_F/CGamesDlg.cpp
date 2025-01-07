@@ -1,4 +1,4 @@
-﻿// GamesDlg.cpp: 实现文件
+﻿﻿// GamesDlg.cpp: 实现文件
 //
 
 #include "pch.h"
@@ -9,10 +9,63 @@
 // GamesDlg 对话框
 IMPLEMENT_DYNAMIC(CGamesDlg, CDialogEx)
 
+// 使用静态原子计数，线程安全
+static std::atomic<size_t> szUserCount{ 0 }; 
+extern std::shared_ptr<spdlog::logger> slog;
 CGamesDlg::CGamesDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_DIALOG_GAMES, pParent)
 {
+    theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS,
+        [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
+        {
+            try {
+                auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryUsers>();
+                // 优化2：使用异步任务处理数据
+                theApp.m_WorkIo.post([this, msg = std::move(msg), client]() {
+                    // 重置客户端用户数据
+                    client->set_user_count(0);
+                    client->session_ids().clear();
 
+                    // 优化3：批量更新列表
+                    m_list_games.SetRedraw(FALSE); // 禁用重绘
+                    m_list_games.DeleteAllItems();
+
+                    CTime tCur(time(0));
+                    for (const auto& [session_id, user_data] : msg.data)
+                    {
+                        const auto& json_data = user_data.json;
+
+                        // 跳过观察者客户端
+                        if (json_data.contains("is_observer_client") && json_data["is_observer_client"].get<bool>()
+                            && json_data.contains("is_client") && !json_data["is_client"].get<bool>())
+                        {
+                            continue;
+                        }
+
+                        // 更新客户端用户计数
+                        client->set_user_count(client->get_user_count() + 1);
+                        client->session_ids().insert(session_id);
+                        szUserCount++;
+
+                        // 添加列表项
+                        AddUserToList(client, session_id, json_data, tCur);
+                    }
+
+                    m_list_games.SetRedraw(TRUE); // 启用重绘
+                    m_list_games.Invalidate();
+
+                    // 更新状态栏
+                    theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT,
+                        std::to_wstring(szUserCount).c_str());
+                    });
+            }
+            catch (const std::exception& e) {
+                // 优化4：添加错误处理
+                CString errMsg;
+                errMsg.Format(_T("处理用户数据时发生错误: %s"), CA2T(e.what()));
+                AfxMessageBox(errMsg);
+            }
+        });
 }
 
 CGamesDlg::~CGamesDlg()
@@ -124,69 +177,67 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
 
 void CGamesDlg::OnRefreshUsers()
 {
-	static size_t szUserCount = 0;	
-	theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
-		{
-			auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryUsers>();
-			theApp.m_WorkIo.post([this, msg, client]() {
-				client->set_user_count(0);
-				client->session_ids().clear();
-				CTime tCur(time(0));
-				for (auto& user_data : msg.data)
-				{
-					auto json_data = user_data.second.json;
-					if (json_data.find("is_observer_client") != json_data.end())
-					{
-						bool is_observer_client = json_data["is_observer_client"];
-						if (is_observer_client)
-						{
-							continue;
-						}
-					}
-					client->set_user_count(client->get_user_count() + 1);
-					client->session_ids().emplace(user_data.second.session_id);
-					szUserCount++;
-					int rowNum = m_list_games.GetItemCount();
-					int colIndex = 0;
+    szUserCount = 0;
 
-					CString temp;
-					temp.Format(_T("%d"), rowNum + 1);
-					m_list_games.InsertItem(rowNum, _T(""));
-					//////
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
-					temp.Format(_T("%u"), user_data.second.session_id);
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
-					std::wstring username = json_data.find("usrname") == json_data.end() ? TEXT("(NULL)") : json_data["usrname"];
-					m_list_games.SetItemText(rowNum, colIndex++, username.c_str()); 
-					std::string ip = json_data["ip"];
-					m_list_games.SetItemText(rowNum, colIndex++, CA2T(ip.c_str()));
+    // 重置计数
+    m_list_games.DeleteAllItems();
 
-					std::wstring cpuid = json_data["cpuid"];
-					std::wstring mac = json_data["mac"];
-					std::wstring vol = json_data["vol"];
-					temp.Format(_T("%s|%s|%s"), cpuid.c_str(),
-						mac.c_str(),
-						vol.c_str());
-					int sysver = json_data["sysver"];
-					int is_64bits = json_data["64bits"];
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
-					m_list_games.SetItemText(rowNum, colIndex++, GetSystemDesc(sysver, is_64bits));
-					time_t tm = json_data["logintime"];
-					CTime t(tm);
-					m_list_games.SetItemText(rowNum, colIndex++, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
-					auto tDelta = tCur - t;
-					temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
-					m_list_games.SetItemText(rowNum, colIndex++, temp);
-					m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-					m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
-				}
-				theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
-				});
-		});
-	m_list_games.DeleteAllItems();
-	szUserCount = 0;
-	ProtocolOBC2OBSQueryUsers req;
-	theApp.m_ObServerClientGroup.async_send(&req);
+    // 发送查询请求
+    ProtocolOBC2OBSQueryUsers req;
+    theApp.m_ObServerClientGroup.async_send(&req);
+}
+
+// 新增辅助函数：添加用户到列表
+void CGamesDlg::AddUserToList(std::shared_ptr<CObserverClientImpl> client,const unsigned int session_id, const nlohmann::json& json_data, const CTime& tCur)
+{
+    int rowNum = m_list_games.GetItemCount();
+    int colIndex = 0;
+
+    // 插入新行
+    m_list_games.InsertItem(rowNum, _T(""));
+
+    // 设置各项数据
+    CString temp;
+    temp.Format(_T("%d"), rowNum + 1);
+    m_list_games.SetItemText(rowNum, colIndex++, temp);
+
+    // 设置session ID
+    temp.Format(_T("%u"), session_id);
+    m_list_games.SetItemText(rowNum, colIndex++, temp);
+
+    // 设置用户名
+    std::wstring username = json_data.value<std::wstring>("usrname", TEXT("(NULL)"));
+    m_list_games.SetItemText(rowNum, colIndex++, username.c_str());
+
+    // 设置IP地址
+    std::string ip = json_data["ip"];
+    m_list_games.SetItemText(rowNum, colIndex++, CA2T(ip.c_str()));
+
+    // 设置硬件信息
+    std::wstring cpuid = json_data["cpuid"];
+    std::wstring mac = json_data["mac"];
+    std::wstring vol = json_data["vol"];
+    temp.Format(_T("%s|%s|%s"), cpuid.c_str(), mac.c_str(), vol.c_str());
+    m_list_games.SetItemText(rowNum, colIndex++, temp);
+
+    // 设置系统信息
+    int sysver = json_data["sysver"];
+    int is_64bits = json_data["64bits"];
+    m_list_games.SetItemText(rowNum, colIndex++, GetSystemDesc(sysver, is_64bits));
+
+    // 设置登录时间
+    time_t tm = json_data["logintime"];
+    CTime t(tm);
+    m_list_games.SetItemText(rowNum, colIndex++, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
+
+    // 设置在线时长
+    auto tDelta = tCur - t;
+    temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
+    m_list_games.SetItemText(rowNum, colIndex++, temp);
+
+    // 设置客户端地址和端口
+    m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
+    m_list_games.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
 }
 
 void CGamesDlg::OnQueryProcess()
@@ -247,13 +298,6 @@ void CGamesDlg::SendCurrentSelectedUserCommand(T* package)
             return;
         }
 
-        // 检查 ip 是否为空
-        if (ip.IsEmpty())
-        {
-            AfxMessageBox(TEXT("IP 地址不能为空!"), MB_OK);
-            return;
-        }
-
         // 检查 port 是否为空或无效
         int port = 0;
         if (port_str.IsEmpty() || !_stscanf_s(port_str, _T("%d"), &port))
@@ -261,8 +305,8 @@ void CGamesDlg::SendCurrentSelectedUserCommand(T* package)
             AfxMessageBox(TEXT("无效的端口号!"), MB_OK);
             return;
         }
-		const std::string s_ip = CT2A(ip);
-        theApp.m_ObServerClientGroup(s_ip, port)->async_send(session_id, package);
+		std::string s_ip(ip.IsEmpty() ? kDefaultLocalhost.c_str() : CT2A(ip));
+        theApp.m_ObServerClientGroup.get_observer_client(s_ip, port)->async_send(session_id, package);
     }
     else
     {

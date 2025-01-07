@@ -7,7 +7,7 @@ class CObserverClientGroupImpl
 public:
     CObserverClientGroupImpl();
     ~CObserverClientGroupImpl();
-    std::shared_ptr<CObserverClientImpl> operator ()(const std::string& ip, unsigned short port);
+    std::shared_ptr<CObserverClientImpl> get_observer_client(const std::string& ip, unsigned short port);
     void create_threads(int count = 1);
     void stop();
     void register_package_handler(unsigned int package_id, package_handler_t handler);
@@ -41,10 +41,12 @@ public:
     void async_send(T* req)
     {
         std::shared_lock<std::shared_mutex> lck(mtx_);
+        slog->debug(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
         for (auto[address, client] : group_)
         {
             client->async_send(std::move(req));
         }
+        slog->debug(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
     }
 
 };

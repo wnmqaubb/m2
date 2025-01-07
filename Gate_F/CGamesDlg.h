@@ -44,4 +44,6 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 	void OnRefreshUsers();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	void AddUserToList(std::shared_ptr<CObserverClientImpl> client, const unsigned int session_id,
+		const nlohmann::json& json_data, const CTime& tCur);
 };

@@ -219,9 +219,10 @@ struct ProtocolOBS2OBCLogPrint : ProtocolBase<OBPKG_ID_S2C_LOG>
 {
     std::wstring text;
     bool silence = false;
-    bool gm_show = false;
     std::string identify;
-    MSGPACK_DEFINE(package_id, text, silence, gm_show, identify);
+    bool gm_show = false;
+    bool punish_flag = false;
+    MSGPACK_DEFINE(package_id, text, silence, identify, gm_show, punish_flag);
 };
 
 struct ProtocolLC2LSRemoveObsSession : ProtocolBase<LSPKG_ID_C2S_REMOVE_OBS_SESSION>

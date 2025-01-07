@@ -9,6 +9,7 @@ public:
     CLogicClient()
     {
         notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+            // 本地客户端logic_server,service，不检测握手，心跳，只分发协议
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
             send(&handshake);

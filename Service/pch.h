@@ -7,6 +7,8 @@
 #include <asio2\util\uuid.hpp>
 #include <msgpack.hpp>
 #include <json/json.hpp>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 using json = nlohmann::json;
 
 namespace Utils

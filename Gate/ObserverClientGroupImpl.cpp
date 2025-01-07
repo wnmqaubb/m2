@@ -16,7 +16,7 @@ CObserverClientGroupImpl::~CObserverClientGroupImpl()
     }
 }
 
-std::shared_ptr<CObserverClientImpl> CObserverClientGroupImpl::operator()(const std::string& ip, unsigned short port)
+std::shared_ptr<CObserverClientImpl> CObserverClientGroupImpl::get_observer_client(const std::string& ip, unsigned short port)
 {
     auto address = ip + ":" + std::to_string(port);
     std::shared_ptr<CObserverClientImpl> client;
@@ -35,7 +35,7 @@ std::shared_ptr<CObserverClientImpl> CObserverClientGroupImpl::operator()(const 
         it = group_.find(address); // 再次检查，避免竞态条件
         if (it == group_.end())
         {
-            client = std::make_shared<CObserverClientImpl>(io_, asio2::md5(ip + ",./;").str());
+            client = std::make_shared<CObserverClientImpl>(io_);
             group_[address] = client;
         }
         else

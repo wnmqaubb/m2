@@ -49,6 +49,7 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
     int rev_version = 0;
     std::string commited_hash = "";
     unsigned int pid = 0;
+    bool is_client = false;
     static std::unique_ptr<ProtocolC2SHandShake> load(const char* buf, size_t len)
     {
         RawProtocolImpl raw_msg;
@@ -92,7 +93,8 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
         volume_serial_number,
         rev_version,
         commited_hash,
-        pid);
+        pid,
+        is_client);
 };
 
 struct ProtocolS2CHandShake : ProtocolBase<PKG_ID_S2C_HANDSHAKE>

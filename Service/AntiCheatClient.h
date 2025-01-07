@@ -1,12 +1,13 @@
 ﻿#pragma once
 
-#include "Protocol.h"
+#include "Lightbone/utils.h"
 #include "NetUtils.h"
+#include "Protocol.h"
 #include "ServicePackage.h"
 #include "SubServicePackage.h"
+#include <asio2/util/uuid.hpp>
 #include <filesystem>
 #include <fstream>
-#include "Lightbone/utils.h"
 
 //using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
 
@@ -27,34 +28,84 @@ public:
         package_mgr_.register_handler(PKG_ID_S2C_HEARTBEAT, std::bind(&CAntiCheatClient::on_recv_heartbeat, this, std::placeholders::_1, std::placeholders::_2));
 	}
 
-	virtual bool start(const std::string& ip, unsigned short port)
-	{
-        if (super::start(ip, port, RawProtocolImpl())) {
-            is_stop_ = false;
-            ip_ = ip;
-            port_ = std::to_string(port);
-            notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-            return true;
+    virtual bool start(const std::string ip, unsigned short port)
+    {
+        // 参数验证
+        if (ip.empty() || port == 0) {
+            log(LOG_TYPE_ERROR, L"Invalid connection parameters: IP=%s, Port=%u", Utils::String::c2w(ip).c_str(), port);
+            return false;
         }
-        return false;
-	}
 
-	virtual bool async_start(const std::string& ip, unsigned short port)
-	{
-		if (super::async_start(ip, port, RawProtocolImpl())) {
-			is_stop_ = false;
-			ip_ = ip;
-			port_ = std::to_string(port);
-			notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-			return true;
-		}
-		return false;
-	}
+        // 防止重复启动
+        std::lock_guard<std::mutex> lock(start_mutex_);
+
+        try {
+
+            // 异步启动连接，使用lambda捕获上下文
+            if (super::start(ip, port, RawProtocolImpl())) {
+                // 原子操作确保线程安全
+                is_stop_.store(false, std::memory_order_release);
+
+                // 记录连接信息
+                ip_ = ip;
+                port_ = std::to_string(port);
+			    notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+
+                return true;
+            }
+        }
+        catch (const std::exception& e) {
+            // 异常处理
+            log(LOG_TYPE_ERROR, L"Async start failed: %s", Utils::String::c2w(e.what()).c_str());
+
+            // 通知连接失败
+            notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
+        }
+
+        return false;
+    }
+
+    virtual bool async_start(const std::string ip, unsigned short port)
+    {
+        // 参数验证
+        if (ip.empty() || port == 0) {
+            log(LOG_TYPE_ERROR,L"Invalid connection parameters: IP=%s, Port=%u", Utils::String::c2w(ip).c_str(), port);
+            return false;
+        }
+
+        // 防止重复启动
+        std::lock_guard<std::mutex> lock(start_mutex_);
+
+        try {
+            
+            // 异步启动连接，使用lambda捕获上下文
+            if (super::async_start(ip, port, RawProtocolImpl())) {
+                // 原子操作确保线程安全
+                is_stop_.store(false, std::memory_order_release);
+
+                // 记录连接信息
+                ip_ = ip;
+                port_ = std::to_string(port);
+			    notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+
+                return true;
+            }
+        }
+        catch (const std::exception& e) {
+            // 异常处理
+            log(LOG_TYPE_ERROR, L"Async start failed: %s", Utils::String::c2w(e.what()).c_str());
+
+            // 通知连接失败
+            notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
+        }
+
+        return false;
+    }   
 
     virtual void stop()
     {
         super::stop();
-        is_stop_ = true;
+        is_stop_.store(true, std::memory_order_release);
     }
 
 	virtual void on_connect()
@@ -75,7 +126,6 @@ public:
         if (is_stop_ == false)
         {
             stop_timer<int>(CLIENT_HEARTBEAT_TIMER_ID);
-
         }
         notify_mgr_.dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
 	}
@@ -303,13 +353,14 @@ protected:
     std::chrono::system_clock::duration reconnect_duration_;
 	std::chrono::system_clock::duration heartbeat_duration_;
 	std::chrono::system_clock::time_point last_recv_hearbeat_time_;
-    bool has_handshake_ = false;
 	asio2::uuid uuid_;
-    bool is_stop_ = true;
     NetUtils::UsersData user_data_;
     NetUtils::EventMgr<package_handler_t> package_mgr_;
     NetUtils::EventMgr<notify_handler_t> notify_mgr_;
     std::unique_ptr<ProtocolCFGLoader> cfg_;
 	unsigned char step_ = 0;
 	std::string ip_;
+    std::mutex start_mutex_;
+    std::atomic<bool> has_handshake_{ false };
+    std::atomic<bool> is_stop_{ true };
 };
