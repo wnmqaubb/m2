@@ -538,3 +538,30 @@ void GameLocalFuntion::decode_message_packet_after(LightHook::Context& ctx)
 	set_old_spell_speed_interval(t6);
 	VMP_VIRTUALIZATION_END();
 }
+
+// 自定义函数，用于居中显示MessageBoxW
+void GameLocalFuntion::center_messagebox(HWND hParent, const char* lpText, const char* lpCaption, UINT uType) {
+	// 显示消息框并获取其返回值
+	//int result = ::MessageBoxA(hParent, lpText, lpCaption, uType);
+	//if (!hParent) return;
+
+	//// 获取父窗口的位置和大小
+	//RECT parentRect;
+	//::GetWindowRect(hParent, &parentRect);
+
+	//// 获取消息框的句柄
+	//HWND hMessageBox = ::FindWindowA("#32770", lpCaption);
+
+	//if (hMessageBox) {
+	//	// 获取消息框的位置和大小
+	//	RECT msgBoxRect;
+	//	::GetWindowRect(hMessageBox, &msgBoxRect);
+
+	//	// 计算消息框应该显示的位置
+	//	int x = (parentRect.left + parentRect.right - msgBoxRect.right + msgBoxRect.left) / 2;
+	//	int y = (parentRect.top + parentRect.bottom - msgBoxRect.bottom + msgBoxRect.top) / 2;
+
+	//	// 移动消息框到计算出的位置
+	//	::SetWindowPos(hMessageBox, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+	//}
+}

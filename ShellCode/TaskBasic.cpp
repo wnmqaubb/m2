@@ -157,7 +157,6 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
         InitImageProtectCheck(client);
     }
 #endif
-
 	InitRmc(client);
 	InitTimeoutCheck(client);
 	InitJavaScript(client);
@@ -182,8 +181,8 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
 	{
 	case PunishType::ENM_PUNISH_TYPE_KICK:
     {
-		g_game_io->post([]() {
-			VMP_VIRTUALIZATION_BEGIN();
+		VMP_VIRTUALIZATION_BEGIN();
+		std::thread([]() {
             std::error_code ec;
             std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5 + 5));
             Utils::CWindows::instance().exit_process();
@@ -193,9 +192,9 @@ void on_recv_punish(CAntiCheatClient* client, const RawProtocolImpl& package, co
             Utils::CWindows::instance().exit_process();
             exit(-1);
             abort();
-			VMP_VIRTUALIZATION_END();
-		});
-		GameLocalFuntion::instance().messagebox_call(xorstr("封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚"));
+		}).detach();
+		VMP_VIRTUALIZATION_END();
+		GameLocalFuntion::instance().messagebox_call(xorstr("封挂提示：请勿开挂进行游戏！！否则有封号拉黑风险处罚"));
 		break;
 	}
 	default:

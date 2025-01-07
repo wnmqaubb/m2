@@ -48,6 +48,7 @@ public:
     void action_id_hook(LightHook::Context ctx);
     void decode_message_packet_before(LightHook::Context& ctx);
     void decode_message_packet_after(LightHook::Context& ctx);
+    void center_messagebox(HWND hParent, const char* lpText, const char* lpCaption, UINT uType);
     void call_sig_pattern();
 
     int32_t get_old_move_speed()
