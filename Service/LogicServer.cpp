@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 {
     slog = spdlog::basic_logger_mt("logic_logger", "logic_log.txt");
     // 设置日志级别为调试
-#ifndef _DEBUG
+#ifdef _DEBUG
     spdlog::set_level(spdlog::level::debug);
 #else
     spdlog::set_level(spdlog::level::warn);
