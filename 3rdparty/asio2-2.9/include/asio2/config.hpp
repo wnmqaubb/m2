@@ -46,5 +46,5 @@
 // If the ASIO_NO_EXCEPTIONS is defined, you can impl the throw_exception function by youself,
 // see: /asio2/external/asio.hpp
 //#define ASIO_NO_EXCEPTIONS
-
+//#define ASIO2_ENABLE_LOG
 #endif // !__ASIO2_CONFIG_HPP__
