@@ -19,6 +19,8 @@
 #include <iostream>
 #include <afxext.h>
 #include <afxcontrolbars.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 using json = nlohmann::json;
 
