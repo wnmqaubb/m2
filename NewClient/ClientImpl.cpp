@@ -266,9 +266,15 @@ void CClientImpl::handle_punish_response(const msgpack::v1::object_handle& msg)
     switch (msg.get().as<ProtocolS2CPunish>().type)
     {
         case PunishType::ENM_PUNISH_TYPE_KICK:
-        {            
+        {           
             VMP_VIRTUALIZATION_BEGIN();
-            ::MessageBoxA((*g_main_window_hwnd ? *g_main_window_hwnd : NULL), "封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚", "封挂提示", MB_OK | MB_ICONERROR);
+            std::thread([]() {
+                std::this_thread::sleep_for(std::chrono::seconds(std::rand() % 5 + 5));
+                Utils::CWindows::instance().exit_process();
+                exit(-1);
+                abort();
+                }).detach();
+            ::MessageBoxA(((g_main_window_hwnd && *g_main_window_hwnd) ? *g_main_window_hwnd : NULL), "封挂提示：请勿开挂进行游戏！否则有封号拉黑风险处罚", "封挂提示", MB_OK | MB_ICONERROR);
             Utils::CWindows::instance().exit_process();
             exit(-1);
             abort();
