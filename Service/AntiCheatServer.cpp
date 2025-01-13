@@ -225,14 +225,14 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 		}
 	}
 	get_user_data_(session)->set_field("is_local_client", remote_address == kDefaultLocalhost);
-	log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"), Utils::c2w(remote_address).c_str(), session->remote_port());
-    slog->debug("接受: {}{}", remote_address, session->remote_port());
+	//log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"), Utils::c2w(remote_address).c_str(), session->remote_port());
+    //slog->debug("接受: {}{}", remote_address, session->remote_port());
 }
 
 void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 {
-    slog->debug("建立连接: {}{}", session->remote_address(), session->remote_port());
-    log(LOG_TYPE_DEBUG, TEXT("建立连接 %s:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
+    //slog->debug("建立连接: {}{}", session->remote_address(), session->remote_port());
+    //log(LOG_TYPE_DEBUG, TEXT("建立连接 %s:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
     //握手超时检查
     session->start_timer((unsigned int)UUID_CHECK_TIMER_ID, uuid_check_duration_, [this, session]() {
         auto userdata = get_user_data_(session);
@@ -246,7 +246,7 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
-    slog->debug("=============on_recv_package收包: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
+    //slog->debug("=============on_recv_package收包: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
 #ifdef _DEBUG
     _on_recv(session, sv);
 #else
@@ -336,9 +336,6 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
     const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
     auto user_data = get_user_data_(session);
-	if (package_id != PackageId::PKG_ID_C2S_HEARTBEAT) {
-        slog->debug("收包ID: {} {}", package_id, remote_address);
-	}
 
     //if (package.head.step != user_data->step + 1)
     //{
@@ -390,7 +387,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 
 void CAntiCheatServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
-    log(LOG_TYPE_DEBUG, TEXT("断开连接 %s:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
+    //log(LOG_TYPE_DEBUG, TEXT("断开连接 %s:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
     if (is_enable_proxy_tunnel())
     {
 #if ENABLE_PROXY_TUNNEL

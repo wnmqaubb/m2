@@ -5,6 +5,8 @@
 
 using namespace Utils;
 
+#define LOG_SHOW
+
 #ifdef LOG_SHOW
 #define log(LOG_TYPE,x,...) log(LOG_TYPE, x, __VA_ARGS__ )
 #else
@@ -83,6 +85,9 @@ void CClientImpl::client_start_routine()
 void CClientImpl::init()
 {
     log(LOG_TYPE_DEBUG, TEXT("===client init==="));
+#ifdef _DEBUG
+    cfg()->set_field<std::wstring>(usrname_field_id, L"测试");
+#endif
     plugin_mgr_ = std::make_unique<CClientPluginMgr>(cache_dir_);
     plugin_mgr_->set_client_instance(this);
 

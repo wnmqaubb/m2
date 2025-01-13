@@ -223,7 +223,7 @@ CLogicServer::CLogicServer()
             auto user_data = usr_sessions_mgr().get_user_data(req.data.session_id);
             if (user_data) {
                 std::wstring json_dump = Utils::c2w(user_data->json.dump());
-                user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("建立连接:%s"), json_dump.c_str());
+                //user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("建立连接:%s"), json_dump.c_str());
             }
 
             // 白名单用户不检测心跳和策略

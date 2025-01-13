@@ -10,7 +10,7 @@ CObserverServer::CObserverServer()
 	is_observer_server_ = true;
 	set_log_cb(std::bind(&CObserverServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 	logic_client_->sub_notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-		slog->info("LogicClient重连后同步session");
+		//slog->info("LogicClient重连后同步session");
 		
 		foreach_session([this](tcp_session_shared_ptr_t& session) {
 			auto user_data = get_user_data_(session);
@@ -24,7 +24,7 @@ CObserverServer::CObserverServer()
 				}
 				else
 				{
-					slog->debug("添加用户session session_id: {}", session->hash_key());
+					//slog->debug("添加用户session session_id: {}", session->hash_key());
 					ProtocolLC2LSAddUsrSession req;
 					auto& _userdata = req.data;
 					_userdata.session_id = session->hash_key();
@@ -248,18 +248,17 @@ void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
 	super::on_post_disconnect(session);
 
-	slog->debug("检测到连接断开 client_addr: {}:{}, session_id: {}",
-		session->remote_address(), session->remote_port(), session->hash_key());
+	//slog->debug("检测到连接断开 client_addr: {}:{}, session_id: {}", session->remote_address(), session->remote_port(), session->hash_key());
 
 	if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))
 	{
-		slog->debug("移除观察者session session_id: {}", session->hash_key());
+		//slog->debug("移除观察者session session_id: {}", session->hash_key());
 		ProtocolLC2LSRemoveObsSession req;
 		req.session_id = session->hash_key();
 		logic_client_->async_send(&req);
 	}
 
-	slog->debug("移除用户session session_id: {}", session->hash_key());
+	//slog->debug("移除用户session session_id: {}", session->hash_key());
 	ProtocolLC2LSRemoveUsrSession req;
 	req.data.session_id = session->hash_key();
 	logic_client_->async_send(&req);

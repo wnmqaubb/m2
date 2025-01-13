@@ -78,33 +78,9 @@ BOOL CGateFApp::InitInstance()
         PROCESS_INFORMATION pi = {};
         const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
 
-        path = path / "g_LogicServer.exe";
-        std::string strLogicServerCmdline = path.string() + strCmdLine;
-        BOOL res = CreateProcessA(NULL,
-            (char*)strLogicServerCmdline.c_str(),
-            0,
-            0,
-            FALSE,
-            NORMAL_PRIORITY_CLASS,
-            NULL,
-            m_ExeDir,
-            &si,
-            &pi);
-        if (res == FALSE)
-        {
-            if(si.wShowWindow == SW_SHOW)
-            {
-                DWORD error = GetLastError();
-                CString errorMessage;
-                errorMessage.Format(TEXT("启动LogicServer失败，错误码: %d"), error);
-                AfxMessageBox(errorMessage);
-            }
-        }
-        pHandles[1] = pi.hProcess;
-
-        path = path.parent_path() / "g_Service.exe";
+        path = path / "g_Service.exe";
         std::string strServiceCmdline = path.string() + strCmdLine;
-        res = CreateProcessA(NULL,
+        BOOL res = CreateProcessA(NULL,
             (char*)strServiceCmdline.c_str(),
             0,
             0,
@@ -125,6 +101,30 @@ BOOL CGateFApp::InitInstance()
             }
         }
         pHandles[0] = pi.hProcess;
+
+        path = path.parent_path() / "g_LogicServer.exe";
+        std::string strLogicServerCmdline = path.string() + strCmdLine;
+        res = CreateProcessA(NULL,
+            (char*)strLogicServerCmdline.c_str(),
+            0,
+            0,
+            FALSE,
+            NORMAL_PRIORITY_CLASS,
+            NULL,
+            m_ExeDir,
+            &si,
+            &pi);
+        if (res == FALSE)
+        {
+            if (si.wShowWindow == SW_SHOW)
+            {
+                DWORD error = GetLastError();
+                CString errorMessage;
+                errorMessage.Format(TEXT("启动LogicServer失败，错误码: %d"), error);
+                AfxMessageBox(errorMessage);
+            }
+        }
+        pHandles[1] = pi.hProcess;
 
         WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
         ExitProcess(0);

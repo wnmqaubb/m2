@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "CreateProcessHook.h"
 #include <Lightbone/windows_internal.h>
 #include <Lightbone/utils.h>
@@ -84,121 +84,121 @@ namespace HookProc
     }
 
     /**
-     * @brief »Ö¸´Ïß³ÌµÄ¹³×Óº¯Êı
+     * @brief æ¢å¤çº¿ç¨‹çš„é’©å­å‡½æ•°
      * 
-     * ¸Ãº¯ÊıÊÇResumeThreadµÄ¹³×Óº¯Êı£¬ÓÃÓÚÔÚ»Ö¸´Ïß³ÌÊ±Ö´ĞĞÒ»Ğ©¶îÍâµÄ²Ù×÷¡£
+     * è¯¥å‡½æ•°æ˜¯ResumeThreadçš„é’©å­å‡½æ•°ï¼Œç”¨äºåœ¨æ¢å¤çº¿ç¨‹æ—¶æ‰§è¡Œä¸€äº›é¢å¤–çš„æ“ä½œã€‚
      * 
-     * @param thread_handle Ïß³Ì¾ä±ú
-     * @return ·µ»ØÖµ±íÊ¾²Ù×÷ÊÇ·ñ³É¹¦
+     * @param thread_handle çº¿ç¨‹å¥æŸ„
+     * @return è¿”å›å€¼è¡¨ç¤ºæ“ä½œæ˜¯å¦æˆåŠŸ
      */
     DWORD WINAPI ResumeThread(HANDLE thread_handle)
     {
         VMP_VIRTUALIZATION_BEGIN();
-        // ÉèÖÃ×îºóÒ»¸ö´íÎóÂëÎªERROR_SUCCESS£¬±íÊ¾²Ù×÷³É¹¦
+        // è®¾ç½®æœ€åä¸€ä¸ªé”™è¯¯ç ä¸ºERROR_SUCCESSï¼Œè¡¨ç¤ºæ“ä½œæˆåŠŸ
         SetLastError(ERROR_SUCCESS);
-        // ¼ì²éµ±Ç°µØÖ·ÊÇ·ñÔÚÄ£¿éÄÚ£¬Èç¹ûÊÇÔò·µ»ØFALSE
+        // æ£€æŸ¥å½“å‰åœ°å€æ˜¯å¦åœ¨æ¨¡å—å†…ï¼Œå¦‚æœæ˜¯åˆ™è¿”å›FALSE
         FUNCTION_CHECK();
-        // Èç¹ûµ±Ç°½ø³Ì¾ä±ú¡¢Ö÷Ïß³Ì¾ä±úºÍ´«ÈëµÄÏß³Ì¾ä±ú¶¼ÓĞĞ§£¬²¢ÇÒ´«ÈëµÄÏß³Ì¾ä±úµÈÓÚÖ÷Ïß³Ì¾ä±ú
+        // å¦‚æœå½“å‰è¿›ç¨‹å¥æŸ„ã€ä¸»çº¿ç¨‹å¥æŸ„å’Œä¼ å…¥çš„çº¿ç¨‹å¥æŸ„éƒ½æœ‰æ•ˆï¼Œå¹¶ä¸”ä¼ å…¥çš„çº¿ç¨‹å¥æŸ„ç­‰äºä¸»çº¿ç¨‹å¥æŸ„
         if (process_handle && main_thread_handle && thread_handle == main_thread_handle)
         {
-            // µ¼Èëkernel32.dllÖĞµÄGetThreadContextº¯Êı
+            // å¯¼å…¥kernel32.dllä¸­çš„GetThreadContextå‡½æ•°
             auto get_thread_context = IMPORT(L"kernel32.dll", GetThreadContext);
-            // ¶¨ÒåÒ»¸öCONTEXT½á¹¹Ìå£¬ÓÃÓÚ´æ´¢Ïß³ÌÉÏÏÂÎÄ
+            // å®šä¹‰ä¸€ä¸ªCONTEXTç»“æ„ä½“ï¼Œç”¨äºå­˜å‚¨çº¿ç¨‹ä¸Šä¸‹æ–‡
             CONTEXT context = {};
-            // ÉèÖÃÉÏÏÂÎÄ±êÖ¾ÎªCONTEXT_FULL£¬±íÊ¾»ñÈ¡ÍêÕûµÄÉÏÏÂÎÄĞÅÏ¢
+            // è®¾ç½®ä¸Šä¸‹æ–‡æ ‡å¿—ä¸ºCONTEXT_FULLï¼Œè¡¨ç¤ºè·å–å®Œæ•´çš„ä¸Šä¸‹æ–‡ä¿¡æ¯
             context.ContextFlags = CONTEXT_FULL;
-            // Èç¹û»ñÈ¡Ïß³ÌÉÏÏÂÎÄÊ§°Ü£¬Ôòµ¯³öÒ»¸öÏûÏ¢¿òÌáÊ¾´íÎó£¬²¢·µ»Ø0
+            // å¦‚æœè·å–çº¿ç¨‹ä¸Šä¸‹æ–‡å¤±è´¥ï¼Œåˆ™å¼¹å‡ºä¸€ä¸ªæ¶ˆæ¯æ¡†æç¤ºé”™è¯¯ï¼Œå¹¶è¿”å›0
             if (!get_thread_context(thread_handle, &context))
             {
                 ::MessageBoxA(NULL, "GetThreadContext Error", "Warning", MB_OK);
                 return 0;
             }
-            // »ñÈ¡Ïß³ÌµÄÈë¿ÚµãµØÖ·
+            // è·å–çº¿ç¨‹çš„å…¥å£ç‚¹åœ°å€
             uintptr_t oep = context.Eax;
             {
-                // µ¼Èëkernel32.dllÖĞµÄReadProcessMemoryº¯Êı
+                // å¯¼å…¥kernel32.dllä¸­çš„ReadProcessMemoryå‡½æ•°
                 auto read_process_memory = IMPORT(L"kernel32.dll", ReadProcessMemory);
-                // ¶¨ÒåÒ»¸ö8×Ö½ÚµÄ»º³åÇø£¬ÓÃÓÚ´æ´¢¶ÁÈ¡µÄÊı¾İ
+                // å®šä¹‰ä¸€ä¸ª8å­—èŠ‚çš„ç¼“å†²åŒºï¼Œç”¨äºå­˜å‚¨è¯»å–çš„æ•°æ®
                 uint8_t buffer[8] = {};
-                // ¶¨ÒåÒ»¸öDWORDÀàĞÍµÄ±äÁ¿£¬ÓÃÓÚ´æ´¢Êµ¼Ê¶ÁÈ¡µÄ×Ö½ÚÊı
+                // å®šä¹‰ä¸€ä¸ªDWORDç±»å‹çš„å˜é‡ï¼Œç”¨äºå­˜å‚¨å®é™…è¯»å–çš„å­—èŠ‚æ•°
                 DWORD bytes_of_read = 0;
-                // ´Ó½ø³ÌÄÚ´æÖĞ¶ÁÈ¡Êı¾İµ½»º³åÇø
+                // ä»è¿›ç¨‹å†…å­˜ä¸­è¯»å–æ•°æ®åˆ°ç¼“å†²åŒº
                 read_process_memory(process_handle, (LPVOID)oep, buffer, sizeof(buffer), &bytes_of_read);
-                // Èç¹û¶ÁÈ¡µÄÊı¾İµÄÇ°4¸ö×Ö½ÚµÈÓÚ0xE8535056£¬Ôò¼ÆËãĞÂµÄÈë¿ÚµãµØÖ·
+                // å¦‚æœè¯»å–çš„æ•°æ®çš„å‰4ä¸ªå­—èŠ‚ç­‰äº0xE8535056ï¼Œåˆ™è®¡ç®—æ–°çš„å…¥å£ç‚¹åœ°å€
                 if (*(uint32_t*)buffer == 0xE8535056)
                 {
                     oep = oep + 8 + *(uint32_t*)&buffer[4];
                 }
             }
             {
-                // ¶¨ÒåÒ»¸ö×Ö·û´®±äÁ¿£¬ÓÃÓÚ´æ´¢shellcode
+                // å®šä¹‰ä¸€ä¸ªå­—ç¬¦ä¸²å˜é‡ï¼Œç”¨äºå­˜å‚¨shellcode
                 std::string shellcode;
-                // »ñÈ¡µ±Ç°Ä£¿éµÄ¾ä±ú
+                // è·å–å½“å‰æ¨¡å—çš„å¥æŸ„
                 auto image = GetModuleHandleA(NULL);
-                // ¸ù¾İcrypt_code_rva¼ÆËã³ö¼ÓÃÜ´úÂëµÄÖ¸Õë
+                // æ ¹æ®crypt_code_rvaè®¡ç®—å‡ºåŠ å¯†ä»£ç çš„æŒ‡é’ˆ
                 crypt_code_ptr_t crypt_code = rva2va<crypt_code_ptr_t>(image, share_data->crypt_code_rva);
-                // ¶¨ÒåÒ»¸öDWORDÀàĞÍµÄ±äÁ¿£¬ÓÃÓÚ´æ´¢ÄÚ´æ±£»¤ÊôĞÔ
+                // å®šä¹‰ä¸€ä¸ªDWORDç±»å‹çš„å˜é‡ï¼Œç”¨äºå­˜å‚¨å†…å­˜ä¿æŠ¤å±æ€§
                 DWORD old_protect = 0;
-                // ĞŞ¸Äcrypt_code_rvaÖ¸ÏòµÄÄÚ´æÇøÓòµÄ±£»¤ÊôĞÔÎªPAGE_READWRITE
+                // ä¿®æ”¹crypt_code_rvaæŒ‡å‘çš„å†…å­˜åŒºåŸŸçš„ä¿æŠ¤å±æ€§ä¸ºPAGE_READWRITE
                 VirtualProtect(rva2va<void*>(image, share_data->crypt_code_rva), share_data->crypt_code_size, PAGE_READWRITE, &old_protect);
-                // Ê¹ÓÃxor_bufferº¯Êı¶Ôcrypt_code_rvaÖ¸ÏòµÄÄÚ´æÇøÓò½øĞĞÒì»ò½âÃÜ
+                // ä½¿ç”¨xor_bufferå‡½æ•°å¯¹crypt_code_rvaæŒ‡å‘çš„å†…å­˜åŒºåŸŸè¿›è¡Œå¼‚æˆ–è§£å¯†
                 Utils::Crypto::xor_buffer(rva2va<void*>(image, share_data->crypt_code_rva), share_data->crypt_code_size, share_data->xor_key);
-                // »Ö¸´crypt_code_rvaÖ¸ÏòµÄÄÚ´æÇøÓòµÄÔ­Ê¼±£»¤ÊôĞÔ
+                // æ¢å¤crypt_code_rvaæŒ‡å‘çš„å†…å­˜åŒºåŸŸçš„åŸå§‹ä¿æŠ¤å±æ€§
                 VirtualProtect(rva2va<void*>(image, share_data->crypt_code_rva), share_data->crypt_code_size, old_protect, &old_protect);
 
-                // ¼ÆËãÖØ¶¨Î»ĞÅÏ¢µÄ´óĞ¡
+                // è®¡ç®—é‡å®šä½ä¿¡æ¯çš„å¤§å°
                 const size_t reloc_size = crypt_code->reloc_size;
-                // ¼ÆËã°ó¶¨DLLµÄ´óĞ¡
+                // è®¡ç®—ç»‘å®šDLLçš„å¤§å°
                 const size_t bind_dll_size = crypt_code->bind_dll_size;
-                // ¼ÆËãÎÄ±¾´úÂëµÄ´óĞ¡
+                // è®¡ç®—æ–‡æœ¬ä»£ç çš„å¤§å°
                 const size_t text_code_size = crypt_code->text_code_size;
-                // ¼ÆËãÎÄ±¾´úÂëµÄÆ«ÒÆÁ¿
+                // è®¡ç®—æ–‡æœ¬ä»£ç çš„åç§»é‡
                 const size_t text_code_offset = offsetof(CryptCode, reloc) + sizeof(RelocInfo) * reloc_size;
-                // ¼ÆËã°ó¶¨DLLµÄÆ«ÒÆÁ¿
+                // è®¡ç®—ç»‘å®šDLLçš„åç§»é‡
                 const size_t bind_dll_offset = text_code_offset + text_code_size;
 
-                // µ÷ÕûshellcodeµÄ´óĞ¡£¬Ê¹ÆäÄÜ¹»ÈİÄÉ¹²ÏíÊı¾İºÍ°ó¶¨µÄDLL
+                // è°ƒæ•´shellcodeçš„å¤§å°ï¼Œä½¿å…¶èƒ½å¤Ÿå®¹çº³å…±äº«æ•°æ®å’Œç»‘å®šçš„DLL
                 shellcode.resize(sizeof(*share_data) + crypt_code->bind_dll_size);
-                // ½«¹²ÏíÊı¾İ¸´ÖÆµ½shellcodeÖĞ
+                // å°†å…±äº«æ•°æ®å¤åˆ¶åˆ°shellcodeä¸­
                 memcpy((void*)shellcode.data(), share_data, sizeof(*share_data));
-                // ½«°ó¶¨µÄDLL¸´ÖÆµ½shellcodeÖĞ
+                // å°†ç»‘å®šçš„DLLå¤åˆ¶åˆ°shellcodeä¸­
                 memcpy((char*)shellcode.data() + sizeof(*share_data), rva2va<void*>(image, share_data->crypt_code_rva + bind_dll_offset), crypt_code->bind_dll_size);
 
-                // ÔÙ´ÎĞŞ¸Äcrypt_code_rvaÖ¸ÏòµÄÄÚ´æÇøÓòµÄ±£»¤ÊôĞÔÎªPAGE_READWRITE
+                // å†æ¬¡ä¿®æ”¹crypt_code_rvaæŒ‡å‘çš„å†…å­˜åŒºåŸŸçš„ä¿æŠ¤å±æ€§ä¸ºPAGE_READWRITE
                 VirtualProtect(rva2va<void*>(image, share_data->crypt_code_rva), share_data->crypt_code_size, PAGE_READWRITE, &old_protect);
-                // ÔÙ´ÎÊ¹ÓÃxor_bufferº¯Êı¶Ôcrypt_code_rvaÖ¸ÏòµÄÄÚ´æÇøÓò½øĞĞÒì»ò¼ÓÃÜ
+                // å†æ¬¡ä½¿ç”¨xor_bufferå‡½æ•°å¯¹crypt_code_rvaæŒ‡å‘çš„å†…å­˜åŒºåŸŸè¿›è¡Œå¼‚æˆ–åŠ å¯†
                 Utils::Crypto::xor_buffer(rva2va<void*>(image, share_data->crypt_code_rva), share_data->crypt_code_size, share_data->xor_key);
-                // »Ö¸´crypt_code_rvaÖ¸ÏòµÄÄÚ´æÇøÓòµÄÔ­Ê¼±£»¤ÊôĞÔ
+                // æ¢å¤crypt_code_rvaæŒ‡å‘çš„å†…å­˜åŒºåŸŸçš„åŸå§‹ä¿æŠ¤å±æ€§
                 VirtualProtect(rva2va<void*>(image, share_data->crypt_code_rva), share_data->crypt_code_size, old_protect, &old_protect);
 
-                // ¼ÆËã¹²ÏíÊı¾İÔÚshellcodeÖĞµÄÖ¸Õë
+                // è®¡ç®—å…±äº«æ•°æ®åœ¨shellcodeä¸­çš„æŒ‡é’ˆ
                 share_data_ptr_t new_param = (share_data_ptr_t)shellcode.data();
-                // ÉèÖÃ¹²ÏíÊı¾İµÄmagic×Ö¶ÎÎª0x90909090
+                // è®¾ç½®å…±äº«æ•°æ®çš„magicå­—æ®µä¸º0x90909090
                 new_param->magic = 0x90909090;
-                // ¼ÆËãÈë¿ÚµãµÄÆ«ÒÆÁ¿
+                // è®¡ç®—å…¥å£ç‚¹çš„åç§»é‡
                 new_param->entry_point_dist = sizeof(share_data_t) - offsetof(share_data_t, ret_opcode) + va2fa(*dll_base, (size_t)&reflective_load);
-                // ÉèÖÃshellcodeµÄ´óĞ¡
+                // è®¾ç½®shellcodeçš„å¤§å°
                 new_param->stub_size = shellcode.size();
 
-                // µ¼Èëkernel32.dllÖĞµÄSleepº¯Êı
+                // å¯¼å…¥kernel32.dllä¸­çš„Sleepå‡½æ•°
                 auto Sleep = IMPORT(L"kernel32.dll", Sleep);
-                // ¶¨ÒåÒ»¸ö²¼¶û±äÁ¿£¬ÓÃÓÚ±ê¼ÇÊÇ·ñ³É¹¦Ìí¼ÓÔ¶³ÌÄÚÁª¹³×Ó
+                // å®šä¹‰ä¸€ä¸ªå¸ƒå°”å˜é‡ï¼Œç”¨äºæ ‡è®°æ˜¯å¦æˆåŠŸæ·»åŠ è¿œç¨‹å†…è”é’©å­
                 auto hooked = false;
-                // ³¢ÊÔ×î¶à30´ÎÌí¼ÓÔ¶³ÌÄÚÁª¹³×Ó
+                // å°è¯•æœ€å¤š30æ¬¡æ·»åŠ è¿œç¨‹å†…è”é’©å­
                 for (int i = 0; i < 30; i++)
                 {
-                    // Ìí¼ÓÔ¶³ÌÄÚÁª¹³×Ó£¬½«shellcode²åÈëµ½Ö¸¶¨µÄµØÖ·
+                    // æ·»åŠ è¿œç¨‹å†…è”é’©å­ï¼Œå°†shellcodeæ’å…¥åˆ°æŒ‡å®šçš„åœ°å€
                     hooked = LightHook::HookMgr::instance().add_remote_inline_hook(process_handle, (void*)oep, shellcode, offsetof(share_data_t, oep));
-                    // Èç¹ûÌí¼Ó³É¹¦£¬ÔòÌø³öÑ­»·
+                    // å¦‚æœæ·»åŠ æˆåŠŸï¼Œåˆ™è·³å‡ºå¾ªç¯
                     if (hooked)
                     {
                         break;
                     }
-                    // µÈ´ı200ºÁÃëºóÔÙ´Î³¢ÊÔ
+                    // ç­‰å¾…200æ¯«ç§’åå†æ¬¡å°è¯•
                     Sleep(200);
                 }
 
-                // Èç¹ûÌí¼ÓÔ¶³ÌÄÚÁª¹³×ÓÊ§°Ü£¬Ôòµ¯³öÒ»¸öÏûÏ¢¿òÌáÊ¾´íÎó£¬²¢ÖÕÖ¹Ö÷Ïß³Ì
+                // å¦‚æœæ·»åŠ è¿œç¨‹å†…è”é’©å­å¤±è´¥ï¼Œåˆ™å¼¹å‡ºä¸€ä¸ªæ¶ˆæ¯æ¡†æç¤ºé”™è¯¯ï¼Œå¹¶ç»ˆæ­¢ä¸»çº¿ç¨‹
                 if (!hooked)
                 {
                     ::MessageBoxA(NULL, "add_remote_inline_hook error", "Warning", MB_OK);
@@ -206,12 +206,12 @@ namespace HookProc
                     return ERROR_ERRORS_ENCOUNTERED;
                 }
             }
-            // Çå³ıÖ÷Ïß³Ì¾ä±úºÍ½ø³Ì¾ä±ú
+            // æ¸…é™¤ä¸»çº¿ç¨‹å¥æŸ„å’Œè¿›ç¨‹å¥æŸ„
             main_thread_handle = NULL;
             process_handle = NULL;
         }
         VMP_VIRTUALIZATION_END();
-        // µ÷ÓÃÔ­Ê¼µÄResumeThreadº¯Êı£¬»Ö¸´Ïß³ÌµÄÖ´ĞĞ
+        // è°ƒç”¨åŸå§‹çš„ResumeThreadå‡½æ•°ï¼Œæ¢å¤çº¿ç¨‹çš„æ‰§è¡Œ
         return resume_thread(thread_handle);
     }
 
@@ -256,38 +256,38 @@ namespace HookProc
     }
 
     /**
-     * @brief ³õÊ¼»¯CreateProcessInternalWºÍResumeThreadµÄ¹³×Ó
+     * @brief åˆå§‹åŒ–CreateProcessInternalWå’ŒResumeThreadçš„é’©å­
      * 
-     * ¸Ãº¯Êı³¢ÊÔ´Ókernelbase.dll»òkernel32.dllÖĞµ¼ÈëCreateProcessInternalWºÍResumeThreadº¯Êı£¬²¢ÎªËüÃÇÉèÖÃ¹³×Ó¡£
+     * è¯¥å‡½æ•°å°è¯•ä»kernelbase.dllæˆ–kernel32.dllä¸­å¯¼å…¥CreateProcessInternalWå’ŒResumeThreadå‡½æ•°ï¼Œå¹¶ä¸ºå®ƒä»¬è®¾ç½®é’©å­ã€‚
      * 
-     * @return Èç¹û³É¹¦³õÊ¼»¯¹³×Ó£¬Ôò·µ»Øtrue£¬·ñÔò·µ»Øfalse¡£
+     * @return å¦‚æœæˆåŠŸåˆå§‹åŒ–é’©å­ï¼Œåˆ™è¿”å›trueï¼Œå¦åˆ™è¿”å›falseã€‚
      */
     bool init_create_process_hook()
     {
-        //µÇÂ¼Æ÷Èë¿Ú
-        // ³¢ÊÔ´Ókernelbase.dllÖĞµ¼ÈëCreateProcessInternalWº¯Êı
+        //ç™»å½•å™¨å…¥å£
+        // å°è¯•ä»kernelbase.dllä¸­å¯¼å…¥CreateProcessInternalWå‡½æ•°
         void* create_process_internal_w = IMPORT(L"kernelbase.dll", CreateProcessInternalW);
-        // Èç¹ûµ¼ÈëÊ§°Ü£¬Ôò³¢ÊÔ´Ókernel32.dllÖĞµ¼Èë
+        // å¦‚æœå¯¼å…¥å¤±è´¥ï¼Œåˆ™å°è¯•ä»kernel32.dllä¸­å¯¼å…¥
         if (!create_process_internal_w)
         {
             create_process_internal_w = IMPORT(L"kernel32.dll", CreateProcessInternalW);
         }
-        // ÎªCreateProcessInternalWº¯ÊıÉèÖÃ¹³×Ó£¬½«ÆäÖØ¶¨Ïòµ½HookProc::CreateProcessInternalW
+        // ä¸ºCreateProcessInternalWå‡½æ•°è®¾ç½®é’©å­ï¼Œå°†å…¶é‡å®šå‘åˆ°HookProc::CreateProcessInternalW
         LightHook::HookMgr::instance().add_inline_hook(create_process_internal_w, &HookProc::CreateProcessInternalW, &HookProc::create_process_internal_w);
 
-        // ³¢ÊÔ´Ókernelbase.dllÖĞµ¼ÈëResumeThreadº¯Êı
+        // å°è¯•ä»kernelbase.dllä¸­å¯¼å…¥ResumeThreadå‡½æ•°
         void* resume_thread = IMPORT(L"kernelbase.dll", ResumeThread);
-        // Èç¹ûµ¼ÈëÊ§°Ü£¬Ôò³¢ÊÔ´Ókernel32.dllÖĞµ¼Èë
+        // å¦‚æœå¯¼å…¥å¤±è´¥ï¼Œåˆ™å°è¯•ä»kernel32.dllä¸­å¯¼å…¥
         if (!resume_thread)
         {
             resume_thread = IMPORT(L"kernel32.dll", ResumeThread);
         }
-        // ÎªResumeThreadº¯ÊıÉèÖÃ¹³×Ó£¬½«ÆäÖØ¶¨Ïòµ½HookProc::ResumeThread
+        // ä¸ºResumeThreadå‡½æ•°è®¾ç½®é’©å­ï¼Œå°†å…¶é‡å®šå‘åˆ°HookProc::ResumeThread
         LightHook::HookMgr::instance().add_inline_hook(resume_thread, &HookProc::ResumeThread, &HookProc::resume_thread);
         
-        // ´´½¨Ò»¸öĞÂÏß³ÌÀ´¼ì²é¹³×ÓµÄÓĞĞ§ĞÔ
+        // åˆ›å»ºä¸€ä¸ªæ–°çº¿ç¨‹æ¥æ£€æŸ¥é’©å­çš„æœ‰æ•ˆæ€§
         //g_thread_group->create_thread(&check_hook_vaild_routine);
-        // ·µ»Ø³õÊ¼»¯³É¹¦µÄ±êÖ¾
+        // è¿”å›åˆå§‹åŒ–æˆåŠŸçš„æ ‡å¿—
         return true;
     }
 
