@@ -164,13 +164,86 @@ bool build_packfile(const std::string& target_file_path,
     crypt_code_section.set_name(".mapo");
     crypt_code_section.readable(true);
 
+    //// 共享数据结构
+    //share_data_t share = { kShareDateMagicKey,
+    //{ 0xE8, 0, 0, 0, 0 },
+    //0xE8, 
+    // // 减去ret_opcode的大小,也就是stage_1_payload的地址,也就是call _loader_entry函数
+    //sizeof(share_data_t) - offsetof(share_data_t, ret_opcode),
+    //0xC3 };
     // 共享数据结构
-    share_data_t share = { kShareDateMagicKey,
-    { 0xE8, 0, 0, 0, 0 },
-    0xE8, 
-     // 减去ret_opcode的大小,也就是stage_1_payload的地址,也就是call _loader_entry函数
-    sizeof(share_data_t) - offsetof(share_data_t, ret_opcode),
-    0xC3 };
+    share_data_t share = { kShareDateMagicKey };
+
+    // 初始化 eip_opcode 为混淆代码
+    memset(share.eip_opcode, 0x90, sizeof(share.eip_opcode)); // 使用 NOP 指令填充
+
+    //share_data_t share = { 
+    //    kShareDateMagicKey,
+    //    {
+    //    0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x44, 0x53, 0x56, 0x57, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58
+    //    } 
+    //};
+    // 在混淆代码中添加一些随机性，增加反检测能力
+    for (size_t i = 0; i < (sizeof(share.eip_opcode) - 5); i += 5) {
+        share.eip_opcode[i] = 0xEB;     // 短跳转指令
+        share.eip_opcode[i + 1] = 0x03;   // 跳转 3 字节
+    }
+    int i = sizeof(share.eip_opcode) - 6;
+    share.eip_opcode[++i] = 0xE8;
+    share.eip_opcode[++i] = 0x0;
+    share.eip_opcode[++i] = 0x0;
+    share.eip_opcode[++i] = 0x0;
+    share.eip_opcode[++i] = 0x0;
+    // 设置其他字段
+    share.call_opcode = 0xE8;
+    // 调试：打印结构体大小和偏移信息
+    /*std::cout << "sizeof(share_data_t): " << sizeof(share_data_t) << std::endl;
+    std::cout << "offsetof(share_data_t, ret_opcode): " << offsetof(share_data_t, ret_opcode) << std::endl;*/
+
+    // 详细打印结构体各个字段的偏移和大小
+    //std::cout << "ShareData 结构体内存布局详情:" << std::endl;
+    //std::cout << "magic 偏移: " << offsetof(share_data_t, magic) 
+    //          << ", 大小: " << sizeof(share.magic) << std::endl;
+    //std::cout << "eip_opcode 偏移: " << offsetof(share_data_t, eip_opcode) 
+    //          << ", 大小: " << sizeof(share.eip_opcode) << std::endl;
+    //std::cout << "call_opcode 偏移: " << offsetof(share_data_t, call_opcode) 
+    //          << ", 大小: " << sizeof(share.call_opcode) << std::endl;
+    //std::cout << "entry_point_dist 偏移: " << offsetof(share_data_t, entry_point_dist) 
+    //          << ", 大小: " << sizeof(share.entry_point_dist) << std::endl;
+    //std::cout << "ret_opcode 偏移: " << offsetof(share_data_t, ret_opcode) 
+    //          << ", 大小: " << sizeof(share.ret_opcode) << std::endl;
+    //std::cout << "stub_rva 偏移: " << offsetof(share_data_t, stub_rva) 
+    //          << ", 大小: " << sizeof(share.stub_rva) << std::endl;
+    //std::cout << "stub_size 偏移: " << offsetof(share_data_t, stub_size) 
+    //          << ", 大小: " << sizeof(share.stub_size) << std::endl;
+    //std::cout << "stub_entry_rva 偏移: " << offsetof(share_data_t, stub_entry_rva) 
+    //          << ", 大小: " << sizeof(share.stub_entry_rva) << std::endl;
+    //std::cout << "cfg_size 偏移: " << offsetof(share_data_t, cfg_size) 
+    //          << ", 大小: " << sizeof(share.cfg_size) << std::endl;
+    //std::cout << "cfg 偏移: " << offsetof(share_data_t, cfg) 
+    //          << ", 大小: " << sizeof(share.cfg) << std::endl;
+    //std::cout << "crypt_code_rva 偏移: " << offsetof(share_data_t, crypt_code_rva) 
+    //          << ", 大小: " << sizeof(share.crypt_code_rva) << std::endl;
+    //std::cout << "crypt_code_size 偏移: " << offsetof(share_data_t, crypt_code_size) 
+    //          << ", 大小: " << sizeof(share.crypt_code_size) << std::endl;
+    //std::cout << "oep 偏移: " << offsetof(share_data_t, oep) 
+    //          << ", 大小: " << sizeof(share.oep) << std::endl;
+    //std::cout << "xor_key 偏移: " << offsetof(share_data_t, xor_key) 
+    //          << ", 大小: " << sizeof(share.xor_key) << std::endl;
+    //std::cout << "origin_image_base 偏移: " << offsetof(share_data_t, origin_image_base) 
+    //          << ", 大小: " << sizeof(share.origin_image_base) << std::endl;
+    //std::cout << "stage 偏移: " << offsetof(share_data_t, stage) 
+    //          << ", 大小: " << sizeof(share.stage) << std::endl;
+
+    // 计算 stage_1_payload (loader_entry) 的精确地址
+    share.entry_point_dist = sizeof(share_data_t) - offsetof(share_data_t, ret_opcode);
+
+    //std::cout << "loader_entry 地址计算详情:" << std::endl;
+    //std::cout << "计算公式: sizeof(share_data_t) - offsetof(ret_opcode) = "
+    //    << sizeof(share_data_t) << " - "
+    //    << offsetof(share_data_t, ret_opcode) << std::endl;
+    //std::cout << "计算结果: " << share.entry_point_dist << std::endl;
+    share.ret_opcode = 0xC3;
 
     share.stage = 0;
     // 初始化并填充shellcode

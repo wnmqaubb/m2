@@ -1,12 +1,13 @@
-#pragma once
+﻿#pragma once
 #include <stdint.h>
+#include <stdio.h>
 #pragma pack(push)
 #pragma pack(1)
 const uint32_t kShareDateMagicKey = 0xABFE2CBE;
 typedef struct _ShareData
 {
     uint32_t magic;
-    uint8_t  eip_opcode[5];
+    uint8_t  eip_opcode[200];
     uint8_t  call_opcode;
     uint32_t entry_point_dist;
     uint8_t  ret_opcode;
@@ -20,10 +21,32 @@ typedef struct _ShareData
     uint32_t current_section_rva;
     uint32_t current_section_virtual_size;
     uint32_t origin_image_base;
-    uint8_t  stage;// 0.packered 1.��ʼ��Ϸ
+    uint8_t  stage;// 0.packered 1.开始游戏
     uint16_t cfg_size;
-    uint8_t  cfg[1000];
+    uint8_t  cfg[800];
 }ShareData, *ShareDataPtr;
+
+//typedef struct _ShareData
+//{
+//    uint32_t magic;
+//    uint8_t  eip_opcode[5];
+//    uint8_t  call_opcode;
+//    uint32_t entry_point_dist;
+//    uint8_t  ret_opcode;
+//    uint32_t oep;
+//    uint32_t stub_rva;
+//    uint32_t stub_size;
+//    uint32_t stub_entry_rva;
+//    uint32_t crypt_code_rva;
+//    uint32_t crypt_code_size;
+//    uint32_t xor_key;
+//    uint32_t current_section_rva;
+//    uint32_t current_section_virtual_size;
+//    uint32_t origin_image_base;
+//    uint8_t  stage;// 0.packered 1.开始游戏
+//    uint16_t cfg_size;
+//    uint8_t  cfg[1000];
+//}ShareData, *ShareDataPtr;
 
 using share_data_t = ShareData;
 using share_data_ptr_t = ShareDataPtr;
