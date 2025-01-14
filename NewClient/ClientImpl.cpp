@@ -5,7 +5,7 @@
 
 using namespace Utils;
 
-#define LOG_SHOW
+//#define LOG_SHOW
 
 #ifdef LOG_SHOW
 #define log(LOG_TYPE,x,...) log(LOG_TYPE, x, __VA_ARGS__ )
@@ -13,9 +13,41 @@ using namespace Utils;
 #define log(LOG_TYPE,x,...)
 #endif
 
+
+#include <client/windows/crash_generation/client_info.h>
+#include <client/windows/crash_generation/crash_generation_server.h>
+#include <client/windows/handler/exception_handler.h>
+#include <client/windows/common/ipc_protocol.h>
+using namespace google_breakpad;
+
+bool ShowDumpResults(const wchar_t* dump_path,
+    const wchar_t* minidump_id,
+    void* context,
+    EXCEPTION_POINTERS* exinfo,
+    MDRawAssertionInfo* assertion,
+    bool succeeded)
+{
+    ::MessageBoxA(0,"程序可能被劫持，若频繁出现，请使用360急救箱或重装系统","提示",MB_OK);
+    return succeeded;
+}
+
+void InitMiniDump()
+{
+    static auto handler = new ExceptionHandler(L".\\cache\\",
+        NULL,
+        ShowDumpResults,
+        NULL,
+        ExceptionHandler::HANDLER_ALL,
+        MiniDumpValidTypeFlags,
+        (HANDLE)NULL,
+        NULL);
+}
+
 CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
 {
+    InitMiniDump();
     cfg_ = std::move(cfg);
+    cfg_->set_field<std::wstring>(usrname_field_id, L"未登录用户");
     char path[MAX_PATH] = { 0 };
     GetModuleFileNameA(GetModuleHandleA(NULL), path, sizeof(path));
     exe_path_ = path;
@@ -29,20 +61,23 @@ CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
     init();
     client_start_routine();
 #else
-    log(LOG_TYPE_DEBUG, TEXT("===std::thread==="));
-    std::thread([this]() {
-        // 用户登录后才进行初始化和开始连接
-        while (true) {
-            if (user_is_login()) {
-                log(LOG_TYPE_DEBUG, TEXT("===user_is_login==="));
-                init();
-                client_start_routine();
-                log(LOG_TYPE_DEBUG, TEXT("===user_is_login end==="));
-                break;
+    init();
+    /* 有几个win7旗舰版sp1的反馈登录后报错,调试定位是这个线程里client_start_routine();c00005异常*/
+    if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {
+        std::thread([this]() {
+            // 用户登录后才进行初始化和开始连接
+            while (true) {
+                if (user_is_login()) {
+                    client_start_routine();
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::seconds(1));
             }
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-    }).detach();
+        }).detach();        
+    }
+    else {
+        client_start_routine();
+    }
 #endif
 }
 
@@ -340,7 +375,9 @@ bool CClientImpl::user_is_login() {
         transform(window.class_name.begin(), window.class_name.end(), window.class_name.begin(), ::towlower);
         if (window.class_name == L"tfrmmain")
         {
-            g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
+            if (!g_main_window_hwnd) {
+                g_main_window_hwnd = std::make_shared<HWND>(window.hwnd);
+            }
             
             if (window.caption.find(L" - ") != std::wstring::npos)
             {                
