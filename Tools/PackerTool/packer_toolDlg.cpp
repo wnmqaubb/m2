@@ -205,7 +205,8 @@ void CpackertoolDlg::OnBnClickedButtonPack()
         m_result_edit.SetWindowText(TEXT("反作弊模块未找到"));
         return;
 	}
-    m_pack_file_edit.GetWindowText(temp);
+	UpdateWindow();
+	m_pack_file_edit.GetWindowText(temp);
     std::filesystem::path pack_exe_path(temp.GetString());
 	std::wstring new_path = pack_exe_path.wstring();
 	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
