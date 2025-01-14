@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ClientImpl.h"
 #include "WndProcHook.h"
 #include "version.build"
@@ -57,28 +57,10 @@ CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
     {
         fs::create_directory(cache_dir_, ec);
     }
-#ifdef _DEBUG
     init();
+    /*v1:: 有几个win7旗舰版sp1的反馈登录后报错,调试定位是这个线程里client_start_routine();c00005异常*/
+    /*v2:: 不用等待用户登录,直接初始化和开始连接*/
     client_start_routine();
-#else
-    init();
-    /* 有几个win7旗舰版sp1的反馈登录后报错,调试定位是这个线程里client_start_routine();c00005异常*/
-    if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {
-        std::thread([this]() {
-            // 用户登录后才进行初始化和开始连接
-            while (true) {
-                if (user_is_login()) {
-                    client_start_routine();
-                    break;
-                }
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            }
-        }).detach();        
-    }
-    else {
-        client_start_routine();
-    }
-#endif
 }
 
 void CClientImpl::client_start_routine()
