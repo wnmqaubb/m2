@@ -37,6 +37,14 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GateF", "Gate_F\GateF.vcxpr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTest", "UnitTest\UnitTest.vcxproj", "{24A780F3-D5C1-45E9-B285-61C26C5821D4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{18927FF9-3887-4437-9000-3510AA24A9D9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{2C1F76BF-6EAF-42C1-BC61-5ACD04856397}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
