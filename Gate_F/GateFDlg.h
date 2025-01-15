@@ -77,6 +77,7 @@ public:
 	}
 	void SwitchToTab(int index);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+    void ReStartChildProcess();
 	void SetPaneBackgroundColor(UINT nIDResource, COLORREF color);
 	void OnServiceCommand(UINT id);
 	HANDLE find_process(const std::string& processName);

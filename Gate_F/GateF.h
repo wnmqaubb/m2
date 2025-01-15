@@ -55,6 +55,7 @@ public:
 	HANDLE m_childpHandle;
 	//CConfig m_wndConfig;
 	bool is_parent_gate = true;
+	bool is_service_stauts = true;
 	std::unique_ptr<ProtocolS2CPolicy> m_cfg;
 	DECLARE_MESSAGE_MAP()
 public:
