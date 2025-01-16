@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ClientImpl.h"
 #include "WndProcHook.h"
 #include "version.build"

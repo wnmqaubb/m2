@@ -49,16 +49,6 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
         {
             ::MessageBoxA(NULL, "test mode", "test", MB_OK);
         }
-
-        /*if (client->cfg()->get_field<bool>(sec_no_change_field_id))
-        {
-            Utils::ImageProtect::instance().register_callback(client_start_routine);
-            Utils::ImageProtect::instance().install();
-        }
-        else
-        {
-            client_start_routine();
-        }*/
     }
     VMP_VIRTUALIZATION_END();
 }
