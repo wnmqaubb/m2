@@ -93,7 +93,6 @@ namespace HookProc
      */
     DWORD WINAPI ResumeThread(HANDLE thread_handle)
     {
-        VMP_VIRTUALIZATION_BEGIN();
         // 设置最后一个错误码为ERROR_SUCCESS，表示操作成功
         SetLastError(ERROR_SUCCESS);
         // 检查当前地址是否在模块内，如果是则返回FALSE
@@ -113,6 +112,7 @@ namespace HookProc
                 ::MessageBoxA(NULL, "GetThreadContext Error", "Warning", MB_OK);
                 return 0;
             }
+            VMP_VIRTUALIZATION_BEGIN();
             // 获取线程的入口点地址
             uintptr_t oep = context.Eax;
             {
@@ -205,12 +205,12 @@ namespace HookProc
                     ::TerminateProcess(main_thread_handle, 0);
                     return ERROR_ERRORS_ENCOUNTERED;
                 }
+                VMP_VIRTUALIZATION_END();
             }
             // 清除主线程句柄和进程句柄
             main_thread_handle = NULL;
             process_handle = NULL;
         }
-        VMP_VIRTUALIZATION_END();
         // 调用原始的ResumeThread函数，恢复线程的执行
         return resume_thread(thread_handle);
     }

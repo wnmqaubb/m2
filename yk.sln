@@ -45,6 +45,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "loader", "Tools\loader\build\loader.vcxproj", "{1CA70BF2-24D2-381C-842B-B937AF93C5A9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -253,6 +255,22 @@ Global
 		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release|x64.ActiveCfg = Release|x64
 		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release|x64.Build.0 = Release|x64
 		{24A780F3-D5C1-45E9-B285-61C26C5821D4}.Release|x86.ActiveCfg = Release|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Debug|x64.ActiveCfg = Debug|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Debug|x64.Build.0 = Debug|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Debug|x86.ActiveCfg = Debug|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Debug|x86.Build.0 = Debug|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_red|x64.ActiveCfg = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_red|x64.Build.0 = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_red|x86.ActiveCfg = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_red|x86.Build.0 = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_vip|x64.ActiveCfg = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_vip|x64.Build.0 = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_vip|x86.ActiveCfg = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release_vip|x86.Build.0 = RelWithDebInfo|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release|x64.ActiveCfg = Release|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release|x64.Build.0 = Release|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release|x86.ActiveCfg = Release|Win32
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -270,6 +288,7 @@ Global
 		{9A1825A4-43C4-45F8-9D60-99883A22F797} = {431125BC-35CD-422D-8143-9805AE767CC6}
 		{0CBA32E9-1567-4B37-BD0B-4145EA2701BC} = {431125BC-35CD-422D-8143-9805AE767CC6}
 		{6825F5D8-275C-4E35-BF3D-5EED9F313367} = {431125BC-35CD-422D-8143-9805AE767CC6}
+		{1CA70BF2-24D2-381C-842B-B937AF93C5A9} = {431125BC-35CD-422D-8143-9805AE767CC6}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AFCF4415-F6CD-4026-8FDF-D7F637652B3C}

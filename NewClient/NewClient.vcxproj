@@ -246,8 +246,10 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
   <ItemGroup>
     <ClInclude Include="ClientImpl.h" />
     <ClInclude Include="ClientPluginMgr.h" />
+    <ClInclude Include="CreateProcessHook.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="framework.h" />
-    <ClInclude Include="CreateProcessHook.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="qjs.h" />
     <ClInclude Include="WndProcHook.h" />
@@ -261,8 +263,10 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
     </ClCompile>
     <ClCompile Include="ClientImpl.cpp" />
     <ClCompile Include="ClientPluginMgr.cpp" />
+    <ClCompile Include="CreateProcessHook.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="CreateProcessHook.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

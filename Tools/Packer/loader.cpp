@@ -257,6 +257,39 @@ extern "C" void __stdcall stub_entry(share_data_ptr_t param)
     // 导入kernel32.dll中的VirtualProtect函数，并将其赋值给VirtualProtect变量
     auto VirtualProtect = IMPORT(L"kernel32.dll", VirtualProtect);
 
+    auto GetCommandLineA = IMPORT(L"kernel32.dll", GetCommandLineA);
+    auto OutputDebugStringA = IMPORT(L"kernel32.dll", OutputDebugStringA);
+    
+    bool is_start_game = false;
+    // 获取命令行
+    LPSTR lpCmdLine = GetCommandLineA();
+    if (lpCmdLine)
+    {    
+        //OutputDebugStringA(lpCmdLine);
+        // 跳过程序路径（处理带引号和不带引号的情况）
+        bool inQuotes = FALSE;
+        while (*lpCmdLine) {
+            if (*lpCmdLine == '"') {
+                inQuotes = !inQuotes;
+            }
+
+            // 如果不在引号内且遇到空格，则认为程序路径结束
+            if (!inQuotes && *lpCmdLine == ' ') {
+                break;
+            }
+
+            lpCmdLine++;
+        }
+
+        // 跳过空白
+        while (*lpCmdLine == ' ') {
+            lpCmdLine++;
+        }
+
+        // 检查是否还有内容
+        is_start_game = (*lpCmdLine != '\0');
+    }
+
     // 获取当前模块的句柄
     void* image = GetModuleHandleA(NULL);
     // 根据crypt_code_rva计算出加密代码的指针
@@ -314,10 +347,16 @@ extern "C" void __stdcall stub_entry(share_data_ptr_t param)
 
     // 恢复当前节的原始内存保护属性
     VirtualProtect(rva2va<void*>(image, param->current_section_rva), param->current_section_virtual_size, old_protect, &old_protect);
+    
+    //auto OutputDebugStringA = IMPORT(L"kernel32.dll", OutputDebugStringA);
+    char test[] = { 't', 'e', 's', 't', ' ', 'm', 'o', 'd', 'e', '3', '3', '3','\0'};
+    //OutputDebugStringA(test);
 
     // 如果存在绑定DLL，则加载并执行DLL
-    if (bind_dll_size)
+    if (/*is_start_game && */bind_dll_size)
     {
+        char test[] = { 'y', 'e', 's','\0' };
+        //OutputDebugStringA(test);
         // 定义一个HINSTANCE类型的变量dll，用于存储DLL的句柄
         HINSTANCE dll = NULL;
         // 加载绑定DLL
@@ -349,6 +388,19 @@ extern "C" void __stdcall stub_entry(share_data_ptr_t param)
     oep();
 }
 
+__int64 InlineAssemblyDivide64(__int64 a, __int64 b) {
+    __int64 result;
+    __asm {
+        mov eax, dword ptr[a]
+        mov edx, dword ptr[a + 4]
+        mov ebx, dword ptr[b]
+        mov ecx, dword ptr[b + 4]
+
+        // 执行64位除法
+        div ebx
+    }
+    return result;
+}
 /**
  * @brief 加载器入口点函数
  * 
@@ -356,6 +408,7 @@ extern "C" void __stdcall stub_entry(share_data_ptr_t param)
  * 
  * @param eip 当前指令指针
  */
+#pragma optimize("",off)
 extern "C" void __stdcall loader_entry(uint8_t* eip)
 {
     // 导入kernel32.dll中的GetModuleHandleA函数，并将其赋值给GetModuleHandleA变量
@@ -367,6 +420,28 @@ extern "C" void __stdcall loader_entry(uint8_t* eip)
     share_data_ptr_t param = (share_data_ptr_t)(eip - offsetof(share_data_t, call_opcode));
     // 获取当前模块的句柄
     void* image = GetModuleHandleA(NULL);
+
+    // 4. 时间戳和指令检测
+    LARGE_INTEGER start, end, freq;
+    auto QueryPerformanceFrequency = IMPORT(L"kernel32.dll", QueryPerformanceFrequency);
+    auto QueryPerformanceCounter = IMPORT(L"kernel32.dll", QueryPerformanceCounter);
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+
+    // 模拟复杂计算
+    volatile int dummy = 0;
+    for (int i = 0; i < 1000000; i++) {
+        dummy += i * (i + 1);
+    }
+
+    QueryPerformanceCounter(&end);
+
+    // 检测执行时间异常
+    LONGLONG elapsed = end.QuadPart - start.QuadPart;
+    if (elapsed > InlineAssemblyDivide64(freq.QuadPart,10)) {  // 超过0.1秒
+        auto ExitProcess = IMPORT(L"kernel32.dll", ExitProcess);
+        ExitProcess(0);
+    }
 
     // 在内存中分配一块可执行的内存区域
     unsigned char* stub = (unsigned char*)VirtualAlloc(NULL, param->stub_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
@@ -390,7 +465,7 @@ extern "C" void __stdcall loader_entry(uint8_t* eip)
     // 调用stub_entry函数
     stub_entry_routine(stub_data);
 }
-
+#pragma optimize("",on)
 
 void enable_seh_on_shellcode()
 {

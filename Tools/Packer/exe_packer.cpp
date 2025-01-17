@@ -163,19 +163,20 @@ bool build_packfile(const std::string& target_file_path,
     crypt_code_section.get_raw_data().resize(1);
     crypt_code_section.set_name(".mapo");
     crypt_code_section.readable(true);
+    //crypt_code_section.executable(true);
 
-    //// 共享数据结构
-    //share_data_t share = { kShareDateMagicKey,
-    //{ 0xE8, 0, 0, 0, 0 },
-    //0xE8, 
-    // // 减去ret_opcode的大小,也就是stage_1_payload的地址,也就是call _loader_entry函数
-    //sizeof(share_data_t) - offsetof(share_data_t, ret_opcode),
-    //0xC3 };
     // 共享数据结构
-    share_data_t share = { kShareDateMagicKey };
+    share_data_t share = { kShareDateMagicKey,
+    { 0xE8, 0, 0, 0, 0 },
+    0xE8, 
+     // 减去ret_opcode的大小,也就是stage_1_payload的地址,也就是call _loader_entry函数
+    sizeof(share_data_t) - offsetof(share_data_t, ret_opcode),
+    0xC3 };
+    // 共享数据结构
+    //share_data_t share = { kShareDateMagicKey };
 
     // 初始化 eip_opcode 为混淆代码
-    memset(share.eip_opcode, 0x90, sizeof(share.eip_opcode)); // 使用 NOP 指令填充
+    //memset(share.eip_opcode, 0x90, sizeof(share.eip_opcode)); // 使用 NOP 指令填充
 
     //share_data_t share = { 
     //    kShareDateMagicKey,
@@ -184,18 +185,18 @@ bool build_packfile(const std::string& target_file_path,
     //    } 
     //};
     // 在混淆代码中添加一些随机性，增加反检测能力
-    for (size_t i = 0; i < (sizeof(share.eip_opcode) - 5); i += 5) {
-        share.eip_opcode[i] = 0xEB;     // 短跳转指令
-        share.eip_opcode[i + 1] = 0x03;   // 跳转 3 字节
-    }
-    int i = sizeof(share.eip_opcode) - 6;
-    share.eip_opcode[++i] = 0xE8;
-    share.eip_opcode[++i] = 0x0;
-    share.eip_opcode[++i] = 0x0;
-    share.eip_opcode[++i] = 0x0;
-    share.eip_opcode[++i] = 0x0;
+    //for (size_t i = 0; i < (sizeof(share.eip_opcode) - 5); i += 5) {
+    //    share.eip_opcode[i] = 0xEB;     // 短跳转指令
+    //    share.eip_opcode[i + 1] = 0x03;   // 跳转 3 字节
+    //}
+    //int i = sizeof(share.eip_opcode) - 6;
+    //share.eip_opcode[++i] = 0xE8;
+    //share.eip_opcode[++i] = 0x0;
+    //share.eip_opcode[++i] = 0x0;
+    //share.eip_opcode[++i] = 0x0;
+    //share.eip_opcode[++i] = 0x0;
     // 设置其他字段
-    share.call_opcode = 0xE8;
+    //share.call_opcode = 0xE8;
     // 调试：打印结构体大小和偏移信息
     /*std::cout << "sizeof(share_data_t): " << sizeof(share_data_t) << std::endl;
     std::cout << "offsetof(share_data_t, ret_opcode): " << offsetof(share_data_t, ret_opcode) << std::endl;*/
