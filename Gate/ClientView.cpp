@@ -424,7 +424,7 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
 
 void CClientView::FillClientView()
 {
-    m_ViewList.SetColumnByIntSort({ 0, 1 });
+    m_ViewList.SetColumnByIntSort({ 0, 1, 10 });
     m_ViewList.SetColumnBySearch({ 2, 3 });
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     int colIndex = 0;

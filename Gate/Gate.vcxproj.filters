@@ -295,12 +295,6 @@
     <Image Include="res\toolbar1.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="C:\Users\wnmqaubb08\Downloads\111.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="..\111.ico">
-      <Filter>资源文件</Filter>
-    </Image>
     <Image Include="..\guard.ico">
       <Filter>资源文件</Filter>
     </Image>

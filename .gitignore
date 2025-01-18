@@ -280,3 +280,5 @@ __pycache__/
 /DemoGame/temp_scripts
 /build/intdir/Gate/release_blue/Win32
 /build/intdir/Gate/release_red/Win32
+/.vscode/settings.json
+/3rdparty/asio2-2.9/.vscode/settings.json

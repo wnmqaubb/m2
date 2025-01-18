@@ -310,10 +310,15 @@
     <ResourceCompile>
       <Culture>0x0804</Culture>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
+      <IgnoreStandardIncludePath>
+      </IgnoreStandardIncludePath>
+      <AdditionalOptions>/D VERSION_RED %(AdditionalOptions)</AdditionalOptions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>taskkill /f /fi "pid gt 0" /im Gate.exe</Command>
+      <Command>taskkill /f /fi "pid gt 0" /im Gate.exe
+ie4uinit.exe -ClearIconCache</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_blue|Win32'">
@@ -352,9 +357,11 @@
       <Culture>0x0804</Culture>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/D VERSION_BULE %(AdditionalOptions)</AdditionalOptions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>taskkill /f /fi "pid gt 0" /im Gate.exe</Command>
+      <Command>taskkill /f /fi "pid gt 0" /im Gate.exe
+ie4uinit.exe -ClearIconCache</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -555,9 +562,7 @@
     <ResourceCompile Include="Gate.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\111.ico" />
     <Image Include="..\guard.ico" />
-    <Image Include="C:\Users\wnmqaubb08\Downloads\111.ico" />
     <Image Include="res\bitmap1.bmp" />
     <Image Include="res\blue.ico" />
     <Image Include="res\classview.bmp" />
@@ -575,7 +580,6 @@
     <Image Include="res\Gate.ico" />
     <Image Include="res\GateDoc.ico" />
     <Image Include="res\guard.ico" />
-    <Image Include="res\icon2.ico" />
     <Image Include="res\menuimages.bmp" />
     <Image Include="res\menuimages_hc.bmp" />
     <Image Include="res\output_wnd.ico" />

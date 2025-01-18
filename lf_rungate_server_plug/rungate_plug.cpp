@@ -83,35 +83,44 @@ RUNGATE_API ClientStart(int clientID)
 	TRunGatePlugClientInfo clientInfo{};
 	GetClientInfo(clientID, &clientInfo);
 	//clientInfo.DataAdd.AddData1 = 1000; // 附加自己的数据
-	//DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
+	DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
 	//DbgPrint("=====客户端断开=====，ID:%d， GetClientInfo:%08X", clientID, GetClientInfo);
 
 }
 
 RUNGATE_API ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData, int dataLen, bool isSendToM2)
 {
-	if (defMsg->ident == 10000)
+	SetClientPlugLoad(clientID);
+	//DbgPrint("ClientRecvPacket=====ident:%lu，clientID:%d ", defMsg->ident, clientID);
+	try
 	{
-		//AddShowLog("=====接收客户端数据包=====", 0);
-		SetClientPlugLoad(clientID);
-		// 下发及时雨网关IP
-		defMsg->ident = 10001;
-		SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
+		if (defMsg->ident == 10000)
+		{
+			//AddShowLog("=====接收客户端数据包=====", 0);
+			//SetClientPlugLoad(clientID);
+			// 下发及时雨网关IP
+			defMsg->ident = 10001;
+			SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
 
 
-		if (show_welcome_msg == "1") {
-			if (!guard_gate_welcome_msg1.empty ()) {
-				// 下发及时雨网关欢迎信息1
-				defMsg->ident = 10002;
-				SendDataToClient(clientID, defMsg, guard_gate_welcome_msg1.c_str(), guard_gate_welcome_msg1.length());
-			}
+			if (show_welcome_msg == "1") {
+				if (!guard_gate_welcome_msg1.empty ()) {
+					// 下发及时雨网关欢迎信息1
+					defMsg->ident = 10002;
+					SendDataToClient(clientID, defMsg, guard_gate_welcome_msg1.c_str(), guard_gate_welcome_msg1.length());
+				}
 
-			if (!guard_gate_welcome_msg2.empty()) {
-				// 下发及时雨网关欢迎信息1
-				defMsg->ident = 10003;
-				SendDataToClient(clientID, defMsg, guard_gate_welcome_msg2.c_str(), guard_gate_welcome_msg2.length());
+				if (!guard_gate_welcome_msg2.empty()) {
+					// 下发及时雨网关欢迎信息1
+					defMsg->ident = 10003;
+					SendDataToClient(clientID, defMsg, guard_gate_welcome_msg2.c_str(), guard_gate_welcome_msg2.length());
+				}
 			}
 		}
+	}
+	catch (...)
+	{
+		DbgPrint("ClientRecvPacket =====异常");
 	}
 }
 
