@@ -1,16 +1,86 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
+#include "LogicClient.h"
+#include <thread>
+#include <vector>
+#include <memory>
+
 //slog->debug(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
 extern std::shared_ptr<spdlog::logger> slog;
+// çº¿ç¨‹æ± ç±»
+class ThreadPool {
+public:
+    ThreadPool(size_t threads) : stop(false) {
+        for (size_t i = 0; i < threads; ++i)
+            workers.emplace_back([this] {
+            for (;;) {
+                Task task;
+                {
+                    std::unique_lock<std::mutex> lock(this->queue_mutex);
+                    this->condition.wait(lock,
+                                         [this] { return this->stop || !this->tasks.empty(); });
+                    if (this->stop && this->tasks.empty())
+                        return;
+                    task = std::move(this->tasks.front());
+                    this->tasks.pop();
+                }
+                // å¤„ç†ä»»åŠ¡
+                //CObserverServer::instance().process_task(std::move(task));
+                try {
+                    CObserverServer::instance().process_task(std::move(task));
+                }
+                catch (const std::exception& e) {
+                    // è®°å½•æ—¥å¿—æˆ–å¤„ç†å¼‚å¸¸
+                    std::cerr << "Task failed: " << e.what() << std::endl;
+                }
+                catch (...) {
+                    // å¤„ç†æœªçŸ¥å¼‚å¸¸
+                    std::cerr << "Task failed with unknown exception" << std::endl;
+                }
+            }
+        });
+    }
+
+    void enqueue(Task task) {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            if (stop)
+                throw std::runtime_error("enqueue on stopped ThreadPool");
+            tasks.push(std::move(task));
+        }
+        condition.notify_one();
+    }
+
+    ~ThreadPool() {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            stop = true;
+        }
+        condition.notify_all();
+        for (std::thread& worker : workers)
+            worker.join();
+    }
+
+private:
+    std::vector<std::thread> workers;
+    std::queue<Task> tasks;
+    std::mutex queue_mutex;// åé¢å¦‚æœæ€§èƒ½æœ‰é—®é¢˜,å¯ä»¥è€ƒè™‘ä½¿ç”¨æ— é”é˜Ÿåˆ—
+    std::condition_variable condition;
+    bool stop;
+};
+
+// å…¨å±€çº¿ç¨‹æ± 
+static ThreadPool pool(std::thread::hardware_concurrency());  // 4ä¸ªå·¥ä½œçº¿ç¨‹
+
 CObserverServer::CObserverServer()
 {
-	static VmpSerialValidator vmp(this);
+	static VmpSerialValidator vmp;
 	logic_client_ = std::make_shared<CLogicClient>();
 	is_observer_server_ = true;
 	set_log_cb(std::bind(&CObserverServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 	logic_client_->sub_notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-		//slog->info("LogicClientÖØÁ¬ºóÍ¬²½session");
+		//slog->info("LogicClienté‡è¿ååŒæ­¥session");
 		
 		foreach_session([this](tcp_session_shared_ptr_t& session) {
 			auto user_data = get_user_data_(session);
@@ -24,7 +94,7 @@ CObserverServer::CObserverServer()
 				}
 				else
 				{
-					//slog->debug("Ìí¼ÓÓÃ»§session session_id: {}", session->hash_key());
+					//slog->debug("æ·»åŠ ç”¨æˆ·session session_id: {}", session->hash_key());
 					ProtocolLC2LSAddUsrSession req;
 					auto& _userdata = req.data;
 					_userdata.session_id = session->hash_key();
@@ -51,7 +121,7 @@ CObserverServer::CObserverServer()
 			if (session) 
 			{
 				get_user_data_(session)->set_field(param.key, param.val);
-				// ·¢¸ø¹ÜÀíÔ±Íø¹Ø
+				// å‘ç»™ç®¡ç†å‘˜ç½‘å…³
 				if (get_user_data_(session)->get_field<bool>("is_observer_client"))
 				{
 					ProtocolOBS2OBCSetField req;
@@ -62,7 +132,7 @@ CObserverServer::CObserverServer()
 				}
 			}
 		});
-	// ÌßÈË CLogicServer::close_socket
+	// è¸¢äºº CLogicServer::close_socket
 	logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_KICK, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg)
 		{
 			auto param = msg.get().as<ProtocolLS2LCKick>();
@@ -97,7 +167,7 @@ CObserverServer::CObserverServer()
 		ProtocolOBS2OBCQueryVmpExpire resp;
 		resp.vmp_expire = get_vmp_expire();
 		async_send(session, &resp);
-		// ·¢ËÍÓĞĞ§ÆÚÈÕÆÚ
+		// å‘é€æœ‰æ•ˆæœŸæ—¥æœŸ
 		session->start_timer("query_vmp_expire", 1000, 20, [this, resp, weak_session = std::weak_ptr(session)]() {
 			if (auto session = weak_session.lock()) {
 				async_send(session, &resp);
@@ -106,11 +176,11 @@ CObserverServer::CObserverServer()
 		return;
 #else
 		auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
-		get_user_data_(session)->set_field("auth_key", auth_key);
-		if (auth_key == auth_ticket_)
+        get_user_data_(session)->set_field("auth_key", auth_key);
+		if (auth_key == get_auth_ticket())
 		{
 			get_user_data_(session)->set_field("is_observer_client", true);
-			slog->debug("ÊÚÈ¨¹Û²ìÕß¿Í»§¶Ë³É¹¦ client_addr: {}:{}, session_id: {}",
+			slog->debug("æˆæƒè§‚å¯Ÿè€…å®¢æˆ·ç«¯æˆåŠŸ client_addr: {}:{}, session_id: {}",
 				session->remote_address(), session->remote_port(), session->hash_key());
 			ProtocolLC2LSAddObsSession req;
 			req.session_id = session->hash_key();
@@ -119,9 +189,9 @@ CObserverServer::CObserverServer()
 			auth.status = true;
 			async_send(session, &auth);
 			ProtocolOBS2OBCQueryVmpExpire resp;
-			resp.vmp_expire = get_vmp_expire();
+			resp.vmp_expire = get_vmp_expire(); 
 			async_send(session, &resp);
-			// ·¢ËÍÓĞĞ§ÆÚÈÕÆÚ
+			// å‘é€æœ‰æ•ˆæœŸæ—¥æœŸ
 			session->start_timer("query_vmp_expire", 1000, 20, [this, resp, weak_session = std::weak_ptr(session)]() {
 				if (auto session = weak_session.lock()) {
 					async_send(session, &resp);
@@ -131,7 +201,7 @@ CObserverServer::CObserverServer()
 		else
 		{
 			get_user_data_(session)->set_field("is_observer_client", false);
-			slog->debug("ÊÚÈ¨¹Û²ìÕß¿Í»§¶ËÊ§°Ü client_addr: {}:{}, session_id: {}",
+			slog->debug("æˆæƒè§‚å¯Ÿè€…å®¢æˆ·ç«¯å¤±è´¥ client_addr: {}:{}, session_id: {}",
 				session->remote_address(), session->remote_port(), session->hash_key());
 			ProtocolOBS2OBCAuth auth;
 			auth.status = false;
@@ -147,7 +217,7 @@ CObserverServer::CObserverServer()
 		auto req = raw_msg.get().as<ProtocolOBC2OBSSend>();
 		async_send(sessions().find(req.package.head.session_id), req.package, session->hash_key());
 		});
-	// ÌßÈË 
+	// è¸¢äºº 
 	ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_KICK, [this](tcp_session_shared_ptr_t&, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
 		auto req = raw_msg.get().as<ProtocolOBC2OBSKick>();
 		auto session = sessions().find(req.session_id);
@@ -205,11 +275,11 @@ CObserverServer::CObserverServer()
 			&pi);
 		if (res == FALSE)
 		{
-			log(LOG_TYPE_EVENT, TEXT("¸üĞÂLogicServerÊ§°Ü"));
+			log(LOG_TYPE_EVENT, TEXT("æ›´æ–°LogicServerå¤±è´¥"));
 		}
 		else
 		{
-			log(LOG_TYPE_EVENT, TEXT("¸üĞÂLogicServer³É¹¦"));
+			log(LOG_TYPE_EVENT, TEXT("æ›´æ–°LogicServeræˆåŠŸ"));
 		}
 		});
 	user_notify_mgr_.register_handler(CLIENT_HANDSHAKE_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
@@ -248,66 +318,70 @@ void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
 	super::on_post_disconnect(session);
 
-	//slog->debug("¼ì²âµ½Á¬½Ó¶Ï¿ª client_addr: {}:{}, session_id: {}", session->remote_address(), session->remote_port(), session->hash_key());
+	//slog->debug("æ£€æµ‹åˆ°è¿æ¥æ–­å¼€ client_addr: {}:{}, session_id: {}", session->remote_address(), session->remote_port(), session->hash_key());
 
 	if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))
 	{
-		//slog->debug("ÒÆ³ı¹Û²ìÕßsession session_id: {}", session->hash_key());
+		//slog->debug("ç§»é™¤è§‚å¯Ÿè€…session session_id: {}", session->hash_key());
 		ProtocolLC2LSRemoveObsSession req;
 		req.session_id = session->hash_key();
 		logic_client_->async_send(&req);
 	}
 
-	//slog->debug("ÒÆ³ıÓÃ»§session session_id: {}", session->hash_key());
+	//slog->debug("ç§»é™¤ç”¨æˆ·session session_id: {}", session->hash_key());
 	ProtocolLC2LSRemoveUsrSession req;
 	req.data.session_id = session->hash_key();
 	logic_client_->async_send(&req);
 }
-// ×ª·¢µ½logic_server
-bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
+// è½¬å‘åˆ°logic_server
+bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg)
 {
-	//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
-	if (is_auth_success_ == false)
-	{
-		return true;
-	}
+    if (is_auth_success_ == false) {
+        return true;
+    }
 
-	if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE)
-	{
-			// ×ª·¢ĞÄÌø°üµ½LogicServer
-			ProtocolLC2LSSend req;
-			req.package = package;
-			req.package.head.session_id = session->hash_key();
-			logic_client_->async_send(&req, package.head.session_id);
-			return true;
-	}
+    // å°†ä»»åŠ¡æ”¾å…¥é˜Ÿåˆ—
+    Task task(package_id, session, package, std::move(raw_msg));
+    try {
+        pool.enqueue(std::move(task));
+    } catch (const std::exception& e) {
+        slog->error("Failed to enqueue task: {}", e.what());
+        return false;
+    }
+    return true;
+}
 
-	auto user_data = get_user_data_(session);
-	//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
-	auto is_observer_client = user_data->get_field<bool>("is_observer_client");
+void CObserverServer::process_task(Task&& task) 
+{
+    auto& [package_id, session, package, raw_msg] = task;
+
+    if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE) {
+        ProtocolLC2LSSend req;
+        req.package = package;
+        req.package.head.session_id = session->hash_key();
+        logic_client_->async_send(&req, package.head.session_id);
+        return;
+    }
+
+    auto user_data = get_user_data_(session);
+    auto is_observer_client = user_data->get_field<bool>("is_observer_client");
 	//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
 	if (!(is_observer_client.has_value() && is_observer_client.value()))
 	{
-		log(LOG_TYPE_ERROR, TEXT("Î´ÊÚÈ¨Serviceµ÷ÓÃ"));
-		return false;
-	}
+		log(LOG_TYPE_ERROR, TEXT("æœªæˆæƒServiceè°ƒç”¨"));
+		return ;
+    }
 
-	if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END)
-	{
-		//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
-		ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
-		//slog->debug(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
-		return true;
-	}
-	else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END)
-	{
-		ProtocolLC2LSSend req;
-		req.package = package;
-		req.package.head.session_id = session->hash_key();
-		logic_client_->async_send(&req, package.head.session_id);
-		return true;
-	}
-	return false;
+    if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END) {
+        ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
+    } else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END) {
+        ProtocolLC2LSSend req;
+        req.package = package;
+        req.package.head.session_id = session->hash_key();
+        logic_client_->async_send(&req, package.head.session_id);
+		return ;
+    }
+	return ;
 }
 
 void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned short port)
@@ -316,12 +390,12 @@ void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned sh
 	{
 		if (logic_client_->start(ip, port))
 		{
-			printf("Á¬½Óg_LogicServer³É¹¦\n");
+			printf("è¿æ¥g_LogicServeræˆåŠŸ\n");
 		}
 	}
 	catch (...)
 	{
-		printf("Á¬½Óg_LogicServerÊ§°Ü:´íÎóºÅ: %d, ´íÎóĞÅÏ¢: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
+		printf("è¿æ¥g_LogicServerå¤±è´¥:é”™è¯¯å·: %d, é”™è¯¯ä¿¡æ¯: %s\n", asio2::get_last_error().value(), asio2::get_last_error_msg().c_str());
 	}
 }
 
@@ -334,7 +408,7 @@ void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, con
 	log.gm_show = gm_show;
 	log.punish_flag = punish_flag;
 	foreach_session([this, &log](tcp_session_shared_ptr_t& session) {
-		if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))//adminÍø¹Ø
+		if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))//adminç½‘å…³
 		{
 			async_send(session, &log);
 		}

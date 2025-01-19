@@ -23,9 +23,8 @@
 #include <WinNT.h>
 #include <WinUser.h>
 
-VmpSerialValidator::VmpSerialValidator(CObserverServer* ac_server)
+VmpSerialValidator::VmpSerialValidator()
 {
-	server_ = ac_server;
 	write_hwid();
 }
 bool VmpSerialValidator::validate_timer(bool slience)
@@ -33,19 +32,19 @@ bool VmpSerialValidator::validate_timer(bool slience)
 	VMProtectBeginVirtualization(__FUNCTION__);
 	bool status = false;
 #ifdef _DEBUG
-	server()->set_auth_ticket("");
-	server()->auth_success();
-	server_->get_vmp_expire() = TEXT("测试");
+	CObserverServer::instance().set_auth_ticket("");
+	CObserverServer::instance().auth_success();
+	CObserverServer::instance().get_vmp_expire() = TEXT("测试");
 	status = true;
 #else
 	is_multi_serial_ = false;
-	server_->get_vmp_expire() = L"";
+    CObserverServer::instance().get_vmp_expire() = L"";
 	std::filesystem::path file(std::filesystem::current_path() / "serial.txt");
 	if (!std::filesystem::exists(file))
 	{
 		MessageBox(NULL, TEXT("授权文件不存在,请联系客服!"), TEXT("提示"), MB_ICONERROR | MB_SYSTEMMODAL);
-		server()->logic_client_stop();
-		server()->stop();
+		CObserverServer::instance().logic_client_stop();
+		CObserverServer::instance().stop();
 		return false;
 	}
 	auto sn = read_license(file.string());
@@ -75,12 +74,12 @@ bool VmpSerialValidator::validate_timer(bool slience)
 
 	if (status)
 	{
-		server()->set_auth_ticket(ticket);
-		server()->auth_success();
+		CObserverServer::instance().set_auth_ticket(ticket);
+		CObserverServer::instance().auth_success();
 	}
 	else
 	{
-		server()->auth_fail();
+		CObserverServer::instance().auth_fail();
 	}
 #endif;
 	VMProtectEnd();
@@ -122,10 +121,10 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
 				break;
 		}
 		if (slience)
-			server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
+			CObserverServer::instance().log(LOG_TYPE_ERROR, vmp_text.c_str());
 		else
 			MessageBox(NULL, vmp_text.c_str(), TEXT("提示"), MB_OK);
-		server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
+		CObserverServer::instance().log(LOG_TYPE_ERROR, vmp_text.c_str());
 		return false;
 	}
 
@@ -135,28 +134,28 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
 	asio2::base64 base64;
 	auto sn_sha1 = asio2::sha1(base64.decode(sn));
 	ticket = base64.encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
-	server()->log(LOG_TYPE_DEBUG, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
+	CObserverServer::instance().log(LOG_TYPE_DEBUG, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
 
 	// 验证序列号是否已冻结
 	int status = http_query_sn_status(sn);
 	if (status == -1)
 	{
-		server()->log(LOG_TYPE_ERROR, TEXT("网络异常,验证序列号失败!"));
+		CObserverServer::instance().log(LOG_TYPE_ERROR, TEXT("网络异常,验证序列号失败!"));
 		return false;
 	}
 	if (status > 0)
 	{
-		server()->log(LOG_TYPE_ERROR, TEXT("序列号已冻结"));
+		CObserverServer::instance().log(LOG_TYPE_ERROR, TEXT("序列号已冻结"));
 		return false;
 	}
 
 	wchar_t vmp_expire_t[50] = { 0 };
 	swprintf_s(vmp_expire_t, TEXT("%d-%d-%d"), sd.dtExpire.wYear, sd.dtExpire.bMonth, sd.dtExpire.bDay);
-	if (server_->get_vmp_expire().empty())
+	if (CObserverServer::instance().get_vmp_expire().empty())
 	{
-		server_->get_vmp_expire() = vmp_expire_t;
+		CObserverServer::instance().get_vmp_expire() = vmp_expire_t;
 	}
-	server_->log(LOG_TYPE_EVENT, (TEXT("验证成功，到期时间:") + server_->get_vmp_expire()).c_str());
+	CObserverServer::instance().log(LOG_TYPE_EVENT, (TEXT("验证成功，到期时间:") + CObserverServer::instance().get_vmp_expire()).c_str());
 	VMProtectEnd();
 	return true;
 }

@@ -395,7 +395,10 @@ CLogicServer::CLogicServer()
             if (is_svip(package.head.session_id)) {
                 return;
             }
-            send_policy(user_data, session, package.head.session_id);
+            // 延迟发送策略,防止用户还在登录
+            post([user_data, session, session_id = package.head.session_id, this]() mutable {
+                send_policy(user_data, session, session_id);
+            }, std::chrono::seconds(15));
             detect(session, package.head.session_id);
         }
         });
@@ -710,8 +713,14 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
         if (user_data)
         {
             VMProtectBeginVirtualization(__FUNCTION__);
-            std::string ip = user_data->json.find("ip") != user_data->json.end() ? user_data->json.at("ip").get<std::string>() : "(NULL)";
-            std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
+            std::string ip = user_data->json.contains("ip") ? user_data->json.at("ip").get<std::string>() : "(NULL)";
+            std::wstring usr_name = user_data->json.contains("usrname") ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
+
+            // 未登录用户不处罚
+            if (usr_name.empty() || usr_name == L"未登录用户" || usr_name == L"(NULL)") {
+                return;
+            }
+
             ProtocolPolicy while_list_policy;
             // 白名单用户不检测心跳和策略
             if (is_svip(session_id)) {

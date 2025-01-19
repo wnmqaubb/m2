@@ -231,7 +231,6 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="ProxyTunnel.h" />
-    <ClInclude Include="ServicePackage.h" />
     <ClInclude Include="SubServicePackage.h" />
     <ClInclude Include="VmpSerialValidate.h" />
   </ItemGroup>

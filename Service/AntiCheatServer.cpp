@@ -375,7 +375,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     {
         return;
 }
-    if (!on_recv(package_id, session, package, raw_msg))
+    if (!on_recv(package_id, session, package, std::move(raw_msg)))
     {
         log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
             Utils::c2w(session->remote_address()).c_str(),
@@ -633,54 +633,3 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         session->stop();
     }
 }
-
-//
-//void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)
-//{
-//    try 
-//    {
-//	    log(LOG_TYPE_DEBUG, TEXT("握手session_id:%d %s:%d"), session->hash_key(), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
-//	    auto userdata = get_user_data_(session);
-//	    memcpy(userdata->uuid, msg.uuid, sizeof(msg.uuid));
-//	    userdata->has_handshake = true;
-//	    //握手超时检查取消
-//        session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
-//	    //心跳超时检查
-//	    session->start_timer((unsigned int)HEARTBEAT_CHECK_TIMER_ID, heartbeat_check_duration_/*60s*/, [this, session]() {
-//		    auto userdata = get_user_data_(session);
-//		    auto duration = userdata->get_heartbeat_duration();
-//		    if (userdata->is_timeout(heartbeat_timeout_))
-//		    {
-//			    log(LOG_TYPE_ERROR, TEXT("%s:%d 心跳超时%d秒"), Utils::c2w(session->remote_address()).c_str(),
-//				    session->remote_port(), std::chrono::duration_cast<std::chrono::seconds>(duration).count());
-//                // 关闭玩家连接,不关闭logic_server
-//                slog->debug("关闭玩家连接,不关闭logic_server session_id: {}", session->hash_key());
-//                if (get_user_data_(session)->get_field<bool>("is_local_client") == false) {
-//                    session->clear_user_data();
-//                    session->stop();
-//                }
-//		    }
-//	    });
-//
-//        userdata->set_field("sysver", msg.system_version);
-//        userdata->set_field("64bits", msg.is_64bit_system);
-//        userdata->set_field("cpuid", msg.cpuid);
-//        userdata->set_field("mac", msg.mac);
-//        userdata->set_field("vol", msg.volume_serial_number);
-//        userdata->set_field("rev_ver", msg.rev_version);
-//        userdata->set_field("commit_ver", msg.commited_hash);
-//        userdata->set_field("ip", session->remote_address());
-//        userdata->set_field("logintime", std::time(nullptr));
-//        userdata->set_field("pid", msg.pid);
-//
-//        user_notify_mgr_.dispatch(CLIENT_HANDSHAKE_NOTIFY_ID, session);
-//        ProtocolS2CHandShake resp;
-//        memcpy(resp.uuid, msg.uuid, sizeof(resp.uuid));
-//	    send(session, &resp);
-//        OutputDebugString(TEXT("s->c 握手成功"));
-//    }
-//    catch (const std::exception& e)
-//    {
-//        log(LOG_TYPE_ERROR, TEXT("握手异常:%s"), Utils::c2w(e.what()).c_str());
-//    }
-//}

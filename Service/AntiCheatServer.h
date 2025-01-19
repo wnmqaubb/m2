@@ -93,7 +93,7 @@ public:
     virtual void log(int type, LPCTSTR format, ...);
     virtual void user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...);
     void punish_log(LPCTSTR format, ...);
-    virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&) { return false; };
+    virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) { return false; };
 
     template <typename T>
     void send(tcp_session_shared_ptr_t& session, T* package, unsigned int session_id = 0)
@@ -163,8 +163,6 @@ private:
     std::atomic<std::chrono::system_clock::time_point> last_heartbeat_time{
         std::chrono::system_clock::now()
     };
-    std::atomic<bool> is_connected{true};
-
 public:
     void update_heartbeat() {
         last_heartbeat_time.store(
@@ -236,18 +234,21 @@ struct AntiCheatUserData
     }
 };
 
-inline std::shared_ptr<AntiCheatUserData> get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
-{
-    // 使用线程安全的懒加载
-    static std::mutex init_mutex;
-    
+inline std::shared_ptr<AntiCheatUserData> get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session) {
     auto userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
     if (!userdata) {
+        static std::mutex init_mutex;
         std::lock_guard<std::mutex> lock(init_mutex);
         userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
         if (!userdata) {
-            userdata = std::make_shared<AntiCheatUserData>();
-            session->set_user_data(userdata);
+            try {
+                userdata = std::make_shared<AntiCheatUserData>();
+                session->set_user_data(userdata);
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Error setting user data: " << e.what() << std::endl;
+                throw;  // 重新抛出异常
+            }
         }
     }
     return userdata;

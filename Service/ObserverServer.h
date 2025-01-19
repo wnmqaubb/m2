@@ -1,22 +1,50 @@
-#pragma once
+﻿#pragma once
 #include "AntiCheatClient.h"
 #include "AntiCheatServer.h"
 #include "ObserverClient.h"
 #include "ObServerPackage.h"
 #include "LogicClient.h"
 
+using tcp_session_shared_ptr_t = std::shared_ptr<asio2::tcp_session>;
+// 任务队列结构
+struct Task {
+    unsigned int package_id;
+    tcp_session_shared_ptr_t session;
+    RawProtocolImpl package;
+    msgpack::v1::object_handle raw_msg;
+
+    Task() = default;
+    Task(unsigned int id, tcp_session_shared_ptr_t s, const RawProtocolImpl& p, msgpack::v1::object_handle&& msg)
+        : package_id(id), session(std::move(s)), package(p), raw_msg(std::move(msg)) {
+    }
+
+    // 禁止拷贝
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
+
+    // 允许移动
+    Task(Task&&) noexcept = default;
+    Task& operator=(Task&&) noexcept = default;
+};
+
 class CObserverServer : public CAntiCheatServer
 {
     using super = CAntiCheatServer;
 public:
     CObserverServer();
+    static CObserverServer& instance()
+    {
+        static CObserverServer instance;
+        return instance;
+    }
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
-    virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg);
+    virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg);
     virtual void connect_to_logic_server(const std::string& ip, unsigned short port);;
     virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
     void logic_client_stop() { if (logic_client_) { logic_client_->stop_all_timers();  logic_client_->stop(); } };
     void stop() { logic_client_->stop(); super::stop(); }
     std::wstring& get_vmp_expire() { return vmp_expire_; }
+    void process_task(Task&& task);
 protected:
     std::shared_ptr<CLogicClient> logic_client_;
     NetUtils::EventMgr<package_handler_t> ob_pkg_mgr_;

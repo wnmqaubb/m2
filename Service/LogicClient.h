@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "AntiCheatClient.h"
 #include "ObServerPackage.h"
 
@@ -9,7 +9,7 @@ public:
     CLogicClient()
     {
         notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-            // ±¾µØ¿Í»§¶Ëlogic_server,service£¬²»¼ì²âÎÕÊÖ£¬ĞÄÌø£¬Ö»·Ö·¢Ğ­Òé
+            // æœ¬åœ°å®¢æˆ·ç«¯logic_server,serviceï¼Œä¸æ£€æµ‹æ¡æ‰‹ï¼Œå¿ƒè·³ï¼Œåªåˆ†å‘åè®®
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
             send(&handshake);
