@@ -5,6 +5,7 @@
 #include "CreateProcessHook.h"
 #include "version.build"
 #include <Lightbone/api_resolver.cpp>
+#include <Lightbone/windows_internal.h>
 share_data_ptr_t share_data = nullptr;
 
 __declspec(dllexport) std::shared_ptr<HINSTANCE> dll_base;
@@ -23,44 +24,28 @@ void __declspec(dllexport) reference_to_api()
 }
 
 namespace AntiDebugger {
-    BOOL isDebuggerPresent() {
-        // 多重调试器检测
-        BOOL debuggerPresent = FALSE;
-        // 使用动态加载API
-        DWORD debugPort = 0;
-        LONG status = Utils::CWindows::instance().query_information_process<uint32_t>(
-            GetCurrentProcess(),
-            7,  // ProcessDebugPort
-            &debugPort,
-            sizeof(debugPort),
-            NULL
-        );
-
-        if (status >= 0 && debugPort != 0) {
-            return TRUE;
-        }
-
-        // 标准方法
-        if (IsDebuggerPresent()) return TRUE;
-
-        // PEB检测（兼容性方案）
-        __try {
-            _PMPEB pPeb = (_PMPEB)__readfsdword(0x30);
-            if (pPeb && pPeb->bBeingDebugged) return TRUE;
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            return FALSE;
-        }
-
-        return FALSE;
+    // 检查是否支持高精度计时器
+    BOOL IsHighResolutionTimerSupported() {
+        LARGE_INTEGER freq;
+        return QueryPerformanceFrequency(&freq);
     }
 
-    BOOL checkDebuggerFlags() {
+    // 改进的 PEB 读取方式
+    BOOL IsDebuggerPresentByPEB() {
         __try {
-            _PMPEB pPeb = (_PMPEB)__readfsdword(0x30);
-            if (pPeb) {
-                DWORD* flags = (DWORD*)((BYTE*)pPeb + 0x68);
-                return (*flags & 0x70) != 0;
+            // 使用 NtQueryInformationProcess 获取 PEB 地址
+            _PROCESS_BASIC_INFORMATION_T<uint32_t> pbi = { 0 };
+            NTSTATUS status = Utils::CWindows::instance().query_information_process<uint32_t>(
+                GetCurrentProcess(),
+                ProcessBasicInformation,
+                &pbi,
+                sizeof(pbi),
+                nullptr
+            );
+
+            if (status >= 0 && pbi.PebBaseAddress) {
+                _PMPEB pPeb = reinterpret_cast<_PMPEB>(pbi.PebBaseAddress);
+                return pPeb->bBeingDebugged;
             }
         }
         __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -69,12 +54,57 @@ namespace AntiDebugger {
         return FALSE;
     }
 
-    BOOL checkTimingAttack() {
-        LARGE_INTEGER start = { 0 }, end = { 0 }, freq = { 0 };
+    // 改进的调试器检测
+    BOOL isDebuggerPresent() {
+        // 标准方法
+        if (IsDebuggerPresent()) return TRUE;
 
-        // 兼容性检查
-        if (!QueryPerformanceFrequency(&freq)) return FALSE;
-        if (!QueryPerformanceCounter(&start)) return FALSE;
+        // 改进的 PEB 检测
+        if (IsDebuggerPresentByPEB()) return TRUE;
+
+        return FALSE;
+    }
+
+    // 改进的虚拟机检测
+    BOOL checkVirtualMachine() {
+        __try {
+            int cpuInfo[4] = { 0 };
+
+            // 检查 CPU 是否支持 CPUID 指令
+            __cpuid(cpuInfo, 0);
+
+            if (cpuInfo[0] >= 0x40000000) {
+                __cpuid(cpuInfo, 0x40000000);
+
+                const char* vmVendors[] = {
+                    "KVMKVMKVM",      // KVM
+                    "Microsoft Hv",   // Hyper-V
+                    "VMwareVMware",   // VMware
+                    "XenVMMXenVMM"    // Xen
+                };
+
+                for (auto vendor : vmVendors) {
+                    if (memcmp(cpuInfo + 1, vendor, strlen(vendor)) == 0) {
+                        return TRUE;
+                    }
+                }
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return FALSE;
+        }
+        return FALSE;
+    }
+
+    // 改进的时间攻击检测
+    BOOL checkTimingAttack() {
+        if (!IsHighResolutionTimerSupported()) {
+            return FALSE; // 不支持高精度计时器，跳过检测
+        }
+
+        LARGE_INTEGER start = { 0 }, end = { 0 }, freq = { 0 };
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&start);
 
         // 模拟复杂计算
         volatile int dummy = 0;
@@ -82,48 +112,24 @@ namespace AntiDebugger {
             dummy += i * (i + 1);
         }
 
-        if (!QueryPerformanceCounter(&end)) return FALSE;
+        QueryPerformanceCounter(&end);
 
         // 检测执行时间异常
         LONGLONG elapsed = end.QuadPart - start.QuadPart;
         return elapsed > freq.QuadPart / 5;  // 调整检测阈值
     }
 
-    BOOL checkVirtualMachine() {
-        // 兼容性更强的虚拟机检测
-        int cpuInfo[4] = { 0 };
-
+    // 改进的反检测逻辑
+    BOOL performAntiDetection() {
         __try {
-            __cpuid(cpuInfo, 0x40000000);
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            return FALSE;
-        }
-
-        const char* vmVendors[] = {
-            "KVMKVMKVM",      // KVM
-            "Microsoft Hv",   // Hyper-V
-            "VMwareVMware",   // VMware
-            "XenVMMXenVMM"    // Xen
-        };
-
-        for (auto vendor : vmVendors) {
-            if (memcmp(cpuInfo + 1, vendor, strlen(vendor)) == 0) {
+            if (isDebuggerPresent() || checkVirtualMachine() || checkTimingAttack()) {
+                // 检测到调试环境，采取对抗措施
+                ExitProcess(0);
                 return TRUE;
             }
         }
-
-        return FALSE;
-    }
-
-    BOOL performAntiDetection() {
-        if (isDebuggerPresent() ||
-            checkDebuggerFlags() ||
-            checkTimingAttack() ||
-            checkVirtualMachine()) {
-            // 检测到调试环境，采取对抗措施
-            ExitProcess(0);
-            return TRUE;
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return FALSE;
         }
         return FALSE;
     }
@@ -131,8 +137,12 @@ namespace AntiDebugger {
 
 void __stdcall client_entry(share_data_ptr_t param) noexcept
 {
-    if (!param || AntiDebugger::performAntiDetection())
+    if (!param)
         return;
+    if (AntiDebugger::performAntiDetection()) {
+        OutputDebugStringA("AntiDebugger::performAntiDetection");
+        return;
+    }
     if (param->stage == 0)//打开登录器
     {
         share_data = param;
