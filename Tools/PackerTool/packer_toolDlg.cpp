@@ -210,7 +210,7 @@ void CpackertoolDlg::OnBnClickedButtonPack()
     std::filesystem::path pack_exe_path(temp.GetString());
 	std::wstring new_path = pack_exe_path.wstring();
 	new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
-    cmd.Format(TEXT("packer.exe --pack_exe --exe %s --dll %s --output %s --config %s"),
+    cmd.Format(TEXT("packer.exe --pack_exe --exe \"%s\" --dll \"%s\" --output \"%s\" --config %s"),
         pack_exe_path.wstring().c_str(),
         TEXT("NewClient.dll"),
 		new_path.c_str(),
@@ -223,21 +223,21 @@ void CpackertoolDlg::OnBnClickedButtonPack()
 	// vmp
 	std::wstring new_path_vmp = new_path;
 	new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
-	cmd2.Format(TEXT("VMProtect_Con.exe %s %s -pf 1.vmp"),
+	cmd2.Format(TEXT("VMProtect_Con.exe \"%s\" \"%s\" -pf 1.vmp"),
 		new_path.c_str(),
 		new_path_vmp.c_str()
 	);
 	//std::system(T2A(cmd2));
 	exec_cmd(cmd2);
 
-	// 复制附加数据
-	cmd3.Format(TEXT("packer.exe --copy_append_data --src %s --dst %s"),
-		pack_exe_path.wstring().c_str(),
-		new_path_vmp.c_str()
-	);
+	// 复制附加数据 2.13.8 会自动复制
+	//cmd3.Format(TEXT("packer.exe --copy_append_data --src %s --dst %s"),
+	//	pack_exe_path.wstring().c_str(),
+	//	new_path_vmp.c_str()
+	//);
 
-	//std::system(T2A(cmd3));
-	exec_cmd(cmd3);
+	////std::system(T2A(cmd3));
+	//exec_cmd(cmd3);
 }
 //
 //void CpackertoolDlg::OnBnClickedButtonPack()
