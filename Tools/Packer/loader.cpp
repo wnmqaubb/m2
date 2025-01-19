@@ -401,6 +401,20 @@ __int64 InlineAssemblyDivide64(__int64 a, __int64 b) {
     }
     return result;
 }
+
+LONGLONG Divide64(LONGLONG value, LONGLONG divisor) {
+    LONGLONG result;
+    __asm {
+        mov eax, dword ptr[value]
+        mov edx, dword ptr[value + 4]
+        mov ebx, dword ptr[divisor]
+        mov ecx, dword ptr[divisor + 4]
+        div ebx
+        mov dword ptr[result], eax
+        mov dword ptr[result + 4], edx
+    }
+    return result;
+}
 /**
  * @brief 加载器入口点函数
  * 
@@ -415,6 +429,7 @@ extern "C" void __stdcall loader_entry(uint8_t* eip)
     auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
     // 导入kernel32.dll中的VirtualAlloc函数，并将其赋值给VirtualAlloc变量
     auto VirtualAlloc = IMPORT(L"kernel32.dll", VirtualAlloc);
+    auto OutputDebugStringA = IMPORT(L"kernel32.dll", OutputDebugStringA);
 
     // 计算共享数据结构的指针
     share_data_ptr_t param = (share_data_ptr_t)(eip - offsetof(share_data_t, call_opcode));
@@ -437,11 +452,29 @@ extern "C" void __stdcall loader_entry(uint8_t* eip)
     QueryPerformanceCounter(&end);
 
     // 检测执行时间异常
+    // 计算执行时间
     LONGLONG elapsed = end.QuadPart - start.QuadPart;
-    if (elapsed > InlineAssemblyDivide64(freq.QuadPart,10)) {  // 超过0.1秒
+
+    // 计算阈值（0.1 秒对应的计时器计数）
+    volatile LONGLONG freqValue = freq.QuadPart; // 避免优化
+    LONGLONG threshold = Divide64(freqValue, 2);
+
+    // 检查是否超时
+    if (elapsed > threshold) { // 超过0.1秒
         auto ExitProcess = IMPORT(L"kernel32.dll", ExitProcess);
+        char exit_process[] = {'E', 'x', 'i', 't', ' ', 'p', 'r', 'o', 'c', 'e', 's', 's', '=','=', '\0'};
+        OutputDebugStringA(exit_process);
         ExitProcess(0);
     }
+
+    auto Sleep = IMPORT(L"kernel32.dll", Sleep);
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter); // 获取高精度计时器的值
+
+    // 使用计数器值生成伪随机数
+    DWORD sleepTime = (counter.LowPart * 1103515245 + 12345) % 1000;
+    Sleep(sleepTime);
+
 
     // 在内存中分配一块可执行的内存区域
     unsigned char* stub = (unsigned char*)VirtualAlloc(NULL, param->stub_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
