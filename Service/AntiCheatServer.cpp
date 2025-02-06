@@ -119,6 +119,7 @@ private:
 #include <msgpack/v1/object_fwd_decl.hpp>
 #include <msgpack/v3/unpack.hpp>
 #include "Package.h"
+#include <ObServerPackage.h>
 
 static std::set<std::string> ddos_black_List;
 static std::map<std::string, uint32_t> ddos_black_map; 
@@ -226,12 +227,12 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 	}
 	get_user_data_(session)->set_field("is_local_client", remote_address == kDefaultLocalhost);
 	//log(LOG_TYPE_DEBUG, TEXT("接受 %s:%d"), Utils::c2w(remote_address).c_str(), session->remote_port());
-    //slog->debug("接受: {}{}", remote_address, session->remote_port());
+    //slog->info("接受: {}{}", remote_address, session->remote_port());
 }
 
 void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 {
-    //slog->debug("建立连接: {}{}", session->remote_address(), session->remote_port());
+    //slog->info("建立连接: {}{}", session->remote_address(), session->remote_port());
     //log(LOG_TYPE_DEBUG, TEXT("建立连接 %s:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
     //握手超时检查
     session->start_timer((unsigned int)UUID_CHECK_TIMER_ID, uuid_check_duration_, [this, session]() {
@@ -246,7 +247,7 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
-    //slog->debug("=============on_recv_package收包: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
+    //slog->info("=============on_recv_package收包: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
 #ifdef _DEBUG
     _on_recv(session, sv);
 #else
@@ -256,7 +257,7 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
     }
     catch (...)
     {
-        slog->debug("收包解析异常: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
+        slog->info("收包解析异常: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
         log(LOG_TYPE_DEBUG, TEXT("收包解析异常:%s:%d 长度:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port(), sv.size());
     }
 #endif
@@ -371,10 +372,21 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         session->remote_port(),
         sv.size());
 #endif
+#ifdef G_SERVICE
+    // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
+    if(OBPKG_ID_C2S_AUTH == package_id)
+    {
+        if (package_mgr_.dispatch(package_id, session, package, raw_msg))
+        {
+            return;
+        }
+    }
+#else
     if (package_mgr_.dispatch(package_id, session, package, raw_msg))
     {
         return;
-}
+    }
+#endif
     if (!on_recv(package_id, session, package, std::move(raw_msg)))
     {
         log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
@@ -552,14 +564,14 @@ void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, cons
 {
     auto userdata = get_user_data_(session);
     userdata->update_heartbeat_time();
-   // slog->debug("收到心跳包并更新时间 session_id: {}", session->hash_key());
+   // slog->info("收到心跳包并更新时间 session_id: {}", session->hash_key());
     
     ProtocolS2CHeartBeat resp;
     resp.tick = msg.tick;
-    async_send(session, &resp);
-    //slog->debug("发送心跳响应包 session_id: {}", session->hash_key());
+    send(session, &resp);
+    //slog->info("发送心跳响应包 session_id: {}", session->hash_key());
     
-    user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
+    user_notify_mgr_.async_dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
 }
 
 void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)
@@ -577,7 +589,7 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
         // 关闭玩家连接,不关闭logic_server
         bool is_local_client = userdata->get_field<bool>("is_local_client").value_or(false);
-        slog->debug("关闭玩家连接 is_local_client:{} logic_server session_id: {}", is_local_client, session->hash_key());
+        //slog->info("关闭玩家连接 is_local_client:{} logic_server session_id: {}", is_local_client, session->hash_key());
         if (!is_local_client || msg.is_client)
         {
             // 配置心跳检查定时器，使用lambda捕获减少作用域
@@ -623,9 +635,9 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         
         ProtocolS2CHandShake resp;
         memcpy(resp.uuid, msg.uuid, sizeof(msg.uuid));
-        async_send(session, &resp);
+        send(session, &resp);
 
-        slog->debug("握手成功: session_id={}", session->hash_key());
+        //slog->info("握手成功: session_id={}", session->hash_key());
     }
     catch (const std::exception& e)
     {

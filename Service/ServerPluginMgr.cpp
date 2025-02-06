@@ -81,7 +81,7 @@ void CServerPluginMgr::reload_all_plugin()
         {
             if (file_path.path().extension() != ".dll")
                 continue;
-            std::ifstream file(file_path, std::ios::in | std::ios::binary);
+            std::ifstream file(file_path.path(), std::ios::in | std::ios::binary);
             if (file.is_open())
             {
                 file.seekg(sizeof(RawProtocolHead), file.beg);
@@ -291,7 +291,7 @@ void CServerPolicyMgr::reload_all_policy()
         {
             if (file_path.path().extension() != ".cfg")
                 continue;
-            std::ifstream file(file_path, std::ios::in | std::ios::binary);
+            std::ifstream file(file_path.path(), std::ios::in | std::ios::binary);
             if (file.is_open())
             {
                 file.seekg(sizeof(RawProtocolHead), file.beg);

@@ -6,78 +6,127 @@ namespace NetUtils
 {
     template <typename event_handler_type>
     class EventMgr {
+    private:
+        // 分片数量（可根据硬件线程数调整）
+        static constexpr size_t kNumShards = 16;
+
+        // 每个分片包含独立的锁和处理器映射
+        struct Shard {
+            mutable std::shared_mutex mtx;
+            std::unordered_map<unsigned int, std::shared_ptr<event_handler_type>> handlers;
+        };
+
+        std::array<Shard, kNumShards> shards_;
+
+        // 根据事件 ID 选择分片（哈希取模）
+        Shard& get_shard(unsigned int event_id) {
+            return shards_[event_id % kNumShards];
+        }
+
+        const Shard& get_shard(unsigned int event_id) const {
+            return shards_[event_id % kNumShards];
+        }
+
     public:
         ~EventMgr() {
             clear_handler();
         }
 
         // 清空所有事件处理器
-        inline void clear_handler() {
-            std::unique_lock<std::shared_mutex> lck(mtx_);
-            try {
-                handlers_.clear();
-            }
-            catch (const std::exception& e) {
-                std::cerr << "Error in clear_handler: " << e.what() << std::endl;
+        void clear_handler() {
+            for (auto& shard : shards_) {
+                std::unique_lock lock(shard.mtx);
+                shard.handlers.clear();
             }
         }
 
         // 移除指定事件 ID 的处理器
-        inline bool remove_handler(unsigned int event_id) {
-            std::unique_lock<std::shared_mutex> lck(mtx_);
-            return handlers_.erase(event_id) > 0;
+        bool remove_handler(unsigned int event_id) {
+            auto& shard = get_shard(event_id);
+            std::unique_lock lock(shard.mtx);
+            return shard.handlers.erase(event_id) > 0;
         }
 
         // 替换指定事件 ID 的处理器
-        inline bool replace_handler(unsigned int event_id, event_handler_type handler) {
-            std::unique_lock<std::shared_mutex> lck(mtx_);
-            handlers_[event_id] = std::move(handler);
+        bool replace_handler(unsigned int event_id, event_handler_type handler) {
+            auto& shard = get_shard(event_id);
+            std::unique_lock lock(shard.mtx);
+            shard.handlers[event_id] = std::make_shared<event_handler_type>(std::move(handler));
             return true;
         }
 
-        // 注册指定事件 ID 的处理器
-        inline bool register_handler(unsigned int event_id, event_handler_type handler) {
-            std::unique_lock<std::shared_mutex> lck(mtx_);
-            auto [it, inserted] = handlers_.emplace(event_id, std::move(handler));
+        // 注册指定事件 ID 的处理器（若已存在则失败）
+        bool register_handler(unsigned int event_id, event_handler_type handler) {
+            auto& shard = get_shard(event_id);
+            std::unique_lock lock(shard.mtx);
+            auto [it, inserted] = shard.handlers.emplace(
+                event_id,
+                std::make_shared<event_handler_type>(std::move(handler))
+            );
             return inserted;
         }
 
-        // 获取指定事件 ID 的处理器
-        inline std::optional<event_handler_type> get_handler(unsigned int event_id) const {
-            std::shared_lock<std::shared_mutex> lck(mtx_);
-            auto it = handlers_.find(event_id);
-            if (it == handlers_.end()) {
-                return std::nullopt;
-            }
-            return it->second;
+        // 获取指定事件 ID 的处理器（返回共享指针）
+        std::shared_ptr<event_handler_type> get_handler(unsigned int event_id) const {
+            const auto& shard = get_shard(event_id);
+            std::shared_lock lock(shard.mtx);
+            auto it = shard.handlers.find(event_id);
+            return (it != shard.handlers.end()) ? it->second : nullptr;
         }
 
+        // 高并发分发事件（无锁读 + 共享指针安全访问）
         template <typename... Args>
-        inline bool dispatch(unsigned int event_id, Args&&... args) const {
-            std::optional<std::reference_wrapper<const event_handler_type>> handler;
+        bool dispatch(unsigned int event_id, Args&&... args) const {
+            // 1. 获取对应的分片
+            const auto& shard = get_shard(event_id);
+
+            // 2. 无锁快速读取处理器指针（共享锁保护）
+            std::shared_ptr<event_handler_type> handler;
             {
-                std::shared_lock<std::shared_mutex> lck(mtx_);
-                auto it = handlers_.find(event_id);
-                if (it == handlers_.end()) {
-                    return false;
+                std::shared_lock lock(shard.mtx);
+                auto it = shard.handlers.find(event_id);
+                if (it == shard.handlers.end()) {
+                    return false; // 无处理器直接返回
                 }
-                handler = std::cref(it->second);  // 返回常量引用
+                handler = it->second; // 复制共享指针，增加引用计数
             }
 
-            // 在锁外执行处理器
-            if (handler) {
+            // 3. 执行处理器（无需持有锁）
+            try {
+                (*handler)(std::forward<Args>(args)...);
+                return true;
+            }
+            catch (const std::exception& e) {
+                // 可根据需要记录日志
+                std::cerr << "Handler error: " << e.what() << std::endl;
+            }
+            catch (...) {
+                std::cerr << "Unknown handler error" << std::endl;
+            }
+            return false;
+        }
+
+        // 异步分发通知，避免阻塞
+        template<typename... Args>
+        void async_dispatch(unsigned int event_id, Args&&... args) {
+            // 使用线程池异步执行
+            std::thread([this, event_id, args = std::tuple<std::decay_t<Args>...>(std::forward<Args>(args)...)]() mutable {
                 try {
-                    handler->get()(std::forward<Args>(args)...);
+                    // 使用 std::apply 展开参数包
+                    std::apply([this, event_id](auto&&... unpacked_args) {
+                        dispatch(event_id, std::forward<decltype(unpacked_args)>(unpacked_args)...);
+                    }, std::move(args));
                 }
                 catch (const std::exception& e) {
-                    std::cerr << "Error in event handler: " << e.what() << std::endl;
+                    // 记录异步分发的异常
+                    slog->error("Async dispatch failed for event_id={}: {}",
+                                event_id, e.what());
                 }
-            }
-            return true;
+                catch (...) {
+                    slog->error("Unknown async dispatch error for event_id={}", event_id);
+                }
+            }).detach();
         }
-    private:
-        mutable std::shared_mutex mtx_;
-        std::unordered_map<unsigned int, event_handler_type> handlers_;
     };
 
     class UsersData

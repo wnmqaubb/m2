@@ -14,38 +14,37 @@ using namespace Utils;
 #endif
 
 
-#include <client/windows/crash_generation/client_info.h>
-#include <client/windows/crash_generation/crash_generation_server.h>
-#include <client/windows/handler/exception_handler.h>
-#include <client/windows/common/ipc_protocol.h>
-using namespace google_breakpad;
-
-bool ShowDumpResults(const wchar_t* dump_path,
-    const wchar_t* minidump_id,
-    void* context,
-    EXCEPTION_POINTERS* exinfo,
-    MDRawAssertionInfo* assertion,
-    bool succeeded)
-{
-    ::MessageBoxA(0,"程序可能被劫持，若频繁出现，请使用360急救箱或重装系统","提示",MB_OK);
-    return succeeded;
-}
-
-void InitMiniDump()
-{
-    static auto handler = new ExceptionHandler(L".\\cache\\",
-        NULL,
-        ShowDumpResults,
-        NULL,
-        ExceptionHandler::HANDLER_ALL,
-        MiniDumpValidTypeFlags,
-        (HANDLE)NULL,
-        NULL);
-}
+//#include <client/windows/crash_generation/client_info.h>
+//#include <client/windows/crash_generation/crash_generation_server.h>
+//#include <client/windows/handler/exception_handler.h>
+//#include <client/windows/common/ipc_protocol.h>
+//using namespace google_breakpad;
+//
+//bool ShowDumpResults(const wchar_t* dump_path,
+//    const wchar_t* minidump_id,
+//    void* context,
+//    EXCEPTION_POINTERS* exinfo,
+//    MDRawAssertionInfo* assertion,
+//    bool succeeded)
+//{
+//    ::MessageBoxA(0,"程序可能被劫持，若频繁出现，请使用360急救箱或重装系统","提示",MB_OK);
+//    return succeeded;
+//}
+//
+//void InitMiniDump()
+//{
+//    static auto handler = new ExceptionHandler(L".\\cache\\",
+//        NULL,
+//        ShowDumpResults,
+//        NULL,
+//        ExceptionHandler::HANDLER_ALL,
+//        MiniDumpValidTypeFlags,
+//        (HANDLE)NULL,
+//        NULL);
+//}
 
 CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
 {
-    InitMiniDump();
     cfg_ = std::move(cfg);
     cfg_->set_field<std::wstring>(usrname_field_id, L"未登录用户");
     char path[MAX_PATH] = { 0 };
@@ -57,6 +56,7 @@ CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
     {
         fs::create_directory(cache_dir_, ec);
     }
+    //InitMiniDump();
     init();
     /*v1:: 有几个win7旗舰版sp1的反馈登录后报错,调试定位是这个线程里client_start_routine();c00005异常*/
     /*v2:: 不用等待用户登录,直接初始化和开始连接*/
@@ -81,22 +81,6 @@ void CClientImpl::client_start_routine()
         cfg()->set_field<std::string>(ip_field_id, ip_ptr);
     }
     start(cfg()->get_field<std::string>(ip_field_id), cfg()->get_field<unsigned int>(port_field_id));
-
-#if 0 // 多玩家测试
-    g_thread_group.create_thread([client]() {
-        static std::vector<std::shared_ptr<CClientImpl>> client_vec;
-        for (int i = 0; i < 200; i++)
-        {
-            auto client_ = std::make_shared<CClientImpl>();
-            cfg_ = std::make_unique<ProtocolCFGLoader>();
-            cfg_->data = cfg_->data;
-            cfg_->json = cfg_->json;/*
-            std::this_thread::sleep_for(std::chrono::seconds(1));*/
-            start(cfg_->get_field<std::string>(ip_field_id), cfg_->get_field<unsigned int>(port_field_id));
-            client_vec.push_back(std::move(client_));
-        }
-        });
-#endif
 }
 
 void CClientImpl::init()
@@ -118,6 +102,8 @@ void CClientImpl::init()
 
     register_notify_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("握手"));
+        initialize_user_data();
+        this->load_uuid();
         send_handshake();
         start_heartbeat_timer();
         notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
@@ -135,8 +121,6 @@ void CClientImpl::init()
 
     register_notify_handler(CLIENT_START_NOTIFY_ID, [this]() {
         log(LOG_TYPE_DEBUG, TEXT("客户端初始化成功"));
-        initialize_user_data();
-        this->load_uuid();
     });
 
     register_package_handler(SPKG_ID_S2C_QUERY_PLUGIN, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {

@@ -19,13 +19,15 @@ public:
     using notify_handler_t = std::function<void()>;
     CAntiCheatClient() : super() 
 	{
-		bind_recv(&CAntiCheatClient::on_recv, this);
 		bind_connect(&CAntiCheatClient::on_connect, this);
+		bind_recv(&CAntiCheatClient::on_recv, this);
 		bind_disconnect(&CAntiCheatClient::on_disconnect, this);
         heartbeat_duration_ = std::chrono::seconds(10);
 		auto_reconnect(true, std::chrono::seconds(5));
+    #ifndef G_SERVICE
         package_mgr_.register_handler(PKG_ID_S2C_HANDSHAKE, std::bind(&CAntiCheatClient::on_recv_handshake, this, std::placeholders::_1, std::placeholders::_2));
         package_mgr_.register_handler(PKG_ID_S2C_HEARTBEAT, std::bind(&CAntiCheatClient::on_recv_heartbeat, this, std::placeholders::_1, std::placeholders::_2));
+    #endif
 	}
 
     virtual bool start(const std::string ip, unsigned short port)
@@ -49,7 +51,9 @@ public:
                 // 记录连接信息
                 ip_ = ip;
                 port_ = std::to_string(port);
-			    notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+            #ifndef G_SERVICE
+                notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+            #endif
 
                 return true;
             }
@@ -116,8 +120,9 @@ public:
         }
         else
         {
+        #ifndef G_SERVICE
             notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-
+        #endif
         }
     }
 
@@ -132,7 +137,9 @@ public:
 
 	virtual void on_recv(std::string_view sv)
 	{
+    #ifndef G_SERVICE
 		notify_mgr_.dispatch(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
+    #endif
 		RawProtocolImpl package;
 		//std::string_view sv((const char*)buf.data().data(), length);
 		if (package.decode(sv) == false)
@@ -145,6 +152,12 @@ public:
 		if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
 		if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
 		const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
+    #ifdef G_SERVICE
+        if(package_id == 2 || package_id == 4114890808)
+        {            
+            return;
+        }
+    #endif
 		package_mgr_.dispatch(package_id, package, raw_msg);
 		//if (!package_mgr_.dispatch(package_id, package, raw_msg))
 			//on_recv(package_id, package, raw_msg);
@@ -209,6 +222,7 @@ public:
         async_send(buffer, session_id);
     }
 
+#ifndef G_SERVICE
     virtual void on_recv_handshake(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
     {
         auto& msg = raw_msg.get().as<ProtocolS2CHandShake>();
@@ -220,14 +234,13 @@ public:
         has_handshake_ = true;
         notify_mgr_.dispatch(ON_RECV_HANDSHAKE_NOTIFY_ID);
     }
-
     virtual void on_recv_heartbeat(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
     {
         auto& msg = raw_msg.get().as<ProtocolS2CHeartBeat>();
         last_recv_hearbeat_time_ = std::chrono::system_clock::now();
         notify_mgr_.dispatch(ON_RECV_HEARTBEAT_NOTIFY_ID);
     }
-
+#endif
     virtual void log(int type, LPCTSTR format, ...)
     {
         static std::mutex mtx;

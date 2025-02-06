@@ -160,20 +160,28 @@ protected:
 
 class HeartbeatTracker {
 private:
-    std::atomic<std::chrono::system_clock::time_point> last_heartbeat_time{
-        std::chrono::system_clock::now()
+    std::atomic<std::chrono::steady_clock::time_point> last_heartbeat_time{
+        std::chrono::steady_clock::now()
     };
+
 public:
     void update_heartbeat() {
         last_heartbeat_time.store(
-            std::chrono::system_clock::now(), 
-            std::memory_order_relaxed
+            std::chrono::steady_clock::now(), 
+            std::memory_order_release  // 使用 release 语义
         );
     }
 
-    std::chrono::system_clock::duration get_heartbeat_duration() const {
-        return std::chrono::system_clock::now() - 
-               last_heartbeat_time.load(std::memory_order_relaxed);
+    std::chrono::steady_clock::duration get_heartbeat_duration() const {
+        auto current_time = std::chrono::steady_clock::now();
+        auto last_time = last_heartbeat_time.load(std::memory_order_acquire);
+        
+        // 防止时间计算溢出
+        if (current_time < last_time) {
+            return std::chrono::steady_clock::duration::zero();
+        }
+        
+        return current_time - last_time;
     }
 
     bool is_timeout(std::chrono::seconds timeout) const {
@@ -210,14 +218,19 @@ struct AntiCheatUserData
     template <typename T>
     inline void set_field(const std::string& key, const T& val)
     {
-        std::unique_lock<std::shared_mutex> lock(mutex_);
-        data[key] = val;
+        try {
+            std::unique_lock<std::shared_mutex> lock(mutex_);
+            data[key] = val;
+        }
+        catch (const std::exception& e) {
+            slog->error("AntiCheatUserData: Field {} set error: {}", key, e.what());
+        }
     }
     inline void update_heartbeat_time()
     {
         heartbeat_tracker.update_heartbeat();
     }
-    inline std::chrono::system_clock::duration get_heartbeat_duration()
+    inline std::chrono::steady_clock::duration get_heartbeat_duration()
     {
         return heartbeat_tracker.get_heartbeat_duration();
     }
