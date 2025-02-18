@@ -188,7 +188,7 @@ void CGamesDlg::OnRefreshUsers()
 }
 
 // 新增辅助函数：添加用户到列表
-void CGamesDlg::AddUserToList(std::shared_ptr<CObserverClientImpl> client,const unsigned int session_id, const nlohmann::json& json_data, const CTime& tCur)
+void CGamesDlg::AddUserToList(std::shared_ptr<CObserverClientImpl> client,const std::size_t session_id, const nlohmann::json& json_data, const CTime& tCur)
 {
     int rowNum = m_list_games.GetItemCount();
     int colIndex = 0;
@@ -202,7 +202,7 @@ void CGamesDlg::AddUserToList(std::shared_ptr<CObserverClientImpl> client,const 
     m_list_games.SetItemText(rowNum, colIndex++, temp);
 
     // 设置session ID
-    temp.Format(_T("%u"), session_id);
+    temp.Format(_T("%llu"), session_id);
     m_list_games.SetItemText(rowNum, colIndex++, temp);
 
     // 设置用户名

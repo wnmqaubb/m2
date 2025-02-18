@@ -41,7 +41,7 @@ private:
     virtual void _on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
 
 protected:
-    virtual void send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, unsigned int session_id = 0)
+    virtual void send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, std::size_t session_id = 0)
     {
         if (session)
         {
@@ -53,18 +53,23 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            session->send(package.release());
+            auto data_size = session->send(package.release());
+            if (data_size < 1){
+                if (auto error = asio2::get_last_error()) {
+                    slog->error("AntiCheatServer::send data size < 1, error: {}", error.message());
+                }
+            }
         }
     }
 
-    virtual void send(tcp_session_shared_ptr_t& session, msgpack::sbuffer& buffer, unsigned int session_id = 0)
+    virtual void send(tcp_session_shared_ptr_t& session, msgpack::sbuffer& buffer, std::size_t session_id = 0)
     {
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
         send(session, raw_package, session_id);
     }
 
-    virtual void async_send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, unsigned int session_id = 0)
+    virtual void async_send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, std::size_t session_id = 0)
     {
         if (session)
         {
@@ -80,7 +85,7 @@ protected:
         }
     }
 
-    virtual void async_send(tcp_session_shared_ptr_t& session, msgpack::sbuffer& buffer, unsigned int session_id = 0)
+    virtual void async_send(tcp_session_shared_ptr_t& session, msgpack::sbuffer& buffer, std::size_t session_id = 0)
     {
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
@@ -96,7 +101,7 @@ public:
     virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) { return false; };
 
     template <typename T>
-    void send(tcp_session_shared_ptr_t& session, T* package, unsigned int session_id = 0)
+    void send(tcp_session_shared_ptr_t& session, T* package, std::size_t session_id = 0)
     {
         if (!package)
             __debugbreak();
@@ -106,13 +111,13 @@ public:
     }
 
     template <typename T>
-    void send(size_t session_id, T* package, unsigned int cur_session_id = 0)
+    void send(size_t session_id, T* package, std::size_t cur_session_id = 0)
     {
-        send(sessions().find(session_id), package, cur_session_id);
+        send(find_session(session_id), package, cur_session_id);
     }
 
     template <typename T>
-    void async_send(tcp_session_shared_ptr_t& session, T* package, unsigned int session_id = 0)
+    void async_send(tcp_session_shared_ptr_t& session, T* package, std::size_t session_id = 0)
     {
         if (!package)
             __debugbreak();
@@ -122,12 +127,12 @@ public:
     }
 
     template <typename T>
-    void async_send(size_t session_id, T* package, unsigned int cur_session_id = 0)
+    void async_send(size_t session_id, T* package, std::size_t cur_session_id = 0)
     {
-        async_send(sessions().find(session_id), package, cur_session_id);
+        async_send(find_session(session_id), package, cur_session_id);
     }
 
-    void close_client(unsigned int session_id);
+    void close_client(std::size_t session_id);
     inline void enable_proxy_tunnel(bool v) { enable_proxy_tunnel_ = v; }
     inline bool is_enable_proxy_tunnel() { return enable_proxy_tunnel_; }
     inline bool is_observer_server() { return is_observer_server_; }

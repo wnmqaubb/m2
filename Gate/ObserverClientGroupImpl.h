@@ -3,7 +3,7 @@
 class CObserverClientGroupImpl
 {
     using package_handler_t = std::function<void(std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
-    using observer_package_t = std::function<void(std::shared_ptr<CObserverClientImpl> client, unsigned int session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
+    using observer_package_t = std::function<void(std::shared_ptr<CObserverClientImpl> client, std::size_t session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
 public:
     CObserverClientGroupImpl();
     ~CObserverClientGroupImpl();

@@ -8,7 +8,7 @@ namespace NetUtils
     class EventMgr {
     private:
         // 分片数量（可根据硬件线程数调整）
-        static constexpr size_t kNumShards = 16;
+        static constexpr size_t kNumShards = 64;
 
         // 每个分片包含独立的锁和处理器映射
         struct Shard {
@@ -129,30 +129,44 @@ namespace NetUtils
         }
     };
 
-    class UsersData
-    {
+    class UsersData {
     public:
-        ~UsersData()
-        {
+        ~UsersData() {
             clear_field();
         }
-        virtual void clear_field()
-        {
+
+        void clear_field() {
             std::unique_lock<std::shared_mutex> lck(mtx_);
             data_.clear();
         }
-        virtual void set_field(uint32_t field_id, std::any value) 
-        {
+
+        void set_field(uint32_t field_id, std::any value) {
             std::unique_lock<std::shared_mutex> lck(mtx_);
             data_[field_id] = value;
         }
-        virtual std::any get_field(uint32_t field_id)
-        {
+
+        std::any get_field(uint32_t field_id) {
             std::shared_lock<std::shared_mutex> lck(mtx_);
             if (data_.find(field_id) == data_.end())
                 return std::any();
             return data_[field_id];
         }
+
+        template <typename T>
+        T get_field_as(uint32_t field_id) {
+            std::shared_lock<std::shared_mutex> lck(mtx_);
+            if (data_.find(field_id) == data_.end())
+                throw std::runtime_error("Field not found");
+
+            try {
+                return std::any_cast<T>(data_[field_id]);
+            }
+            catch (const std::bad_any_cast& e) {
+                throw std::runtime_error("Type cast failed: " + std::string(e.what()));
+            }
+        }
+
+    private:
         std::shared_mutex mtx_;
         std::unordered_map<uint32_t, std::any> data_;
     };

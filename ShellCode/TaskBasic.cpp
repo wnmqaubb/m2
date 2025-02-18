@@ -15,13 +15,12 @@ bool is_debug_mode = false;
 bool is_detect_finish = true;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
-
 void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 {
 	VMP_VIRTUALIZATION_BEGIN();
 	OutputDebugStringA("tb0");
-    srand(time(0));
-    InitMiniDump();
+    srand(time(nullptr));
+    //InitMiniDump();
 
     if(*g_client_rev_version != REV_VERSION)
     {
@@ -157,8 +156,8 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
         InitImageProtectCheck(client);
     }
 #endif
-	InitRmc(client);
-	InitTimeoutCheck(client);
+    InitRmc(client);
+    //InitTimeoutCheck(client);
 	InitJavaScript(client);
 
 	if (is_debug_mode == false)

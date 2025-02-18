@@ -92,7 +92,7 @@ struct ProtocolUserData : ProtocolBase<SPKG_SERIALIZE_TYPE_USERDATA>
     inline void add_punish_times() { punish_times_++; }
     inline void clear_punish_times() { punish_times_ = 0; }
 
-    unsigned int session_id = 0;
+    std::size_t session_id = 0;
     bool has_handshake = false;
 	std::chrono::system_clock::time_point last_heartbeat_time = std::chrono::system_clock::now();
     json json;
@@ -126,13 +126,13 @@ struct ProtocolOBC2OBSQueryUsers : ProtocolBase<OBPKG_ID_C2S_QUERY_USERS>
 
 struct ProtocolOBC2OBSKick : ProtocolBase<OBPKG_ID_C2S_KICK>
 {
-	unsigned int session_id;
+	std::size_t session_id;
 	MSGPACK_DEFINE(package_id, session_id);
 };
 
 struct ProtocolLS2LCKick : ProtocolBase<LSPKG_ID_S2C_KICK>
 {
-	unsigned int session_id;
+	std::size_t session_id;
 	MSGPACK_DEFINE(package_id, session_id);
 };
 
@@ -186,7 +186,7 @@ struct ProtocolOBS2OBCSend : ProtocolBase<OBPKG_ID_S2C_SEND>
 
 struct ProtocolLS2LCSetField : ProtocolBase<LSPKG_ID_S2C_SET_FIELD>
 {
-    unsigned int session_id;
+    std::size_t session_id;
     std::string key;
     std::wstring val;
     MSGPACK_DEFINE(package_id, session_id, key, val);
@@ -194,7 +194,7 @@ struct ProtocolLS2LCSetField : ProtocolBase<LSPKG_ID_S2C_SET_FIELD>
 
 struct ProtocolOBS2OBCSetField : ProtocolBase<OBPKG_ID_S2C_SET_FIELD>
 {
-    unsigned int session_id;
+    std::size_t session_id;
     std::string key;
     std::wstring val;
     MSGPACK_DEFINE(package_id, session_id, key, val);
@@ -202,7 +202,7 @@ struct ProtocolOBS2OBCSetField : ProtocolBase<OBPKG_ID_S2C_SET_FIELD>
 
 struct ProtocolLC2LSAddObsSession : ProtocolBase<LSPKG_ID_C2S_ADD_OBS_SESSION>
 {
-    unsigned int session_id;
+    std::size_t session_id;
     MSGPACK_DEFINE(package_id, session_id);
 };
 
@@ -227,7 +227,7 @@ struct ProtocolOBS2OBCLogPrint : ProtocolBase<OBPKG_ID_S2C_LOG>
 
 struct ProtocolLC2LSRemoveObsSession : ProtocolBase<LSPKG_ID_C2S_REMOVE_OBS_SESSION>
 {
-    unsigned int session_id;
+    std::size_t session_id;
     MSGPACK_DEFINE(package_id, session_id);
 };
 

@@ -163,12 +163,12 @@ void CCmdView::OnCmdEditReturn()
     a.add<size_t>("size", 's');
     std::string ansiCmd = CT2A(cstrCmd.GetBuffer());
     a.parse(ansiCmd);
-    GetDocument()->m_Client->client_pkg_mgr_.register_handler(SPKG_ID_C2S_RMC_DOWNLOAD_FILE, [](unsigned int session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg){
+    GetDocument()->m_Client->client_pkg_mgr_.register_handler(SPKG_ID_C2S_RMC_DOWNLOAD_FILE, [](std::size_t session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg){
         auto req = msg.get().as<RmcProtocolC2SDownloadFile>();
         const unsigned int uiTaskHash = NetUtils::aphash((req.path + std::to_string(session_id)).c_str());
         evtDownloadTasks.dispatch(uiTaskHash, req);
     });
-    GetDocument()->m_Client->client_pkg_mgr_.register_handler(SPKG_ID_C2S_RMC_UPLOAD_FILE, [](unsigned int session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    GetDocument()->m_Client->client_pkg_mgr_.register_handler(SPKG_ID_C2S_RMC_UPLOAD_FILE, [](std::size_t session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto req = msg.get().as<RmcProtocolC2SUploadFile>();
         const unsigned int uiTaskHash = NetUtils::aphash((req.path + std::to_string(session_id)).c_str());
         evtUploadTasks.dispatch(uiTaskHash, req);

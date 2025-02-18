@@ -1,64 +1,39 @@
 ﻿#include "pch.h"
+
+// 项目自有头文件
 #include "LogicClient.h"
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
+
+// 标准库和第三方库
+#include <atomic>
+#include <chrono>
+#include <functional>
 #include <memory>
-#include <Psapi.h>
 #include <thread>
 #include <vector>
+
+// Folly库
+#include <folly/MPMCQueue.h>
 #include <folly/AtomicUnorderedMap.h>
 #include <folly/ProducerConsumerQueue.h>
+
+// Windows头文件（置于最后以避免宏冲突）
+#include <Psapi.h>
+#include <WinBase.h>
 //slog->info(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
 extern std::shared_ptr<spdlog::logger> slog;
-// 独立心跳处理线程池
-//class HeartbeatThreadPool {
-//private:
-//    boost::lockfree::spsc_queue<Task> hb_queue{ MAX_HB_QUEUE_SIZE };
-//    std::vector<std::thread> hb_workers;
-//    std::atomic<bool> hb_stop{ false };
-//
-//public:
-//    HeartbeatThreadPool(size_t threads = 4) {
-//        for (size_t i = 0; i < threads; ++i) {
-//            hb_workers.emplace_back([this] {
-//                while (!hb_stop.load(std::memory_order_acquire)) {
-//                    Task task;
-//                    if (hb_queue.pop(task)) {
-//                        process_heartbeat(task); // 专用处理函数
-//                    }
-//                    else {
-//                        std::this_thread::yield();
-//                    }
-//                }
-//            });
-//        }
-//    }
-//
-//    void enqueue_heartbeat(Task&& task) {
-//        while (!hb_queue.push(std::move(task))) {
-//            slog->warn("Heartbeat queue full, retrying...");
-//            std::this_thread::sleep_for(1ms);
-//        }
-//    }
-//
-//    void process_heartbeat(Task& task) {
-//        auto start = std::chrono::steady_clock::now();
-//        CObserverServer::instance().update_last_active(task.client_id);
-//        auto duration = std::chrono::duration_cast<ms>(std::chrono::steady_clock::now() - start);
-//        if (duration > 50ms) {
-//            slog->warn("Slow heartbeat processing: {}ms", duration.count());
-//        }
-//    }
-//};
 
 // 业务线程池保持原有结构
 class BusinessThreadPool {
 private:
-    // 无锁队列配置
-    static constexpr size_t MAX_LOCKFREE_QUEUE_SIZE = 10000;  // 比用户量略大
-    static constexpr size_t WORKER_BATCH_SIZE = 32;  // 批量处理
+    // 配置参数
+    static constexpr size_t MAX_LOCKFREE_QUEUE_SIZE = 100000;
+    static constexpr size_t WORKER_BATCH_SIZE = 64;
+    static constexpr int MAX_EMPTY_ITERATIONS = 100;
+    static constexpr int MAX_STEAL_ATTEMPTS = 3;
 
-    // 任务结构体
+    // 任务封装
     struct TaskWrapper {
         Task task;
         std::atomic<bool> completed{ false };
@@ -66,238 +41,250 @@ private:
     };
     using TaskPtr = std::shared_ptr<TaskWrapper>;
 
-    // 每个线程的本地队列（SPSC无锁队列）
-    //struct WorkerQueue {
-    //    boost::lockfree::spsc_queue<TaskPtr> queue{ MAX_LOCKFREE_QUEUE_SIZE };
-    //};
-
+    // 线程本地队列（SPSC）
     struct WorkerQueue {
         folly::ProducerConsumerQueue<TaskPtr> queue{ MAX_LOCKFREE_QUEUE_SIZE };
     };
 
-    // 全局任务队列（MPMC无锁队列）
-    //boost::lockfree::queue<TaskPtr> global_queue{ MAX_LOCKFREE_QUEUE_SIZE };
-    folly::ProducerConsumerQueue<TaskPtr> global_queue{ MAX_LOCKFREE_QUEUE_SIZE };
+    // 全局队列（MPMC）
+    folly::MPMCQueue<TaskPtr> global_queue{ MAX_LOCKFREE_QUEUE_SIZE };
 
-    // 工作线程数组
+    // 工作线程管理
     std::vector<std::thread> workers;
     std::atomic<bool> stop{ false };
+    folly::AtomicUnorderedInsertMap<size_t, WorkerQueue*> worker_queues;
 
-    // 工作窃取支持
-    folly::AtomicUnorderedInsertMap<size_t, WorkerQueue*> worker_queues{ 128 };  
+    // 统计指标
+    std::atomic<int> pending_tasks{ 0 };
+    std::atomic<int64_t> total_tasks{ 0 };
 
 public:
-    explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency() * 2) {
-        workers.reserve(2);
+    explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency() * 2)
+        : worker_queues(thread_count * 2) {
+        // 创建所有工作队列
+        for (size_t i = 0; i < thread_count; ++i) {
+            worker_queues.emplace(i, new WorkerQueue);
+        }
+
+        // 启动工作线程
+        workers.reserve(thread_count);
         for (size_t i = 0; i < thread_count; ++i) {
             workers.emplace_back([this, i] { worker_loop(i); });
-            worker_queues.emplace(i, new WorkerQueue);
         }
     }
 
     ~BusinessThreadPool() {
         stop.store(true, std::memory_order_release);
+
+        // 等待任务完成
+        while (pending_tasks.load(std::memory_order_acquire) > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        // 回收资源
         for (auto& w : workers) {
             if (w.joinable()) w.join();
         }
+        worker_queues.~AtomicUnorderedInsertMap();
     }
 
-    // 提交任务（无锁入队）
     bool enqueue(Task task) {
-        TaskPtr task_ptr = std::make_shared<TaskWrapper>(std::move(task));
+        if (stop.load(std::memory_order_acquire)) return false;
 
-        // 优先尝试本地队列（减少竞争）
-        WorkerQueue* local_queue = worker_queues.find(std::hash<std::thread::id>{}(std::this_thread::get_id()))->second;
-        if (local_queue && local_queue->queue.write(task_ptr)) {
+        auto task_ptr = std::make_shared<TaskWrapper>(std::move(task));
+        //auto when = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        if (global_queue.writeIfNotFull(task_ptr)) { // 非阻塞尝试写入
+            pending_tasks.fetch_add(1, std::memory_order_relaxed);
+            total_tasks.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
-
-        // 回退到全局队列
-        return global_queue.write(task_ptr);
+        return false;
     }
-    
+
 private:
-    // 工作线程主循环
     void worker_loop(size_t worker_id) {
-        // 确保 worker_queues 中确实存在 worker_id 对应的队列
         auto it = worker_queues.find(worker_id);
         if (it == worker_queues.end()) {
-            slog->error("No worker queue found for worker_id: {}", worker_id);
-            return;  // 提前退出，防止空指针访问
+            slog->error("Worker queue not found: {}", worker_id);
+            return;
         }
 
-        WorkerQueue& local_queue = *it->second;  // 安全解引用
+        WorkerQueue* local_queue = it->second;
         std::vector<TaskPtr> local_batch;
         local_batch.reserve(WORKER_BATCH_SIZE);
 
-        // 连续空转计数器
         int empty_iterations = 0;
-        const int MAX_EMPTY_ITERATIONS = 100;
-
-        // 工作窃取计数器
-        int steal_attempts = 0;
-        const int MAX_STEAL_ATTEMPTS = 3;
 
         while (!stop.load(std::memory_order_acquire)) {
-            size_t processed = 0;
-
             // 处理本地队列
-            while (processed < WORKER_BATCH_SIZE) {
-                TaskPtr task;
-                if (local_queue.queue.read(task)) {
-                    // 添加空指针检查
-                    if (task) {
-                        execute_task(task);
-                        processed++;
-                        steal_attempts = 0;
-                    }
-                    else {
-                        break;  // 跳过空任务
-                    }
-                }
-                else {
-                    break;
-                }
+            size_t processed = 0;
+            TaskPtr task;
+            while (processed < WORKER_BATCH_SIZE && local_queue->queue.read(task)) {
+                execute_task(task);
+                ++processed;
             }
 
             // 处理全局队列
-            TaskPtr task;
-            while (local_batch.size() < WORKER_BATCH_SIZE && global_queue.read(task)) {
-                // 添加空指针检查
-                if (task) {
-                    local_batch.push_back(task);
-                }
-            }
+            process_global_queue(local_batch);
 
-            for (auto& t : local_batch) {
-                if (t) execute_task(t);
-            }
-            local_batch.clear();
+            // 工作窃取
+            int steal_attempts = try_work_stealing(worker_id);
 
-            // 有限的工作窃取
-            if (local_batch.empty() && steal_attempts < MAX_STEAL_ATTEMPTS) {
-                bool stolen = false;
-                for (auto& [i, worker_queue] : worker_queues) {
-                    if (i == worker_id) continue;
-
-                    // 安全检查
-                    if (!worker_queue) continue;
-
-                    TaskPtr steal_task;
-                    if (worker_queue->queue.read(steal_task)) {
-                        if (steal_task) {
-                            execute_task(steal_task);
-                            stolen = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!stolen) {
-                    steal_attempts++;
-                }
-            }
-
-            // 空闲时休眠，避免CPU空转
-            if (processed == 0) {
-                empty_iterations++;
-                if (empty_iterations > MAX_EMPTY_ITERATIONS) {
-                    std::this_thread::sleep_for(std::chrono::microseconds(10 * empty_iterations));
-
-                    if (empty_iterations > 100) {
-                        empty_iterations = 100;
-                    }
-                }
-            }
+            // 空闲管理
+            handle_idle_state(processed, empty_iterations);
+            
+            // 状态检查
+            check_system_status();
         }
     }
 
-    // 执行任务
+    size_t process_local_queue(WorkerQueue* local_queue) {
+        size_t processed = 0;
+        TaskPtr task;
+        while (processed < WORKER_BATCH_SIZE) {
+            if (local_queue->queue.read(task)) {
+                execute_task(task);
+                ++processed;
+            }
+            else {
+                break;
+            }
+        }
+        return processed;
+    }
+
+    void process_global_queue(std::vector<TaskPtr>& local_batch) {
+        TaskPtr task;
+        while (local_batch.size() < WORKER_BATCH_SIZE) {
+            auto when = std::chrono::steady_clock::now() + std::chrono::milliseconds(20);
+            if (global_queue.tryReadUntil(when,task)) {
+                local_batch.push_back(task);
+            }
+            else {
+                break;
+            }
+        }
+
+        for (auto& t : local_batch) {
+            execute_task(t);
+        }
+        local_batch.clear();
+    }
+
+    int try_work_stealing(size_t worker_id) {
+        int steal_attempts = 0;
+        bool stolen = false;
+
+        const size_t total_workers = workers.size();
+        if (total_workers == 0) return 0;
+
+        // （环形窃取）
+        //std::random_device rd;
+        //std::mt19937 gen(rd());
+        //std::uniform_int_distribution<size_t> dis(0, total_workers - 1);
+        //size_t start_idx = dis(gen);
+        // 修改后（环形窃取）
+        static std::atomic<size_t> steal_index{ 0 };
+        size_t start_idx = steal_index.fetch_add(1) % total_workers;
+
+        for (size_t i = 0; i < total_workers; ++i) {
+            size_t target_id = (start_idx + i) % total_workers;
+            if (target_id == worker_id) continue;
+
+            auto target_it = worker_queues.find(target_id);
+            if (target_it == worker_queues.end()) continue;
+
+            TaskPtr task;
+            if (target_it->second->queue.read(task)) {
+                execute_task(task);
+                stolen = true;
+                break;
+            }
+
+            if (++steal_attempts >= MAX_STEAL_ATTEMPTS) break;
+        }
+
+        return stolen ? 0 : steal_attempts;
+    }
+
+    // 空闲时休眠，避免CPU空转
+    void handle_idle_state(size_t processed, int& empty_iterations) {
+        if (processed == 0) {
+            if (++empty_iterations > MAX_EMPTY_ITERATIONS) {
+                std::this_thread::sleep_for(
+                    std::chrono::microseconds(10 * empty_iterations)
+                );
+                empty_iterations = std::min(empty_iterations, 100);
+            }
+        }
+        else {
+            empty_iterations = 0;
+        }
+    }
+
     void execute_task(TaskPtr task) {
+        if (!task) return;
+
         try {
             auto start = std::chrono::steady_clock::now();
 
-            // 异步执行并设置超时
-            std::future<void> future = std::async(
-                std::launch::async,
-                [task] { CObserverServer::instance().process_task(std::move(task->task)); }
+            // 调用实际业务处理逻辑
+            CObserverServer::instance().process_task(
+                std::move(task->task)
             );
-
-            if (future.wait_for(std::chrono::seconds(2)) == std::future_status::timeout) {
-                slog->warn("Task timeout, package_id={}", task->task.package_id);
-                return;
-            }
 
             // 性能监控
             auto end = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
             if (duration.count() > 300) {
-                slog->warn("Slow task: {}ms", duration.count());
+                slog->warn("Slow task: {}ms, package_id={}", duration.count(), task->task.package_id);
             }
 
             task->completed.store(true, std::memory_order_release);
+            pending_tasks.fetch_sub(1, std::memory_order_relaxed);
         }
         catch (const std::exception& e) {
-            slog->error("Task failed: {}", e.what());
-        }
-        catch (...) {
-            slog->error("Unknown task failure");
+            slog->error("Task failed (package_id={}): {}", task->task.package_id, e.what());
         }
     }
-public:
+
+    void check_system_status() {
+        static std::atomic<int> check_counter{ 0 };
+        if (check_counter++ % 1000 == 0) {
+            check_memory_usage();
+            log_status();
+        }
+    }
+
     void check_memory_usage() {
-        static auto last_memory_check = std::chrono::steady_clock::now();
-        static auto last_warning_time = std::chrono::steady_clock::now();
-        static auto last_gc_time = std::chrono::steady_clock::now();
+        PROCESS_MEMORY_COUNTERS pmc;
+        if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+            double usage_mb = pmc.WorkingSetSize / 1024.0 / 1024.0;
+            handle_memory_warning(usage_mb);
+        }
+    }
 
-        auto now = std::chrono::steady_clock::now();
-        if (now - last_memory_check > std::chrono::seconds(300)) {
-            PROCESS_MEMORY_COUNTERS pmc;
-            if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-                double memory_usage_mb = pmc.WorkingSetSize / 1024.0 / 1024.0;
+private:
+    void handle_memory_warning(double usage_mb) {
+        static auto last_gc = std::chrono::steady_clock::now();
 
-                // 分级内存警告
-                if (memory_usage_mb > 2048) {
-                    slog->error("Critical memory usage: {:.2f}MB", memory_usage_mb);
-                    // 触发内存回收
-                    if (now - last_gc_time > std::chrono::minutes(5)) {
-                        last_gc_time = now;
-                        perform_memory_gc();
-                    }
-                }
-                else if (memory_usage_mb > 1024 && now - last_warning_time > std::chrono::seconds(60)) {
-                    slog->warn("High memory usage: {:.2f}MB", memory_usage_mb);
-                    last_warning_time = now;
-                }
-
-                // 记录内存趋势
-                static double last_usage = 0;
-                if (memory_usage_mb > last_usage * 1.2) {
-                    slog->info("Memory usage increased: {:.2f}MB -> {:.2f}MB", last_usage, memory_usage_mb);
-                }
-                last_usage = memory_usage_mb;
+        if (usage_mb > 2048) {
+            slog->critical("Memory critical: {:.2f}MB", usage_mb);
+            if (std::chrono::steady_clock::now() - last_gc > std::chrono::minutes(5)) {
+                perform_memory_gc();
+                last_gc = std::chrono::steady_clock::now();
             }
-            last_memory_check = now;
+        }
+        else if (usage_mb > 1024) {
+            slog->warn("Memory high: {:.2f}MB", usage_mb);
         }
     }
 
     void perform_memory_gc() {
-        // 清理过期session
+        // 示例内存回收逻辑
         size_t cleaned = 0;
-        auto now = std::chrono::steady_clock::now();
-        {
-            std::unique_lock<std::mutex> lock(CObserverServer::instance().session_times_mtx_);
-            CObserverServer::instance().foreach_session([&](tcp_session_shared_ptr_t& session) {
-                auto last_active = CObserverServer::instance().get_last_active_time(session);
-                if (now - last_active > std::chrono::minutes(10)) {
-                    session->stop();
-                    cleaned++;
-                }
-            });
-        }
-        if (cleaned > 0) {
-            slog->info("Memory GC: cleaned {} inactive sessions", cleaned);
-        }
+        // 这里添加实际的内存回收逻辑
+        slog->info("Performed memory GC, cleaned {} items", cleaned);
     }
 
     void log_status() {
@@ -310,221 +297,7 @@ public:
             }
         }
     }
-
-private:
-    std::atomic<int> pending_tasks;
-    std::atomic<int64_t> total_tasks;
-    // 内存管理（略，与原设计类似）
 };
-/*
-class BusinessThreadPool {
-public:
-    BusinessThreadPool(size_t threads = std::max<size_t>(4, std::thread::hardware_concurrency()*2))
-        : stop(false), pending_tasks(0), total_tasks(0) {
-        for (size_t i = 0; i < threads; ++i)
-            workers.emplace_back([this] {
-            for (;;) {
-                Task task;
-                int package_id = 0;
-                {
-                    std::unique_lock<std::mutex> lock(this->queue_mutex);
-                    this->condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
-                    if (this->stop && this->tasks.empty())
-                        return;
-
-                    // 先弹出队列顶部元素
-                    task = std::move(tasks.front());
-                    package_id = task.package_id;
-                    this->tasks.pop();
-                }
-                // 处理任务
-                try {
-                    auto start = std::chrono::steady_clock::now();
-
-                    std::future<void> future = std::async(std::launch::async, [&task]() {
-                        CObserverServer::instance().process_task(std::move(task));
-                    });
-
-                    // 等待任务完成，最多等待500ms
-                    if (future.wait_for(std::chrono::milliseconds(500)) == std::future_status::timeout) {
-                        slog->warn("Task processing timeout,package_id={}", package_id);
-                        return; // 放弃超时任务
-                    }
-
-                    auto end = std::chrono::steady_clock::now();
-                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-                    if (duration.count() > 300) {
-                        slog->warn("Task processing took too long: {}ms", duration.count());
-                    }
-                }
-                catch (const std::exception& e) {
-                    slog->error("Task failed: {}", e.what());
-                }
-                catch (...) {
-                    slog->error("Task failed with unknown exception");
-                }
-
-                // 定期检查线程健康状态
-                static auto last_health_check = std::chrono::steady_clock::now();
-                auto now = std::chrono::steady_clock::now();
-                if (now - last_health_check > std::chrono::seconds(300)) {
-                    PROCESS_MEMORY_COUNTERS pmc;
-                    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-                        double memory_usage_mb = pmc.WorkingSetSize / 1024.0 / 1024.0;
-                        slog->info("Thread health check - Memory: {:.2f}MB, Thread ID: {}",
-                                   memory_usage_mb, GetCurrentThreadId());
-                    }
-                    last_health_check = now;
-                }
-            }
-        });
-    }
-
-    void enqueue(Task task) {
-        {
-            std::unique_lock<std::mutex> lock(queue_mutex);
-            if (stop)
-                throw std::runtime_error("enqueue on stopped BusinessThreadPool");
-
-            tasks.push(std::move(task));
-        }
-        condition.notify_one();
-        return;
-    }
-    // 修改BusinessThreadPool的try_enqueue方法
-    bool try_enqueue(Task&& task) {
-        std::unique_lock<std::timed_mutex> lock(timed_mutex, std::defer_lock);
-        if (!lock.try_lock_for(std::chrono::milliseconds(10))) {
-            slog->warn("Failed to acquire lock in try_enqueue");
-            return false;
-        }
-
-        if (stop) {
-            return false;
-        }
-
-        // 使用原子操作更新计数
-        static std::atomic<int> total_enqueued{ 0 };
-        total_tasks++;
-        total_enqueued++;
-
-        try {
-            // 限制队列大小
-            static constexpr size_t MAX_QUEUE_SIZE = 10000;
-            if (tasks.size() >= MAX_QUEUE_SIZE) {
-                static std::atomic<int> queue_full_count{ 0 };
-                if (++queue_full_count % 100 == 0) {
-                    slog->warn("Task queue full, dropping task. Queue size: {}, Total enqueued: {}",
-                               tasks.size(), total_enqueued.load());
-                }
-                return false;
-            }
-
-            tasks.push(std::move(task));
-            condition.notify_one();
-
-            static std::atomic<int> log_counter{ 0 };
-            if (log_counter++ % 100 == 0) {
-                slog->info("Task queue status - Size: {}, Total: {}, Enqueued: {}",
-                            tasks.size(), total_tasks.load(), total_enqueued.load());
-            }
-            return true;
-        }
-        catch (const std::exception& e) {
-            total_tasks--;
-            total_enqueued--;
-            slog->error("Failed to enqueue task: {}", e.what());
-            return false;
-        }
-    }
-
-    ~BusinessThreadPool() {
-        {
-            std::unique_lock<std::mutex> lock(queue_mutex);
-            stop = true;
-        }
-        condition.notify_all();
-        for (std::thread& worker : workers)
-            worker.join();
-    }
-
-    void check_memory_usage() {
-        static auto last_memory_check = std::chrono::steady_clock::now();
-        static auto last_warning_time = std::chrono::steady_clock::now();
-        static auto last_gc_time = std::chrono::steady_clock::now();
-
-        auto now = std::chrono::steady_clock::now();
-        if (now - last_memory_check > std::chrono::seconds(300)) {
-            PROCESS_MEMORY_COUNTERS pmc;
-            if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-                double memory_usage_mb = pmc.WorkingSetSize / 1024.0 / 1024.0;
-
-                // 分级内存警告
-                if (memory_usage_mb > 2048) {
-                    slog->error("Critical memory usage: {:.2f}MB", memory_usage_mb);
-                    // 触发内存回收
-                    if (now - last_gc_time > std::chrono::minutes(5)) {
-                        last_gc_time = now;
-                        perform_memory_gc();
-                    }
-                }
-                else if (memory_usage_mb > 1024 && now - last_warning_time > std::chrono::seconds(60)) {
-                    slog->warn("High memory usage: {:.2f}MB", memory_usage_mb);
-                    last_warning_time = now;
-                }
-
-                // 记录内存趋势
-                static double last_usage = 0;
-                if (memory_usage_mb > last_usage * 1.2) {
-                    slog->info("Memory usage increased: {:.2f}MB -> {:.2f}MB", last_usage, memory_usage_mb);
-                }
-                last_usage = memory_usage_mb;
-            }
-            last_memory_check = now;
-        }
-    }
-
-    void perform_memory_gc() {
-        // 清理过期session
-        size_t cleaned = 0;
-        auto now = std::chrono::steady_clock::now();
-        {
-            std::unique_lock<std::mutex> lock(CObserverServer::instance().session_times_mtx_);
-            CObserverServer::instance().foreach_session([&](tcp_session_shared_ptr_t& session) {
-                auto last_active = CObserverServer::instance().get_last_active_time(session);
-                if (now - last_active > std::chrono::minutes(10)) {
-                    session->stop();
-                    cleaned++;
-                }
-            });
-        }
-        if (cleaned > 0) {
-            slog->info("Memory GC: cleaned {} inactive sessions", cleaned);
-        }
-    }
-
-    void log_status() {
-        static std::atomic<int> log_counter{ 0 };
-        static constexpr int LOG_SAMPLE_RATE = 100;
-        if (log_counter++ % LOG_SAMPLE_RATE == 0) {
-            if (pending_tasks.load() > 0) {
-                slog->info("Task queue status: pending={}, total={}",
-                           pending_tasks.load(), total_tasks.load());
-            }
-        }
-    }
-
-private:
-    std::vector<std::thread> workers;
-    std::queue<Task> tasks;
-    std::mutex queue_mutex;
-    std::timed_mutex timed_mutex;
-    std::condition_variable condition;
-    std::atomic<int> pending_tasks;
-    std::atomic<int64_t> total_tasks;
-    bool stop;
-};
-*/
 // 全局线程池
 static BusinessThreadPool pool(std::max<size_t>(4, std::thread::hardware_concurrency() * 2));
 
@@ -541,15 +314,16 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     try {
         // 将任务放入队列
         Task task(package_id, session, package, std::move(raw_msg));
+        printf("1package_id %u session %u\n", package_id,session->hash_key());
         if (!pool.enqueue(std::move(task))) {
             slog->warn("Failed to enqueue task, queue may be full");
             return false;
         }
         // 检查内存使用情况
-        pool.check_memory_usage();
+        //pool.check_memory_usage();
 
         // 记录状态
-        pool.log_status();
+        //pool.log_status();
 
         return true;
     }
@@ -557,6 +331,67 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
         slog->error("Exception in on_recv: {}", e.what());
         return false;
     }
+}
+
+void CObserverServer::process_task(Task&& task)
+{
+    auto& [package_id, session, package, raw_msg] = task;
+    std::shared_ptr<AntiCheatUserData> user_data;
+    if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE) {
+        // 减少包处理数量,临时用,待登录器更新后移除
+        if (SPKG_ID_C2S_UPDATE_USER_NAME == package_id) {
+            user_data = get_user_data_(session);        
+            auto& req = raw_msg.get().as<ProtocolC2SUpdateUsername>();
+            auto username = user_data->get_field("usrname");
+            std::wstring username_str = username.has_value() ? username.value() : L"";
+            //slog->warn("Update username: {}=={}", username_str, Utils::String::w2c(req.username));
+            if (!req.username.empty() && username_str == req.username) {
+                //slog->warn("Update username: {}===={}", username_str, Utils::String::w2c(req.username));
+                return;
+            }
+        }
+        slog->info("ProtocolLC2LSSend package_id: {}", package_id);
+        ProtocolLC2LSSend req;
+        req.package = package;
+        req.package.head.session_id = session->hash_key();
+        printf("2package_id %u session %llu\n", package_id, session->hash_key());
+        logic_client_->/*async_*/send(&req, package.head.session_id);
+        return;
+    }
+
+    if(!user_data)
+    {
+        user_data = get_user_data_(session);
+    }
+
+    auto is_observer_client = user_data->get_field<bool>("is_observer_client");
+    if (!(is_observer_client.has_value() && is_observer_client.value()))
+    {
+        super::log(LOG_TYPE_ERROR, TEXT("未授权Service调用"));
+        return;
+    }
+
+    if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END) {
+        // 执行任务
+        try {
+            // 调用 dispatch
+            ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
+        }
+        catch (const std::exception& e) {
+            slog->error("Package dispatch failed: {}", e.what());
+        }
+        catch (...) {
+            slog->error("Package dispatch failed with unknown exception");
+        }
+    }
+    else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END) {
+        ProtocolLC2LSSend req;
+        req.package = package;
+        req.package.head.session_id = session->hash_key();
+        logic_client_->send(&req, package.head.session_id);
+        return;
+    }
+    return;
 }
 
 CObserverServer::CObserverServer()
@@ -596,12 +431,20 @@ CObserverServer::CObserverServer()
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SEND, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto resp = msg.get().as<ProtocolLS2LCSend>();
         auto session_id = resp.package.head.session_id;
-        auto session = sessions().find(session_id);
+        auto session = find_session(session_id); 
+        auto session1 = sessions().find(session_id);
+        printf("find_session %llu\n", session_id);
+        if (!session)
+        {
+            printf("not find_session %llu\n", session_id);
+            slog->error("Session not found: {}", session_id);
+            return;
+        }
         send(session, resp.package);
     });
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto param = msg.get().as<ProtocolLS2LCSetField>();
-        auto session = sessions().find(param.session_id);
+        auto session = find_session(param.session_id);
         if (session)
         {
             get_user_data_(session)->set_field(param.key, param.val);
@@ -619,7 +462,7 @@ CObserverServer::CObserverServer()
     // 踢人 CLogicServer::close_socket
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_KICK, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto param = msg.get().as<ProtocolLS2LCKick>();
-        auto session = sessions().find(param.session_id);
+        auto session = find_session(param.session_id);
         if (session)
         {
             session->stop();
@@ -650,12 +493,6 @@ CObserverServer::CObserverServer()
         ProtocolOBS2OBCQueryVmpExpire resp;
         resp.vmp_expire = get_vmp_expire();
         send(session, &resp);
-        // 发送有效期日期
-        session->start_timer("query_vmp_expire", 1000, 20, [this, resp, weak_session = std::weak_ptr(session)]() {
-            if (auto session = weak_session.lock()) {
-                send(session, &resp);
-            }
-        });
         return;
     #else
         auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
@@ -674,12 +511,6 @@ CObserverServer::CObserverServer()
             ProtocolOBS2OBCQueryVmpExpire resp;
             resp.vmp_expire = get_vmp_expire();
             send(session, &resp);
-            // 发送有效期日期
-            session->start_timer("query_vmp_expire", 1000, 10, [this, resp, weak_session = std::weak_ptr(session)]() {
-                if (auto session = weak_session.lock()) {
-                    send(session, &resp);
-                }
-            });
         }
         else
         {
@@ -698,36 +529,19 @@ CObserverServer::CObserverServer()
     // Gate to Service
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto req = raw_msg.get().as<ProtocolOBC2OBSSend>();
-        send(sessions().find(req.package.head.session_id), req.package, session->hash_key());
+        /*async_*/send(find_session(req.package.head.session_id), req.package, session->hash_key());
     });
     // 踢人 
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_KICK, [this](tcp_session_shared_ptr_t&, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto req = raw_msg.get().as<ProtocolOBC2OBSKick>();
-        auto session = sessions().find(req.session_id);
+        auto session = find_session(req.session_id);
         if (session)
             session->stop();
     });
-    // gate to service for freshuserlist
-    /*ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        ProtocolOBS2OBCQueryUsers resp;
-        foreach_session([&resp](tcp_session_shared_ptr_t& session) {
-            ProtocolUserData _userdata;
-            auto user_data = get_user_data_(session);
-            if (user_data->get_handshake())
-            {
-                _userdata.session_id = session->hash_key();
-                memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
-                _userdata.has_handshake = user_data->get_handshake();
-                _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
-                _userdata.json = user_data->data;
-                resp.data.emplace(std::pair(_userdata.session_id, _userdata));
-            }
-        });
-        send(session, &resp);
-    });*/
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         ProtocolOBS2OBCQueryUsers resp;
         // 收集所有用户数据
+        slog->info("查询所有用户数据");
         std::vector<std::pair<uint64_t, ProtocolUserData>> user_data_list;
         foreach_session([this, &user_data_list](tcp_session_shared_ptr_t& session) {
             auto user_data = get_user_data_(session);
@@ -822,6 +636,25 @@ CObserverServer::CObserverServer()
     });
 }
 
+void CObserverServer::on_recv_client_heartbeat(tcp_session_shared_ptr_t& session) 
+{
+    auto user_data = get_user_data_(session);
+    user_data->update_heartbeat_time();
+    if (user_data->get_field<bool>("is_observer_client").value_or(false))
+        return;
+    ProtocolLC2LSSend req;
+    ProtocolC2SHeartBeat heartbeat;
+    heartbeat.tick = time(0);
+    msgpack::sbuffer sbuf;
+    msgpack::pack(sbuf, heartbeat);
+    RawProtocolImplBase package;
+    package.encode(sbuf.data(), sbuf.size());
+    req.package.head = package.head;
+    req.package.body = package.body;
+    req.package.head.session_id = session->hash_key();
+    logic_client_->/*async_*/send(&req, package.head.session_id);
+}
+
 void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 {
     super::on_post_disconnect(session);
@@ -840,124 +673,6 @@ void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
     ProtocolLC2LSRemoveUsrSession req;
     req.data.session_id = session->hash_key();
     logic_client_->send(&req);
-}
-
-void CObserverServer::process_task(Task&& task)
-{
-    auto& [package_id, session, package, raw_msg] = task;
-
-    if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE) {
-        ProtocolLC2LSSend req;
-        req.package = package;
-        req.package.head.session_id = session->hash_key();
-        logic_client_->send(&req, package.head.session_id);
-        return;
-    }
-
-    auto user_data = get_user_data_(session);
-    auto is_observer_client = user_data->get_field<bool>("is_observer_client");
-    //slog->info(" package_id {} {}:{}:{}", package_id, __FUNCTION__, __FILE__, __LINE__);
-    if (!(is_observer_client.has_value() && is_observer_client.value()))
-    {
-        super::log(LOG_TYPE_ERROR, TEXT("未授权Service调用"));
-        return;
-    }
-
-    // 注册锁到死锁检测器
-    //deadlock_detector_.register_lock(task_mtx_, "task_mutex");
-
-
-    // 使用更细粒度和容错的锁策略
-    std::unique_lock<std::shared_timed_mutex> lck(task_mtx_, std::defer_lock);
-    auto lock_start = std::chrono::steady_clock::now();
-
-    // 增加重试和超时机制
-    const int MAX_LOCK_ATTEMPTS = 3;
-    const auto LOCK_TIMEOUT = std::chrono::milliseconds(1000);
-    const auto RETRY_INTERVAL = std::chrono::milliseconds(50);
-
-    int lock_attempts = 0;
-    bool lock_acquired = false;
-
-    while (lock_attempts < MAX_LOCK_ATTEMPTS && !lock_acquired) {
-        lock_acquired = lck.try_lock_for(LOCK_TIMEOUT);
-
-        if (!lock_acquired) {
-            lock_attempts++;
-            slog->warn("Lock attempt failed for package_id={}, attempt={}",
-                       package_id, lock_attempts);
-
-            // 短暂等待后重试
-            std::this_thread::sleep_for(RETRY_INTERVAL);
-        }
-    }
-
-    if (!lock_acquired) {
-        slog->error("Persistent lock failure for package_id={}, skipping task", package_id);
-        return;
-    }
-
-    // 使用带超时的共享锁
-    //std::shared_lock<std::shared_timed_mutex> lck(task_mtx_, std::defer_lock);
-    //if (!lck.try_lock_for(std::chrono::milliseconds(300))) {
-    //    slog->warn("Failed to acquire lock in process_task, wait_time=300ms");
-    //    return;
-    //}
-
-    // 添加资源监控
-    static std::atomic<int64_t> total_processed_packages{ 0 };
-    static auto last_resource_check = std::chrono::steady_clock::now();
-
-    auto now = std::chrono::steady_clock::now();
-    if (now - last_resource_check > std::chrono::seconds(60)) {
-        PROCESS_MEMORY_COUNTERS pmc;
-        if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-            double memory_usage_mb = pmc.WorkingSetSize / 1024.0 / 1024.0;
-            slog->info("Resource usage - Memory: {:.2f}MB, Processed packages: {}",
-                       memory_usage_mb, total_processed_packages.load());
-        }
-        last_resource_check = now;
-    }
-
-    if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END) {
-        // 执行任务
-        try {
-            // 执行任务
-            auto start = std::chrono::steady_clock::now();
-            // 调用 dispatch
-            bool dispatch_result = ob_pkg_mgr_.dispatch(package_id, session, package, raw_msg);
-
-            auto end = std::chrono::steady_clock::now();
-            if (dispatch_result) {
-                slog->info("Dispatch completed for package_id: {}", package_id);
-            }
-            else {
-                slog->error("Dispatch failed for package_id: {}", package_id);
-            }
-
-            // 记录处理时间
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-            if (duration.count() > 300) {
-                slog->warn("Package processing took too long: package_id:{} {}ms", package_id, duration.count());
-            }
-
-            total_processed_packages++;
-        }
-        catch (const std::exception& e) {
-            slog->error("Package dispatch failed: {}", e.what());
-        }
-        catch (...) {
-            slog->error("Package dispatch failed with unknown exception");
-        }
-    }
-    else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END) {
-        ProtocolLC2LSSend req;
-        req.package = package;
-        req.package.head.session_id = session->hash_key();
-        logic_client_->send(&req, package.head.session_id);
-        return;
-    }
-    return;
 }
 
 void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned short port)

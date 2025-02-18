@@ -1,10 +1,22 @@
+﻿// pch.h
 #pragma once
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
+// 第一阶段：处理基础宏和glog
+#define WIN32_LEAN_AND_MEAN       // 精简Windows头文件
+#define NOMINMAX                  // 禁用Windows的min/max宏
+#define GLOG_NO_ABBREVIATED_SEVERITIES  // 防止ERROR宏冲突
+#define GLOG_USE_GLOG_EXPORT 
+
+// 先包含glog
+#include <glog/logging.h>
+
+// 第二阶段：Windows头文件（确保在glog之后）
+#include <windows.h>  // 现在安全
+
+// 第三阶段：第三方库（asio2可能依赖Windows头文件）
 #define _HAS_SHARED_MUTEX 1
-#include <asio2\asio2.hpp>
-#include <asio2\util\uuid.hpp>
+#include <asio2/asio2.hpp>
+#include <asio2/util/uuid.hpp>
 #include <msgpack.hpp>
 #include <json/json.hpp>
 #include <spdlog/spdlog.h>

@@ -42,9 +42,9 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_) : super(), user_
     });
 #ifndef GATE_ADMIN
     // 注册认证失败通知处理函数
-    notify_mgr_.register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
-        theApp.is_service_stauts = true;
-    });
+    //notify_mgr_.register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
+    //    theApp.is_service_stauts = true;
+    //});
     // 注册处理包管理器的处理函数，用于处理OBPKG_ID_S2C_QUERY_VMP_EXPIRE包
     package_mgr_.register_handler(OBPKG_ID_S2C_QUERY_VMP_EXPIRE, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         // 从原始消息中解析出ProtocolOBS2OBCQueryVmpExpire对象

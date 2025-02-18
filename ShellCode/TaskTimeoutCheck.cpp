@@ -97,7 +97,7 @@ void InitTimeoutCheck(CAntiCheatClient* client)
 	client->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
 		reconnect_count = 0;
 	});
-    static auto last_recv_package_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
+   /* static auto last_recv_package_notify_handler = client->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
     client->notify_mgr().replace_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID, [client]() {
         last_recv_timepoint = std::chrono::system_clock::now();
         if (last_recv_package_notify_handler)
@@ -131,5 +131,5 @@ void InitTimeoutCheck(CAntiCheatClient* client)
 		last_js_report_timepoint = std::chrono::system_clock::now();
 		if (last_js_report_notify_handler)
 			last_js_report_notify_handler();
-	});
+	});*/
 }

@@ -8,55 +8,36 @@
 #include <chrono>
 #include <clocale>
 #include <cstdio>
+#include <errhandlingapi.h>
+#include <handleapi.h>
 #include <memory>
-#include <string>
-#include <thread>
-#include <WinBase.h>
-#include <WinDef.h>
-#include <WinError.h>
-#include <WinNT.h>
+#include <minwindef.h>
+#include <processthreadsapi.h>
+#include <spdlog/common.h>
+#include <spdlog/logger.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <client/windows/crash_generation/client_info.h>
-#include <client/windows/crash_generation/crash_generation_server.h>
-#include <client/windows/handler/exception_handler.h>
-#include <client/windows/common/ipc_protocol.h>
-using namespace google_breakpad;
+#include <spdlog/spdlog.h>
+#include <spdlog/spdlog-inl.h>
+#include <string>
+#include <synchapi.h>
+#include <thread>
+#include <vector>
+#include <WinBase.h>
+#include <WinError.h>
+#include <WinNT.h>
 
-bool ShowDumpResults(const wchar_t* dump_path,
-                     const wchar_t* minidump_id,
-                     void* context,
-                     EXCEPTION_POINTERS* exinfo,
-                     MDRawAssertionInfo* assertion,
-                     bool succeeded)
-{
-    ::MessageBox(nullptr, L"程序可能被劫持，若频繁出现，请使用360急救箱或重装系统", L"提示", MB_OK | MB_ICONWARNING);
-    return succeeded;
-}
-
-void InitMiniDump()
-{
-    static auto handler = new ExceptionHandler(L".\\",
-                                               NULL,
-                                               ShowDumpResults,
-                                               NULL,
-                                               ExceptionHandler::HANDLER_ALL,
-                                               MiniDumpValidTypeFlags,
-                                               (HANDLE)NULL,
-                                               NULL);
-}
 std::shared_ptr<asio::io_service> io = std::make_shared<asio::io_service>();
 std::shared_ptr<spdlog::logger> slog;
 
 int main(int argc, char** argv)
 {
-    InitMiniDump();
 	// 创建控制台日志器
 	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 	//console_sink->set_level(spdlog::level::debug);
 
 	// 初始化日志系统
-	auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service_log.log", 1024 * 1024 * 1024, 5);
+	auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 1024, 5);
 
 	// 创建组合日志器
 	std::vector<spdlog::sink_ptr> sinks{/*console_sink,*/ rotating_sink};

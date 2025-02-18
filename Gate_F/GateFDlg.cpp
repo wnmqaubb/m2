@@ -96,8 +96,10 @@ BOOL CGateFDlg::OnInitDialog()
 
     SetTimer(TIMER_ID_POLL_WORK_ID, 200, NULL);
     SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
+    //SetTimer(TIMER_ID_UPDATE_UAERNAME, 1000 * 60 * 10, NULL);
     if (theApp.is_parent_gate) {
         SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
+        SetTimer(TIMER_ID_QUERY_VMP_EXPIRE, 2000, NULL);
     }
     return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -151,6 +153,7 @@ void CGateFDlg::OnClose()
     KillTimer(RELOAD_GAMER_LIST);
     if (theApp.is_parent_gate) {
         KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
+        KillTimer(TIMER_ID_QUERY_VMP_EXPIRE);
     }
     if (CanExit())
         CDialogEx::OnClose();
@@ -401,6 +404,16 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
             m_games_dlg->OnRefreshUsers();
             break;
         }
+        case TIMER_ID_QUERY_VMP_EXPIRE:
+        {
+            CString vmp_expire;
+            ((CStatic*)m_games_dlg->GetDlgItem(IDC_EXPDATE_STATIC))->GetWindowText(vmp_expire);
+            if (vmp_expire == TEXT("获取中..."))
+            {
+                theApp.m_ObServerClientGroup.get_observer_client(kDefaultLocalhost, kDefaultServicePort)->gate_query_vmp_expire();
+            }
+            break;
+        }
         case TIMER_ID_POLL_WORK_ID:
         {
             theApp.m_WorkIo.poll_one();
@@ -411,14 +424,14 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
             // 检查服务是否停止响应,如果停止响应则尝试重启
             // 定时检测g_service通讯是否正常,用发包并开始计时,如果在30秒内还没有回包就认为是不响应了,就结束g_service和g_logicserver再重启
             // 无响应
-            if (!theApp.is_service_stauts)
-            {
-                ReStartChildProcess();
-                break;
-            }
-            else {
-                theApp.is_service_stauts = false;
-            }
+            //if (!theApp.is_service_stauts)
+            //{
+            //    ReStartChildProcess();
+            //    break;
+            //}
+            //else {
+            //    theApp.is_service_stauts = false;
+            //}
 
             bool service_stoped = false;
             bool logic_server_stoped = false;

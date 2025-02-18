@@ -53,13 +53,18 @@ public:
         });
         // 获取到期时间
         notify_mgr_.register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
-            ProtocolOBC2OBSAuth auth;
-            auth.key = auth_key_;
-            super::send(&auth);
+            gate_query_vmp_expire();
         });
     }
 
-    virtual void send(unsigned int session_id, RawProtocolImpl& package)
+    void gate_query_vmp_expire()
+    {
+        ProtocolOBC2OBSAuth auth;
+        auth.key = auth_key_;
+        super::send(&auth);
+    }
+
+    virtual void send(std::size_t session_id, RawProtocolImpl& package)
     {
         ProtocolOBC2OBSSend req;
         req.package = package;
@@ -67,7 +72,7 @@ public:
         super::send(&req);
     }
 
-    virtual void send(unsigned int session_id, msgpack::sbuffer& buffer)
+    virtual void send(std::size_t session_id, msgpack::sbuffer& buffer)
     {
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
@@ -75,7 +80,7 @@ public:
     }
 
     template <typename T>
-    void send(unsigned int session_id, T* package)
+    void send(std::size_t session_id, T* package)
     {
         if (!package)
             __debugbreak();
@@ -84,7 +89,7 @@ public:
         send(session_id, buffer);
     }
 
-    virtual void async_send(unsigned int session_id, RawProtocolImpl& package)
+    virtual void async_send(std::size_t session_id, RawProtocolImpl& package)
     {
         ProtocolOBC2OBSSend req;
         req.package = package;
@@ -92,7 +97,7 @@ public:
         super::async_send(&req);
     }
 
-    virtual void async_send(unsigned int session_id, msgpack::sbuffer& buffer)
+    virtual void async_send(std::size_t session_id, msgpack::sbuffer& buffer)
     {
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
@@ -100,7 +105,7 @@ public:
     }
 
     template <typename T>
-    void async_send(unsigned int session_id, T* package)
+    void async_send(std::size_t session_id, T* package)
     {
         if (!package)
             __debugbreak();

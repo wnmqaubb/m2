@@ -11,9 +11,9 @@ class CObsSessionMgr
 	using sessions_container_t = std::set<unsigned int>;
 public:
 	inline sessions_container_t sessions() { std::shared_lock<std::shared_mutex> lck(mtx_); return obs_sessions_; }
-	inline bool exist(unsigned int session_id) { std::shared_lock<std::shared_mutex> lck(mtx_);  return obs_sessions_.find(session_id) != obs_sessions_.end(); }
-	inline void add_session(unsigned int session_id) { std::unique_lock<std::shared_mutex> lck(mtx_); obs_sessions_.emplace(session_id); }
-	inline void remove_session(unsigned int session_id) { std::unique_lock<std::shared_mutex> lck(mtx_); if (obs_sessions_.find(session_id) != obs_sessions_.end()) obs_sessions_.erase(session_id); }
+	inline bool exist(std::size_t session_id) { std::shared_lock<std::shared_mutex> lck(mtx_);  return obs_sessions_.find(session_id) != obs_sessions_.end(); }
+	inline void add_session(std::size_t session_id) { std::unique_lock<std::shared_mutex> lck(mtx_); obs_sessions_.emplace(session_id); }
+	inline void remove_session(std::size_t session_id) { std::unique_lock<std::shared_mutex> lck(mtx_); if (obs_sessions_.find(session_id) != obs_sessions_.end()) obs_sessions_.erase(session_id); }
 private:
 	std::shared_mutex mtx_;
 	sessions_container_t obs_sessions_;
@@ -24,7 +24,7 @@ class CSessionMgr
 	using sessions_container_t = std::unordered_map<unsigned int, std::shared_ptr<ProtocolUserData>>;
 	using sessions_mac_container_t = std::unordered_map<unsigned int, sessions_container_t>;
 public:
-	std::shared_ptr<ProtocolUserData> get_user_data(unsigned int session_id)
+	std::shared_ptr<ProtocolUserData> get_user_data(std::size_t session_id)
 	{
 		std::shared_lock<std::shared_mutex> lck(mtx_);
 		if (sessions_.find(session_id) == sessions_.end())
@@ -45,7 +45,7 @@ public:
 		auto mac_hash = NetUtils::hash(mac.c_str(), mac.size());
 		return sessions_mac_[mac_hash].size();
 	}
-	void add_session(unsigned int session_id, const ProtocolUserData& user_data)
+	void add_session(std::size_t session_id, const ProtocolUserData& user_data)
 	{
 		std::unique_lock<std::shared_mutex> lck(mtx_);
 		auto shared_user_data = std::make_shared<ProtocolUserData>(user_data);
@@ -67,7 +67,7 @@ public:
 		auto mac_hash = NetUtils::hash(shared_user_data->mac.c_str(), shared_user_data->mac.size());
 		sessions_mac_[mac_hash][session_id] = shared_user_data;
 	}
-	void remove_session(unsigned int session_id)
+	void remove_session(std::size_t session_id)
 	{
 		std::unique_lock<std::shared_mutex> lck(mtx_);
 		if (sessions_.find(session_id) != sessions_.end())
@@ -94,11 +94,11 @@ class CLogicServer : public CAntiCheatServer
 {
 	using super = CAntiCheatServer;
 public:
-	void send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp_session_shared_ptr_t& session, unsigned int session_id);
+	void send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp_session_shared_ptr_t& session, std::size_t session_id);
 	CLogicServer();
 	void clear_txt(const std::string& file_name);
 	void write_txt(const std::string& file_name, const std::string& str, bool is_from_add_list = false);
-	virtual void send(tcp_session_shared_ptr_t& session, unsigned int session_id, const RawProtocolImpl& package)
+	virtual void send(tcp_session_shared_ptr_t& session, std::size_t session_id, const RawProtocolImpl& package)
 	{
 		ProtocolLS2LCSend resp;
 		resp.package = package;
@@ -106,7 +106,7 @@ public:
 		super::send(session, &resp);
 	}
 
-	virtual void send(tcp_session_shared_ptr_t& session, unsigned int session_id, msgpack::sbuffer& buffer)
+	virtual void send(tcp_session_shared_ptr_t& session, std::size_t session_id, msgpack::sbuffer& buffer)
 	{
 		RawProtocolImpl package;
 		package.encode(buffer.data(), buffer.size());
@@ -114,7 +114,7 @@ public:
 	}
 
 	template <typename T>
-	void send(tcp_session_shared_ptr_t& session, unsigned int session_id, T* package)
+	void send(tcp_session_shared_ptr_t& session, std::size_t session_id, T* package)
 	{
 		if (!package)
 			__debugbreak();
@@ -122,7 +122,7 @@ public:
 		msgpack::pack(buffer, *package);
 		send(session, session_id, buffer);
 	}
-	virtual void set_field(tcp_session_shared_ptr_t& session, unsigned int session_id, const std::string& key, const std::wstring& val)
+	virtual void set_field(tcp_session_shared_ptr_t& session, std::size_t session_id, const std::string& key, const std::wstring& val)
 	{
 		ProtocolLS2LCSetField req;
 		req.session_id = session_id;
@@ -130,7 +130,7 @@ public:
 		req.val = val;
 		super::send(session, &req);
 	}
-	virtual void write_img(unsigned int session_id, std::vector<uint8_t>& data);
+	virtual void write_img(std::size_t session_id, std::vector<uint8_t>& data);
 	/**
 	 * msg: 日志信息
 	 * silence: 是否显示到界面日志窗口
@@ -139,10 +139,10 @@ public:
 	 * punish_flag: 是否是惩罚log
 	 */
 	virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
-	virtual void punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2 = L"");
-	virtual bool is_svip(unsigned int session_id);
-	virtual void detect(tcp_session_shared_ptr_t& session, unsigned int session_id);
-	virtual void close_socket(tcp_session_shared_ptr_t& session, unsigned int session_id);
+	virtual void punish(tcp_session_shared_ptr_t& session, std::size_t session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2 = L"");
+	virtual bool is_svip(std::size_t session_id);
+	virtual void detect(tcp_session_shared_ptr_t& session, std::size_t session_id);
+	virtual void close_socket(tcp_session_shared_ptr_t& session, std::size_t session_id);
 	std::string trim_user_name(const std::string& username_);
 	inline CObsSessionMgr& obs_sessions_mgr() { return obs_sessions_mgr_; }
 	inline CSessionMgr& usr_sessions_mgr() { return usr_sessions_mgr_; }

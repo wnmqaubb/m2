@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 #include "Lightbone/utils.h"
 #include "NetUtils.h"
 #include "Protocol.h"
@@ -8,8 +7,6 @@
 #include <asio2/util/uuid.hpp>
 #include <filesystem>
 #include <fstream>
-
-//using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
 
 class CAntiCheatClient : public asio2::tcp_client
 {
@@ -22,7 +19,7 @@ public:
 		bind_connect(&CAntiCheatClient::on_connect, this);
 		bind_recv(&CAntiCheatClient::on_recv, this);
 		bind_disconnect(&CAntiCheatClient::on_disconnect, this);
-        heartbeat_duration_ = std::chrono::seconds(10);
+        heartbeat_duration_ = std::chrono::seconds(60);
 		auto_reconnect(true, std::chrono::seconds(5));
     #ifndef G_SERVICE
         package_mgr_.register_handler(PKG_ID_S2C_HANDSHAKE, std::bind(&CAntiCheatClient::on_recv_handshake, this, std::placeholders::_1, std::placeholders::_2));
@@ -158,9 +155,9 @@ public:
             return;
         }
     #endif
-		package_mgr_.dispatch(package_id, package, raw_msg);
+        package_mgr_.dispatch(package_id, package, raw_msg);
 		//if (!package_mgr_.dispatch(package_id, package, raw_msg))
-			//on_recv(package_id, package, raw_msg);
+		//	on_recv(package_id, package, raw_msg);
 	}
     //virtual void on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&) {};
     virtual void on_send(const std::error_code& ec, std::size_t length)
@@ -177,7 +174,7 @@ public:
         super::send(text);
     }
 
-    virtual void send(msgpack::sbuffer& buffer, unsigned int session_id)
+    virtual void send(msgpack::sbuffer& buffer, std::size_t session_id)
     {
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
@@ -188,7 +185,7 @@ public:
     }
 
     template <typename T>
-    void send(T* package, unsigned int session_id = 0)
+    void send(T* package, std::size_t session_id = 0)
     {
         if (!package)
             __debugbreak();
@@ -202,7 +199,7 @@ public:
         super::async_send(text);
     }
 
-    virtual void async_send(msgpack::sbuffer& buffer, unsigned int session_id)
+    virtual void async_send(msgpack::sbuffer& buffer, std::size_t session_id)
     {
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
@@ -213,7 +210,7 @@ public:
     }
 
     template <typename T>
-    void async_send(T* package, unsigned int session_id = 0)
+    void async_send(T* package, std::size_t session_id = 0)
     {
         if (!package)
             __debugbreak();
