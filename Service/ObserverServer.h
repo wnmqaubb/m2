@@ -13,7 +13,8 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-#include <folly/ProducerConsumerQueue.h>
+//#include <folly/ProducerConsumerQueue.h>
+#include <readerwriterqueue/readerwriterqueue.h>
 using tcp_session_shared_ptr_t = std::shared_ptr<asio2::tcp_session>;
 
 struct Task {
@@ -82,7 +83,8 @@ private:
         time_t timestamp;
     };
 
-    folly::ProducerConsumerQueue<HeartbeatTask> queue_{ BUFFER_SIZE };
+    //folly::ProducerConsumerQueue<HeartbeatTask> queue_{ BUFFER_SIZE };
+    moodycamel::ReaderWriterQueue<HeartbeatTask> queue_{ BUFFER_SIZE };
     std::atomic<bool> running_{ true };
     std::vector<std::thread> workers_;
     std::atomic<size_t> dropped_{ 0 };
@@ -124,13 +126,12 @@ public:
         running_ = false;
         for (auto& t : workers_) if (t.joinable()) t.join();
 
-        slog->info("Heartbeat stats: Processed={} Dropped={}",
-                   total_processed_.load(), dropped_.load());
+        slog->info("Heartbeat stats: Processed={} Dropped={}", total_processed_.load(), dropped_.load());
     }
 
     bool push(std::size_t session_id, time_t timestamp) noexcept {
         HeartbeatTask task{ session_id, timestamp };
-        if (queue_.write(task)) return true;
+        if (queue_.try_enqueue(task)) return true;
         dropped_.fetch_add(1, std::memory_order_relaxed);
         return false;
     }
@@ -138,15 +139,13 @@ public:
 private:
     size_t try_read_batch(HeartbeatTask* tasks, size_t max) {
         size_t count = 0;
-        while (count < max && queue_.read(tasks[count])) {
+        while (count < max && queue_.try_dequeue(tasks[count])) {
             ++count;
         }
         return count;
     }
 
     void process_batch(HeartbeatTask* tasks, size_t count) {
-        //std::shared_lock lock(CObserverServer::instance().get_session_lock());  // 共享锁
-
         for (size_t i = 0; i < count; ++i) {
             if (auto session = CObserverServer::instance().find_session(tasks[i].session_id)) {
                 CObserverServer::instance().on_recv_client_heartbeat(session);

@@ -14,9 +14,12 @@
 #include <vector>
 
 // Folly库
-#include <folly/MPMCQueue.h>
-#include <folly/AtomicUnorderedMap.h>
-#include <folly/ProducerConsumerQueue.h>
+//#include <folly/MPMCQueue.h>
+//#include <folly/AtomicUnorderedMap.h>
+//#include <folly/ProducerConsumerQueue.h>
+#include <concurrentqueue/concurrentqueue.h>
+#include <readerwriterqueue/readerwriterqueue.h>
+#include <parallel_hashmap/phmap.h>
 
 // Windows头文件（置于最后以避免宏冲突）
 #include <Psapi.h>
@@ -43,24 +46,30 @@ private:
 
     // 线程本地队列（SPSC）
     struct WorkerQueue {
-        folly::ProducerConsumerQueue<TaskPtr> queue{ MAX_LOCKFREE_QUEUE_SIZE };
+        moodycamel::ReaderWriterQueue<TaskPtr> queue{ MAX_LOCKFREE_QUEUE_SIZE };
+        // 精确计算填充（假设 64 字节缓存行）
+        char padding[64 - (sizeof(moodycamel::ReaderWriterQueue<TaskPtr>) % 64)];
     };
+    static_assert(sizeof(WorkerQueue) % 64 == 0, "Cache line alignment failed");
+
 
     // 全局队列（MPMC）
-    folly::MPMCQueue<TaskPtr> global_queue{ MAX_LOCKFREE_QUEUE_SIZE };
+    moodycamel::ConcurrentQueue<TaskPtr> global_queue{ MAX_LOCKFREE_QUEUE_SIZE };
 
     // 工作线程管理
     std::vector<std::thread> workers;
     std::atomic<bool> stop{ false };
-    folly::AtomicUnorderedInsertMap<size_t, WorkerQueue*> worker_queues;
+    phmap::parallel_node_hash_map<size_t, WorkerQueue*> worker_queues;
 
     // 统计指标
     std::atomic<int> pending_tasks{ 0 };
     std::atomic<int64_t> total_tasks{ 0 };
-
+    std::mutex map_mutex;
 public:
     explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency() * 2)
         : worker_queues(thread_count * 2) {
+
+        std::lock_guard<std::mutex> lock(map_mutex);
         // 创建所有工作队列
         for (size_t i = 0; i < thread_count; ++i) {
             worker_queues.emplace(i, new WorkerQueue);
@@ -85,15 +94,14 @@ public:
         for (auto& w : workers) {
             if (w.joinable()) w.join();
         }
-        worker_queues.~AtomicUnorderedInsertMap();
+        //worker_queues.~AtomicUnorderedInsertMap();
     }
 
     bool enqueue(Task task) {
         if (stop.load(std::memory_order_acquire)) return false;
 
         auto task_ptr = std::make_shared<TaskWrapper>(std::move(task));
-        //auto when = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
-        if (global_queue.writeIfNotFull(task_ptr)) { // 非阻塞尝试写入
+        if (global_queue.try_enqueue(task_ptr)) { // 非阻塞尝试写入
             pending_tasks.fetch_add(1, std::memory_order_relaxed);
             total_tasks.fetch_add(1, std::memory_order_relaxed);
             return true;
@@ -103,13 +111,18 @@ public:
 
 private:
     void worker_loop(size_t worker_id) {
-        auto it = worker_queues.find(worker_id);
-        if (it == worker_queues.end()) {
-            slog->error("Worker queue not found: {}", worker_id);
-            return;
+        WorkerQueue* local_queue = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(map_mutex);
+            auto it = worker_queues.find(worker_id);
+            if (it == worker_queues.end()) {
+                slog->critical("Fatal: Worker queue missing for {}", worker_id);
+                return;
+            }
+            local_queue = it->second;
         }
 
-        WorkerQueue* local_queue = it->second;
+
         std::vector<TaskPtr> local_batch;
         local_batch.reserve(WORKER_BATCH_SIZE);
 
@@ -119,7 +132,7 @@ private:
             // 处理本地队列
             size_t processed = 0;
             TaskPtr task;
-            while (processed < WORKER_BATCH_SIZE && local_queue->queue.read(task)) {
+            while (processed < WORKER_BATCH_SIZE && local_queue->queue.try_dequeue(task)) {
                 execute_task(task);
                 ++processed;
             }
@@ -142,7 +155,7 @@ private:
         size_t processed = 0;
         TaskPtr task;
         while (processed < WORKER_BATCH_SIZE) {
-            if (local_queue->queue.read(task)) {
+            if (local_queue->queue.try_dequeue(task)) {
                 execute_task(task);
                 ++processed;
             }
@@ -155,15 +168,12 @@ private:
 
     void process_global_queue(std::vector<TaskPtr>& local_batch) {
         TaskPtr task;
-        while (local_batch.size() < WORKER_BATCH_SIZE) {
-            auto when = std::chrono::steady_clock::now() + std::chrono::milliseconds(20);
-            if (global_queue.tryReadUntil(when,task)) {
-                local_batch.push_back(task);
-            }
-            else {
-                break;
-            }
-        }
+
+        // 批量从全局队列获取任务
+        size_t count = global_queue.try_dequeue_bulk(
+            std::back_inserter(local_batch),
+            WORKER_BATCH_SIZE - local_batch.size()
+        );
 
         for (auto& t : local_batch) {
             execute_task(t);
@@ -172,39 +182,15 @@ private:
     }
 
     int try_work_stealing(size_t worker_id) {
-        int steal_attempts = 0;
-        bool stolen = false;
+        constexpr int MAX_STEAL_BATCH = 16;
+        std::array<TaskPtr, MAX_STEAL_BATCH> stolen_tasks;
 
-        const size_t total_workers = workers.size();
-        if (total_workers == 0) return 0;
-
-        // （环形窃取）
-        //std::random_device rd;
-        //std::mt19937 gen(rd());
-        //std::uniform_int_distribution<size_t> dis(0, total_workers - 1);
-        //size_t start_idx = dis(gen);
-        // 修改后（环形窃取）
-        static std::atomic<size_t> steal_index{ 0 };
-        size_t start_idx = steal_index.fetch_add(1) % total_workers;
-
-        for (size_t i = 0; i < total_workers; ++i) {
-            size_t target_id = (start_idx + i) % total_workers;
-            if (target_id == worker_id) continue;
-
-            auto target_it = worker_queues.find(target_id);
-            if (target_it == worker_queues.end()) continue;
-
-            TaskPtr task;
-            if (target_it->second->queue.read(task)) {
-                execute_task(task);
-                stolen = true;
-                break;
-            }
-
-            if (++steal_attempts >= MAX_STEAL_ATTEMPTS) break;
+        // 严格仅从全局队列窃取
+        size_t count = global_queue.try_dequeue_bulk(stolen_tasks.begin(), MAX_STEAL_BATCH);
+        for (size_t i = 0; i < count; ++i) {
+            execute_task(stolen_tasks[i]);
         }
-
-        return stolen ? 0 : steal_attempts;
+        return (count > 0) ? 0 : MAX_STEAL_ATTEMPTS;
     }
 
     // 空闲时休眠，避免CPU空转
@@ -314,7 +300,6 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     try {
         // 将任务放入队列
         Task task(package_id, session, package, std::move(raw_msg));
-        printf("1package_id %u session %u\n", package_id,session->hash_key());
         if (!pool.enqueue(std::move(task))) {
             slog->warn("Failed to enqueue task, queue may be full");
             return false;
@@ -354,8 +339,7 @@ void CObserverServer::process_task(Task&& task)
         ProtocolLC2LSSend req;
         req.package = package;
         req.package.head.session_id = session->hash_key();
-        printf("2package_id %u session %llu\n", package_id, session->hash_key());
-        logic_client_->/*async_*/send(&req, package.head.session_id);
+        logic_client_->async_send(&req, package.head.session_id);
         return;
     }
 
@@ -432,11 +416,8 @@ CObserverServer::CObserverServer()
         auto resp = msg.get().as<ProtocolLS2LCSend>();
         auto session_id = resp.package.head.session_id;
         auto session = find_session(session_id); 
-        auto session1 = sessions().find(session_id);
-        printf("find_session %llu\n", session_id);
         if (!session)
         {
-            printf("not find_session %llu\n", session_id);
             slog->error("Session not found: {}", session_id);
             return;
         }
@@ -480,7 +461,7 @@ CObserverServer::CObserverServer()
         }
     });
     package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-    #ifdef _DEBUG
+    #ifndef _DEBUG
         get_user_data_(session)->set_field("is_observer_client", true);
         super::log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                    session->remote_port());
@@ -652,7 +633,7 @@ void CObserverServer::on_recv_client_heartbeat(tcp_session_shared_ptr_t& session
     req.package.head = package.head;
     req.package.body = package.body;
     req.package.head.session_id = session->hash_key();
-    logic_client_->/*async_*/send(&req, package.head.session_id);
+    logic_client_->async_send(&req, package.head.session_id);
 }
 
 void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
