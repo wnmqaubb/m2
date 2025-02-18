@@ -12,37 +12,6 @@ using namespace Utils;
 #else
 #define log(LOG_TYPE,x,...)
 #endif
-
-
-//#include <client/windows/crash_generation/client_info.h>
-//#include <client/windows/crash_generation/crash_generation_server.h>
-//#include <client/windows/handler/exception_handler.h>
-//#include <client/windows/common/ipc_protocol.h>
-//using namespace google_breakpad;
-//
-//bool ShowDumpResults(const wchar_t* dump_path,
-//    const wchar_t* minidump_id,
-//    void* context,
-//    EXCEPTION_POINTERS* exinfo,
-//    MDRawAssertionInfo* assertion,
-//    bool succeeded)
-//{
-//    ::MessageBoxA(0,"程序可能被劫持，若频繁出现，请使用360急救箱或重装系统","提示",MB_OK);
-//    return succeeded;
-//}
-//
-//void InitMiniDump()
-//{
-//    static auto handler = new ExceptionHandler(L".\\cache\\",
-//        NULL,
-//        ShowDumpResults,
-//        NULL,
-//        ExceptionHandler::HANDLER_ALL,
-//        MiniDumpValidTypeFlags,
-//        (HANDLE)NULL,
-//        NULL);
-//}
-
 CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
 {
     cfg_ = std::move(cfg);
@@ -56,7 +25,6 @@ CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
     {
         fs::create_directory(cache_dir_, ec);
     }
-    //InitMiniDump();
     init();
     /*v1:: 有几个win7旗舰版sp1的反馈登录后报错,调试定位是这个线程里client_start_routine();c00005异常*/
     /*v2:: 不用等待用户登录,直接初始化和开始连接*/
@@ -172,7 +140,7 @@ void CClientImpl::start_heartbeat_timer()
 {
     start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
         ProtocolC2SHeartBeat heartbeat;
-        heartbeat.tick = time(0);
+        heartbeat.tick = time(nullptr);
         send(&heartbeat);
         log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
 

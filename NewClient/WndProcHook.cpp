@@ -17,7 +17,10 @@ namespace WndProcHook
 
 	bool install_hook()
 	{
-		return read_file_hook.install(&::ReadFile, &read_file_ptr, &old_read_file_ptr);
+        if (!old_read_file_ptr) {
+            return read_file_hook.install(&::ReadFile, &read_file_ptr, &old_read_file_ptr);
+        }
+        return true;
 	}
 
 	void restore_hook()

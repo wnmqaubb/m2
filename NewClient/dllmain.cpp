@@ -139,10 +139,12 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
 {
     if (!param)
         return;
+#ifdef _DEBUG
     if (AntiDebugger::performAntiDetection()) {
         OutputDebugStringA("AntiDebugger::performAntiDetection");
         return;
     }
+#endif
     if (param->stage == 0)//打开登录器
     {
         share_data = param;
