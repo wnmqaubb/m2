@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 #define MAJOR_VERSION 1
 #define MINOR_VERSION 0
 #define INNER_VERSION 0
@@ -17,9 +17,9 @@
 #define MAKE_DATETIME_SVN           $WCNOW$
 #define MAKE_DATETIME        VER2STR(MAKE_DATETIME_SVN)
 
-#define PRODUCT_NAME                       "∑¥Õ‚π“±£ª§œµÕ≥"
-#define COMPANY_NAME                       "∑¥Õ‚π“π§◊˜ “ Co., Ltd."
-#define LEGAL_COPYRIGHT                    "Copyright (C) 2021 ∑¥Õ‚π“π§◊˜ “ Co., Ltd."
+#define PRODUCT_NAME                       "ÂèçÂ§ñÊåÇ‰øùÊä§Á≥ªÁªü"
+#define COMPANY_NAME                       "ÂèçÂ§ñÊåÇÂ∑•‰ΩúÂÆ§ Co., Ltd."
+#define LEGAL_COPYRIGHT                    "Copyright (C) 2021 ÂèçÂ§ñÊåÇÂ∑•‰ΩúÂÆ§ Co., Ltd."
 #define FILE_VERSION_VAL                   MAJOR_VERSION,MINOR_VERSION,INNER_VERSION,REV_VERSION
 #define FILE_VERSION_STR                   VER2STR(MAJOR_VERSION.MINOR_VERSION.INNER_VERSION.REV_VERSION)
 #define FILE_DESC                          VER2STR(COMMITED_HASH) IS_UNCOMMITED_STR

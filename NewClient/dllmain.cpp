@@ -139,7 +139,7 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
 {
     if (!param)
         return;
-#ifdef _DEBUG
+#ifndef _DEBUG
     if (AntiDebugger::performAntiDetection()) {
         OutputDebugStringA("AntiDebugger::performAntiDetection");
         return;
