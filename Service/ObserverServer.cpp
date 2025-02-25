@@ -31,261 +31,607 @@ extern std::shared_ptr<spdlog::logger> slog;
 class BusinessThreadPool {
 private:
     // 配置参数
-    static constexpr size_t MAX_LOCKFREE_QUEUE_SIZE = 100000;
-    static constexpr size_t WORKER_BATCH_SIZE = 64;
+    static constexpr size_t INITIAL_QUEUE_CAPACITY = 65536;  // 提升到64k
+    static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192;     // 本地队列容量翻倍
+    static constexpr size_t WORKER_BATCH_SIZE = 256;         // 加大批量处理
+    static constexpr size_t MEMORY_POOL_GROWTH_FACTOR = 2;   // 内存池动态增长因子
     static constexpr int MAX_EMPTY_ITERATIONS = 100;
-    static constexpr int MAX_STEAL_ATTEMPTS = 3;
+    static constexpr size_t MAX_MEMORY_POOL = 1024 * 1024; // 1M objects max
+    static constexpr size_t OVERFLOW_CHECK_INTERVAL = 50; // ms
+    // 新增调节参数
+    static constexpr int MAX_BACKOFF_US = 1000;  // 最大退避时间1ms
+    static constexpr int MIN_BACKOFF_US = 10;    // 最小退避时间10μs
+    static constexpr double THROTTLE_FACTOR = 1.2; // 动态调节因子
+    // 新增成员变量
+    std::atomic<int> current_backoff_{ MIN_BACKOFF_US };
+    std::atomic<size_t> consecutive_low_{ 0 };
 
-    // 任务封装
+
     struct TaskWrapper {
         Task task;
-        std::atomic<bool> completed{ false };
-        explicit TaskWrapper(Task&& t) : task(std::move(t)) {}
+        std::chrono::steady_clock::time_point enqueue_time;
+
+        explicit TaskWrapper(Task&& t)
+            : task(std::move(t)),
+            enqueue_time(std::chrono::steady_clock::now()) {
+        }
     };
-    using TaskPtr = std::shared_ptr<TaskWrapper>;
 
-    // 线程本地队列（SPSC）
-    struct WorkerQueue {
-        moodycamel::ReaderWriterQueue<TaskPtr> queue{ MAX_LOCKFREE_QUEUE_SIZE };
-        // 精确计算填充（假设 64 字节缓存行）
-        char padding[64 - (sizeof(moodycamel::ReaderWriterQueue<TaskPtr>) % 64)];
-    };
-    static_assert(sizeof(WorkerQueue) % 64 == 0, "Cache line alignment failed");
+    // 双全局队列系统
+    moodycamel::ConcurrentQueue<TaskWrapper*> main_global_queue_;
+    moodycamel::ConcurrentQueue<TaskWrapper*> overflow_global_queue_;
+    std::atomic<size_t> main_queue_approx_size_{ 0 };
+    std::atomic<size_t> overflow_queue_approx_size_{ 0 };
 
-
-    // 全局队列（MPMC）
-    moodycamel::ConcurrentQueue<TaskPtr> global_queue{ MAX_LOCKFREE_QUEUE_SIZE };
+    // 内存管理
+    moodycamel::ConcurrentQueue<TaskWrapper*> memory_pool_;
+    std::atomic<size_t> memory_pool_size_{ 0 };
+    std::thread memory_recycler_;
+    std::atomic<bool> memory_recycler_stop_{ false };
 
     // 工作线程管理
-    std::vector<std::thread> workers;
-    std::atomic<bool> stop{ false };
-    phmap::parallel_node_hash_map<size_t, WorkerQueue*> worker_queues;
+    struct WorkerContext {
+        moodycamel::ReaderWriterQueue<TaskWrapper*> queue{ MAX_LOCAL_QUEUE_SIZE };
+        std::atomic<size_t> approx_size{ 0 };
+        std::atomic<bool> active{ true };
+    };
 
-    // 统计指标
-    std::atomic<int> pending_tasks{ 0 };
-    std::atomic<int64_t> total_tasks{ 0 };
-    std::mutex map_mutex;
+    std::vector<std::thread> workers_;
+    std::vector<WorkerContext*> worker_contexts_;
+    std::atomic<bool> stop_{ false };
+    std::atomic<int> pending_tasks_{ 0 };
+    std::mutex context_mutex_;
+
+    // 监控统计
+    std::atomic<size_t> enqueue_failures_{ 0 };
+    std::atomic<size_t> total_steals_{ 0 };
+    std::atomic<size_t> memory_allocated_{ 0 };
+
 public:
-    explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency() * 2)
-        : worker_queues(thread_count * 2) {
+    explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency())
+        : main_global_queue_(INITIAL_QUEUE_CAPACITY),
+        overflow_global_queue_(INITIAL_QUEUE_CAPACITY)
+    {
+        // 初始化内存池
+        init_memory_pool(thread_count * 512);
 
-        std::lock_guard<std::mutex> lock(map_mutex);
-        // 创建所有工作队列
-        for (size_t i = 0; i < thread_count; ++i) {
-            worker_queues.emplace(i, new WorkerQueue);
-        }
+        // 启动内存回收线程
+        memory_recycler_ = std::thread([this] {
+            while (!memory_recycler_stop_.load(std::memory_order_relaxed)) {
+                recycle_memory();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
+        });
 
-        // 启动工作线程
-        workers.reserve(thread_count);
+        // 创建工作线程
+        workers_.reserve(thread_count);
         for (size_t i = 0; i < thread_count; ++i) {
-            workers.emplace_back([this, i] { worker_loop(i); });
+            workers_.emplace_back([this, i] {
+                // Windows线程亲和性设置
+                SetThreadAffinityMask(GetCurrentThread(), (1 << (i % 32)));
+                auto ctx = new WorkerContext();
+                {
+                    std::lock_guard<std::mutex> lock(context_mutex_);
+                    worker_contexts_.push_back(ctx);
+                }
+
+                worker_loop(ctx, i);
+
+                ctx->active.store(false, std::memory_order_release);
+                drain_queue(ctx);
+                delete ctx;
+            });
         }
     }
 
     ~BusinessThreadPool() {
-        stop.store(true, std::memory_order_release);
+        stop_.store(true);
+        memory_recycler_stop_.store(true);
 
-        // 等待任务完成
-        while (pending_tasks.load(std::memory_order_acquire) > 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        // 先停止内存回收线程
+        if (memory_recycler_.joinable()) {
+            memory_recycler_.join();
         }
 
-        // 回收资源
-        for (auto& w : workers) {
+        // 再停止工作线程
+        for (auto& w : workers_) {
             if (w.joinable()) w.join();
         }
-        //worker_queues.~AtomicUnorderedInsertMap();
+
+        // 安全清理内存池
+        TaskWrapper* task;
+        while (memory_pool_.try_dequeue(task)) {
+            if (task) {
+                // 正确析构顺序
+                task->task.~Task();
+                delete task;
+            }
+        }
     }
 
     bool enqueue(Task task) {
-        if (stop.load(std::memory_order_acquire)) return false;
+        if (stop_.load(std::memory_order_acquire)) return false;
 
-        auto task_ptr = std::make_shared<TaskWrapper>(std::move(task));
-        if (global_queue.try_enqueue(task_ptr)) { // 非阻塞尝试写入
-            pending_tasks.fetch_add(1, std::memory_order_relaxed);
-            total_tasks.fetch_add(1, std::memory_order_relaxed);
+        auto* wrapper = allocate_task_wrapper(std::move(task));
+        if (!wrapper) return false;
+
+        return enqueue_impl(wrapper);
+    }
+
+    struct Statistics {
+        size_t pending_tasks;
+        size_t main_queue_size;
+        size_t overflow_queue_size;
+        size_t memory_pool_size;
+        size_t enqueue_failures;
+        size_t total_steals;
+        size_t memory_allocated;
+    };
+
+    Statistics get_stats() const {
+        return {
+            (size_t)pending_tasks_.load(std::memory_order_relaxed),
+            main_queue_approx_size_.load(std::memory_order_relaxed),
+            overflow_queue_approx_size_.load(std::memory_order_relaxed),
+            memory_pool_size_.load(std::memory_order_relaxed),
+            enqueue_failures_.load(std::memory_order_relaxed),
+            total_steals_.load(std::memory_order_relaxed),
+            memory_allocated_.load(std::memory_order_relaxed)
+        };
+    }
+
+private:
+    void init_memory_pool(size_t initial_size) {
+        for (size_t i = 0; i < initial_size; ++i) {
+            memory_pool_.enqueue(new TaskWrapper(Task{}));
+            memory_allocated_.fetch_add(1, std::memory_order_relaxed);
+        }
+        memory_pool_size_.store(initial_size, std::memory_order_relaxed);
+    }
+
+    //TaskWrapper* allocate_task_wrapper(Task&& task) {
+    //    TaskWrapper* wrapper = nullptr;
+    //    if (memory_pool_.try_dequeue(wrapper)) {
+    //        memory_pool_size_.fetch_sub(1, std::memory_order_relaxed);
+    //        new (wrapper) TaskWrapper(std::move(task));
+    //        return wrapper;
+    //    }
+
+    //    // 动态扩容（带内存上限保护）
+    //    if (memory_allocated_.load(std::memory_order_relaxed) < MAX_MEMORY_POOL) {
+    //        wrapper = new TaskWrapper(std::move(task));
+    //        memory_allocated_.fetch_add(1, std::memory_order_relaxed);
+    //        return wrapper;
+    //    }
+
+    //    // 内存达到上限，尝试再次获取
+    //    if (memory_pool_.try_dequeue(wrapper)) {
+    //        memory_pool_size_.fetch_sub(1, std::memory_order_relaxed);
+    //        new (wrapper) TaskWrapper(std::move(task));
+    //        return wrapper;
+    //    }
+
+    //    enqueue_failures_.fetch_add(1, std::memory_order_relaxed);
+    //    return nullptr;
+    //}
+    // 改进任务分配策略
+    TaskWrapper* allocate_task_wrapper(Task&& task) {
+        TaskWrapper* wrapper = nullptr;
+
+        // 快速路径：尝试直接获取
+        if (memory_pool_.try_dequeue(wrapper)) {
+            memory_pool_size_.fetch_sub(1);
+            new (wrapper) TaskWrapper(std::move(task));
+            return wrapper;
+        }
+
+        // 紧急扩容路径
+        const size_t allocated = memory_allocated_.load();
+        if (allocated < MAX_MEMORY_POOL) {
+            const size_t grow_size = std::min(
+                MAX_MEMORY_POOL - allocated,
+                allocated * MEMORY_POOL_GROWTH_FACTOR
+            );
+
+            for (size_t i = 0; i < grow_size; ++i) {
+                memory_pool_.enqueue(new TaskWrapper(Task{}));
+                memory_allocated_.fetch_add(1);
+            }
+            memory_pool_size_.fetch_add(grow_size);
+
+            if (memory_pool_.try_dequeue(wrapper)) {
+                memory_pool_size_.fetch_sub(1);
+                new (wrapper) TaskWrapper(std::move(task));
+                return wrapper;
+            }
+        }
+
+        // 最终尝试
+        enqueue_failures_.fetch_add(1);
+        return nullptr;
+    }
+    //bool enqueue_impl(TaskWrapper* wrapper) {
+    //    constexpr int MAX_ATTEMPTS = 6;
+    //    int attempts = 0;
+
+    //    // 优先尝试主队列
+    //    while (attempts < MAX_ATTEMPTS) {
+    //        if (main_global_queue_.try_enqueue(wrapper)) {
+    //            main_queue_approx_size_.fetch_add(1, std::memory_order_relaxed);
+    //            pending_tasks_.fetch_add(1, std::memory_order_relaxed);
+    //            return true;
+    //        }
+
+    //        // 次优选择：尝试本地队列随机注入
+    //        if (try_random_local_injection(wrapper)) {
+    //            pending_tasks_.fetch_add(1, std::memory_order_relaxed);
+    //            return true;
+    //        }
+
+    //        std::this_thread::sleep_for(
+    //            std::chrono::microseconds(10 * (1 << attempts))
+    //        );
+    //        ++attempts;
+    //    }
+
+    //    // 最终尝试溢出队列
+    //    if (overflow_global_queue_.try_enqueue(wrapper)) {
+    //        overflow_queue_approx_size_.fetch_add(1, std::memory_order_relaxed);
+    //        pending_tasks_.fetch_add(1, std::memory_order_relaxed);
+    //        return true;
+    //    }
+
+    //    // 所有队列均失败
+    //    enqueue_failures_.fetch_add(1, std::memory_order_relaxed);
+    //    recycle_task(wrapper);
+    //    return false;
+    //}
+    // 增强入队策略
+    bool enqueue_impl(TaskWrapper* wrapper) {
+        // 阶段1：快速尝试主队列
+        for (int i = 0; i < 3; ++i) {
+            if (main_global_queue_.try_enqueue(wrapper)) {
+                main_queue_approx_size_.fetch_add(1);
+                pending_tasks_.fetch_add(1);
+                return true;
+            }
+        }
+
+        // 阶段2：批量尝试本地注入
+        if (try_batch_local_injection(wrapper)) {
+            pending_tasks_.fetch_add(1);
             return true;
+        }
+
+        // 阶段3：保证式入队（可能阻塞但确保成功）
+        if (main_queue_approx_size_.load() < INITIAL_QUEUE_CAPACITY) {
+            main_global_queue_.enqueue(wrapper);
+            main_queue_approx_size_.fetch_add(1);
+            pending_tasks_.fetch_add(1);
+            return true;
+        }
+
+        // 阶段4：溢出队列保证式入队
+        overflow_global_queue_.enqueue(wrapper);
+        overflow_queue_approx_size_.fetch_add(1);
+        pending_tasks_.fetch_add(1);
+        return true;
+    }
+    
+    // 新增批量本地注入方法
+    bool try_batch_local_injection(TaskWrapper* wrapper) {
+        std::lock_guard<std::mutex> lock(context_mutex_);
+        if (worker_contexts_.empty()) return false;
+
+        static thread_local std::mt19937 gen(std::random_device{}());
+        std::uniform_int_distribution<size_t> dist(0, worker_contexts_.size() - 1);
+
+        // 尝试所有worker的本地队列
+        for (size_t i = 0; i < worker_contexts_.size(); ++i) {
+            auto* ctx = worker_contexts_[(dist(gen) + i) % worker_contexts_.size()];
+            if (ctx->queue.try_enqueue(wrapper)) {
+                ctx->approx_size.fetch_add(1);
+                return true;
+            }
         }
         return false;
     }
 
-private:
-    void worker_loop(size_t worker_id) {
-        WorkerQueue* local_queue = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(map_mutex);
-            auto it = worker_queues.find(worker_id);
-            if (it == worker_queues.end()) {
-                slog->critical("Fatal: Worker queue missing for {}", worker_id);
-                return;
+    bool try_random_local_injection(TaskWrapper* wrapper) {
+        std::lock_guard<std::mutex> lock(context_mutex_);
+        if (worker_contexts_.empty()) return false;
+
+        static thread_local std::mt19937 gen(std::random_device{}());
+        std::uniform_int_distribution<size_t> dist(0, worker_contexts_.size() - 1);
+
+        for (int i = 0; i < 3; ++i) { // 尝试3个随机worker
+            auto* ctx = worker_contexts_[dist(gen)];
+            if (ctx->queue.try_enqueue(wrapper)) {
+                ctx->approx_size.fetch_add(1, std::memory_order_relaxed);
+                return true;
             }
-            local_queue = it->second;
         }
+        return false;
+    }
 
+    //void worker_loop(WorkerContext* ctx, size_t worker_id) {
+    //    std::vector<TaskWrapper*> batch;
+    //    batch.reserve(WORKER_BATCH_SIZE * 4);
 
-        std::vector<TaskPtr> local_batch;
-        local_batch.reserve(WORKER_BATCH_SIZE);
+    //    int empty_cycles = 0;
+    //    auto last_overflow_check = std::chrono::steady_clock::now();
 
-        int empty_iterations = 0;
+    //    while (!stop_) {
+    //        size_t processed = process_local(ctx, batch);
 
-        while (!stop.load(std::memory_order_acquire)) {
-            // 处理本地队列
-            size_t processed = 0;
-            TaskPtr task;
-            while (processed < WORKER_BATCH_SIZE && local_queue->queue.try_dequeue(task)) {
-                execute_task(task);
-                ++processed;
+    //        if (processed == 0) {
+    //            processed += try_steal(batch, worker_id);
+    //        }
+
+    //        if (processed == 0) {
+    //            processed += process_main_global(batch);
+    //        }
+
+    //        // 定期处理溢出队列
+    //        auto now = std::chrono::steady_clock::now();
+    //        if (now - last_overflow_check > std::chrono::milliseconds(OVERFLOW_CHECK_INTERVAL)) {
+    //            processed += process_overflow_global(batch);
+    //            last_overflow_check = now;
+    //        }
+
+    //        handle_idle(processed, empty_cycles);
+    //    }
+    //}
+    // 增强的worker处理循环
+    void worker_loop(WorkerContext* ctx, size_t worker_id) {
+        std::vector<TaskWrapper*> batch;
+        batch.reserve(WORKER_BATCH_SIZE * 4);  // 扩大批量处理容量
+
+        while (!stop_) {
+            // 优先级1：处理本地队列（批量模式）
+            size_t processed = process_local(ctx, batch);
+
+            // 优先级2：窃取其他worker的任务
+            if (processed == 0) {
+                processed += try_steal(batch, worker_id);
             }
 
-            // 处理全局队列
-            process_global_queue(local_batch);
+            // 优先级3：处理主全局队列
+            if (processed == 0) {
+                processed += process_main_global(batch);
+            }
 
-            // 工作窃取
-            int steal_attempts = try_work_stealing(worker_id);
+            // 优先级4：处理溢出队列（实时检查）
+            if (processed == 0) {
+                processed += process_overflow_global(batch);
+            }
 
-            // 空闲管理
-            handle_idle_state(processed, empty_iterations);
-            
-            // 状态检查
-            check_system_status();
+            // 动态调整工作节奏
+            adaptive_throttling(processed);
         }
     }
 
-    size_t process_local_queue(WorkerQueue* local_queue) {
+    size_t process_local(WorkerContext* ctx, std::vector<TaskWrapper*>& batch) {
         size_t processed = 0;
-        TaskPtr task;
-        while (processed < WORKER_BATCH_SIZE) {
-            if (local_queue->queue.try_dequeue(task)) {
-                execute_task(task);
-                ++processed;
-            }
-            else {
-                break;
-            }
+        TaskWrapper* task;
+
+        while (processed < WORKER_BATCH_SIZE && ctx->queue.try_dequeue(task)) {
+            execute_task(task);
+            ctx->approx_size.fetch_sub(1);
+            ++processed;
         }
+
         return processed;
     }
 
-    void process_global_queue(std::vector<TaskPtr>& local_batch) {
-        TaskPtr task;
+    size_t process_main_global(std::vector<TaskWrapper*>& batch) {
+        size_t count = main_global_queue_.try_dequeue_bulk(
+            std::back_inserter(batch), WORKER_BATCH_SIZE);
 
-        // 批量从全局队列获取任务
-        size_t count = global_queue.try_dequeue_bulk(
-            std::back_inserter(local_batch),
-            WORKER_BATCH_SIZE - local_batch.size()
-        );
-
-        for (auto& t : local_batch) {
-            execute_task(t);
+        for (auto task : batch) {
+            execute_task(task);
         }
-        local_batch.clear();
+        batch.clear();
+        main_queue_approx_size_.fetch_sub(count, std::memory_order_relaxed);
+        return count;
     }
 
-    int try_work_stealing(size_t worker_id) {
-        constexpr int MAX_STEAL_BATCH = 16;
-        std::array<TaskPtr, MAX_STEAL_BATCH> stolen_tasks;
+    size_t process_overflow_global(std::vector<TaskWrapper*>& batch) {
+        size_t count = overflow_global_queue_.try_dequeue_bulk(
+            std::back_inserter(batch), WORKER_BATCH_SIZE * 2);
 
-        // 严格仅从全局队列窃取
-        size_t count = global_queue.try_dequeue_bulk(stolen_tasks.begin(), MAX_STEAL_BATCH);
-        for (size_t i = 0; i < count; ++i) {
-            execute_task(stolen_tasks[i]);
+        for (auto task : batch) {
+            execute_task(task);
         }
-        return (count > 0) ? 0 : MAX_STEAL_ATTEMPTS;
+        batch.clear();
+        overflow_queue_approx_size_.fetch_sub(count, std::memory_order_relaxed);
+        return count;
     }
 
-    // 空闲时休眠，避免CPU空转
-    void handle_idle_state(size_t processed, int& empty_iterations) {
+    size_t try_steal(std::vector<TaskWrapper*>& batch, size_t thief_id) {
+        std::lock_guard<std::mutex> lock(context_mutex_);
+        if (worker_contexts_.size() < 2) return 0;
+
+        static thread_local std::mt19937 gen(std::random_device{}());
+        std::uniform_int_distribution<size_t> dist(0, worker_contexts_.size() - 1);
+        size_t start = dist(gen);
+
+        for (size_t i = 0; i < worker_contexts_.size(); ++i) {
+            size_t target_idx = (start + i) % worker_contexts_.size();
+            if (target_idx == thief_id) continue;
+
+            auto* target = worker_contexts_[target_idx];
+            if (!target->active.load()) continue;
+
+            TaskWrapper* task;
+            size_t stolen = 0;
+            while (stolen < WORKER_BATCH_SIZE &&
+                   target->queue.try_dequeue(task)) {
+                batch.push_back(task);
+                ++stolen;
+                target->approx_size.fetch_sub(1);
+            }
+
+            if (stolen > 0) {
+                for (auto t : batch) execute_task(t);
+                batch.clear();
+                total_steals_.fetch_add(stolen);
+                return stolen;
+            }
+        }
+        return 0;
+    }
+    
+    void execute_task(TaskWrapper* task) {
+        try {
+            CObserverServer::instance().process_task(std::move(task->task));
+        }
+        catch (const std::exception& e) {
+            slog->error("Task failed: {}", e.what());
+        }
+        recycle_task(task);
+    }
+
+    void recycle_task(TaskWrapper* task) {
+        try {
+            // 安全析构Task对象
+            if (task) {
+                // 添加析构保护
+                task->task.~Task();
+
+                // 重置内存状态（重要！）
+                new (&task->task) Task(); // 构造空对象防止野指针
+
+                // 安全回收
+                if (memory_pool_size_.load() < MAX_MEMORY_POOL) {
+                    memory_pool_.enqueue(task);
+                    memory_pool_size_.fetch_add(1);
+                }
+                else {
+                    delete task;
+                    memory_allocated_.fetch_sub(1);
+                }
+            }
+        }
+        catch (...) {
+            // 异常保护
+            delete task;
+            memory_allocated_.fetch_sub(1);
+        }
+        pending_tasks_.fetch_sub(1);
+    }
+
+    void handle_idle(size_t processed, int& empty_cycles) {
         if (processed == 0) {
-            if (++empty_iterations > MAX_EMPTY_ITERATIONS) {
+            if (++empty_cycles > MAX_EMPTY_ITERATIONS) {
                 std::this_thread::sleep_for(
-                    std::chrono::microseconds(10 * empty_iterations)
+                    std::chrono::microseconds(empty_cycles * 10)
                 );
-                empty_iterations = std::min(empty_iterations, 100);
             }
         }
         else {
-            empty_iterations = 0;
+            empty_cycles = std::max(0, empty_cycles - 2);
         }
     }
+    // 实现自适应调节
+    void adaptive_throttling(size_t processed) {
+        constexpr size_t LOW_THRESHOLD = WORKER_BATCH_SIZE / 4;
+        constexpr size_t HIGH_THRESHOLD = WORKER_BATCH_SIZE * 3 / 4;
 
-    void execute_task(TaskPtr task) {
-        if (!task) return;
+        if (processed <= LOW_THRESHOLD) {
+            const size_t old = consecutive_low_.fetch_add(1);
 
-        try {
-            auto start = std::chrono::steady_clock::now();
+            // 动态增加退避时间
+            if (old > 5) {
+                current_backoff_.store(std::min(
+                    static_cast<int>(current_backoff_.load() * THROTTLE_FACTOR),
+                    MAX_BACKOFF_US
+                ), std::memory_order_relaxed);
 
-            // 调用实际业务处理逻辑
-            CObserverServer::instance().process_task(
-                std::move(task->task)
-            );
-
-            // 性能监控
-            auto end = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-            if (duration.count() > 300) {
-                slog->warn("Slow task: {}ms, package_id={}", duration.count(), task->task.package_id);
-            }
-
-            task->completed.store(true, std::memory_order_release);
-            pending_tasks.fetch_sub(1, std::memory_order_relaxed);
-        }
-        catch (const std::exception& e) {
-            slog->error("Task failed (package_id={}): {}", task->task.package_id, e.what());
-        }
-    }
-
-    void check_system_status() {
-        static std::atomic<int> check_counter{ 0 };
-        if (check_counter++ % 1000 == 0) {
-            check_memory_usage();
-            log_status();
-        }
-    }
-
-    void check_memory_usage() {
-        PROCESS_MEMORY_COUNTERS pmc;
-        if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-            double usage_mb = pmc.WorkingSetSize / 1024.0 / 1024.0;
-            handle_memory_warning(usage_mb);
-        }
-    }
-
-private:
-    void handle_memory_warning(double usage_mb) {
-        static auto last_gc = std::chrono::steady_clock::now();
-
-        if (usage_mb > 2048) {
-            slog->critical("Memory critical: {:.2f}MB", usage_mb);
-            if (std::chrono::steady_clock::now() - last_gc > std::chrono::minutes(5)) {
-                perform_memory_gc();
-                last_gc = std::chrono::steady_clock::now();
+                // 应用退避
+                std::this_thread::sleep_for(
+                    std::chrono::microseconds(current_backoff_.load())
+                );
             }
         }
-        else if (usage_mb > 1024) {
-            slog->warn("Memory high: {:.2f}MB", usage_mb);
+        else if (processed >= HIGH_THRESHOLD) {
+            // 重置调节状态
+            consecutive_low_.store(0, std::memory_order_relaxed);
+            current_backoff_.store(MIN_BACKOFF_US, std::memory_order_relaxed);
+        }
+
+        // 中间状态保持当前退避时间不变
+    }
+    
+    //void recycle_memory() {
+    //    constexpr size_t BATCH_SIZE = 512;
+    //    TaskWrapper* batch[BATCH_SIZE];
+
+    //    // 安全获取可回收对象（最多保留最近使用的25%）
+    //    size_t count = memory_pool_.try_dequeue_bulk(batch, BATCH_SIZE);
+    //    size_t keep = count / 4;  // 保留最近25%的对象
+
+    //    // 确保安全删除（添加有效性校验）
+    //    for (size_t i = keep; i < count; ++i) {
+    //        if (batch[i]) {
+    //            // 添加内存屏障确保对象状态一致
+    //            std::atomic_thread_fence(std::memory_order_acquire);
+    //            delete batch[i];
+    //            memory_allocated_.fetch_sub(1, std::memory_order_relaxed);
+    //        }
+    //    }
+
+    //    // 重新放回保留对象
+    //    if (keep > 0) {
+    //        memory_pool_.enqueue_bulk(batch, keep);
+    //    }
+    //}
+    void recycle_memory() {
+        constexpr size_t BATCH_SIZE = 1024;
+        TaskWrapper* batch[BATCH_SIZE];
+
+        // 获取当前内存压力
+        const size_t current_pool = memory_pool_size_.load();
+        const size_t target_retain = memory_allocated_.load() / 4;
+
+        if (current_pool > target_retain) {
+            size_t count = memory_pool_.try_dequeue_bulk(batch, BATCH_SIZE);
+            size_t keep = std::min(count, target_retain);
+
+            // 安全删除多余对象
+            for (size_t i = keep; i < count; ++i) {
+                if (batch[i]) {
+                    delete batch[i];
+                    memory_allocated_.fetch_sub(1);
+                }
+            }
+
+            // 放回保留对象
+            if (keep > 0) {
+                memory_pool_.enqueue_bulk(batch, keep);
+                memory_pool_size_.store(keep, std::memory_order_relaxed);
+            }
         }
     }
 
-    void perform_memory_gc() {
-        // 示例内存回收逻辑
-        size_t cleaned = 0;
-        // 这里添加实际的内存回收逻辑
-        slog->info("Performed memory GC, cleaned {} items", cleaned);
+    void clean_up_memory() {
+        TaskWrapper* task;
+        while (memory_pool_.try_dequeue(task)) {
+            delete task;
+            memory_allocated_.fetch_sub(1, std::memory_order_relaxed);
+        }
     }
 
-    void log_status() {
-        static std::atomic<int> log_counter{ 0 };
-        static constexpr int LOG_SAMPLE_RATE = 100;
-        if (log_counter++ % LOG_SAMPLE_RATE == 0) {
-            if (pending_tasks.load() > 0) {
-                slog->info("Task queue status: pending={}, total={}",
-                           pending_tasks.load(), total_tasks.load());
-            }
+    void drain_queue(WorkerContext* ctx) {
+        TaskWrapper* task;
+        while (ctx->queue.try_dequeue(task)) {
+            execute_task(task);
         }
     }
 };
-// 全局线程池
-static BusinessThreadPool pool(std::max<size_t>(4, std::thread::hardware_concurrency() * 2));
+
+// 全局线程池实例
+static BusinessThreadPool g_thread_pool;
 
 // 转发到logic_server
 bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session,
@@ -300,7 +646,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     try {
         // 将任务放入队列
         Task task(package_id, session, package, std::move(raw_msg));
-        if (!pool.enqueue(std::move(task))) {
+        if (!g_thread_pool.enqueue(std::move(task))) {
             slog->warn("Failed to enqueue task, queue may be full");
             return false;
         }
@@ -335,11 +681,10 @@ void CObserverServer::process_task(Task&& task)
                 return;
             }
         }
-        slog->info("ProtocolLC2LSSend package_id: {}", package_id);
         ProtocolLC2LSSend req;
         req.package = package;
         req.package.head.session_id = session->hash_key();
-        logic_client_->async_send(&req, package.head.session_id);
+        logic_client_->/*async_*/send(&req, package.head.session_id);
         return;
     }
 
@@ -412,13 +757,13 @@ CObserverServer::CObserverServer()
             }
         });
     });
+    // 转发logic的包到玩家
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SEND, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto resp = msg.get().as<ProtocolLS2LCSend>();
         auto session_id = resp.package.head.session_id;
         auto session = find_session(session_id); 
         if (!session)
         {
-            slog->error("Session not found: {}", session_id);
             return;
         }
         send(session, resp.package);
@@ -461,7 +806,7 @@ CObserverServer::CObserverServer()
         }
     });
     package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-    #ifndef _DEBUG
+    #ifdef _DEBUG
         get_user_data_(session)->set_field("is_observer_client", true);
         super::log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                    session->remote_port());
@@ -522,7 +867,7 @@ CObserverServer::CObserverServer()
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         ProtocolOBS2OBCQueryUsers resp;
         // 收集所有用户数据
-        slog->info("查询所有用户数据");
+        //slog->info("查询所有用户数据");
         std::vector<std::pair<uint64_t, ProtocolUserData>> user_data_list;
         foreach_session([this, &user_data_list](tcp_session_shared_ptr_t& session) {
             auto user_data = get_user_data_(session);

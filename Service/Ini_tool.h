@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <toml.hpp>
 
 namespace IniTool {
@@ -17,31 +17,31 @@ namespace IniTool {
 				}
 				else
 				{
-					//log(LOG_TYPE_ERROR, TEXT("ÅäÖÃÎÄ¼şÖĞ¶ÔÓ¦¼ü²»´æÔÚ»òÕßÀàĞÍ²»Æ¥Åä!"));
+					//log(LOG_TYPE_ERROR, TEXT("é…ç½®æ–‡ä»¶ä¸­å¯¹åº”é”®ä¸å­˜åœ¨æˆ–è€…ç±»å‹ä¸åŒ¹é…!"));
 					return default_val;
 				}
 			}
 			else
 			{
-				//log(LOG_TYPE_ERROR, TEXT("ÅäÖÃÎÄ¼şÖĞÎ´ÕÒµ½¶ÔÓ¦µÄ±í!"));
+				//log(LOG_TYPE_ERROR, TEXT("é…ç½®æ–‡ä»¶ä¸­æœªæ‰¾åˆ°å¯¹åº”çš„è¡¨!"));
 				return default_val;
 			}
 		}
 		catch (const toml::parse_error& e)
 		{
-			//log(LOG_TYPE_ERROR, TEXT("½âÎöjishiyu.ini³ö´í: "), e.what());
+			//log(LOG_TYPE_ERROR, TEXT("è§£æjishiyu.iniå‡ºé”™: "), e.what());
 			return default_val;
 		}
 		catch (const std::exception& e)
 		{
-			// ²¶»ñÆäËû¿ÉÄÜµÄ±ê×¼¿âÏà¹ØÒì³£
-			//log(LOG_TYPE_ERROR, TEXT("ÆäËû´íÎó: "), e.what());
+			// æ•è·å…¶ä»–å¯èƒ½çš„æ ‡å‡†åº“ç›¸å…³å¼‚å¸¸
+			//log(LOG_TYPE_ERROR, TEXT("å…¶ä»–é”™è¯¯: "), e.what());
 			return default_val;
 		}
 		catch (...)
 		{
-			// ¶µµ×´¦ÀíÆäËûÎ´ÖªÒì³£Çé¿ö
-			//log(LOG_TYPE_ERROR, TEXT("Î´Öª´íÎó·¢Éú!"));
+			// å…œåº•å¤„ç†å…¶ä»–æœªçŸ¥å¼‚å¸¸æƒ…å†µ
+			//log(LOG_TYPE_ERROR, TEXT("æœªçŸ¥é”™è¯¯å‘ç”Ÿ!"));
 			return default_val;
 		}
 	}
@@ -64,19 +64,19 @@ namespace IniTool {
 		}
 		catch (const toml::parse_error& e)
 		{
-			//log(LOG_TYPE_ERROR, TEXT("½âÎöjishiyu.ini³ö´í: "), e.what());
+			//log(LOG_TYPE_ERROR, TEXT("è§£æjishiyu.iniå‡ºé”™: "), e.what());
 			
 		}
 		catch (const std::exception& e)
 		{
-			// ²¶»ñÆäËû¿ÉÄÜµÄ±ê×¼¿âÏà¹ØÒì³£
-			//log(LOG_TYPE_ERROR, TEXT("ÆäËû´íÎó: "), e.what());
+			// æ•è·å…¶ä»–å¯èƒ½çš„æ ‡å‡†åº“ç›¸å…³å¼‚å¸¸
+			//log(LOG_TYPE_ERROR, TEXT("å…¶ä»–é”™è¯¯: "), e.what());
 			
 		}
 		catch (...)
 		{
-			// ¶µµ×´¦ÀíÆäËûÎ´ÖªÒì³£Çé¿ö
-			//log(LOG_TYPE_ERROR, TEXT("Î´Öª´íÎó·¢Éú!"));
+			// å…œåº•å¤„ç†å…¶ä»–æœªçŸ¥å¼‚å¸¸æƒ…å†µ
+			//log(LOG_TYPE_ERROR, TEXT("æœªçŸ¥é”™è¯¯å‘ç”Ÿ!"));
 			
 		}
 	}

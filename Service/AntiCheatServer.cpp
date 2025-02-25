@@ -242,7 +242,7 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
         auto userdata = get_user_data_(session);
         if (userdata->get_handshake() == false)
         {
-            slog->info("on_post_connect: {}{}", session->remote_address(), session->remote_port());
+            //slog->info("on_post_connect: {}{}", session->remote_address(), session->remote_port());
             session->stop();
             return;
         }
@@ -393,7 +393,6 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         return;
     }
 #endif
-    printf("0package_id %u session %llu\n", package_id, session->hash_key());
     if (!on_recv(package_id, session, package, std::move(raw_msg)))
     {
         log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),

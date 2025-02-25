@@ -83,7 +83,7 @@ int main(int argc, char** argv)
         return 0;
     }
     g_cur_dir = std::filesystem::path(argv[0]).parent_path();
-    setlocale(LC_CTYPE, "");
+    setlocale(LC_ALL, "");
     CLogicServer server;
     server.start(kDefaultLocalhost, kDefaultLogicServicePort);
     // 处理命令行参数
@@ -252,6 +252,7 @@ CLogicServer::CLogicServer()
         usr_sessions_mgr().remove_session(req.data.session_id);
         slog->debug("LSPKG_ID_C2S_REMOVE_USR_SESSION {} {}", req.data.session_id, session->hash_key());
     });
+    // service 转发玩家的包
     package_mgr_.register_handler(LSPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         try {
             auto req = msg.get().as<ProtocolLC2LSSend>().package;
@@ -797,7 +798,8 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, std::size_t session
                     resp.type = PunishType::ENM_PUNISH_TYPE_KICK;
                     send(session, session_id, &resp);
                     // 踢人后关闭socket连接，防止下次心跳检测到后又重新上线
-                    close_socket(session, user_data->session_id);
+                    // 在这里不能调用close_socket,会导致service死锁
+                    //close_socket(session, user_data->session_id);
                     break;
                 }
                 default:

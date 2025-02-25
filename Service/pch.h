@@ -8,7 +8,7 @@
 #define GLOG_USE_GLOG_EXPORT 
 
 // 先包含glog
-#include <glog/logging.h>
+//#include <glog/logging.h>
 
 // 第二阶段：Windows头文件（确保在glog之后）
 #include <windows.h>  // 现在安全

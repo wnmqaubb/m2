@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     slog = std::make_shared<spdlog::logger>("Service_logger", sinks.begin(), sinks.end());
         
 	// 设置日志级别为调试
-#ifdef _DEBUG
+#ifndef _DEBUG
 	spdlog::set_level(spdlog::level::trace);
 #else
 	spdlog::set_level(spdlog::level::warn);

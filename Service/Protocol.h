@@ -73,7 +73,7 @@ public:
 			unsigned char reserved;
 		};
 	};
-    uint64_t session_id = 0;
+    unsigned int session_id = 0;
 	unsigned int sz;
 };
 #pragma pack(pop)
@@ -312,7 +312,6 @@ public:
     PROTOCOL_EXPORT virtual bool decode(std::string_view sv)
 #if defined(PROTOCOL_IMPL)
     {
-        static_assert(sizeof(RawProtocolHead) == (sizeof(unsigned int) + sizeof(uint64_t) + sizeof(unsigned int)), "RawProtocolHead size mismatch");
         if (sv.size() < sizeof(HeadType))
             return false;
         bytes_streambuf bs(sv.data(), sv.size());
@@ -324,8 +323,6 @@ public:
         if (sv.size() < head.size() + sizeof(body.hash))
             return false;
         unsigned int recv_hash = 0;
-        // 读取recv_hash的位置应为head.size()之后
-        //bs.istream().seekg(head.size());
         bs.istream() >> recv_hash;
         std::size_t left_size = sv.size() - (head.size() + sizeof(body.hash));
         if (left_size <= 0)

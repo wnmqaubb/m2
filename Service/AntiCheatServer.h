@@ -53,12 +53,13 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            auto data_size = session->send(package.release());
+            session->send(package.release());
+            /*auto data_size = session->send(package.release());
             if (data_size < 1){
                 if (auto error = asio2::get_last_error()) {
                     slog->error("AntiCheatServer::send data size < 1, error: {}", error.message());
                 }
-            }
+            }*/
         }
     }
 
@@ -252,22 +253,45 @@ struct AntiCheatUserData
     }
 };
 
-inline std::shared_ptr<AntiCheatUserData> get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session) {
-    auto userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
-    if (!userdata) {
-        static std::mutex init_mutex;
-        std::lock_guard<std::mutex> lock(init_mutex);
-        userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
+inline auto get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
+-> std::shared_ptr<AntiCheatUserData>
+{
+    try {
+        auto userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
         if (!userdata) {
-            try {
+            static std::mutex init_mutex;
+            std::lock_guard<std::mutex> lock(init_mutex);
+            userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
+            if (!userdata) {
                 userdata = std::make_shared<AntiCheatUserData>();
                 session->set_user_data(userdata);
             }
-            catch (const std::exception& e) {
-                std::cerr << "Error setting user data: " << e.what() << std::endl;
-                throw;  // 重新抛出异常
-            }
         }
+        return userdata;
     }
-    return userdata;
+    catch (const std::exception& e) {
+        slog->error("Get user data failed: {}", e.what());
+        return std::make_shared<AntiCheatUserData>();
+    }
 }
+//inline auto get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
+//-> std::shared_ptr<AntiCheatUserData>
+////inline std::shared_ptr<AntiCheatUserData> get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session) 
+//{
+//    auto userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
+//    if (!userdata) {
+//        static std::mutex init_mutex;
+//        std::lock_guard<std::mutex> lock(init_mutex);
+//        userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
+//        if (!userdata) {
+//            try {
+//                userdata = std::make_shared<AntiCheatUserData>();
+//                session->set_user_data(userdata);
+//            }
+//            catch (const std::exception& e) {
+//                slog->error("Error setting user data: {}", e.what());
+//            }
+//        }
+//    }
+//    return userdata;
+//}
