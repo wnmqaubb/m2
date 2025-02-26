@@ -79,6 +79,17 @@ void CClientImpl::init()
 
     register_notify_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
         query_plugin_list();
+
+        start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), [this]() {
+            user_is_login();//变更了角色名才重新更新
+        });
+
+        // 用于后台重启后更新用户名
+        if (cfg()->get_field<std::wstring>(usrname_field_id) != L"未登录用户") {
+            ProtocolC2SUpdateUsername req;
+            req.username = cfg()->get_field<std::wstring>(usrname_field_id);
+            send(&req);
+        }
     });
 
     register_notify_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
@@ -145,9 +156,6 @@ void CClientImpl::start_heartbeat_timer()
         log(LOG_TYPE_DEBUG, TEXT("发送心跳"));
 
         user_is_login();
-        ProtocolC2SUpdateUsername req;
-        req.username = cfg()->get_field<std::wstring>(usrname_field_id);
-        send(&req);
     });
 }
 
@@ -297,7 +305,7 @@ void CClientImpl::save_uuid(const ProtocolC2SHandShake& handshake)
     }
 }
 
-bool CClientImpl::user_is_login() {    
+bool CClientImpl::user_is_login() {
     std::vector<Utils::CWindows::WindowInfo> windows;
     if (!Utils::CWindows::instance().get_process_main_thread_hwnd(Utils::CWindows::instance().get_current_process_id(), windows))
     {
@@ -319,6 +327,9 @@ bool CClientImpl::user_is_login() {
                 if (cfg()->get_field<std::wstring>(usrname_field_id) != window.caption)
                 {
                     cfg()->set_field<std::wstring>(usrname_field_id, window.caption);
+                    ProtocolC2SUpdateUsername req;
+                    req.username = window.caption;
+                    send(&req);
                 }
                 //log(LOG_TYPE_DEBUG, TEXT("登录成功:%s"), window.caption.c_str());
                 //GameLocalFuntion::instance().call_sig_pattern();
