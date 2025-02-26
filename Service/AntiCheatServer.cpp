@@ -382,10 +382,8 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
     if(OBPKG_ID_C2S_AUTH == package_id)
     {
-        if (package_mgr_.dispatch(package_id, session, package, raw_msg))
-        {
-            return;
-        }
+        CObserverServer::instance().obpkg_id_c2s_auth(session, package, raw_msg);
+        return;
     }
 #else
     if (package_mgr_.dispatch(package_id, session, package, raw_msg))

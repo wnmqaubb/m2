@@ -17,25 +17,46 @@
 #include <readerwriterqueue/readerwriterqueue.h>
 using tcp_session_shared_ptr_t = std::shared_ptr<asio2::tcp_session>;
 
+#include <memory>
+
 struct Task {
     unsigned int package_id;
     tcp_session_shared_ptr_t session;
     RawProtocolImpl package;
-    msgpack::v1::object_handle raw_msg;
+    std::unique_ptr<msgpack::v1::object_handle> raw_msg;  // 改为智能指针
 
     Task() = default;
-    Task(unsigned int id, tcp_session_shared_ptr_t s, const RawProtocolImpl& p, msgpack::v1::object_handle&& msg)
-        : package_id(id), session(std::move(s)), package(p), raw_msg(std::move(msg)) {
+    Task(unsigned int id, tcp_session_shared_ptr_t s,
+         const RawProtocolImpl& p, msgpack::v1::object_handle&& msg)
+        : package_id(id),
+        session(std::move(s)),
+        package(p),
+        raw_msg(std::make_unique<msgpack::v1::object_handle>(std::move(msg)))
+    {
+    }
+
+    // 显式定义移动构造函数
+    Task(Task&& other) noexcept
+        : package_id(other.package_id),
+        session(std::move(other.session)),
+        package(std::move(other.package)),
+        raw_msg(std::move(other.raw_msg))
+    {
+    }
+
+    Task& operator=(Task&& other) noexcept {
+        package_id = other.package_id;
+        session = std::move(other.session);
+        package = std::move(other.package);
+        raw_msg = std::move(other.raw_msg);
+        return *this;
     }
 
     // 禁止拷贝
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
-
-    // 允许移动
-    Task(Task&&) noexcept = default;
-    Task& operator=(Task&&) noexcept = default;
 };
+
 
 class CObserverServer : public CAntiCheatServer {
     using super = CAntiCheatServer;
@@ -43,6 +64,7 @@ class CObserverServer : public CAntiCheatServer {
 public:
     CObserverServer();
     void on_recv_client_heartbeat(tcp_session_shared_ptr_t& session);
+    void obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg);
     static CObserverServer& instance() {
         static CObserverServer instance;
         return instance;
