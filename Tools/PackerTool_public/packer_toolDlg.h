@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include <vector>
-#include <thread>
+#include <afxcmn.h>
+#include <afxdialogex.h>
+#include <afxstr.h>
+#include <afxwin.h>
+#include <filesystem>
 #include <mutex>
-#include <atomic>
-#include "resource.h"
+#include <shellapi.h>
+#include <string>
+#include <vector>
+#include <Windows.h>
 
 // CpackertoolDlg 对话框
 class CpackertoolDlg : public CDialogEx
@@ -31,25 +36,36 @@ protected:
     virtual BOOL OnInitDialog();
     afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
     afx_msg void OnPaint();
-    bool exec_cmd(CString cmd);
+    bool exec_cmd(CString cmd, bool show_log = true);
     afx_msg HCURSOR OnQueryDragIcon();
     DECLARE_MESSAGE_MAP()
 
 private:
     std::vector<CString> m_draggedFiles;  // 存储拖动的文件列表
     std::mutex m_mutex;
-    std::atomic<int> m_completedTasks{0};
-    std::atomic<int> m_totalTasks{0};
+    volatile LONG m_completedTasks; // 使用原子操作
+    volatile LONG m_totalTasks;
 
-    void PackFileThread(const CString& inputFile);  // 线程打包函数
-    LRESULT OnUpdateProgress(WPARAM wParam, LPARAM lParam);  // 进度更新消息处理
+    void PackFileThread(const std::filesystem::path& pack_exe_path);  // 线程打包函数
+
+    CString packer_tool_validate(const std::string& snhash);
 
 public:
     afx_msg void OnBnClickedButtonPack();
     afx_msg void OnDropFiles(HDROP hDropInfo);
-    afx_msg void OnBnClickedLog();
-    afx_msg void OnBnClickedVMP();
-    void OnBnClickedButton2();
+    afx_msg void SHowLog(CString log_text = L"");
+    afx_msg void OnBnClickedVMP(); 
+    LRESULT OnUpdateWindow(WPARAM wParam, LPARAM lParam);
+    void OnOpenMultipleFiles();
+    void MyUpdateWindow();
     CEdit m_pack_file_edit;
     CEdit m_result_edit;
+    CProgressCtrl m_progress_ctrl;
+    afx_msg void OnBnClickedValidateSnhash();
+private:
+    CString m_snhash;
+    CString m_ip;
+public:
+    CString m_login_stauts;
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
 };

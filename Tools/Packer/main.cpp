@@ -21,6 +21,7 @@ int main(int argc, char** argv)
     a.add<std::string>("dll", 'd', "dll path", false);
     a.add<std::string>("exe", 'e', "exe path", false);
     a.add<std::string>("config", 'c', "config", false);
+    a.add<std::string>("ip_address", 'i', "ip_address", false);
     a.add<std::string>("output", '\x0', "output path", false);
     a.add<std::string>("dll1", 'd1', "dll1 path", false);
     a.add<std::string>("dll2", 'd2', "dll2 path", false);
@@ -75,7 +76,8 @@ int main(int argc, char** argv)
             a.get<std::string>("output"),
             load_file(get_parent_dir() / "stage_1_payload.bin"),
             load_file(get_parent_dir() / "stage_2_payload.bin"),
-            a.get<std::string>("config")))
+            //a.get<std::string>("config"),
+            a.get<std::string>("ip_address")))
         {
             std::cout << "加壳前大小:" << fs::file_size(a.get<std::string>("exe")) << std::endl;
             std::cout << "加壳后大小:" << fs::file_size(a.get<std::string>("output")) << std::endl;

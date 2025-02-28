@@ -25,7 +25,8 @@ bool build_packfile(const std::string& target_file_path,
     const std::string& output_file_path,
     const std::string& stage_1_payload,
     const std::string& stage_2_payload,
-    const std::string& config);
+    //const std::string& config,
+    const std::string& ip_address);
 
 
 bool copy_append_data(const std::string& target_file_path, const std::string& output_file_path);

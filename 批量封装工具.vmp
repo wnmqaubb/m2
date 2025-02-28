@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document Version="2">
+    <Protection InputFileName=".\build\bin\Release\Win32\批量封装工具.exe" Options="495560" VMCodeSectionName=".???">
+        <Messages />
+        <Folders />
+        <Procedures>
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::OnInitDialog&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::exec_cmd&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::PackFileThread&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::OnBnClickedButtonPack&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::OnOpenMultipleFiles&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::OnBnClickedValidateSnhash&quot;' Options="0" />
+            <Procedure MapAddress='VMProtectMarker &quot;CpackertoolDlg::packer_tool_validate&quot;' Options="0" />
+        </Procedures>
+        <Objects />
+    </Protection>
+    <Script />
+    <DLLBox>
+        <Folders />
+    </DLLBox>
+    <LicenseManager />
+</Document>

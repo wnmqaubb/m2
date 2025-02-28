@@ -33,6 +33,9 @@
     <ClInclude Include="pch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Service\Ini_tool.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="packer_tool.cpp">
@@ -46,17 +49,20 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="packertool.rc">
+    <ResourceCompile Include="packertool_public.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\packertool.rc2">
+    <None Include="res\packertool_public.rc2">
       <Filter>资源文件</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\packer_tool.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\packer_tool_public.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

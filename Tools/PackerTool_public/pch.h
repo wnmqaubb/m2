@@ -9,5 +9,12 @@
 
 // 添加要在此处预编译的标头
 #include "framework.h"
-
+#ifdef _DEBUG
+#define VMP_VIRTUALIZATION_BEGIN(f)
+#define VMP_VIRTUALIZATION_END()
+#else
+#include "../3rdparty/vmprotect/VMProtectSDK.h"
+#define VMP_VIRTUALIZATION_BEGIN(f) VMProtectBeginVirtualization(f);
+#define VMP_VIRTUALIZATION_END() VMProtectEnd();
+#endif
 #endif //PCH_H
