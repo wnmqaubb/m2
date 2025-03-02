@@ -15,6 +15,7 @@ bool is_debug_mode = false;
 bool is_detect_finish = true;
 void* plugin_base = nullptr;
 int reconnect_count = 0;
+
 void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
 {
 	VMP_VIRTUALIZATION_BEGIN();
@@ -27,145 +28,162 @@ void __declspec(dllexport) LoadPlugin(CAntiCheatClient* client)
         LOG("插件版本不匹配");
     }
     LOG("加载插件");
-	client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, std::bind(&on_recv_punish, client, std::placeholders::_1, std::placeholders::_2));
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_PROCESS,[client](const RawProtocolImpl& package, const msgpack::v1::object_handle&){
-        LOG("查询进程:%u", package.head.session_id);
-        auto processes = Utils::CWindows::instance().enum_process_with_dir();
-        ProtocolC2SQueryProcess resp;
-        resp.data = cast(processes);
-        client->send(&resp, package.head.session_id);
-    });
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_DRIVERINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
-        auto drivers = Utils::CWindows::instance().enum_drivers();
-        ProtocolC2SQueryDriverInfo resp;
-        resp.data = cast(drivers);
-        client->send(&resp, package.head.session_id);
-    });
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_WINDOWSINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
-        auto windows = Utils::CWindows::instance().enum_windows_ex();
-        ProtocolC2SQueryWindowsInfo resp;
-        resp.data = cast(windows);
-        client->send(&resp, package.head.session_id);
-    });
-    client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_SCREENSHOT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
-        size_t sz = 0;
-        auto jpg = Utils::get_screenshot(&sz);
-        ProtocolC2SQueryScreenShot resp;
-        resp.data.resize(sz);
-        memcpy(resp.data.data(), jpg.get(), sz);
-        client->send(&resp, package.head.session_id);
-    });
-    client->package_mgr().replace_handler(SPKG_ID_S2C_SCRIPT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        async_execute_javascript(msg.get().as<ProtocolS2CScript>().code, -1);
-    });
-    //
-	client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+    try {
+        //using package_handler_t = std::function<void(const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
+        //if constexpr (std::is_member_function_pointer_v<decltype(&NetUtils::EventMgr<package_handler_t>::register_handler)>
+        //              //&&
+        //              ) {
+        //    OutputDebugStringA("tb1");
+
+        //}
+        //else {
+        //    OutputDebugStringA("tb2");
+        //    return;
+        //}
+        client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, std::bind(&on_recv_punish, client, std::placeholders::_1, std::placeholders::_2));
+        client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_PROCESS, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+            LOG("查询进程:%u", package.head.session_id);
+            auto processes = Utils::CWindows::instance().enum_process_with_dir();
+            ProtocolC2SQueryProcess resp;
+            resp.data = cast(processes);
+            client->send(&resp, package.head.session_id);
+        });
+        client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_DRIVERINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+            auto drivers = Utils::CWindows::instance().enum_drivers();
+            ProtocolC2SQueryDriverInfo resp;
+            resp.data = cast(drivers);
+            client->send(&resp, package.head.session_id);
+        });
+        client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_WINDOWSINFO, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+            auto windows = Utils::CWindows::instance().enum_windows_ex();
+            ProtocolC2SQueryWindowsInfo resp;
+            resp.data = cast(windows);
+            client->send(&resp, package.head.session_id);
+        });
+        client->package_mgr().register_handler(SPKG_ID_S2C_QUERY_SCREENSHOT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle&) {
+            size_t sz = 0;
+            auto jpg = Utils::get_screenshot(&sz);
+            ProtocolC2SQueryScreenShot resp;
+            resp.data.resize(sz);
+            memcpy(resp.data.data(), jpg.get(), sz);
+            client->send(&resp, package.head.session_id);
+        });
+        client->package_mgr().replace_handler(SPKG_ID_S2C_SCRIPT, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+            async_execute_javascript(msg.get().as<ProtocolS2CScript>().code, -1);
+        });
+        //
+        client->package_mgr().replace_handler(SPKG_ID_S2C_POLICY, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+            if (is_debug_mode == false)
+            {
+                //client->super::io().post([client, &msg](){
+                //    on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+                //});
+                //g_thread_group->create_thread([client, &msg]() {
+                on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
+                //}); 
+            }
+        });
+
+        client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client]() {
+            //防止重启服务器的时候过于集中发包
+            client->post([client]() {
+                ProtocolC2SUpdateUsername req;
+                req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
+                client->send(&req);
+            }, std::chrono::seconds(std::rand() % 10 + 1));
+        });
+
+    #if 1
         if (is_debug_mode == false)
         {
-   //         client->super::io().post([client, &msg](){
-			//    on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
-			//});
-			//g_thread_group->create_thread([client, &msg]() {
-				on_recv_pkg_policy(client, msg.get().as<ProtocolS2CPolicy>());
-			//});
+            auto black_ip_table = std::make_shared<std::vector<std::tuple<std::string, std::string>>>(
+                std::initializer_list<std::tuple<std::string, std::string>>{
+                    { xorstr("61.139.126.216"), xorstr("水仙") },
+                    { xorstr("103.26.79.221"), xorstr("横刀辅助") },
+                    { xorstr("220.166.64.104"), xorstr("猎手") },
+                    { xorstr("2.59.155.42"), xorstr("暗龙") },
+                    { xorstr("49.234.118.114"), xorstr("暗龙") },
+                    { xorstr("39.98.211.193"), xorstr("通杀") },
+                    { xorstr("103.90.172.154"), xorstr("小可爱") },
+                    { xorstr("106.51.123.114"), xorstr("小可爱") },
+                    { xorstr("119.28.129.124"), xorstr("刺客") },
+                    { xorstr("103.45.161.70"), xorstr("荣耀") },
+                    { xorstr("129.226.72.103"), xorstr("冰橙子") },
+                    { xorstr("27.159.67.241"), xorstr("秒杀辅助") },
+                    { xorstr("117.34.61.140"), xorstr("收费变速齿轮") },
+                    { xorstr("1.117.175.89"), xorstr("北斗驱动变速") },
+                    { xorstr("110.42.1.84"), xorstr("飘刀驱动变速") },
+                    { xorstr("43.243.223.84"), xorstr("游行驱动变速") },
+                    { xorstr("58.87.82.104"), xorstr("游行驱动变速") },
+                    { xorstr("81.70.9.132"), xorstr("游行驱动变速") },
+                    { xorstr("203.78.41.224"), xorstr("大名辅助") },
+                    { xorstr("212.64.51.87"), xorstr("可可加速器") },
+                    { xorstr("47.96.14.91"), xorstr("定制脱机回收") },
+                    { xorstr("203.78.41.225"), xorstr("天使外挂") },
+                    { xorstr("203.78.41.226"), xorstr("天使外挂") },
+                    { xorstr("1.117.12.101"), xorstr("定制脱机外挂") },
+                    { xorstr("150.138.81.222"), xorstr("GEE高端定制外挂") },
+                    { xorstr("43.155.77.111"), xorstr("暗龙") },
+                    { xorstr("81.68.81.124"), xorstr("暗龙") },
+                    { xorstr("120.26.96.96"), xorstr("定制脱机GEE") },
+                    { xorstr("47.97.193.19"), xorstr("定制脱机GEE") },
+                    { xorstr("110.42.3.77"), xorstr("定制脱机GEE") },
+                    { xorstr("124.70.141.59"), xorstr("私人定制") },
+                    { xorstr("23.224.81.232"), xorstr("暗兵加速器") },
+                    { xorstr("42.192.37.101"), xorstr("暗兵加速器") },
+                    { xorstr("106.55.154.254"), xorstr("VIP定制") },
+                    { xorstr("47.242.173.146"), xorstr("玛法辅助") },
+                    { xorstr("202.189.5.225"), xorstr("K加速器") },
+                    { xorstr("114.115.154.170"), xorstr("内部定制") },
+                    { xorstr("121.204.253.152"), xorstr("变速精灵") },
+                    { xorstr("106.126.11.105"), xorstr("变速精灵") },
+                    { xorstr("106.126.11.37"), xorstr("变速精灵") },
+                    { xorstr("121.42.86.1"), xorstr("变速精灵") },
+                    { xorstr("112.45.33.236"), xorstr("瑞科网络验证") },
+                    { xorstr("114.115.154.170"), xorstr("定制内部变速") },
+                    { xorstr("127.185.0.101"), xorstr("G盾无限蜂定制功能版464") },
+                    { xorstr("127.132.0.140"), xorstr("猎手PK") },
+                    { xorstr("123.99.192.124"), xorstr("定制大漠") },
+                    { xorstr("175.178.252.26"), xorstr("键鼠大师") },
+                    { xorstr("121.62.16.136"), xorstr("网关-加速-倍攻_脱机") },
+                    { xorstr("121.62.16.136"), xorstr("网关-加速-倍攻_脱机") },
+                    { xorstr("121.43.61.45"), xorstr("仿goolge chrome 定制多倍") }
+            });
+            static uint8_t tcp_detect_count = 1;
+            client->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [&client, black_ip_table]() {
+                auto& [ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
+                if (!ip.empty())
+                {
+                    if (tcp_detect_count == 1)
+                    {
+                        ProtocolC2STaskEcho echo;
+                        echo.task_id = 689054;
+                        echo.is_cheat = true;
+                        echo.text = xorstr("检测到外挂[") + cheat_name + xorstr("],IP:") + ip;
+                        client->send(&echo);
+                    }
+
+                    if (++tcp_detect_count == 10) tcp_detect_count = 1;
+                }
+            });
+
+            InitImageProtectCheck(client);
         }
-    });
-	
-    client->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [client](){
-		//防止重启服务器的时候过于集中发包
-		client->post([client]() {
-			ProtocolC2SUpdateUsername req;
-			req.username = client->cfg()->get_field<std::wstring>(usrname_field_id);
-			client->send(&req);
-		}, std::chrono::seconds(std::rand() % 10 + 1));
-    });
+    #endif
+        InitRmc(client);
+        //InitTimeoutCheck(client);
+        InitJavaScript(client);
 
-#if 1
-    if (is_debug_mode == false)
-	{
-		auto black_ip_table = std::make_shared<std::vector<std::tuple<std::string, std::string>>>(
-			std::initializer_list<std::tuple<std::string, std::string>>{
-            { xorstr("61.139.126.216"), xorstr("水仙") },
-            { xorstr("103.26.79.221"), xorstr("横刀辅助") },
-            { xorstr("220.166.64.104"), xorstr("猎手") },
-            { xorstr("2.59.155.42"), xorstr("暗龙") },
-            { xorstr("49.234.118.114"), xorstr("暗龙") },
-            { xorstr("39.98.211.193"), xorstr("通杀") },
-            { xorstr("103.90.172.154"), xorstr("小可爱") },
-            { xorstr("106.51.123.114"), xorstr("小可爱") },
-            { xorstr("119.28.129.124"), xorstr("刺客") },
-            { xorstr("103.45.161.70"), xorstr("荣耀") },
-            { xorstr("129.226.72.103"), xorstr("冰橙子") },
-            { xorstr("27.159.67.241"), xorstr("秒杀辅助") },
-            { xorstr("117.34.61.140"), xorstr("收费变速齿轮") },
-            { xorstr("1.117.175.89"), xorstr("北斗驱动变速") },
-            { xorstr("110.42.1.84"), xorstr("飘刀驱动变速") },
-            { xorstr("43.243.223.84"), xorstr("游行驱动变速") },
-            { xorstr("58.87.82.104"), xorstr("游行驱动变速") },
-            { xorstr("81.70.9.132"), xorstr("游行驱动变速") },
-            { xorstr("203.78.41.224"), xorstr("大名辅助") },
-            { xorstr("212.64.51.87"), xorstr("可可加速器") },
-            { xorstr("47.96.14.91"), xorstr("定制脱机回收") },
-            { xorstr("203.78.41.225"), xorstr("天使外挂") },
-            { xorstr("203.78.41.226"), xorstr("天使外挂") },
-            { xorstr("1.117.12.101"), xorstr("定制脱机外挂") },
-            { xorstr("150.138.81.222"), xorstr("GEE高端定制外挂") },
-            { xorstr("43.155.77.111"), xorstr("暗龙") },
-            { xorstr("81.68.81.124"), xorstr("暗龙") },		
-            { xorstr("120.26.96.96"), xorstr("定制脱机GEE") },		
-            { xorstr("47.97.193.19"), xorstr("定制脱机GEE") },		
-            { xorstr("110.42.3.77"), xorstr("定制脱机GEE") },		
-            { xorstr("124.70.141.59"), xorstr("私人定制") },  
-            { xorstr("23.224.81.232"), xorstr("暗兵加速器") },  
-            { xorstr("42.192.37.101"), xorstr("暗兵加速器") }, 
-            { xorstr("106.55.154.254"), xorstr("VIP定制") },
-            { xorstr("47.242.173.146"), xorstr("玛法辅助") },
-            { xorstr("202.189.5.225"), xorstr("K加速器") }, 		
-            { xorstr("114.115.154.170"), xorstr("内部定制") }, 		
-            { xorstr("121.204.253.152"), xorstr("变速精灵") }, 		
-            { xorstr("106.126.11.105"), xorstr("变速精灵") }, 		
-            { xorstr("106.126.11.37"), xorstr("变速精灵") }, 		
-            { xorstr("121.42.86.1"), xorstr("变速精灵") }, 	
-            { xorstr("112.45.33.236"), xorstr("瑞科网络验证") }, 	
-            { xorstr("114.115.154.170"), xorstr("定制内部变速") },
-            { xorstr("127.185.0.101"), xorstr("G盾无限蜂定制功能版464") },
-            { xorstr("127.132.0.140"), xorstr("猎手PK") },
-            { xorstr("123.99.192.124"), xorstr("定制大漠") },
-            { xorstr("175.178.252.26"), xorstr("键鼠大师") },
-            { xorstr("121.62.16.136"), xorstr("网关-加速-倍攻_脱机") },
-            { xorstr("121.62.16.150"), xorstr("网关-加速-倍攻_脱机") }
-        });
-		static uint8_t tcp_detect_count = 1;
-		client->start_timer<unsigned int>(DETECT_TCP_IP_TIMER_ID, std::chrono::seconds(2), [&client, black_ip_table]() {
-			auto& [ip, cheat_name] = BasicUtils::scan_tcp_table(black_ip_table);
-			if (!ip.empty())
-			{
-				if (tcp_detect_count == 1)
-				{
-					ProtocolC2STaskEcho echo;
-					echo.task_id = 689054;
-					echo.is_cheat = true;
-					echo.text = xorstr("检测到外挂[") + cheat_name + xorstr("],IP:") + ip;
-					client->send(&echo);
-				}
-
-				if (++tcp_detect_count == 10) tcp_detect_count = 1;
-			}
-			});
-
-        InitImageProtectCheck(client);
+        if (is_debug_mode == false)
+        {
+            InitHideProcessDetect(client);
+            InitSpeedDetect(client);
+            InitShowWindowHookDetect(client);
+        }
+    } catch (const std::exception& e) {
+        LOG("加载插件失败:%s", e.what());
+        return;
     }
-#endif
-    InitRmc(client);
-    //InitTimeoutCheck(client);
-	InitJavaScript(client);
-
-	if (is_debug_mode == false)
-	{
-		InitHideProcessDetect(client);
-		InitSpeedDetect(client);
-		InitShowWindowHookDetect(client);
-	}
 
     ProtocolC2SLoadedPlugin req;
     req.loaded = true;

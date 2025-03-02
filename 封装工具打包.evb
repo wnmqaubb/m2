@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="windows-1252"?>
 <>
-  <InputFile>D:\work\Repos\yk\build\bin\Release\Win32\批量封装工具.exe</InputFile>
-  <OutputFile>D:\work\Repos\yk\build\bin\Release\Win32\批量封装工具[V].exe</OutputFile>
+  <InputFile>D:\work\Repos\yk\build\bin\Release\Win32\批量封装工具.vmp.exe</InputFile>
+  <OutputFile>D:\work\Repos\yk\build\bin\admin_server\批量封装工具[V].exe</OutputFile>
   <Files>
     <Enabled>True</Enabled>
     <DeleteExtractedOnExit>True</DeleteExtractedOnExit>
@@ -9,7 +9,7 @@
     <Files>
       <File>
         <Type>3</Type>
-        <Name>%DEFAULT FOLDER%</Name>
+        <Name>%Temp FOLDER%</Name>
         <Action>0</Action>
         <OverwriteDateTime>False</OverwriteDateTime>
         <OverwriteAttributes>False</OverwriteAttributes>
@@ -21,7 +21,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\1.vmp</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>
@@ -33,7 +33,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\VMProtect.key</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>
@@ -45,7 +45,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\NewClient.dll</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>
@@ -57,7 +57,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\stage_1_payload.bin</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>
@@ -69,7 +69,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\stage_2_payload.bin</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>
@@ -81,7 +81,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\packer.exe</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>
@@ -93,7 +93,7 @@
             <File>D:\work\Repos\yk\build\bin\Release\Win32\VMProtect_Con.exe</File>
             <ActiveX>False</ActiveX>
             <ActiveXInstall>False</ActiveXInstall>
-            <Action>0</Action>
+            <Action>2</Action>
             <OverwriteDateTime>False</OverwriteDateTime>
             <OverwriteAttributes>False</OverwriteAttributes>
             <PassCommandLine>False</PassCommandLine>

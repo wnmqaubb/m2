@@ -7,31 +7,20 @@ set OutputDir=.\build\bin\%2
 set PATH=C:\Program Files\7-Zip\;D:\tool\52pojie\Tools\Packers\VMProtect Ultimate3.4\;%PATH%
 mkdir %OutputDir%
 
-::"D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe" AntiCheat.sln /build "Release|x86"
-::"D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe" Tools/PackerTool/packer_tool.vcxproj /rebuild "Release|x86"
-
-::echo ***************构建方案***************
-::devenv.exe AntiCheat.sln /rebuild "Release2|x86"
-
-set gm_server=%OutputDir%及时雨定制版\%2
+set gm_server=%OutputDir%及时雨封装定制版\%2
 set admin_server=%OutputDir%admin_server\%2
 mkdir %gm_server%
 
-::echo ***************构建方案***************
-::echo D|xcopy %ReleaseDir%\Service.exe %gm_server% /y
-::echo D|xcopy %ReleaseDir%\LogicServer.exe %gm_server% /y
-::echo D|xcopy %ReleaseDir%\Gate.exe %gm_server% /y
-
 ::echo ***************gm_server***************
-VMProtect_Con.exe %ReleaseDir%\Service.exe %gm_server%\g_Service.exe -pf ServiceRelease_blue.vmp
-VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %gm_server%\g_LogicServer.exe -pf LogicRelease_blue.vmp
+VMProtect_Con.exe %ReleaseDir%\g_Service.exe %gm_server%\g_Service.exe -pf ServiceRelease_blue.vmp
+VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %gm_server%\g_LogicServer.exe -pf LogicRelease_blue.vmp
 VMProtect_Con.exe %ReleaseDir%\GateF.exe %gm_server%\及时雨定制版.exe -pf GateRelease_blue.vmp
-VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %admin_server%\AdminGate.exe -pf AdminGateRelease.vmp
+::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %admin_server%\AdminGate.exe -pf AdminGateRelease.vmp
 echo D|xcopy %ReleaseDir%\plugin\* %gm_server%plugin\ /y
 
 ::echo ***************admin_server***************
 echo F|xcopy %ReleaseDir%\packer.exe %admin_server%packer.exe /y
-echo F|xcopy %ReleaseDir%\packer_tool.exe %admin_server%packer_tool.exe /y
+::echo F|xcopy %ReleaseDir%\packer_tool.exe %admin_server%packer_tool.exe /y
 echo F|xcopy %ReleaseDir%\NewClient.dll %admin_server%NewClient.dll /y
 echo F|xcopy %ReleaseDir%\stage_1_payload.bin %admin_server%stage_1_payload.bin /y
 echo F|xcopy %ReleaseDir%\stage_2_payload.bin %admin_server%stage_2_payload.bin /y
