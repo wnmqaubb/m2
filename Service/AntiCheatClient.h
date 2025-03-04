@@ -245,7 +245,7 @@ public:
         std::tm tm_;
         localtime_s(&tm_, &now_time);
         std::stringstream ss;
-        ss << std::put_time(&tm_, "%H:%M:%S");
+        ss << std::put_time(&tm_, "%m-%d %H:%M:%S");
         std::wstring time_str = Utils::String::c2w(ss.str());
         wprintf(L"[%s]:", time_str.c_str());
         std::wstring buffer;
@@ -290,10 +290,10 @@ public:
             std::tm tm_;
             localtime_s(&tm_, &now_time_t);
             std::stringstream ss_date;
-            ss_date << std::put_time(&tm_, "%Y-%m-%d");
+            ss_date << std::put_time(&tm_, "%Y-%m");
             std::string date_str = ss_date.str();
             std::stringstream ss_time;
-            ss_time << std::put_time(&tm_, "%H:%M:%S");
+            ss_time << std::put_time(&tm_, "%m-%d %H:%M:%S");
             std::string time_str = ss_time.str();
 
 			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
@@ -330,7 +330,7 @@ public:
         ss_date << std::put_time(&tm_, "%Y-%m-%d");
         std::string date_str = ss_date.str();
         std::stringstream ss_time;
-        ss_time << std::put_time(&tm_, "%H:%M:%S");
+        ss_time << std::put_time(&tm_, "%m-%d %H:%M:%S");
         std::string time_str = ss_time.str();
         std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
         if (!std::filesystem::exists(file))

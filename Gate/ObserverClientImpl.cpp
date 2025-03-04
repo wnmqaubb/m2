@@ -101,13 +101,13 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_) : super(), user_
                 char time_str[MAX_PATH] = { 0 };
                 tm tm_;
                 localtime_s(&tm_, &now_time);
-                strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+                strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%m-%d %H:%M:%S", &tm_);
                 // 构造日志消息
                 std::string result;
                 result = result + "[事件]" + time_str + "|";
+#endif
                 // 记录日志到惩罚文件
                 log_to_punish_file(Utils::w2c(msg));
-#endif
             }
 #ifdef GATE_ADMIN
             // 如果不需要静默

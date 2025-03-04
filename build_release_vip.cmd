@@ -15,7 +15,7 @@ mkdir %gm_server%
 VMProtect_Con.exe %ReleaseDir%\g_Service.exe %gm_server%\g_Service.exe -pf ServiceRelease_vip.vmp
 VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %gm_server%\g_LogicServer.exe -pf LogicRelease_vip.vmp
 VMProtect_Con.exe %ReleaseDir_vip%\GateF.exe %gm_server%\及时雨内部版.exe -pf GateRelease_vip.vmp
-::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %admin_server%\AdminGate.exe -pf AdminGateRelease.vmp
+::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %admin_server%\封装版管理员后台.exe -pf AdminGateRelease.vmp
 echo D|xcopy %ReleaseDir%\plugin\* %gm_server%plugin\ /y
 
 ::echo ***************admin_server***************
