@@ -64,7 +64,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
 				char time_str[MAX_PATH] = { 0 };
 				tm tm_;
 				localtime_s(&tm_, &now_time);
-				strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+				strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%m-%d %H:%M:%S", &tm_);
 				std::string result;
 				result = result + "[事件]" + time_str + "|";
                 // gm 界面滚动显示被处罚信息

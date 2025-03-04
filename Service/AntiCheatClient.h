@@ -145,7 +145,7 @@ public:
 			TCHAR time_str[MAX_PATH] = { 0 };
 			tm tm_;
 			localtime_s(&tm_, &now_time);
-			wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%H:%M:%S"), &tm_);
+			wcsftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, TEXT("%m-%d %H:%M:%S"), &tm_);
 			wprintf(L"[%s]:", time_str);
 			TCHAR buffer[1024];
 			va_list ap;
@@ -189,7 +189,7 @@ public:
 			tm tm_;
 			localtime_s(&tm_, &now_time);
 			strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m", &tm_);
-			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%m-%d %H:%M:%S", &tm_);
 
 			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
 			if (!std::filesystem::exists(file))
@@ -227,7 +227,7 @@ public:
 			tm tm_;
 			localtime_s(&tm_, &now_time);
 			strftime(date_str, sizeof(date_str) / sizeof(date_str[0]) - 1, "%Y-%m-%d", &tm_);
-			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%H:%M:%S", &tm_);
+			strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%m-%d %H:%M:%S", &tm_);
 
 			std::filesystem::path file(std::filesystem::current_path() / "log" / date_str);
 			if (!std::filesystem::exists(file))
