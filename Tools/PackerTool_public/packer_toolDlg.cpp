@@ -295,7 +295,11 @@ void CpackertoolDlg::PackFileThread(const std::filesystem::path& pack_exe_path) 
     MyUpdateWindow();
     std::wstring new_path = pack_exe_path.wstring();
     new_path.insert(new_path.rfind(TEXT(".")), TEXT("[及时雨]"));
+#ifdef _DEBUG
+    cmd.Format(TEXT("\"packer.exe\" --pack_exe --exe \"%s\" --dll \"%s\" --output \"%s\" --ip_address %s"),
+#else
     cmd.Format(TEXT("\"%%Temp%%\\packer.exe\" --pack_exe --exe \"%s\" --dll \"%%Temp%%\\%s\" --output \"%s\" --ip_address %s"),
+#endif
                pack_exe_path.wstring().c_str(),
                TEXT("NewClient.dll"),
                new_path.c_str(),
@@ -309,9 +313,13 @@ void CpackertoolDlg::PackFileThread(const std::filesystem::path& pack_exe_path) 
     // vmp
     std::wstring new_path_vmp = new_path;
     new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
+#ifdef _DEBUG
+    cmd2.Format(TEXT("\"VMProtect_Con.exe\" \"%s\" \"%s\" -pf \"1.vmp\""),
+#else    
     cmd2.Format(TEXT("\"%%Temp%%\\VMProtect_Con.exe\" \"%s\" \"%s\" -pf \"%%Temp%%\\1.vmp\""),
-                new_path.c_str(),
-                new_path_vmp.c_str()
+#endif
+        new_path.c_str(),
+        new_path_vmp.c_str()
     );
     //std::system(T2A(cmd2));
     UPDATE_PROGRESS();
@@ -360,7 +368,11 @@ void CpackertoolDlg::OnBnClickedButtonPack() {
         AfxMessageBox(_T("系统错误"));
         return;
     }
+#ifdef _DEBUG
+    std::string tempDir = ".\\";
+#else
     std::string tempDir = temp;
+#endif
     if (!std::filesystem::exists(tempDir + "\\packer.exe"))
     {
         AfxMessageBox(_T("封装器主程序未找到"));
