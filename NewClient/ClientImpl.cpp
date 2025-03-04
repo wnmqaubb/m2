@@ -40,15 +40,37 @@ void CClientImpl::client_start_routine()
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    std::string ip = cfg()->get_field<std::string>(ip_field_id);
+    auto& t_cfg = cfg();
+    std::string ip = t_cfg->get_field<std::string>(ip_field_id);
     std::transform(ip.begin(), ip.end(), ip.begin(), ::tolower);
     if (ip[0] == '0' && ip[1] == 'x')
     {
         char* ip_ptr = NULL;
         sscanf_s(ip.c_str(), "0x%x", &ip_ptr);
-        cfg()->set_field<std::string>(ip_field_id, ip_ptr);
+        t_cfg->set_field<std::string>(ip_field_id, ip_ptr);
     }
-    start(cfg()->get_field<std::string>(ip_field_id), cfg()->get_field<unsigned int>(port_field_id));
+    // 延时2s连接,解决如果后台关闭时,开始游戏时会报错的问题
+    ip = t_cfg->get_field<std::string>(ip_field_id);
+    auto port = t_cfg->get_field<unsigned int>(port_field_id);
+    //有几个win7旗舰版sp1的反馈登录后报错, 调试定位是这个线程里client_start_routine(); c00005异常
+    if (Utils::CWindows::instance().get_system_version() == WINDOWS_7) {
+        // 使用 std::async 启动异步任务
+        std::async(std::launch::async, [this, ip, port]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            this->start(ip, port);
+        });
+    }
+    else {
+        std::thread([this, ip, port]() mutable {
+            try {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                start(ip, port);
+            }
+            catch (const std::exception& e) {
+                OutputDebugStringA(e.what());
+            }
+        }).detach();
+    }
 }
 
 void CClientImpl::init()

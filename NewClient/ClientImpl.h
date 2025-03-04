@@ -14,7 +14,6 @@ public:
     void send_handshake();
     void start_heartbeat_timer();
     void query_plugin_list();
-    void query_plugin_list_periodically();
     void start_plugin_list_timer();
     void initialize_user_data();
     void handle_plugin_list_response(const msgpack::v1::object_handle &raw_msg);

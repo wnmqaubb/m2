@@ -51,7 +51,6 @@ public:
             #ifndef G_SERVICE
                 notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
             #endif
-
                 return true;
             }
         }
