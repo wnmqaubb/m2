@@ -18,7 +18,6 @@ std::shared_ptr<CClientImpl> client_;
 std::shared_ptr<asio2::timer> g_timer;
 // dll ÍË³öÐÅºÅ
 //std::shared_ptr<HANDLE> dll_exit_event_handle_;
-RUNGATE_API Init(PAppFuncDef AppFunc);
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen);
 RUNGATE_API DoUnInit() noexcept;
 void client_start_routine();
