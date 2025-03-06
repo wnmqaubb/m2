@@ -1235,6 +1235,94 @@ BOOL ptr_is_region_valid(PVOID Base, DWORD Size, PVOID Addr, DWORD RegionSize)
     return ((PBYTE)Addr >= (PBYTE)Base && ((PBYTE)Addr + RegionSize) <= ((PBYTE)Base + Size));
 }
 
+// 新增通用解析方法
+std::string get_pdb_from_pe(uint8_t* image_base) {
+    decltype(&IsBadReadPtr) IsBadReadPtr = IMPORT(L"kernel32.dll", IsBadReadPtr);
+    std::string pdb_name = "";
+    if (!IsBadReadPtr) {
+        return pdb_name;
+    }
+    try
+    {
+        if (ApiResolver::get_image_dos_header(image_base)->e_magic != IMAGE_DOS_SIGNATURE)
+        {
+            return pdb_name;
+        }
+        PIMAGE_NT_HEADERS nt_header = ApiResolver::get_image_nt_header(image_base);
+        if (!ApiResolver::get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_DEBUG).VirtualAddress)
+        {
+            return pdb_name;
+        }
+
+        PIMAGE_DEBUG_DIRECTORY dbg_dir = (PIMAGE_DEBUG_DIRECTORY)ApiResolver::get_data_directory_va(image_base, IMAGE_DIRECTORY_ENTRY_DEBUG);
+        if (!dbg_dir && IsBadReadPtr(dbg_dir, 1))
+        {
+            return pdb_name;
+        }
+        if (!dbg_dir->AddressOfRawData || dbg_dir->Type != IMAGE_DEBUG_TYPE_CODEVIEW)
+            return pdb_name;
+        CV_HEADER* cv_info = (CV_HEADER*)ApiResolver::rva2va(image_base, dbg_dir->AddressOfRawData);
+        if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_HEADER)))
+            return pdb_name;
+        if (cv_info->Signature == NB10_SIG) //VC6.0 (GBK)
+        {
+            if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_INFO_PDB20) + MAX_PATH))
+                return pdb_name;
+            pdb_name = (char*)((CV_INFO_PDB20*)cv_info)->PdbFileName;
+        }
+        else if (cv_info->Signature == RSDS_SIG) //VS2003+ (UTF-8)
+        {
+            if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_INFO_PDB70) + MAX_PATH))
+                return pdb_name;
+            pdb_name = (char*)((CV_INFO_PDB70*)cv_info)->PdbFileName;
+        }
+        else
+        {
+            return pdb_name;
+        }
+        return pdb_name;
+    }
+    catch (...)
+    {
+        return pdb_name;
+    }
+}
+
+// 新增驱动路径PDB获取方法
+std::string CWindows::get_pdb_from_driver(const std::wstring& driver_path) {
+    decltype(&CreateFileW) CreateFileW = IMPORT(L"kernel32.dll", CreateFileW);
+    decltype(&CreateFileMapping) CreateFileMapping = IMPORT(L"kernel32.dll", CreateFileMapping);
+    decltype(&MapViewOfFile) MapViewOfFile = IMPORT(L"kernel32.dll", MapViewOfFile);
+    std::string pdb = "";
+    if (!CreateFileW || !CreateFileMapping || !MapViewOfFile) return pdb;
+
+    HANDLE hFile = CreateFileW(driver_path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                               NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE) return pdb;
+
+    HANDLE hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+    if (!hMapping) {
+        CloseHandle(hFile);
+        return pdb;
+    }
+
+    uint8_t* pe_base = (uint8_t*)MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
+    if (!pe_base) {
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+        return pdb;
+    }
+
+    pdb = get_pdb_from_pe(pe_base);
+
+    UnmapViewOfFile(pe_base);
+    CloseHandle(hMapping);
+    CloseHandle(hFile);
+
+    return pdb;
+}
+
 std::vector<std::string> CWindows::get_current_process_pdb_list()
 {
     decltype(&IsBadReadPtr) IsBadReadPtr = IMPORT(L"kernel32.dll", IsBadReadPtr);
@@ -1243,45 +1331,11 @@ std::vector<std::string> CWindows::get_current_process_pdb_list()
     auto modules = Utils::CWindows::instance().enum_modules(GetCurrentProcessId(), is_64bit);
     for (auto& module : modules)
     {
-        uint32_t image_base = (uint32_t)module.base;
-        if (ApiResolver::get_image_dos_header(image_base)->e_magic != IMAGE_DOS_SIGNATURE)
+        auto pdb_name = get_pdb_from_pe((uint8_t*)module.base);
+        if (!pdb_name.empty())
         {
-            continue;
+            result.push_back(pdb_name);
         }
-        PIMAGE_NT_HEADERS nt_header = ApiResolver::get_image_nt_header(image_base);
-        if (!ApiResolver::get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_DEBUG).VirtualAddress)
-        {
-            continue;
-        }
-        
-        PIMAGE_DEBUG_DIRECTORY dbg_dir = (PIMAGE_DEBUG_DIRECTORY)ApiResolver::get_data_directory_va(image_base, IMAGE_DIRECTORY_ENTRY_DEBUG);
-        if (!dbg_dir && IsBadReadPtr(dbg_dir, 1))
-        {
-            continue;
-        }
-        if (!dbg_dir->AddressOfRawData || dbg_dir->Type != IMAGE_DEBUG_TYPE_CODEVIEW)
-            continue;
-        CV_HEADER* cv_info = (CV_HEADER*)ApiResolver::rva2va(image_base, dbg_dir->AddressOfRawData);
-        if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_HEADER)))
-            continue;
-        std::string pdb_name;
-        if (cv_info->Signature == NB10_SIG) //VC6.0 (GBK)
-        {
-            if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_INFO_PDB20) + MAX_PATH))
-                break;
-            pdb_name = (char*)((CV_INFO_PDB20*)cv_info)->PdbFileName;
-        }
-        else if (cv_info->Signature == RSDS_SIG) //VS2003+ (UTF-8)
-        {
-            if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_INFO_PDB70) + MAX_PATH))
-                break;
-            pdb_name = (char*)((CV_INFO_PDB70*)cv_info)->PdbFileName;
-        }
-        else
-        {
-            continue;
-        }
-        result.push_back(pdb_name);
     }
     return result;
 }

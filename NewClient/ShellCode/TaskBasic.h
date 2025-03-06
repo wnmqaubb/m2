@@ -1,5 +1,5 @@
 #pragma once
-#include "ClientImpl.h"
+#include "NewClient/ClientImpl.h"
 #include <Lightbone/utils.h>
 #include <iostream>
 #include "Service/AntiCheatClient.h"

@@ -665,6 +665,79 @@ static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_
 	}
 	return ret;
 }
+
+// 文件存在检查（对应js中的api.is_file_exist）
+static bool is_file_exist(const std::string& path) {
+    return std::filesystem::exists(path);
+}
+
+// 获取硬件标识符（对应machine_detect类中调用）
+static JSValue get_xidentifier() {
+    std::vector<std::string> identifiers;
+    
+    // 获取MAC地址
+    auto mac = Utils::HardwareInfo::get_mac_address();
+
+    identifiers.push_back(Utils::String::w2c(mac, CP_UTF8));
+    
+    // 获取磁盘序列号
+    DWORD serial = 0;
+    if (GetVolumeInformationW(L"C:\\", NULL, 0, &serial, NULL, NULL, NULL, 0)) {
+        identifiers.push_back(std::to_string(serial));
+    }
+    
+    // 获取BIOS标识
+    static bool has_been_init = false;
+    static WMIC_BIOS bios_info = {};
+    if (!has_been_init)
+    {
+        int times = 0;
+        while (true)
+        {
+            try {
+                WMIC wmic;
+                bios_info = wmic.BIOS();
+                has_been_init = true;
+                break;
+            }
+            catch (...)
+            {
+                bios_info.manufacturer = L"0";
+                bios_info.releaseDate = L"0";
+                bios_info.serialNumber = L"0";
+                times++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            if (times > 20)
+                break;
+        }
+    }
+    auto bios_info_serialNumber = bios_info.serialNumber;
+    identifiers.push_back(Utils::String::w2c(bios_info_serialNumber, CP_UTF8));
+
+    return g_context->fromJSON(json(identifiers).dump());
+}
+
+// 获取PDB路径（用于模块校验）
+static std::string get_pdb_path(const std::string& pe_path) {
+    if (pe_path.empty())
+        return "";
+    auto pdb_path = Utils::CWindows::instance().get_pdb_from_driver(Utils::String::c2w(pe_path, CP_UTF8));
+    return Utils::String::to_utf8(pdb_path);
+}
+
+// 获取BCD信息（用于引导检测）
+static JSValue get_bcd_info() {
+    std::vector<std::string> bcd_info;
+    try {
+        bcd_info = Utils::HardwareInfo::GetBcdInfo();
+    }
+    catch (...)
+    {
+    }
+    return g_context->fromJSON(json(bcd_info).dump());
+}
+
 void InitJavaScript()
 {
     //g_client = client;
@@ -718,6 +791,10 @@ void InitJavaScript()
 			.function<&get_proc_address>("get_proc_address")
             .function<&get_cur_module_list>("get_cur_module_list")
             .function<&scan>("scan")
+            .function<&is_file_exist>("is_file_exist")
+            .function<&get_xidentifier>("get_xidentifier")
+            .function<&get_pdb_path>("get_pdb_path")
+            .function<&get_bcd_info>("get_bcd_info")
 			.function("open_process_all", [](uint32_t pid)->uint32_t {
 			return (uint32_t)OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 				})

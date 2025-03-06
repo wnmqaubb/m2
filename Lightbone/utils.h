@@ -174,7 +174,8 @@ namespace Utils
         LIGHT_BONE_API bool get_process_main_thread_hwnd(uint32_t pid, std::vector<WindowInfo>& window_out);
         LIGHT_BONE_API std::vector<std::string> get_current_process_pdb_list();
         LIGHT_BONE_API bool get_process(uint32_t pid, __out ProcessInfo& process);
-        LIGHT_BONE_API std::wstring ntpath2win32path(std::wstring ntPath);
+        LIGHT_BONE_API std::wstring ntpath2win32path(std::wstring ntPath); 
+        LIGHT_BONE_API std::string get_pdb_from_driver(const std::wstring& driver_path);
         LIGHT_BONE_API std::wstring get_process_path(uint32_t pid);
         LIGHT_BONE_API uint32_t get_current_process_id();
         LIGHT_BONE_API std::wstring get_process_path(uint32_t pid, __in  ProcessMap& processes);
@@ -313,6 +314,7 @@ namespace Utils
         LIGHT_BONE_API std::wstring get_volume_serial_number();
         LIGHT_BONE_API uint32_t get_all_device_ids_hash();
         LIGHT_BONE_API bool get_monitor_info(uint16_t& width, uint16_t& height, uint32_t &serial_number);
+        LIGHT_BONE_API std::vector<std::string> GetBcdInfo();
 	}
 
 

@@ -304,7 +304,8 @@ namespace BasicUtils
         auto NtReadVirtualMemory = IMPORT(L"ntdll.dll", NtReadVirtualMemory);
         return NtReadVirtualMemory(handle, (PVOID)base_address, buffer, buffer_size, (SIZE_T*)bytes_of_read);
     }
-
+        
+    // 计算给定路径的PE文件图标哈希值
     bool calc_pe_ico_hash(std::wstring path, uint32_t* hash_val)
     {
         if (GetModuleHandleA("Shell32.dll") == NULL)
