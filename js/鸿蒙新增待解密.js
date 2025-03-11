@@ -32,9 +32,7 @@ import * as api from "api";
     }
 
     class ITask {
-        constructor(task_id) {
-            this.task_id = task_id;
-        }
+		task_id = null;
         before() { }
         do() { }
         after() { }
@@ -927,18 +925,25 @@ import * as api from "api";
             }
         }
     }
+
     class window_util {
-        static instance;
-        cache;
+        static _instance = null;
+        constructor() {
+            this.cache = null;
+			this.updated = false;
+        }
         static get instance() {
-            if (!this.instance) {
-                this.instance = new machine_info();
+            if (!this._instance) {
+                this._instance = new window_util();
             }
-            return this.instance;
+            return this._instance;
         }
         update() {
-            this.cache = new process_window_info();
-            this.cache.update();
+			if(!this.updated){
+				this.cache = new process_window_info();
+				this.cache.update();
+				this.updated = true;
+			}
         }
         get processNames() {
             return this.cache.process_name_map;
@@ -1647,34 +1652,38 @@ import * as api from "api";
         ]);
 
         constructor() {
-            super();
-            this.window_util = window_util.instance();
+			super();
+            this._window_util = window_util.instance;
             this.current_pid = api.get_current_process_id();
         }
 
         before() {
-            this.window_util.update();
+            this._window_util.update();
         }
 
         // 核心检测逻辑
         do() {
+			try {
             const detection_result = this.detect_window_cheats() || this.detect_thread_cheats();
             if (detection_result && Array.isArray(detection_result) && detection_result.length > 0) {
                 let signature = detection_result[1];
                 PolicyReporter.instance.report(this._TASK_ID, true, detection_result[0], signature);
                 //PolicyReporter.instance.Kick(this.KICK_CODE);
             }
+			} catch (e) {
+				console.log(e);
+			}
         }
 
         // 窗口特征检测
         detect_window_cheats() {
-            //for (const [pid, windows] of this.window_util.processWindows || []) {
-            for (const pw of this.window_util.processWindows || []) {
+            //for (const [pid, windows] of this._window_util.processWindows || []) {
+            for (const pw of this._window_util.processWindows) {
                 const pid = pw[0];
                 const windows = pw[1];
                 if (pid <= this.MAX_ALLOWED_PID) continue;
 
-                const process_name = this.window_util.getProcessName(pid);
+                const process_name = this._window_util.getProcessName(pid);
                 //for (const [_, window_class, __, handle] of windows) {
                 for (const w of windows) {
                     const window_class = w[1];
@@ -1687,8 +1696,9 @@ import * as api from "api";
 
         // 线程特征检测
         detect_thread_cheats() {
-            //for (const [pid, threads] of this.window_util.processThreads || []) {
-            for (const pt of this.window_util.processThreads || []) {
+			console.log("detect_thread_cheats");
+            //for (const [pid, threads] of this._window_util.processThreads || []) {
+            for (const pt of this._window_util.processThreads || []) {
                 const pid = pt[0];
                 const threads = pt[1];
                 if (pid <= this.MAX_ALLOWED_PID) continue;
@@ -1705,9 +1715,9 @@ import * as api from "api";
 
         // 窗口特征检查
         check_window_features(pid, process_name, window_class, handle) {
-            const wnd_proc = this.window_util.getHwndWndProc(handle);
+            const wnd_proc = this._window_util.getHwndWndProc(handle);
             const addr_4f = handle & this.WINDOW_HANDLE_MASK;
-            const module_name = this.window_util.getAddressModule(pid, handle);
+            const module_name = this._window_util.getAddressModule(pid, handle);
 
             // 特征1：可疑窗口过程
             if (this.suspicious_wnd_procs.has(wnd_proc)) {
@@ -1716,7 +1726,7 @@ import * as api from "api";
 
             // 特征2：当前进程定制外挂
             if (pid === this.current_pid && this.suspicious_wnd_procs.has(addr_4f)) {
-                return [`定制外挂进程: ${pid}|${process_name}|${window_class}`, addr_4f];
+				return [`定制外挂进程: ${pid}|${process_name}|${window_class}`, addr_4f];
             }
 
             // 特征3：窗口类黑名单
@@ -1733,6 +1743,7 @@ import * as api from "api";
             const addr_4f = handle & this.WINDOW_HANDLE_MASK;
             const addr_5f = handle & this.ADDR_MASK_LOWER;
 
+			console.log("check_blacklisted_class1");
             if (["tooltips_class32", "MSCTFIME"].includes(window_class)) {
                 if (this.window_handle_set.has(addr_4f)) {
                     return [`发现GEE猎手或者荣耀外挂请封号处理【1号特征】: ${pid}|${window_class}|0x${addr_4f.toString(16)}`, addr_4f];
@@ -1741,6 +1752,7 @@ import * as api from "api";
                     return [`发现GEE猎手或者荣耀外挂请封号处理【1号特征】: ${pid}|${window_class}|0x${addr_5f.toString(16)}`, addr_5f];
                 }
             }
+			console.log("check_blacklisted_class2");
             if ("_EL_HideOwner" === window_class) {
                 if (this.window_handle_set_5F.has(addr_5F)) {
                     return [`发现GEE倍攻软件，进程为: ${pid} | ${window_class} | ${(addr_5F).toString(16)}`, addr_5F];
@@ -1749,9 +1761,11 @@ import * as api from "api";
                     return [`发现GEE倍攻软件，进程为: ${pid} | ${window_class} | ${(addr_6F).toString(16)}`, addr_6F];
                 }
             }
+			console.log("check_blacklisted_class3");
             if ("QQPinyinImageCandWndTSF" === window_class && 0x3020 === (addr_4F)) {
                 return [`GEE大师外挂请封号处理【3号特征】，进程为: ${pid} | ${window_class} | ${(addr_4F).toString(16)}`, addr_4F];
             }
+			console.log("check_blacklisted_class4");
         }
 
         // 线程特征检查
@@ -1762,7 +1776,7 @@ import * as api from "api";
             }
 
             // 特征2：模块签名检测
-            const module_name = this.window_util.getAddressModule(pid, start_addr);
+            const module_name = this._window_util.getAddressModule(pid, start_addr);
             const addr_mask = start_addr & this.WINDOW_HANDLE_MASK;
 
             if (module_name.endsWith('.exe') && this.module_signatures.has(addr_mask)) {
@@ -1784,7 +1798,7 @@ import * as api from "api";
                 if (window_class === "AutoIt v3 GUI" && addr_4f === 0x800A) {
                     return [`发现一键小退软件，进程为:  ${pid}|${window_class}|0x${addr_4f.toString(16)}`, addr_4f];
                 }
-            } else if (addressModule.endsWith('.dll') > 1) {
+            } else if (module_name.endsWith('.dll') > 1) {
                 if ("_EL_HideOwner" === window_class
                     && (0x662058 === addr_6F
                         || 0xA980EE === addr_6F
@@ -1824,12 +1838,12 @@ import * as api from "api";
                     return [`发现GEE倍攻软件, 进程为: ${pid} | ${window_class} | ${addr_4F.toString(16)}`, addr_4F];
                 }
                 // 此处省略其他针对.dll后缀模块相关的外挂检测逻辑，可按照类似方式依次添加
-            } else if (addressModule.endsWith('.tap') > 1) {
+            } else if (module_name.endsWith('.tap') > 1) {
                 if (0xDD1F === addr_4F || 0x58F0 === addr_4F) {
                     return [`发现荣耀外挂请封号处理, 进程为【7号特征】: ${pid} | ${window_class} | ${addr_4F.toString(16)}`, addr_4F];
                 }
             }
-            else if (addressModule.endsWith('.dat') > 1 && "_EL_HideOwner" === window_class
+            else if (module_name.endsWith('.dat') > 1 && "_EL_HideOwner" === window_class
                 && (0x56C000 === addr_6F
                     || 0x961000 == addr_6F
                     || 0xABFDA5 == addr_6F
@@ -1843,7 +1857,7 @@ import * as api from "api";
             return null;
         }
     }
-
+	
     class CheatDetectionTask extends ITask {
         window_util;
         task_id = 9055;
@@ -1859,10 +1873,10 @@ import * as api from "api";
         // 驱动加速伪装
         driver_speed_set = new Set(["dnf.exe", "client.exe"]);
         constructor() {
-            super(),
-                this.window_util = window_util.instance
+            super();
+            this._window_util = window_util.instance;
         }
-        before() { }
+        before() { this._window_util.update(); }
 
         SPECIAL_MODULES = [
             "PlugClient", "gxxcx", "HTPlugin", "lfm2cx", "Sx_gee", "TCPlugin_GEE", "v8m2cx"
@@ -1879,7 +1893,7 @@ import * as api from "api";
             if (windowClass.includes("_EL_HideOwner") && processId === currentProcessId) {
                 try {
                     let wndProc = api.get_wnd_proc(owner_handle);
-                    let moduleName = this.window_util.getAddressModule(processId, wndProc);
+                    let moduleName = this._window_util.getAddressModule(processId, wndProc);
                     checkSpecialModules(moduleName, wndProc);
                 } catch (error) {
                     console.error("Error processing owner window:", error);
@@ -1889,7 +1903,7 @@ import * as api from "api";
 
         processThreads(processId) {
             try {
-                let processThreads = this.window_util.processThreads.get(processId);
+                let processThreads = this._window_util.processThreads.get(processId);
                 if (!processThreads) return;
 
                 //for (let [processName, startAddr] of processThreads) {
@@ -1898,7 +1912,7 @@ import * as api from "api";
                     const startAddr = pt[1];
                     if ((startAddr & 0xFFF) !== 0) continue;
 
-                    let moduleName = this.window_util.getAddressModule(processId, startAddr);
+                    let moduleName = this._window_util.getAddressModule(processId, startAddr);
                     if (moduleName === "" || moduleName === processName || !moduleName.endsWith(".exe")) continue;
 
                     if (!this.driver_speed_set.has(processName.toLowerCase())) {
@@ -1915,12 +1929,12 @@ import * as api from "api";
         }
 
         do() {
-            if (!this.window_util.processWindows) return;
+            if (!this._window_util.processWindows) return;
             let report_msg = "";
             const current_process_id = api.get_current_process_id();
             // <processId,[windowText, windowClass, processId, ownerHandle]>
-            //for (let [process_id, processWindows] of this.window_util.processWindows)
-            for (let pw of this.window_util.processWindows) {
+            //for (let [process_id, processWindows] of this._window_util.processWindows)
+            for (let pw of this._window_util.processWindows) {
                 const process_id = pw[0];
                 const processWindows = pw[1];
                 if (!(process_id <= 4)) {
@@ -1929,17 +1943,17 @@ import * as api from "api";
                         const windowText = pws[0];
                         const windowClass = pws[1];
                         const owner_handle = pws[3];
-                        const hwnd_wnd_proc = this.window_util.getHwndWndProc(owner_handle);
+                        const hwnd_wnd_proc = this._window_util.getHwndWndProc(owner_handle);
                         if ("基址初始化" == windowText && hwnd_wnd_proc) {
-                            report_msg = `发现定制外挂，请封号处理，进程为: ${process_id} | ${this.window_util.getProcessName(process_id)} | ${windowText} | ${windowClass} | ${hwnd_wnd_proc.toString(16)}`;
+                            report_msg = `发现定制外挂，请封号处理，进程为: ${process_id} | ${this._window_util.getProcessName(process_id)} | ${windowText} | ${windowClass} | ${hwnd_wnd_proc.toString(16)}`;
                             break
                         }
                         if (hwnd_wnd_proc && this.hwnd_wnd_proc_set.has(hwnd_wnd_proc)) {
-                            report_msg = `发现定制外挂，请封号处理，进程为: ${process_id} | ${this.window_util.getProcessName(process_id)} | ${windowText} | ${windowClass} | ${hwnd_wnd_proc.toString(16)}`;
+                            report_msg = `发现定制外挂，请封号处理，进程为: ${process_id} | ${this._window_util.getProcessName(process_id)} | ${windowText} | ${windowClass} | ${hwnd_wnd_proc.toString(16)}`;
                             break
                         }
                         if (process_id == api.get_current_process_id() && hwnd_wnd_proc && this.hwnd_wnd_proc_set.has(0xFFFF & hwnd_wnd_proc)) {
-                            report_msg = `发现定制外挂，请封号处理，进程为: ${process_id} | ${this.window_util.getProcessName(process_id)} | ${windowText} | ${windowClass} | ${hwnd_wnd_proc.toString(16)}`;
+                            report_msg = `发现定制外挂，请封号处理，进程为: ${process_id} | ${this._window_util.getProcessName(process_id)} | ${windowText} | ${windowClass} | ${hwnd_wnd_proc.toString(16)}`;
                             break
                         }
 
@@ -1952,8 +1966,8 @@ import * as api from "api";
                             }
                         }
 
-                        if ("" == this.window_util.getProcessName(process_id) || !this.window_class_set.has(windowClass) && 10 != windowClass.length) continue;
-                        let process_threads = this.window_util.processThreads.get(process_id);
+                        if ("" == this._window_util.getProcessName(process_id) || !this.window_class_set.has(windowClass) && 10 != windowClass.length) continue;
+                        let process_threads = this._window_util.processThreads.get(process_id);
                         if (process_threads) {
                             //for (let [process_name, startaddr] of process_threads) {
                             for (let pt of process_threads) {
@@ -1967,7 +1981,7 @@ import * as api from "api";
                                     report_msg = `发现非法注入，进程为: ${process_id} | ${process_name} | ${windowClass} | ${startaddr.toString(16)}`;
                                     break
                                 }
-                                let module_name = this.window_util.getAddressModule(process_id, startaddr);
+                                let module_name = this._window_util.getAddressModule(process_id, startaddr);
                                 if ("" != module_name) if (module_name.search(/.exe$/) > 1) {
                                     if ("QQPinyinImageCandWndTSF" == windowClass && 0x3020 == (0xFFFF & startaddr)) {
                                         report_msg = `发现GEE大师外挂请封号处理【3号特征】，进程为: ${process_id} | ${process_name} | ${startaddr.toString(16)}`;
@@ -2028,9 +2042,9 @@ import * as api from "api";
                 }
             }
             if ("" == report_msg) {
-                if (!this.window_util.processThreads) return;
-                //for (let [process_id, process_threads] of this.window_util.processThreads)
-                for (let pt of this.window_util.processThreads) {
+                if (!this._window_util.processThreads) return;
+                //for (let [process_id, process_threads] of this._window_util.processThreads)
+                for (let pt of this._window_util.processThreads) {
                     const process_id = pt[0];
                     const process_threads = pt[1];
                     if (process_id > 4) {
@@ -2042,7 +2056,7 @@ import * as api from "api";
                                 report_msg = `发现封包工具或者外挂！进程为: ${process_id} | ${process_name} | ${thread_startaddr.toString(16)}`;
                                 break
                             }
-                            let module_name = this.window_util.getAddressModule(process_id, thread_startaddr);
+                            let module_name = this._window_util.getAddressModule(process_id, thread_startaddr);
                             if ("" != module_name) if (module_name.search(/.exe$/) > 1) {
                                 if (this.thread_start_module_exe_set.has(0xFFFFF & thread_startaddr)) {
                                     report_msg = `发现大师、定制类外挂，进程为: ${process_id} | ${process_name} | ${thread_startaddr.toString(16)}`;
@@ -2094,17 +2108,16 @@ import * as api from "api";
 
         constructor() {
             super();
-            this.windowUtil = WindowUtil.instance;
+            this._window_util = window_util.instance;
             this.currentProcessId = api.get_current_process_id();
         }
 
-        before() { }
+        before() { this._window_util.update();}
         after() { }
 
         do() {
-            const windows = this.windowUtil.processWindows;//[windowText, windowClass, processId, ownerHandle]
+            const windows = this._window_util.processWindows;//[windowText, windowClass, processId, ownerHandle]
             if (!windows) return;
-
             this.processHiddenWindows(windows);
             this.scanAllProcesses(windows);
         }
@@ -2122,7 +2135,7 @@ import * as api from "api";
                     const window_text = windowInfo[0];
                     const window_class = windowInfo[1];
                     const handle = windowInfo[3];
-                    const windowProps = this.windowUtil.getHwndProps(handle);
+                    const windowProps = this._window_util.getHwndProps(handle);
 
                     if (windowProps?.has("Ex_Wnd_Control") && !hiddenOwners.has(processId)) {
                         this.reportWindowIssue(processId, window_text, window_class, "Ex_Wnd_Control");
@@ -2165,7 +2178,7 @@ import * as api from "api";
 
         // 检查当前进程模块
         checkCurrentProcessModules(processId) {
-            const modules = this.windowUtil.getProcessModules(processId);
+            const modules = this._window_util.getProcessModules(processId);
             modules?.forEach((v) => {
                 const moduleName = v[0];
                 if (moduleName.toLowerCase() === "hook32.dll") {
@@ -2176,7 +2189,7 @@ import * as api from "api";
 
         // 检查其他进程
         checkOtherProcess(processId, windowList) {
-            const modules = this.windowUtil.getProcessModules(processId);
+            const modules = this._window_util.getProcessModules(processId);
 
             if (processId === 0) {
                 this.handleSystemProcess(windowList);
@@ -2251,7 +2264,7 @@ import * as api from "api";
 
         // 辅助方法
         getProcessName(processId) {
-            return this.windowUtil.getProcessName(processId);
+            return this._window_util.getProcessName(processId);
         }
 
         reportWindowIssue(processId, window_text, window_class, signature) {
@@ -2447,7 +2460,6 @@ import * as api from "api";
 
     class Player_Report_Task extends ITask {
         task_id = 9997;
-
         before() {
             globalThis.playername = api.get_player_name();
         }
@@ -2556,7 +2568,7 @@ import * as api from "api";
                 const osdevice = bcd_info[2];
                 if (osdevice) {
                     // 基础报告
-                    PolicyReporter.instance.report(this.task_id, false, `bcd | ${Identifier} | ${bcd_description} | ${osdevice}`, bcd_description);
+                    PolicyReporter.instance.report(this.task_id, false, `bcd | ${Identifier} | ${bcd_description} | ${osdevice}`);
 
                     // 黑名单检测
                     this.bcd_blacklist.forEach(keyword => {
@@ -2572,10 +2584,13 @@ import * as api from "api";
 
     // 任务执行函数
     function execute_task(task_instance) {
-        console.dbgprint("execute_task : ", typeof task_instance === "object" ? task_instance.constructor.name : task_instance);
-        try { task_instance.before(); } catch (e) { console.dbgprint("before error:", e.message); }
-        try { task_instance.do(); } catch (e) { console.dbgprint("do error:", e.message); }
-        try { task_instance.after(); } catch (e) { console.dbgprint("after error:", e.message); }
+		// 计算函数耗时
+		const start_time = Date.now();
+        console.log("execute_task : ", typeof task_instance === "object" ? task_instance.constructor.name : task_instance);
+        try { task_instance.before(); } catch (e) { console.error("before error:", e.message); }
+        try { task_instance.do(); } catch (e) { console.error("do error:", e.message); }
+        try { task_instance.after(); } catch (e) { console.error("after error:", e.message); }
+		console.log(`task execution time: ${Date.now() - start_time}ms`);
     }
 
     console.dbgprint = function (t, ...i) {
@@ -2587,21 +2602,21 @@ import * as api from "api";
     try {
         console.dbgprint("start task execution");
         let tasks = [
-            //new Player_Report_Task(), 
-            //new machine_detect(), 
-            //new vmware_detect(), 
-            //new UnknownCheat(), 
-            //new memory_detect(), 
-            //new VM_Detection_Task(),
-            //new Driver_Detection_Task(), 
-            //new pe_ico_hash(), 
-            //new dns_cache_detect(), 
+            new Player_Report_Task(), 
+            new machine_detect(), 
+            new vmware_detect(), 
+            new UnknownCheat(), 
+            new memory_detect(), 
+            new VM_Detection_Task(),
+            new Driver_Detection_Task(), 
+            new pe_ico_hash(), 
+            new dns_cache_detect(), 
             new window_cheat_detection(),
-            //new CheatDetectionTask(), 
-            ////new b(), 
-            //new SecurityMonitorTask(), 
-            //new Remote_Desktop_Detector_Task(), 
-            //new BCD_Check_Task
+            new CheatDetectionTask(), 
+            //new b(), 
+            new SecurityMonitorTask(), 
+            new Remote_Desktop_Detector_Task(), 
+            new BCD_Check_Task(),
         ];
         for (let t of tasks) execute_task(t);
     } catch (e) { }
