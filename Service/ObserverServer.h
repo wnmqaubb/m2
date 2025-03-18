@@ -14,10 +14,12 @@
 #include <type_traits>
 #include <unordered_map>
 //#include <folly/ProducerConsumerQueue.h>
-#include <readerwriterqueue/readerwriterqueue.h>
+#//include <readerwriterqueue/readerwriterqueue.h>
+#include <concurrentqueue/blockingconcurrentqueue.h> 
 using tcp_session_shared_ptr_t = std::shared_ptr<asio2::tcp_session>;
 
 #include <memory>
+//#include <concurrentqueue/concurrentqueue.h>
 
 struct Task {
     unsigned int package_id;
@@ -45,10 +47,13 @@ struct Task {
     }
 
     Task& operator=(Task&& other) noexcept {
-        package_id = other.package_id;
-        session = std::move(other.session);
-        package = std::move(other.package);
-        raw_msg = std::move(other.raw_msg);
+        if (this != &other) {
+            raw_msg.reset(); // 显式释放当前资源
+            package_id = other.package_id;
+            session = std::move(other.session);
+            package = std::move(other.package);
+            raw_msg = std::move(other.raw_msg);
+        }
         return *this;
     }
 
@@ -62,6 +67,7 @@ class CObserverServer : public CAntiCheatServer {
     using super = CAntiCheatServer;
 
 public:
+    void batch_heartbeat(const std::vector<tcp_session_shared_ptr_t>& sessions);
     CObserverServer();
     void on_recv_client_heartbeat(tcp_session_shared_ptr_t& session);
     void obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg);
@@ -86,11 +92,10 @@ protected:
     std::shared_ptr<CLogicClient> logic_client_;
     NetUtils::EventMgr<package_handler_t> ob_pkg_mgr_;
     std::shared_mutex shared_mtx_;
-    std::unordered_map<tcp_session_shared_ptr_t, std::chrono::steady_clock::time_point> session_last_active_times_;
     std::shared_timed_mutex task_mtx_;
-    std::timed_mutex session_mtx_;  // 用于保护session相关操作
+    std::timed_mutex session_mtx_; 
 public:
-    std::mutex session_times_mtx_;
+    std::shared_mutex session_times_mtx_;
 };
 
 
@@ -106,7 +111,9 @@ private:
     };
 
     //folly::ProducerConsumerQueue<HeartbeatTask> queue_{ BUFFER_SIZE };
-    moodycamel::ReaderWriterQueue<HeartbeatTask> queue_{ BUFFER_SIZE };
+    //moodycamel::ReaderWriterQueue<HeartbeatTask> queue_{ BUFFER_SIZE };
+    // 使用更高性能的队列
+    moodycamel::BlockingConcurrentQueue<HeartbeatTask> queue_{ BUFFER_SIZE * 4 };
     std::atomic<bool> running_{ true };
     std::vector<std::thread> workers_;
     std::atomic<size_t> dropped_{ 0 };
@@ -151,9 +158,14 @@ public:
         slog->info("Heartbeat stats: Processed={} Dropped={}", total_processed_.load(), dropped_.load());
     }
 
-    bool push(std::size_t session_id, time_t timestamp) noexcept {
-        HeartbeatTask task{ session_id, timestamp };
+    bool push(std::size_t session_id, time_t timestamp) noexcept {  
+        HeartbeatTask task{ session_id, timestamp };      
+        // 优先非阻塞写入
         if (queue_.try_enqueue(task)) return true;
+        
+        // 使用正确的阻塞写入方法
+        if (queue_.enqueue(task)) return true;  // 移除非法的timed参数
+        
         dropped_.fetch_add(1, std::memory_order_relaxed);
         return false;
     }
@@ -168,10 +180,18 @@ private:
     }
 
     void process_batch(HeartbeatTask* tasks, size_t count) {
+        std::vector<tcp_session_shared_ptr_t> sessions;
+        sessions.reserve(count);
+        // 批量获取session
         for (size_t i = 0; i < count; ++i) {
             if (auto session = CObserverServer::instance().find_session(tasks[i].session_id)) {
-                CObserverServer::instance().on_recv_client_heartbeat(session);
+                sessions.emplace_back(std::move(session));
             }
+        }
+        
+        // 批量处理心跳
+        if (!sessions.empty()) {
+            CObserverServer::instance().batch_heartbeat(sessions);
         }
     }
 };

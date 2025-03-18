@@ -1,5 +1,9 @@
 #pragma once
 #include "SubServicePackage.h"
+#include <tbb/concurrent_hash_map.h>
+#include <atomic>
+#include <shared_mutex>
+#include <array>  // 补充缺失的头文件
 class CServerPluginMgr
 {
 public:
@@ -14,8 +18,14 @@ public:
     ProtocolS2CQueryPlugin get_plugin_hash_set();
 
 protected:
-    std::shared_mutex mtx_;
-    std::unordered_map<unsigned int, std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>> plugin_cache_;
+    struct PluginShard {
+        tbb::concurrent_hash_map<unsigned int, std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>> plugins;
+        std::shared_mutex mtx;
+        std::atomic<bool> cleanup_scheduled{false};
+    };
+    
+    static constexpr int SHARD_COUNT = 256;
+    std::array<PluginShard, SHARD_COUNT> plugin_shards_;
 };
 
 

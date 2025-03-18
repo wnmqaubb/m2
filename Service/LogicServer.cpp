@@ -713,7 +713,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, std::size_t session
     };
     try {
         auto user_data = usr_sessions_mgr().get_user_data(session_id);
-        bool gm_show = 688000 < policy.policy_id && policy.policy_id < 689051;
+        bool gm_show = true;// 688000 < policy.policy_id && policy.policy_id < 689051;
         if (user_data)
         {
             VMProtectBeginVirtualization(__FUNCTION__);

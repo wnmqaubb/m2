@@ -25,49 +25,64 @@
 #include "Protocol.h"
 #include "SubServicePackage.h"
 
-RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash)
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
-    for (auto[file_hash, data] : plugin_cache_)
-    {
-        if (data.second.plugin_hash == plugin_hash)
-        {
-            return data.first;
-        }
+// 优化后的插件管理实现
+RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash) {
+    constexpr int SHARD_COUNT = 256;
+    size_t shard_idx = plugin_hash % SHARD_COUNT;
+    PluginShard& shard = plugin_shards_[shard_idx];
+    std::shared_lock lock(shard.mtx);
+    
+    tbb::concurrent_hash_map<unsigned int, 
+        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::const_accessor ca;
+    if (shard.plugins.find(ca, plugin_hash)) {
+        return ca->second.first;
     }
     return RawProtocolImpl();
 }
 
-bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash)
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
-    return plugin_cache_.find(file_hash) != plugin_cache_.end();
+bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash) {
+    constexpr int SHARD_COUNT = 256;
+    size_t shard_idx = file_hash % SHARD_COUNT;
+    PluginShard& shard = plugin_shards_[shard_idx];
+    std::shared_lock lock(shard.mtx);
+    
+    tbb::concurrent_hash_map<unsigned int, 
+        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::const_accessor ca;
+    return shard.plugins.find(ca, file_hash);
 }
 
-void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin)
-{
-    std::unique_lock<std::shared_mutex> lck(mtx_);
-    if (plugin_cache_.find(file_hash) == plugin_cache_.end())
-    {
+void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin) {
+    constexpr int SHARD_COUNT = 256;
+    size_t shard_idx = file_hash % SHARD_COUNT;
+    PluginShard& shard = plugin_shards_[shard_idx];
+    std::unique_lock lock(shard.mtx);
+
+    tbb::concurrent_hash_map<unsigned int, 
+        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::accessor acc;
+    if (shard.plugins.insert(acc, file_hash)) {
         msgpack::sbuffer buffer;
         msgpack::pack(buffer, plugin);
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
-        plugin.data.clear();
-        plugin_cache_.emplace(std::make_pair(file_hash, std::make_pair(raw_package, plugin)));
+        acc->second = std::make_pair(raw_package, plugin);
         printf("加载插件:%s\n", plugin.plugin_name.c_str());
     }
 }
 
-void CServerPluginMgr::remove_plugin(unsigned int file_hash)
-{
-    std::unique_lock<std::shared_mutex> lck(mtx_);
-    if (plugin_cache_.find(file_hash) != plugin_cache_.end())
-    {
-        printf("卸载插件:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
-        plugin_cache_.erase(file_hash);
+void CServerPluginMgr::remove_plugin(unsigned int file_hash) {
+    constexpr int SHARD_COUNT = 256;
+    size_t shard_idx = file_hash % SHARD_COUNT;
+    PluginShard& shard = plugin_shards_[shard_idx];
+    std::unique_lock lock(shard.mtx);
+
+    tbb::concurrent_hash_map<unsigned int, 
+        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::accessor acc;
+    if (shard.plugins.find(acc, file_hash)) {
+        printf("卸载插件:%s\n", acc->second.second.plugin_name.c_str());
+        shard.plugins.erase(acc);
     }
 }
+
 
 void CServerPluginMgr::reload_all_plugin()
 {
@@ -160,24 +175,31 @@ void CServerPluginMgr::remove_plugin_file(const std::string& file_name)
     }
 }
 
-std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set()
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
+std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set() {
     std::set<unsigned int> result;
-    for (auto itor : plugin_cache_)
-    {
-        result.emplace(itor.first);
+    for(int i=0; i<256; ++i) {
+        PluginShard& shard = plugin_shards_[i];
+        std::shared_lock lock(shard.mtx);
+        tbb::concurrent_hash_map<unsigned int, 
+            std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::iterator it;
+        for (it = shard.plugins.begin(); it != shard.plugins.end(); ++it) {
+            result.emplace(it->first);
+        }
     }
     return result;
 }
 
-ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set()
-{
-    std::shared_lock<std::shared_mutex> lck(mtx_);
+ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set() {
     ProtocolS2CQueryPlugin result;
-    for (auto[file_hash, data] : plugin_cache_)
-    {
-        result.plugin_list.push_back(std::make_pair(data.second.plugin_hash, data.second.plugin_name));
+    for (auto& shard : plugin_shards_) {
+        std::shared_lock lock(shard.mtx);
+        tbb::concurrent_hash_map<unsigned int, 
+            std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::const_iterator it;
+        for (it = shard.plugins.begin(); it != shard.plugins.end(); ++it) {
+            result.plugin_list.emplace_back(
+                it->second.second.plugin_hash, 
+                it->second.second.plugin_name);
+        }
     }
     return result;
 }

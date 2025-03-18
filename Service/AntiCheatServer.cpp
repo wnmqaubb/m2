@@ -92,6 +92,7 @@ private:
 #else
 #include "Protocol.h"
 #endif
+#include <parallel_hashmap/phmap.h>
 #include <WinBase.h>
 #include <WinNT.h>
 #include <stdio.h>
@@ -126,7 +127,7 @@ private:
 
 static std::set<std::string> ddos_black_List;
 static std::map<std::string, uint32_t> ddos_black_map; 
-CAntiCheatServer::CAntiCheatServer(): super()
+CAntiCheatServer::CAntiCheatServer() : super()
 {
 	bind_init(&CAntiCheatServer::on_init, this);
 	bind_start(&CAntiCheatServer::on_start, this);
@@ -157,12 +158,28 @@ CAntiCheatServer::~CAntiCheatServer()
 }
 
 bool CAntiCheatServer::start(const std::string& listen_addr, int port)
-{
+{    
+    auto now = std::chrono::steady_clock::now();
+    constexpr size_t SHARD_COUNT = 8;  // 8线程并行
+    std::vector<std::thread> workers;
+    
+    for(size_t t=0; t<SHARD_COUNT; ++t) {
+        workers.emplace_back([this, now, t] {
+            for(size_t slot=t; slot<512; slot+=SHARD_COUNT) {
+                const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+                time_wheels_[0].update_timestamp(0, slot, timestamp, HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
+            }
+        });
+    }
+    for(auto& w : workers) w.join();
+    
+    current_wheel_index_.store(0, std::memory_order_release);
+
 #if ENABLE_PROXY_TUNNEL
 	enable_proxy_tunnel(true);
 #else
 	enable_proxy_tunnel(false);
-#endif
+#endif    
 	if (super::start(listen_addr, port, RawProtocolImpl()))
 	{
 		return true;
@@ -378,12 +395,28 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         session->remote_port(),
         sv.size());
 #endif
-#ifdef G_SERVICE
-    // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
-    if(OBPKG_ID_C2S_AUTH == package_id)
-    {
-        CObserverServer::instance().obpkg_id_c2s_auth(session, package, raw_msg);
-        return;
+#ifndef G_SERVICE
+    // 使用phmap线程安全接口更新会话时间戳
+    const std::size_t session_id = session->hash_key();
+    const auto now = std::chrono::steady_clock::now();
+    
+    // 原子更新会话最后活动时间
+    session_last_active_times_.with_submap(session_id, [now](auto& submap) {
+        submap.insert_or_assign(session_id, now);
+    });
+
+    // 批量清理过期会话（每256次操作触发）
+    thread_local uint32_t counter = 0;
+    if ((++counter % 256) == 0) {
+        const auto cutoff = now - std::chrono::minutes(5);
+        // 使用带mutex的for_each_m进行线程安全遍历
+        session_last_active_times_.for_each_m([cutoff](const auto& key, auto& value, phmap::NullMutex& mtx) {
+            std::lock_guard lock(mtx);
+            if (value < cutoff) {
+                return phmap::parallel_erase;
+            }
+            return phmap::parallel_continue;
+        });
     }
 #else
     if (package_mgr_.dispatch(package_id, session, package, raw_msg))
@@ -417,7 +450,7 @@ void CAntiCheatServer::on_stop()
     auto ec = asio2::get_last_error();
     if (ec) {
 		log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d"), Utils::c2w(listen_address()).c_str(), listen_port());
-	}
+    }
 	else {
 		log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d %s"), Utils::c2w(listen_address()).c_str(), listen_port(), ec.message().c_str());
     }
@@ -428,7 +461,7 @@ void CAntiCheatServer::close_client(std::size_t session_id)
     find_session(session_id)->stop();
 }
 
-void CAntiCheatServer::start_timer(unsigned int timer_id, std::chrono::system_clock::duration duration, std::function<void()> handler)
+void CAntiCheatServer::start_timer(unsigned int timer_id, std::chrono::steady_clock::duration duration, std::function<void()> handler)
 {
     super::start_timer<int>((int)timer_id, duration, [this, handler = std::move(handler)](){
         handler();
@@ -566,23 +599,73 @@ void CAntiCheatServer::punish_log(LPCTSTR format, ...)
 
 void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg)
 {
-    ProtocolS2CHeartBeat resp;
-    resp.tick = msg.tick;
-    async_send(session, &resp);
-
-#ifdef G_SERVICE
-    // 提交到心跳池（剥离时间戳生成逻辑）
-    const std::size_t session_id = session->hash_key();
-    const time_t timestamp = time(nullptr);  // 统一服务端时间
-    if (!g_heartbeat_pool.push(session_id, timestamp)) {
-        slog->warn("Heartbeat overflow:{}", session_id);
+    // 批量发送心跳响应
+    auto& send_queue = batch_send_queue_[session->hash_key()];
+    if (!send_queue) {
+        send_queue = std::make_unique<SessionSendQueue>();
     }
-#else
+    
+    msgpack::sbuffer buffer;
+    msgpack::pack(buffer, ProtocolS2CHeartBeat{ PKG_ID_S2C_HEARTBEAT, msg.tick});
+    send_queue->packets.enqueue(std::string(buffer.data(), buffer.size()));
+
+    // 触发异步批量发送
+    if (!send_queue->sending.test_and_set()) {
+        this->post([this, session, &send_queue]() {
+            std::vector<std::string> packets;
+            packets.reserve(32);
+            send_queue->packets.try_dequeue_bulk(std::back_inserter(packets), 32);
+            
+            if (!packets.empty()) {
+                std::string combined;
+                combined.reserve(4096);
+                for (auto& pkt : packets) {
+                    combined.append(pkt);
+                }
+                RawProtocolImpl package;
+                package.encode(combined.data(), combined.size());
+                session->send(package.release());
+            }
+            send_queue->sending.clear();
+        });
+    }
+
+    // 更新时间轮
+    const auto now = std::chrono::steady_clock::now();
+    const auto session_id = session->hash_key();
+    
+    // 使用分层时间轮的无锁更新接口
+    const auto timestamp = static_cast<size_t>(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
+    time_wheels_[0].update_timestamp(
+        0, // level
+        session_id % HierarchicalTimeWheel::L1_SLOTS, // slot index
+        timestamp,
+        HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
+
+    // 更新用户心跳状态
     auto userdata = get_user_data_(session);
     userdata->update_heartbeat_time();
+    user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
 
-    user_notify_mgr_.async_dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
-#endif
+    // 时间轮自动推进（每秒检查一次）
+    static std::chrono::steady_clock::time_point last_advance;
+    if (now - last_advance > std::chrono::seconds(1)) {
+        current_wheel_index_.fetch_add(1, std::memory_order_relaxed);
+        last_advance = now;
+        
+        // 触发时间轮过期检测
+        const auto current_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
+        
+        time_wheels_[0].detect_expired_slots(
+            static_cast<size_t>(current_time - 30000), // 30秒过期
+            [this](auto slot_idx) {
+                time_wheels_[0].clear_slot(slot_idx);
+            },
+            HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS,
+            HierarchicalTimeWheel::MAX_EXPIRE_BATCH_SIZE
+        );
+    }
 }
 
 void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)

@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 
 // 项目自有头文件
+#include "ObserverServer.h"
 #include "LogicClient.h"
 #include "ObserverServer.h"
 #include "VmpSerialValidate.h"
@@ -29,10 +30,11 @@ extern std::shared_ptr<spdlog::logger> slog;
 // 业务线程池保持原有结构
 class BusinessThreadPool {
 private:
-    // 配置参数
-    static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 4096 * 4;
-    static constexpr size_t WORKER_BATCH_SIZE = 64;
-    static constexpr int MAX_EMPTY_ITERATIONS = 100;
+    // 优化后的配置参数
+    static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192;  // 增大本地队列容量
+    static constexpr size_t WORKER_BATCH_SIZE = 128;      // 增加批量处理数量
+    static constexpr int MAX_EMPTY_ITERATIONS = 50;       // 减少空转次数
+    static constexpr size_t MEMORY_POOL_INIT_SIZE = 16384;// 预分配内存池大小
     struct TaskWrapper {
         Task task;
         explicit TaskWrapper(Task&& t) noexcept : task(std::move(t)) {}
@@ -47,7 +49,7 @@ private:
 
     // 线程本地队列（SPSC）
     struct WorkerContext {
-        moodycamel::ReaderWriterQueue<TaskWrapper*> queue{ MAX_LOCAL_QUEUE_SIZE };
+        moodycamel::ReaderWriterQueue<TaskWrapper*> local_queue{ MAX_LOCAL_QUEUE_SIZE };
         //moodycamel::ConcurrentQueue<TaskWrapper*> local_pool;  // 本地内存池
         std::atomic<bool> active{ true };
     };
@@ -59,7 +61,7 @@ private:
     // 工作线程管理
     std::vector<std::thread> workers_;
     std::atomic<bool> stop_{ false };
-    std::atomic<size_t> pending_tasks_{ 0 };
+    std::atomic<int64_t> pending_tasks_{ 0 };
 
     // 内存池和线程上下文
     moodycamel::ConcurrentQueue<TaskWrapper*> task_pool_;
@@ -67,10 +69,10 @@ private:
     std::mutex context_mutex_;
 public:
     explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency())
-        : global_queue_(thread_count * 8192)
+        : global_queue_(thread_count * 4096/*8192*/)
     {
         // 预分配内存池对象（假设 Task 可默认构造）
-        const size_t INITIAL_POOL_SIZE = global_queue_.size_approx() * 2;
+        const size_t INITIAL_POOL_SIZE = global_queue_.size_approx() * 4;
         for (size_t i = 0; i < INITIAL_POOL_SIZE; ++i) {
             TaskWrapper* wrapper = new TaskWrapper(Task{});  // 需 Task 支持默认构造
             task_pool_.enqueue(wrapper);
@@ -137,55 +139,85 @@ public:
         // 从内存池获取或新建任务
         TaskWrapper* wrapper = nullptr;
         if (!task_pool_.try_dequeue(wrapper)) {
-            wrapper = new TaskWrapper(std::move(task));
+            wrapper = new (std::nothrow) TaskWrapper(std::move(task));
+            if (!wrapper) {
+                slog->critical("Memory allocation failed for task wrapper");
+                return false;
+            }
         }
         else {
             //wrapper->task = std::move(task);
             // 复用内存，直接移动赋值
-            *wrapper = TaskWrapper(std::move(task));  // 依赖 TaskWrapper 的移动赋值
+            //*wrapper = TaskWrapper(std::move(task));  // 依赖 TaskWrapper 的移动赋值
+            try {
+                *wrapper = TaskWrapper(std::move(task)); // 直接移动赋值
+            } catch (const std::exception& e) {
+                slog->error("Task assignment failed: {}", e.what());
+                delete wrapper; // 直接销毁无效对象
+                return false;
+            }
+        }
+
+        // 优先写入线程本地队列
+        WorkerContext* ctx = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(context_mutex_); // 加锁保护
+            if (!worker_contexts_.empty()) {
+                ctx = worker_contexts_[rand() % worker_contexts_.size()];
+            }
+        }
+
+        if (ctx && ctx->local_queue.try_enqueue(wrapper)) {
+            pending_tasks_.fetch_add(1, std::memory_order_relaxed);
+            return true;
         }
 
         if (global_queue_.try_enqueue(wrapper)) {
             pending_tasks_.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
-        else {
-            // 入队失败时补偿计数
-            pending_tasks_.fetch_sub(1, std::memory_order_relaxed);
-            task_pool_.enqueue(wrapper);
-            return false;
-        }
+
+        task_pool_.enqueue(wrapper);
         return false;
     }
 private:
     void worker_loop(WorkerContext* ctx, size_t worker_id) {
-        std::vector<TaskWrapper*> batch;
-        batch.reserve(WORKER_BATCH_SIZE);
-        int empty_cycles = 0;
-
-        while (!stop_.load(std::memory_order_acquire)) {
-            // 1. 处理本地队列
-            size_t processed = process_local(ctx, batch);
-
-            // 2. 处理全局队列
-            if (processed == 0) {
-                processed += process_global(batch);
+        SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);        
+        
+        constexpr size_t MAX_BATCH = 128;
+        TaskWrapper* local_batch[MAX_BATCH];
+        
+        while (!stop_) {
+            size_t processed = 0;
+            
+            // 优先处理本地队列
+            TaskWrapper* task;
+            while (ctx->local_queue.try_dequeue(task)) {
+                execute_task(task);
+                processed++;
             }
 
-            // 3. 工作窃取（安全模式）
+            // 处理全局队列（保持原有逻辑）
+            std::vector<TaskWrapper*> batch;
+            int count = process_global(batch);
+            processed += count;
+
+            // 工作窃取优化（使用已有方法）
             if (processed == 0) {
-                processed += try_steal(batch, worker_id);
+                processed += try_steal(batch, worker_id);  // 修正方法名
             }
 
-            // 4. 空闲管理
-            handle_idle(processed, empty_cycles);
+            // 自适应休眠
+            if (processed == 0) {
+                Sleep(1);
+            }
         }
     }
 
     size_t process_local(WorkerContext* ctx, std::vector<TaskWrapper*>& batch) {
         size_t processed = 0;
         TaskWrapper* task;
-        while (processed < WORKER_BATCH_SIZE && ctx->queue.try_dequeue(task)) {
+        while (processed < WORKER_BATCH_SIZE && ctx->local_queue.try_dequeue(task)) {
             execute_task(task);
             ++processed;
         }
@@ -217,7 +249,7 @@ private:
             if (!target_ctx->active.load(std::memory_order_acquire)) continue;
 
             TaskWrapper* task;
-            if (target_ctx->queue.try_dequeue(task)) {
+            if (target_ctx->local_queue.try_dequeue(task)) {
                 execute_task(task);
                 processed++;
                 break; // 窃取一个任务后退出，避免长时间持有锁
@@ -241,6 +273,9 @@ private:
             slog->error("Task failed with unknown exception");
         }
 
+        // 显式重置raw_msg，确保复用前状态正确
+        task->task.raw_msg.reset();  // 添加此行
+
         // 自动析构 task->task 的成员
         // 无需显式调用 task->task.~Task();
         //task->task.~Task();
@@ -263,7 +298,7 @@ private:
 
     void drain_queue(WorkerContext* ctx) {
         TaskWrapper* task;
-        while (ctx->queue.try_dequeue(task)) {
+        while (ctx->local_queue.try_dequeue(task)) {
             execute_task(task);
         }
     }    
@@ -274,8 +309,8 @@ public:
 
         // 安全释放多余对象
         if (current > MAX_POOL_SIZE) {
-            TaskWrapper* wrappers[512];
-            size_t count = task_pool_.try_dequeue_bulk(wrappers, 512);
+            TaskWrapper* wrappers[256];
+            size_t count = task_pool_.try_dequeue_bulk(wrappers, 256);
             for (size_t i = 0; i < count; ++i) {
                 delete wrappers[i];  // 正确释放内存
             }
@@ -384,7 +419,39 @@ void CObserverServer::process_task(Task&& task)
     }
     return;
 }
-
+// 优化后的心跳处理(分批+无锁)
+void CObserverServer::batch_heartbeat(const std::vector<tcp_session_shared_ptr_t>& sessions) {
+    constexpr size_t BATCH_SIZE = 512;
+    auto now = std::chrono::steady_clock::now();
+    
+    // 分批处理减少锁持有时间
+    for (size_t i = 0; i < sessions.size(); i += BATCH_SIZE) {
+        auto end = std::min(i + BATCH_SIZE, sessions.size());
+        std::shared_lock<std::shared_mutex> lock(session_times_mtx_);
+        
+        // 使用预分配内存避免重复分配
+        thread_local static phmap::flat_hash_map<tcp_session_shared_ptr_t, std::chrono::steady_clock::time_point> local_cache;
+        local_cache.reserve(BATCH_SIZE);
+        
+        for (size_t j = i; j < end; ++j) {
+            auto& session = sessions[j];
+            local_cache[session] = now;
+            if (auto user_data = get_user_data_(session)) {
+                user_data->update_heartbeat_time();
+            }
+        }
+        
+        // 批量更新到主存储
+        {
+            std::unique_lock<std::shared_mutex> unique_lock(session_times_mtx_);
+            // 手动合并map内容,因为merge不支持不同类型map的合并
+            for (const auto& [session, time] : local_cache) {
+                session_last_active_times_[session] = time;
+            }
+        }
+        local_cache.clear();
+    }
+}
 CObserverServer::CObserverServer()
 {
     static VmpSerialValidator vmp;
@@ -410,7 +477,12 @@ CObserverServer::CObserverServer()
                     ProtocolLC2LSAddUsrSession req;
                     auto& _userdata = req.data;
                     _userdata.session_id = session->hash_key();
-                    memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+                    if (user_data && user_data->uuid) {
+                        memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+                    }
+                    else {
+                        memset(_userdata.uuid, 0, sizeof(_userdata.uuid));
+                    }
                     _userdata.has_handshake = user_data->get_handshake();
                     _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
                     _userdata.json = user_data->data;
@@ -467,52 +539,6 @@ CObserverServer::CObserverServer()
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     });
-    /*package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-    #ifndef _DEBUG        
-        get_user_data_(session)->set_field("is_observer_client", true);
-        super::log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
-                   session->remote_port());
-        ProtocolLC2LSAddObsSession req;
-        req.session_id = session->hash_key();
-        logic_client_->send(&req);
-        ProtocolOBS2OBCAuth auth;
-        auth.status = true;
-        send(session, &auth);
-        ProtocolOBS2OBCQueryVmpExpire resp;
-        resp.vmp_expire = get_vmp_expire();
-        send(session, &resp);
-        return;
-    #else
-        auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
-        get_user_data_(session)->set_field("auth_key", auth_key);
-        if (auth_key == get_auth_ticket())
-        {
-            get_user_data_(session)->set_field("is_observer_client", true);
-            slog->info("授权观察者客户端成功 client_addr: {}:{}, session_id: {}",
-                       session->remote_address(), session->remote_port(), session->hash_key());
-            ProtocolLC2LSAddObsSession req;
-            req.session_id = session->hash_key();
-            logic_client_->send(&req);
-            ProtocolOBS2OBCAuth auth;
-            auth.status = true;
-            send(session, &auth);
-            ProtocolOBS2OBCQueryVmpExpire resp;
-            resp.vmp_expire = get_vmp_expire();
-            send(session, &resp);
-        }
-        else
-        {
-            get_user_data_(session)->set_field("is_observer_client", false);
-            slog->info("授权观察者客户端失败 client_addr: {}:{}, session_id: {}",
-                       session->remote_address(), session->remote_port(), session->hash_key());
-            ProtocolOBS2OBCAuth auth;
-            auth.status = false;
-            send(session, &auth);
-        }
-        std::wstring username = TEXT("(NULL)");
-        get_user_data_(session)->set_field("usrname", username);
-    #endif
-    });*/
 
     // Gate to Service
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
@@ -536,7 +562,12 @@ CObserverServer::CObserverServer()
             if (user_data->get_handshake()) {
                 ProtocolUserData _userdata;
                 _userdata.session_id = session->hash_key();
-                memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+                if (user_data && user_data->uuid) {
+                    memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+                }
+                else {
+                    memset(_userdata.uuid, 0, sizeof(_userdata.uuid));
+                }
                 _userdata.has_handshake = user_data->get_handshake();
                 _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
                 _userdata.json = user_data->data;
@@ -599,7 +630,12 @@ CObserverServer::CObserverServer()
         if (user_data->get_handshake())
         {
             _userdata.session_id = session->hash_key();
-            memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+            if (user_data && user_data->uuid) {
+                memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+            }
+            else {
+                memset(_userdata.uuid, 0, sizeof(_userdata.uuid));
+            }
             _userdata.has_handshake = user_data->get_handshake();
             _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
             _userdata.json = user_data->data;
@@ -626,7 +662,7 @@ CObserverServer::CObserverServer()
 // OBPKG_ID_C2S_AUTH
 void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
 {
-#ifndef _DEBUG        
+#ifdef _DEBUG        
     get_user_data_(session)->set_field("is_observer_client", true);
     super::log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                session->remote_port());
@@ -639,6 +675,8 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
     ProtocolOBS2OBCQueryVmpExpire resp;
     resp.vmp_expire = get_vmp_expire();
     slog->warn("vmp_expire: {}", Utils::w2c(resp.vmp_expire));
+    OutputDebugStringA("resp.vmp_expire.c_str()");
+    OutputDebugStringW(resp.vmp_expire.c_str());
     send(session, &resp);
     return;
 #else
@@ -649,15 +687,21 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
         get_user_data_(session)->set_field("is_observer_client", true);
         slog->info("授权观察者客户端成功 client_addr: {}:{}, session_id: {}",
                    session->remote_address(), session->remote_port(), session->hash_key());
+        ProtocolOBS2OBCQueryVmpExpire resp;
+        resp.vmp_expire = get_vmp_expire();
+        send(session, &resp);
         ProtocolLC2LSAddObsSession req;
         req.session_id = session->hash_key();
         logic_client_->send(&req);
         ProtocolOBS2OBCAuth auth;
         auth.status = true;
         send(session, &auth);
-        ProtocolOBS2OBCQueryVmpExpire resp;
-        resp.vmp_expire = get_vmp_expire();
-        send(session, &resp);
+        // 发送有效期日期
+        session->start_timer("query_vmp_expire", 2000, [this, resp, weak_session = std::weak_ptr(session)]() {
+            if (auto session = weak_session.lock()) {
+                send(session, &resp);
+            }
+        });
     }
     else
     {

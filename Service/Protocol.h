@@ -109,16 +109,23 @@ class RawProtocolBody
 {
 public:
 	RawProtocolBody(unsigned int sz)
-		: hash(0), buffer(sz) {};
+		: hash(0), buffer(sz) {}; 
+    RawProtocolBody(const RawProtocolBody& other)
+        : hash(other.hash), buffer(other.buffer) {
+    }
 	RawProtocolBody(const void* src, unsigned int sz)
 	{
 		copy(src, sz);
 	};
 	RawProtocolBody(RawProtocolBody&&) = default;
-	RawProtocolBody(RawProtocolBody const&) = default;
 	RawProtocolBody& operator=(RawProtocolBody&&) = default;
-	RawProtocolBody& operator=(RawProtocolBody const&) = default;
-
+    RawProtocolBody& operator=(const RawProtocolBody& other) {
+        if (this != &other) {
+            hash = other.hash;
+            buffer = other.buffer; // std::vector ×Ô¶¯Éî¿½±´
+        }
+        return *this;
+    }
 	inline std::size_t size()
 	{
 		return sizeof(hash) + buffer.size();
