@@ -430,12 +430,12 @@ void CObserverServer::batch_heartbeat(const std::vector<tcp_session_shared_ptr_t
         std::shared_lock<std::shared_mutex> lock(session_times_mtx_);
         
         // 使用预分配内存避免重复分配
-        thread_local static phmap::flat_hash_map<tcp_session_shared_ptr_t, std::chrono::steady_clock::time_point> local_cache;
+        thread_local static phmap::flat_hash_map<std::size_t, std::chrono::steady_clock::time_point> local_cache;
         local_cache.reserve(BATCH_SIZE);
         
         for (size_t j = i; j < end; ++j) {
             auto& session = sessions[j];
-            local_cache[session] = now;
+            local_cache[session->hash_key()] = now;
             if (auto user_data = get_user_data_(session)) {
                 user_data->update_heartbeat_time();
             }
@@ -445,8 +445,8 @@ void CObserverServer::batch_heartbeat(const std::vector<tcp_session_shared_ptr_t
         {
             std::unique_lock<std::shared_mutex> unique_lock(session_times_mtx_);
             // 手动合并map内容,因为merge不支持不同类型map的合并
-            for (const auto& [session, time] : local_cache) {
-                session_last_active_times_[session] = time;
+            for (const auto& [session_id, time] : local_cache) {
+                session_last_active_times_[session_id] = time;
             }
         }
         local_cache.clear();
@@ -666,18 +666,19 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
     get_user_data_(session)->set_field("is_observer_client", true);
     super::log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                session->remote_port());
-    ProtocolLC2LSAddObsSession req;
-    req.session_id = session->hash_key();
-    logic_client_->send(&req);
-    ProtocolOBS2OBCAuth auth;
-    auth.status = true;
-    send(session, &auth);
     ProtocolOBS2OBCQueryVmpExpire resp;
     resp.vmp_expire = get_vmp_expire();
     slog->warn("vmp_expire: {}", Utils::w2c(resp.vmp_expire));
-    OutputDebugStringA("resp.vmp_expire.c_str()");
-    OutputDebugStringW(resp.vmp_expire.c_str());
     send(session, &resp);
+    ProtocolLC2LSAddObsSession req;
+    req.session_id = session->hash_key();
+    logic_client_->async_send(&req);
+    ProtocolOBS2OBCAuth auth;
+    auth.status = true;
+    async_send(session, &auth);
+    if (auth_lock_.load()) {
+        auth_lock_.store(false); OutputDebugStringA("网关后台认证12");
+    }
     return;
 #else
     auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
@@ -692,16 +693,19 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
         send(session, &resp);
         ProtocolLC2LSAddObsSession req;
         req.session_id = session->hash_key();
-        logic_client_->send(&req);
+        logic_client_->async_send(&req);
         ProtocolOBS2OBCAuth auth;
         auth.status = true;
-        send(session, &auth);
+        async_send(session, &auth);
         // 发送有效期日期
         session->start_timer("query_vmp_expire", 2000, [this, resp, weak_session = std::weak_ptr(session)]() {
             if (auto session = weak_session.lock()) {
                 send(session, &resp);
             }
         });
+        if (auth_lock_.load()) {
+            auth_lock_.store(false); OutputDebugStringA("网关后台认证12");
+        }
     }
     else
     {

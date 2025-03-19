@@ -52,7 +52,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_) : super(), user_
         // 将处理逻辑投递到工作线程中执行
         theApp.m_WorkIo.post([vmp_expire = msg.vmp_expire]() {
 #ifdef GATEF
-            // 在GateF模式下，更新界面上的过期时间显示
+            // 在GateF模式下，更新界面上的过期时间显示        
             ((CStatic*)theApp.GetMainFrame()->m_games_dlg->GetDlgItem(IDC_EXPDATE_STATIC))->SetWindowText(vmp_expire.c_str());
 #else
             // 在非GateF模式下，更新界面上的过期时间显示

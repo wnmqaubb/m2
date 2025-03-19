@@ -849,7 +849,7 @@ void CClientView::OnServiceUploadCfg()
             ss << file.rdbuf();
             auto str = ss.str();
             ProtocolOBC2LSUploadConfig req;
-            req.file_name = "config.cfg";
+            req.file_name = CT2A(fileDlg.GetFileName());//"config.cfg";
             req.data.resize(str.size());
             std::copy(str.begin(), str.end(), req.data.begin());
             SendCurrentSelectedServiceCommand(&req);
@@ -870,7 +870,7 @@ void CClientView::OnServiceAllUploadCfg()
             ss << file.rdbuf();
             auto str = ss.str();
             ProtocolOBC2LSUploadConfig req;
-            req.file_name = "config.cfg";
+            req.file_name = CT2A(fileDlg.GetFileName());//"config.cfg";
             req.data.resize(str.size());
             std::copy(str.begin(), str.end(), req.data.begin());
             std::string ip;

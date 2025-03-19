@@ -269,6 +269,7 @@
     <ClInclude Include="AntiCheatClient.h" />
     <ClInclude Include="AntiCheatServer.h" />
     <ClInclude Include="LogicClient.h" />
+    <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="NetUtils.h" />
     <ClInclude Include="ObserverClient.h" />
     <ClInclude Include="ObserverServer.h" />

@@ -74,7 +74,7 @@ BOOL CGateFApp::InitInstance()
         STARTUPINFOA si = {};
         HANDLE pHandles[2] = {};
         si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
+        si.wShowWindow = SW_SHOW;
         PROCESS_INFORMATION pi = {};
         const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
 
@@ -102,6 +102,7 @@ BOOL CGateFApp::InitInstance()
         }
         pHandles[0] = pi.hProcess;
 
+        si.wShowWindow = SW_HIDE;
         path = path.parent_path() / "g_LogicServer.exe";
         std::string strLogicServerCmdline = path.string() + strCmdLine;
         res = CreateProcessA(NULL,
@@ -132,7 +133,7 @@ BOOL CGateFApp::InitInstance()
     }
 
     auto observer_client_ = m_ObServerClientGroup.get_observer_client(kDefaultLocalhost, kDefaultServicePort);
-    observer_client_->async_start(kDefaultLocalhost, kDefaultServicePort);
+    observer_client_->start(kDefaultLocalhost, kDefaultServicePort);
     observer_client_->set_auth_key(ReadAuthKey());
     observer_client_->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
@@ -269,7 +270,7 @@ void CGateFApp::OnServiceStart()
 	{
 		STARTUPINFOA si = {};
 		si.dwFlags = STARTF_USESHOWWINDOW;
-		si.wShowWindow = SW_SHOW;
+		si.wShowWindow = SW_HIDE;
 		CHAR chrFullPath[MAX_PATH] = { 0 };
 		GetModuleFileNameA(NULL, chrFullPath, sizeof(chrFullPath));
 
@@ -422,9 +423,9 @@ BOOL CGateFApp::OpenFolderAndSelectFile(CString szPath)
 std::string CGateFApp::ReadLicense()
 {
 	std::filesystem::path path(m_ExeDir);
-	path = path / "serial.txt";
+	path = path / "serial.txt"; 
 	if (std::filesystem::exists(path) == false)
-		return "";
+        return "";
 	std::string serial(
 		std::istreambuf_iterator<char>(std::ifstream(path) >> std::skipws),
 		std::istreambuf_iterator<char>());
@@ -447,3 +448,53 @@ std::string CGateFApp::ReadAuthKey()
 	VMProtectEnd();
 	return auth_key;
 }
+
+CString CGateFApp::ReadExpire()
+{
+    std::string sn = ReadLicense(); 
+    VMProtectBeginVirtualization(__FUNCTION__); 
+    int res = VMProtectSetSerialNumber(sn.c_str());
+    if (res)
+    {
+        std::wstring vmp_text = L"";
+        switch (res)
+        {
+            case SERIAL_STATE_FLAG_CORRUPTED:
+                vmp_text = L"许可系统已损坏。可能的原因是：被恶意破解。";
+                break;
+            case SERIAL_STATE_FLAG_INVALID:
+                vmp_text = L"请输入有效的序列号";
+                break;
+            case SERIAL_STATE_FLAG_BLACKLISTED:
+                vmp_text = L"序列号与产品匹配,但已冻结";
+                break;
+            case SERIAL_STATE_FLAG_DATE_EXPIRED:
+                vmp_text = L"序列号已过期。";
+                break;
+            case SERIAL_STATE_FLAG_RUNNING_TIME_OVER:
+                vmp_text = L"该程序的运行时间已用完。";
+                break;
+            case SERIAL_STATE_FLAG_BAD_HWID:
+                vmp_text = L"硬件标识符与密钥中指定的硬件标识符不匹配。";
+                break;
+            case SERIAL_STATE_FLAG_MAX_BUILD_EXPIRED:
+                vmp_text = L"序列号与受保护程序的当前版本不匹配。";
+                break;
+            default:
+                vmp_text = L"序列号错误，请联系客服。";
+                break;
+        }
+        AfxMessageBox(vmp_text.c_str());
+        return L"";
+    }
+    VMProtectSerialNumberData sd = { 0 };
+    VMProtectGetSerialNumberData(&sd, sizeof(sd));
+    CString vmp_expire_t;
+    vmp_expire_t.Format(TEXT("%d-%d-%d"), sd.dtExpire.wYear, sd.dtExpire.bMonth, sd.dtExpire.bDay);
+    if (!vmp_expire_t.IsEmpty()) {
+        ((CStatic*)theApp.GetMainFrame()->m_games_dlg->GetDlgItem(IDC_EXPDATE_STATIC))->SetWindowText(vmp_expire_t);
+    }
+    VMProtectEnd();
+    return vmp_expire_t;
+}
+

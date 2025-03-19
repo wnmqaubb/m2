@@ -44,6 +44,7 @@ public:
 	virtual CGateFDlg* GetMainFrame();
 	std::string ReadLicense();
 	std::string ReadAuthKey();
+    CString ReadExpire();
 	void OpenConfig();
 	void SaveConfig();
 	// 实现

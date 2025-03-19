@@ -91,6 +91,8 @@ BOOL CGateFDlg::OnInitDialog()
     m_tab_main.InsertItem(4, _T("日志"));
     ShowAllDlgInTab();
 
+    // 读取有效日期
+    //theApp.ReadExpire();
     // 填入一些静态树视图数据(此处只需填入虚拟代码，而不是复杂的数据)
     FillClientView();
 
@@ -99,8 +101,9 @@ BOOL CGateFDlg::OnInitDialog()
     //SetTimer(TIMER_ID_UPDATE_UAERNAME, 1000 * 60 * 10, NULL);
     if (theApp.is_parent_gate) {
         SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
-        SetTimer(TIMER_ID_QUERY_VMP_EXPIRE, 2000, NULL);
+        SetTimer(TIMER_ID_QUERY_VMP_EXPIRE, 1000, NULL);
     }
+
     return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 

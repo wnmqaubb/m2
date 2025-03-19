@@ -60,12 +60,66 @@ public:
                 }
             }
         }
-    };
+        template<typename F>
+        void batch_clear_slots(const std::vector<size_t>& slots, F&& callback) noexcept {
+            for (auto slot : slots) {
+                callback(slot);
+            }
+        }
 
+        // 优化后的检测方法：返回过期槽列表
+        std::vector<size_t> collect_expired_slots(size_t cutoff_time) noexcept {
+            std::vector<size_t> expired_slots;
+            const auto threshold = std::chrono::milliseconds(cutoff_time);
+            const auto now = std::chrono::steady_clock::now();
+
+            for (size_t bucket_idx = 0; bucket_idx < buckets.size(); ++bucket_idx) {
+                auto& bucket = buckets[bucket_idx];
+                const uint64_t mask = bucket.active_mask.exchange(0, std::memory_order_acquire);
+                if (mask == 0) continue;
+
+                for (size_t i = 0; i < 64; ++i) {
+                    if ((mask & (1ULL << i))) {
+                        if (now - bucket.timestamps[i] > threshold) {
+                            expired_slots.emplace_back(bucket_idx * 64 + i);
+                        }
+                    }
+                }
+            }
+            return expired_slots;
+        }
+    };
+    void start_expiration_handler() {
+        expiration_handler_thread_ = std::thread([this]() {
+            while (running_.load(std::memory_order_relaxed)) {
+                std::vector<size_t> slots;
+                slots.reserve(1024);
+                expired_slots_queue_.try_dequeue_bulk(
+                    std::back_inserter(slots),
+                    HierarchicalTimeWheel::MAX_EXPIRE_BATCH_SIZE
+                );
+
+                if (!slots.empty()) {
+                    time_wheels_[0].batch_clear_slots(slots, [this](auto slot_idx) {
+                        // 实际清理逻辑，保持轻量
+                        session_last_active_times_.erase(slot_idx);
+                    });
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        });
+    }
 private:    
     // 声明分层时间轮成员变量
     std::array<HierarchicalTimeWheel, 3> time_wheels_; // 三级时间轮
     std::atomic<uint32_t> current_wheel_index_{0};
+    std::atomic<bool> running_{ false };
+    std::thread expiration_handler_thread_;
+    // 过期会话处理队列（每个分片独立）
+    moodycamel::ConcurrentQueue<std::size_t> expired_sessions_queue_;
+    std::atomic<bool> session_cleaner_running_{ false };
+    std::thread session_cleaner_thread_;
+    std::array<std::atomic<uint32_t>, 12> shard_clean_counters_{};
 
 public:
     using self = CAntiCheatServer;
@@ -215,10 +269,11 @@ protected:
         phmap::Hash<std::size_t>, // Hash
         phmap::EqualTo<std::size_t>, // Eq
         std::allocator<std::pair<const std::size_t, std::chrono::steady_clock::time_point>>, // Alloc
-        32, // 分片数
-        phmap::NullMutex // 互斥类型
+        12, // 动态分片数 = CPU核心数×2 ,最大12
+        std::mutex // 互斥类型
     > session_last_active_times_;
-    
+    // 新增过期槽处理队列
+    moodycamel::ConcurrentQueue<size_t> expired_slots_queue_;
     // 分层时间轮成员变量
     // 更新后的分片访问包装器（使用phmap线程安全遍历）
     class SubmapAccessor {
@@ -270,6 +325,7 @@ protected:
     bool enable_proxy_tunnel_;
     std::string auth_ticket_;
     std::string auth_url_;
+    std::atomic<bool> auth_lock_{true}; // 启动时锁定
 };
 
 class HeartbeatTracker {
@@ -311,13 +367,12 @@ struct AntiCheatUserData
     uint32_t uuid[4];
     std::atomic<bool> has_handshake{ false };
     alignas(64) mutable std::shared_mutex mutex_;  // 缓存行对齐
-    std::chrono::steady_clock::time_point last_heartbeat_time{}; // 统一使用steady_clock
+    std::chrono::system_clock::time_point last_heartbeat_time{}; // 统一使用steady_clock
     unsigned char step = 0;
     json data;
     HeartbeatTracker heartbeat_tracker;
     char padding[64 - sizeof(std::shared_mutex)%64]; // 缓存行填充
 
-    // 保持原有方法不变...
     template <typename R = std::wstring>
     inline std::optional<R> get_field(const std::string& key) {
         try {
