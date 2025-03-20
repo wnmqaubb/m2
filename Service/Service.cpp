@@ -26,22 +26,33 @@
 #include <WinBase.h>
 #include <WinError.h>
 #include <WinNT.h>
+#include <spdlog/async.h>
 
 std::shared_ptr<asio::io_service> io = std::make_shared<asio::io_service>();
 std::shared_ptr<spdlog::logger> slog;
 
 int main(int argc, char** argv)
 {
+    // 创建异步线程池（队列大小8192）
+    auto tp = std::make_shared<spdlog::details::thread_pool>(8192,2);
 	// 创建控制台日志器
-	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+	//auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 	//console_sink->set_level(spdlog::level::debug);
-
+    //auto slog = spdlog::create_async<spdlog::sinks::daily_file_sink_mt>("logger", "logs/anti_cheat.log");
 	// 初始化日志系统
-	auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 1024, 5);
+    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 1024, 5);
 
-	// 创建组合日志器
-	std::vector<spdlog::sink_ptr> sinks{/*console_sink,*/ rotating_sink};
-    slog = std::make_shared<spdlog::logger>("Service_logger", sinks.begin(), sinks.end());
+    // 创建组合日志器时使用 sink
+    std::vector<spdlog::sink_ptr> sinks{/*console_sink,*/ rotating_sink };
+
+    // 使用 sinks 创建异步日志器
+    slog = std::make_shared<spdlog::async_logger>(
+        "async_logger",
+        sinks.begin(),
+        sinks.end(),
+        tp,
+        spdlog::async_overflow_policy::block
+    );
         
 	// 设置日志级别为调试
 #ifndef _DEBUG

@@ -20,14 +20,25 @@ using tcp_session_shared_ptr_t = std::shared_ptr<asio2::tcp_session>;
 
 #include <memory>
 //#include <concurrentqueue/concurrentqueue.h>
-
+// 检查msgpack::v1::object_handle的移动语义
+static_assert(
+    std::is_nothrow_move_constructible<msgpack::v1::object_handle>::value,
+    "msgpack::v1::object_handle must be nothrow movable"
+    );
 struct Task {
     unsigned int package_id;
     tcp_session_shared_ptr_t session;
     RawProtocolImpl package;
     std::unique_ptr<msgpack::v1::object_handle> raw_msg;  // 改为智能指针
 
-    Task() = default;
+    // 默认构造函数
+    Task()
+        : package_id(0),
+        session(nullptr),
+        package(),
+        raw_msg(nullptr)
+    {
+    }
     Task(unsigned int id, tcp_session_shared_ptr_t s,
          const RawProtocolImpl& p, msgpack::v1::object_handle&& msg)
         : package_id(id),
@@ -35,28 +46,45 @@ struct Task {
         package(p),
         raw_msg(std::make_unique<msgpack::v1::object_handle>(std::move(msg)))
     {
+        if (!raw_msg) {
+            slog->error("Failed to initialize raw_msg in Task constructor");
+        }
     }
 
-    // 显式定义移动构造函数
     Task(Task&& other) noexcept
         : package_id(other.package_id),
         session(std::move(other.session)),
         package(std::move(other.package)),
-        raw_msg(std::move(other.raw_msg))
+        raw_msg(std::move(other.raw_msg)) // 正确转移所有权
     {
+        assert(other.raw_msg.get() == nullptr || "Moving from non-empty Task");
+        // 确保源对象处于可安全析构状态
+        other.package_id = 0;
+        other.raw_msg.reset(nullptr);
     }
-
     Task& operator=(Task&& other) noexcept {
         if (this != &other) {
-            raw_msg.reset(); // 显式释放当前资源
+            // 1. 释放当前对象的旧资源
+            session.reset();      // 释放旧的 session
+            package = {};         // 清理 package
+            raw_msg.reset();      // 释放 raw_msg
+
+            // 2. 转移新资源的所有权
             package_id = other.package_id;
-            session = std::move(other.session);
+            session = std::move(other.session);    // 正确转移 session
             package = std::move(other.package);
             raw_msg = std::move(other.raw_msg);
+
+            // 3. 清空源对象状态
+            other.package_id = 0;
+            other.session.reset();     // 确保 other 不再持有资源
+            other.raw_msg.reset(nullptr);
         }
         return *this;
     }
 
+    // 添加资源跟踪日志
+    ~Task()=default;
     // 禁止拷贝
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
@@ -102,7 +130,7 @@ public:
 class HeartbeatThreadPool {
 private:
     static constexpr size_t BUFFER_SIZE = 65536;  // 2^16
-    static constexpr size_t BATCH_SIZE = 256;     // 256个任务/批次
+    static constexpr size_t BATCH_SIZE = 1024;     // 256个任务/批次
     static constexpr DWORD IDLE_SLEEP_MS = 1;
 
     struct alignas(64) HeartbeatTask {  // 缓存行对齐
@@ -135,12 +163,7 @@ public:
                 while (running_.load(std::memory_order_relaxed)) {
                     size_t count = try_read_batch(tasks, BATCH_SIZE);
                     if (count > 0) {
-                        LARGE_INTEGER start, end;
-                        QueryPerformanceCounter(&start);
-
                         process_batch(tasks, count);
-
-                        QueryPerformanceCounter(&end);
                         total_processed_.fetch_add(count);
                     }
                     else {

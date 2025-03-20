@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #if 0
 #if defined(GATE_EXPORT) || defined(ANTICHEAT_CLIENT_API)
 #define PROTOCOL_IMPL
@@ -122,7 +122,7 @@ public:
     RawProtocolBody& operator=(const RawProtocolBody& other) {
         if (this != &other) {
             hash = other.hash;
-            buffer = other.buffer; // std::vector �Զ����
+            buffer = other.buffer; // std::vector 自动深拷贝
         }
         return *this;
     }
@@ -319,68 +319,75 @@ public:
     PROTOCOL_EXPORT virtual bool decode(std::string_view sv)
 #if defined(PROTOCOL_IMPL)
     {
-        if (sv.size() < sizeof(HeadType))
-            return false;
-        bytes_streambuf bs(sv.data(), sv.size());
-        bs.istream() >> head.desc >> head.session_id >> head.sz;
-        if constexpr (EnableCrypt)
-        {
-            xor_buffer(&head, sizeof(HeadType), kProtocolXorKey);
-        }
-        if (sv.size() < head.size() + sizeof(body.hash))
-            return false;
-        unsigned int recv_hash = 0;
-        bs.istream() >> recv_hash;
-        std::size_t left_size = sv.size() - (head.size() + sizeof(body.hash));
-        if (left_size <= 0)
-            return false;
-        body.buffer.resize(left_size);
-        bs.istream().read(body.buffer.data(), left_size);
-        if constexpr (EnableCrypt)
-        {
-            if (head.crypted)
+        try {
+            if (sv.size() < sizeof(HeadType))
+                return false;
+            bytes_streambuf bs(sv.data(), sv.size());
+            bs.istream() >> head.desc >> head.session_id >> head.sz;
+            if constexpr (EnableCrypt)
             {
-                xor_buffer(body.buffer.data(), left_size, kProtocolXorKey);
-                head.crypted = 0;
+                xor_buffer(&head, sizeof(HeadType), kProtocolXorKey);
             }
-        }
-        if constexpr (EnableValidate == false)
-        {
-            body.hash = recv_hash;
+            if (sv.size() < head.size() + sizeof(body.hash))
+                return false;
+            unsigned int recv_hash = 0;
+            bs.istream() >> recv_hash;
+            std::size_t left_size = sv.size() - (head.size() + sizeof(body.hash));
+            if (left_size <= 0)
+                return false;
+            body.buffer.resize(left_size);
+            bs.istream().read(body.buffer.data(), left_size);
+            if constexpr (EnableCrypt)
+            {
+                if (head.crypted)
+                {
+                    xor_buffer(body.buffer.data(), left_size, kProtocolXorKey);
+                    head.crypted = 0;
+                }
+            }
+            if constexpr (EnableValidate == false)
+            {
+                body.hash = recv_hash;
+                return true;
+            }
+            body.hash = bkdr_hash(body.buffer.data(), left_size);
+            if (body.hash != recv_hash)
+                return false;
+            if (head.compressed)
+            {
+                auto raw_size = left_size;
+                while (true)
+                {
+                    BodyType uncompressed_body(raw_size * 8);
+                    unsigned long dst_sz = raw_size * 8;
+                    auto status = uncompress(uncompressed_body.buffer.data(), &dst_sz, body.buffer.data(), body.buffer.size());
+                    if (status == Z_OK)
+                    {
+                        uncompressed_body.buffer.resize(dst_sz);
+                        body = uncompressed_body;
+                        head.compressed = 0;
+                        head.sz = head.size() + body.size();
+                        body.hash = bkdr_hash(body.buffer.data(), body.buffer.size());
+                        return true;
+                    }
+                    else if (status == Z_BUF_ERROR)
+                    {
+                        raw_size *= 2;
+                        continue;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
             return true;
         }
-        body.hash = bkdr_hash(body.buffer.data(), left_size);
-        if (body.hash != recv_hash)
+        catch (...) {
+            // ❌ 修复：失败时清空 buffer
+            body.buffer.clear(); // 或 body.buffer = std::vector<char>();
             return false;
-        if (head.compressed)
-        {
-            auto raw_size = left_size;
-            while (true)
-            {
-                BodyType uncompressed_body(raw_size * 8);
-                unsigned long dst_sz = raw_size * 8;
-                auto status = uncompress(uncompressed_body.buffer.data(), &dst_sz, body.buffer.data(), body.buffer.size());
-                if (status == Z_OK)
-                {
-                    uncompressed_body.buffer.resize(dst_sz);
-                    body = uncompressed_body;
-                    head.compressed = 0;
-                    head.sz = head.size() + body.size();
-                    body.hash = bkdr_hash(body.buffer.data(), body.buffer.size());
-                    return true;
-                }
-                else if (status == Z_BUF_ERROR)
-                {
-                    raw_size *= 2;
-                    continue;
-                }
-                else
-                {
-                    return false;
-                }
-            }
         }
-        return true;
     }
 #else
         ;

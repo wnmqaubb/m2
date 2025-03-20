@@ -66,7 +66,7 @@ private:
     // 内存池和线程上下文
     moodycamel::ConcurrentQueue<TaskWrapper*> task_pool_;
     std::vector<WorkerContext*> worker_contexts_;
-    std::mutex context_mutex_;
+    std::shared_mutex context_mutex_;
 public:
     explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency())
         : global_queue_(thread_count * 4096/*8192*/)
@@ -74,16 +74,18 @@ public:
         // 预分配内存池对象（假设 Task 可默认构造）
         const size_t INITIAL_POOL_SIZE = global_queue_.size_approx() * 4;
         for (size_t i = 0; i < INITIAL_POOL_SIZE; ++i) {
-            TaskWrapper* wrapper = new TaskWrapper(Task{});  // 需 Task 支持默认构造
+            //TaskWrapper* wrapper = new TaskWrapper(Task{});  // 需 Task 支持默认构造
+            auto* wrapper = new TaskWrapper(
+                Task(0, nullptr, RawProtocolImpl{}, msgpack::v1::object_handle{})
+            );
             task_pool_.enqueue(wrapper);
         }
-
         workers_.reserve(thread_count);
         for (size_t i = 0; i < thread_count; ++i) {
             workers_.emplace_back([this, i] {
                 auto ctx = new WorkerContext();
                 {
-                    std::lock_guard<std::mutex> lock(context_mutex_);
+                    std::unique_lock<std::shared_mutex> lock(context_mutex_);
                     worker_contexts_.push_back(ctx);
                 }
 
@@ -91,7 +93,7 @@ public:
 
                 // 清理逻辑
                 {
-                    std::lock_guard<std::mutex> lock(context_mutex_);
+                    std::unique_lock<std::shared_mutex> lock(context_mutex_);
                     auto it = std::find(worker_contexts_.begin(), worker_contexts_.end(), ctx);
                     if (it != worker_contexts_.end()) {
                         worker_contexts_.erase(it);
@@ -128,42 +130,56 @@ public:
 
     bool enqueue(Task task) {
         if (stop_.load(std::memory_order_acquire)) return false;
-
+        // 新增有效性检查
+        if (IsBadReadPtr(&task, sizeof(Task))) { // Windows API
+            slog->critical("Invalid task enqueued");
+            return false;
+        }
         // 触发内存检查（每 1000 次入队检查一次）
         static std::atomic<size_t> counter{ 0 };
         if (counter++ % 1000 == 0) {
             check_memory_usage();
             log_pool_stats();
         }
-
         // 从内存池获取或新建任务
         TaskWrapper* wrapper = nullptr;
         if (!task_pool_.try_dequeue(wrapper)) {
-            wrapper = new (std::nothrow) TaskWrapper(std::move(task));
-            if (!wrapper) {
-                slog->critical("Memory allocation failed for task wrapper");
-                return false;
+            // 批量预分配64个对象
+            for (int i = 0; i < 64; ++i) {
+                auto* prealloc = new TaskWrapper(Task{});
+                task_pool_.enqueue(prealloc);
+            }
+            if (!task_pool_.try_dequeue(wrapper)) {
+                wrapper = new TaskWrapper(Task{});
             }
         }
         else {
-            //wrapper->task = std::move(task);
-            // 复用内存，直接移动赋值
-            //*wrapper = TaskWrapper(std::move(task));  // 依赖 TaskWrapper 的移动赋值
+            if (IsBadWritePtr(wrapper, sizeof(TaskWrapper))) {
+                delete wrapper;
+                wrapper = new TaskWrapper(std::move(task));
+            }
+            // 安全重置对象状态
             try {
-                *wrapper = TaskWrapper(std::move(task)); // 直接移动赋值
-            } catch (const std::exception& e) {
-                slog->error("Task assignment failed: {}", e.what());
-                delete wrapper; // 直接销毁无效对象
+                // 直接使用移动赋值（无需手动析构）
+                wrapper->task = std::move(task);  // 依赖Task的移动赋值运算符
+            }
+            catch (...) {
+                task_pool_.enqueue(wrapper);  // 回滚
                 return false;
             }
         }
-
         // 优先写入线程本地队列
         WorkerContext* ctx = nullptr;
         {
-            std::lock_guard<std::mutex> lock(context_mutex_); // 加锁保护
+            std::shared_lock lock(context_mutex_); 
             if (!worker_contexts_.empty()) {
-                ctx = worker_contexts_[rand() % worker_contexts_.size()];
+                // 使用更安全的随机数生成
+                static thread_local std::mt19937 gen(std::random_device{}());
+                std::uniform_int_distribution<size_t> dist(0, worker_contexts_.size() - 1);
+                size_t index = dist(gen);
+                if (index < worker_contexts_.size()) {  // 双重校验
+                    ctx = worker_contexts_[index];
+                }
             }
         }
 
@@ -212,6 +228,14 @@ private:
                 Sleep(1);
             }
         }
+        // 线程退出时清理
+        {
+            std::unique_lock lock(context_mutex_);
+            auto it = std::find(worker_contexts_.begin(), worker_contexts_.end(), ctx);
+            if (it != worker_contexts_.end()) {
+                worker_contexts_.erase(it);
+            }
+        }
     }
 
     size_t process_local(WorkerContext* ctx, std::vector<TaskWrapper*>& batch) {
@@ -238,7 +262,7 @@ private:
     }
 
     size_t try_steal(std::vector<TaskWrapper*>& batch, size_t thief_id) {
-        std::lock_guard<std::mutex> lock(context_mutex_);
+        std::unique_lock<std::shared_mutex> lock(context_mutex_);
         size_t processed = 0;
         for (size_t i = 0; i < worker_contexts_.size(); ++i) {
             size_t target = (thief_id + i + 1) % worker_contexts_.size();
@@ -257,31 +281,64 @@ private:
         }
         return processed;
     }
-
+    // 修改后的execute_task实现
     void execute_task(TaskWrapper* task) {
+        if (!task) return;
+
+        // 1. 提取任务数据（保证异常安全）
+        Task local_task;
         try {
-            if (!task->task.raw_msg) {
-                slog->error("Null msgpack handle");
-                return;
-            }
-            CObserverServer::instance().process_task(std::move(task->task));
-        }
-        catch (const std::exception& e) {
-            slog->error("Task failed: {}", e.what());
+            local_task = std::move(task->task); // 依赖修正后的移动赋值
         }
         catch (...) {
-            slog->error("Task failed with unknown exception");
+            slog->error("Task extraction failed");
+            return;
         }
 
-        // 显式重置raw_msg，确保复用前状态正确
-        task->task.raw_msg.reset();  // 添加此行
+        // 2. 重置Wrapper状态（重要！）
+        task->task.~Task();
+        new (&task->task) Task(); // 构造空对象
 
-        // 自动析构 task->task 的成员
-        // 无需显式调用 task->task.~Task();
-        //task->task.~Task();
-        task_pool_.enqueue(task);  // 直接回全局池，简化逻辑
+        // 3. 处理任务
+        try {
+            CObserverServer::instance().process_task(std::move(local_task));
+        }
+        catch (const std::exception& e) {
+            slog->error("Task processing failed: {}", e.what());
+        }
+
+        // 4. 回收内存（保证线程安全）
+        task_pool_.enqueue(task);
         pending_tasks_.fetch_sub(1, std::memory_order_relaxed);
     }
+    //void execute_task(TaskWrapper* task) {
+    //    //__try {
+    //    try {
+    //        if (task == nullptr || task->task.raw_msg == nullptr) {                
+    //            slog->error("Null msgpack handle");
+    //            return;
+    //        }
+    //        // 检查内存有效性（Windows API）
+    //        if (IsBadReadPtr(task->task.raw_msg.get(), sizeof(msgpack::v1::object_handle))) {
+    //            slog->critical("Detected invalid raw_msg pointer");
+    //            return;
+    //        }
+    //        Task local_task = std::move(task->task);
+    //        CObserverServer::instance().process_task(std::move(local_task));
+    //    }
+    //    catch (...) {
+    //    //__except (EXCEPTION_EXECUTE_HANDLER) {
+    //        slog->error("Exception in execute_task");
+    //    }
+
+    //    // 直接重置为默认构造状态（避免operator=）
+    //    task->task.~Task();  // 显式析构
+    //    new (&task->task) Task();  // placement new构造空对象
+    //    // 自动析构 task->task 的成员
+    //    task_pool_.enqueue(task);  // 直接回全局池，简化逻辑
+    //    std::atomic_thread_fence(std::memory_order_release);  // 确保写入对其他线程可见
+    //    pending_tasks_.fetch_sub(1, std::memory_order_relaxed);
+    //}
 
     void handle_idle(size_t processed, int& empty_cycles) {
         if (processed == 0) {
@@ -323,8 +380,6 @@ public:
         slog->info("Memory: pool={} tasks={} workers={}",
                    global, in_flight, worker_contexts_.size());
     }
-
-
 };
 
 // 全局线程池
@@ -362,6 +417,10 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
 
 void CObserverServer::process_task(Task&& task)
 {
+    if (IsBadReadPtr(task.raw_msg.get(), sizeof(msgpack::object_handle))) {
+        slog->critical("Invalid msgpack handle detected");
+        return;
+    }
     auto& [package_id, session, package, raw_msg] = task;
     std::shared_ptr<AntiCheatUserData> user_data;
     if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE) {
@@ -390,12 +449,12 @@ void CObserverServer::process_task(Task&& task)
         user_data = get_user_data_(session);
     }
 
-    auto is_observer_client = user_data->get_field<bool>("is_observer_client");
-    if (!(is_observer_client.has_value() && is_observer_client.value()))
-    {
-        super::log(LOG_TYPE_ERROR, TEXT("未授权Service调用"));
-        return;
-    }
+    // auto is_observer_client = user_data->get_field<bool>("is_observer_client");
+    // if (!(is_observer_client.has_value() && is_observer_client.value()))
+    // {
+    //     super::log(LOG_TYPE_ERROR, TEXT("未授权Service调用"));
+    //     return;
+    // }
 
     if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END) {
         // 执行任务

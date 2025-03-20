@@ -40,7 +40,6 @@
 #include <ObServerServer.h>
 #endif
 #include <execution>
-#include <MemoryPool.h>
 
 static std::set<std::string> ddos_black_List;
 static std::map<std::string, uint32_t> ddos_black_map;
@@ -76,21 +75,21 @@ CAntiCheatServer::~CAntiCheatServer()
 
 bool CAntiCheatServer::start(const std::string& listen_addr, int port)
 {
-    auto now = std::chrono::steady_clock::now();
-    constexpr size_t SHARD_COUNT = 8;  // 8线程并行
-    std::vector<std::thread> workers;
+    // auto now = std::chrono::steady_clock::now();
+    // constexpr size_t SHARD_COUNT = 8;  // 8线程并行
+    // std::vector<std::thread> workers;
 
-    for (size_t t = 0; t < SHARD_COUNT; ++t) {
-        workers.emplace_back([this, now, t, SHARD_COUNT] {
-            for (size_t slot = t; slot < 512; slot += SHARD_COUNT) {
-                const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-                time_wheels_[0].update_timestamp(0, slot, timestamp, HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
-            }
-        });
-    }
-    for (auto& w : workers) w.join();
+    // for (size_t t = 0; t < SHARD_COUNT; ++t) {
+    //     workers.emplace_back([this, now, t, SHARD_COUNT] {
+    //         for (size_t slot = t; slot < 512; slot += SHARD_COUNT) {
+    //             const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    //             time_wheels_[0].update_timestamp(0, slot, timestamp, HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
+    //         }
+    //     });
+    // }
+    // for (auto& w : workers) w.join();
 
-    current_wheel_index_.store(0, std::memory_order_release);
+    // current_wheel_index_.store(0, std::memory_order_release);
 
 
     enable_proxy_tunnel(false);
@@ -114,46 +113,46 @@ void CAntiCheatServer::on_init()
 
 void CAntiCheatServer::on_start()
 {
-    running_.store(true, std::memory_order_release);
-    start_expiration_handler();
+    //running_.store(true, std::memory_order_release);
+    //start_expiration_handler();
     log(LOG_TYPE_EVENT, TEXT("开始监听:%s:%u "), Utils::c2w(listen_address()).c_str(), listen_port());
     notify_mgr_.dispatch(SERVER_START_NOTIFY_ID);
-    session_cleaner_running_.store(true);
-    session_cleaner_thread_ = std::thread([this] {
-        constexpr size_t BATCH_SIZE = 1024;
-        std::vector<std::size_t> session_ids;
-        session_ids.reserve(BATCH_SIZE);
+    // session_cleaner_running_.store(true);
+    // session_cleaner_thread_ = std::thread([this] {
+    //     constexpr size_t BATCH_SIZE = 1024;
+    //     std::vector<std::size_t> session_ids;
+    //     session_ids.reserve(BATCH_SIZE);
 
-        while (session_cleaner_running_.load()) {
-            size_t count = expired_sessions_queue_.try_dequeue_bulk(
-                std::back_inserter(session_ids),
-                BATCH_SIZE
-            );
+    //     while (session_cleaner_running_.load()) {
+    //         size_t count = expired_sessions_queue_.try_dequeue_bulk(
+    //             std::back_inserter(session_ids),
+    //             BATCH_SIZE
+    //         );
 
-            if (count > 0) {
-                // 使用OpenMP并行清理（需开启编译选项）
-                // 使用phmap分片锁进行安全删除
-                phmap::parallel_flat_hash_map<std::size_t, 
-                    std::chrono::steady_clock::time_point>::iterator it;
+    //         if (count > 0) {
+    //             // 使用OpenMP并行清理（需开启编译选项）
+    //             // 使用phmap分片锁进行安全删除
+    //             phmap::parallel_flat_hash_map<std::size_t, 
+    //                 std::chrono::steady_clock::time_point>::iterator it;
                     
-                #pragma omp parallel for private(it)
-                for (int i = 0; i < static_cast<int>(count); ++i) {
-                    const auto session_id = session_ids[i];
-                    // 在对应分片上加锁操作
-                    session_last_active_times_.with_submap_m(
-                        session_id % 12,  // 修正分片索引计算
-                        [session_id](auto& submap) {
-                            submap.erase(session_id);
-                            return true;
-                        }
-                    );
-                }
-            }
+    //             #pragma omp parallel for private(it)
+    //             for (int i = 0; i < static_cast<int>(count); ++i) {
+    //                 const auto session_id = session_ids[i];
+    //                 // 在对应分片上加锁操作
+    //                 session_last_active_times_.with_submap_m(
+    //                     session_id % 12,  // 修正分片索引计算
+    //                     [session_id](auto& submap) {
+    //                         submap.erase(session_id);
+    //                         return true;
+    //                     }
+    //                 );
+    //             }
+    //         }
 
-            session_ids.clear();
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        }
-    });
+    //         session_ids.clear();
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    //     }
+    // });
 }
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
@@ -185,17 +184,12 @@ void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
-    //slog->info("=============on_recv_package收包: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
-#ifdef _DEBUG
-    _on_recv(session, sv);
-#else
     try
     {
         // 认证锁,优先处理网关后台认证
         if (auth_lock_.load()) {
-            OutputDebugStringA("000000");
             if (session->remote_address() == kDefaultLocalhost) {
-                _on_recv(session, sv); OutputDebugStringA("网关后台认证1");
+                _on_recv(session, sv); 
                 return;
             }
         }
@@ -205,10 +199,9 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
     }
     catch (...)
     {
-        slog->info("收包解析异常: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
-        log(LOG_TYPE_DEBUG, TEXT("收包解析异常:%s:%d 长度:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port(), sv.size());
+        //slog->info("收包解析异常: {}{} 长度:{}", session->remote_address(), session->remote_port(), sv.size());
+        //log(LOG_TYPE_DEBUG, TEXT("收包解析异常:%s:%d 长度:%d"), Utils::c2w(session->remote_address()).c_str(), session->remote_port(), sv.size());
     }
-#endif
 }
 
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
@@ -241,9 +234,6 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     }
 
     RawProtocolImpl package;
-
-    // 创建数据副本保障生命周期
-    auto buffer_copy = package.body.buffer;
     
     // 使用共享指针管理msgpack对象生命周期
     // 使用线程本地zone进行反序列化
@@ -256,22 +246,23 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
             sv.size());
         return;
     }
+    // ✅ 添加缓冲区有效性检查
+    if (package.body.buffer.empty()) {
+        log(LOG_TYPE_ERROR, TEXT("协议体为空"));
+        return;
+    }
     auto raw_msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
-    auto msg_handle = std::make_shared<msgpack::object_handle>(raw_msg);
-    
-    if (msg_handle->get().type != msgpack::type::ARRAY) throw msgpack::type_error();
-    if (msg_handle->get().via.array.size < 1) throw msgpack::type_error();
-    if (msg_handle->get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
-    const auto package_id = msg_handle->get().via.array.ptr[0].as<unsigned int>();
+    if (raw_msg.get().type != msgpack::type::ARRAY) throw msgpack::type_error();
+    if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
+    if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
+    const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
     auto user_data = get_user_data_(session);
-
-    user_data->step = package.head.step;
 
     if (user_data->get_handshake() == false)
     {
         if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
         {
-            auto msg = msg_handle->get().as<ProtocolC2SHandShake>();
+            auto msg = raw_msg.get().as<ProtocolC2SHandShake>();
             on_recv_handshake(session, package, msg);
             return;
         }
@@ -282,72 +273,26 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         }
     }
 
-    if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
-    {
-        auto msg = msg_handle->get().as<ProtocolC2SHeartBeat>();
-        on_recv_heartbeat(session, package, msg);
-        return;
-    }
-#if 0
-    log(Debug, TEXT("收到数据包:%s:%d 长度:%d"),
-        Utils::c2w(session->remote_address()).c_str(),
-        session->remote_port(),
-        sv.size());
-#endif
-#ifdef G_SERVICE
-    const std::size_t session_id = session->hash_key();
-    const auto now = std::chrono::steady_clock::now();
-
-    // 原子更新会话时间
-    session_last_active_times_.insert_or_assign(session_id, now);
-
-    // 分片级清理触发
-    const size_t shard_idx = session_id % 12; // 计算分片索引
-    if (shard_clean_counters_[shard_idx].fetch_add(1) % 128 == 0) {
-        const auto cutoff = now - std::chrono::minutes(5);
-
-        // 关键修复：使用分片索引而非session_id访问
-        session_last_active_times_.with_submap_m(
-            shard_idx, // 传入分片索引而非session_id
-            [cutoff, this](auto& submap) {
-            std::vector<std::size_t> expired;
-            expired.reserve(submap.size() / 2);
-
-            // phmap已自动加锁，直接操作
-            for (auto it = submap.begin(); it != submap.end();) {
-                if (it->second < cutoff) {
-                    expired.push_back(it->first);
-                    it = submap.erase(it); // 安全删除
-                }
-                else {
-                    ++it;
-                }
-            }
-
-            // 批量提交需要全局处理的会话
-            if (!expired.empty()) {
-                expired_sessions_queue_.enqueue_bulk(
-                    expired.data(),
-                    expired.size()
-                );
-            }
-            return true; // 继续处理其他分片
-        }
-        );
-    }
+    // if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
+    // {
+    //     auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
+    //     on_recv_heartbeat(session, package, msg);
+    //     return;
+    // }
+#ifdef G_SERVICE    
     // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
     if (OBPKG_ID_C2S_AUTH == package_id)
     {
-        CObserverServer::instance().obpkg_id_c2s_auth(session, package, std::move(*msg_handle));
+        CObserverServer::instance().obpkg_id_c2s_auth(session, package, std::move(raw_msg));
         return;
     }
 #else
-    if (package_mgr_.dispatch(package_id, session, package, *msg_handle))
+    if (package_mgr_.dispatch(package_id, session, package, raw_msg))
     {
         return;
     }
-    #endif
-    if (!on_recv(package_id, session, package, std::move(*msg_handle)))
+#endif
+    if (!on_recv(package_id, session, package, std::move(raw_msg)))
     {
         log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
             Utils::c2w(session->remote_address()).c_str(),
@@ -364,14 +309,14 @@ void CAntiCheatServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_stop()
 {
-    session_cleaner_running_.store(false);
-    if (session_cleaner_thread_.joinable()) {
-        session_cleaner_thread_.join();
-    }
-    running_.store(false, std::memory_order_release);
-    if (expiration_handler_thread_.joinable()) {
-        expiration_handler_thread_.join();
-    }
+    // session_cleaner_running_.store(false);
+    // if (session_cleaner_thread_.joinable()) {
+    //     session_cleaner_thread_.join();
+    // }
+    // running_.store(false, std::memory_order_release);
+    // if (expiration_handler_thread_.joinable()) {
+    //     expiration_handler_thread_.join();
+    // }
     auto ec = asio2::get_last_error();
     if (ec) {
         log(LOG_TYPE_EVENT, TEXT("停止监听:%s:%d"), Utils::c2w(listen_address()).c_str(), listen_port());
@@ -400,127 +345,127 @@ void CAntiCheatServer::stop_timer(unsigned int timer_id)
 
 void CAntiCheatServer::log(int type, LPCTSTR format, ...)
 {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lck(mtx);
-#ifndef _DEBUG
-    if ((log_level_ & type) == 0)
-        return;
-#endif // _DEBUG
-    auto now_time = std::time(nullptr);
-    std::tm tm_;
-    localtime_s(&tm_, &now_time);
-    std::stringstream ss;
-    ss << std::put_time(&tm_, "%H:%M:%S");
-    std::wstring time_str = Utils::c2w(ss.str());
-    std::wcout << time_str.c_str() << ":";
-    std::wstring buffer;
-    buffer.resize(1024);
-    va_list ap;
-    va_start(ap, format);
-    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
-    va_end(ap);
-    if (result < 0)
-    {
-        // 处理缓冲区溢出
-        OutputDebugStringW(L"[Error] Log message too long\n");
-        return;
-    }
-
-    switch (type)
-    {
-        case LOG_TYPE_DEBUG:
-            std::wcout << L"[Debug]";
-            break;
-        case LOG_TYPE_EVENT:
-            std::wcout << L"[Event]";
-            break;
-        case LOG_TYPE_ERROR:
-            std::wcout << L"[Error]";
-            break;
-        default:
-            break;
-    }
-    wprintf(TEXT("%s\n"), buffer.c_str());
-
-    if (log_cb_)
-        log_cb_(buffer.c_str(), false, true, "", false);
+//    static std::mutex mtx;
+//    std::lock_guard<std::mutex> lck(mtx);
+//#ifndef _DEBUG
+//    if ((log_level_ & type) == 0)
+//        return;
+//#endif // _DEBUG
+//    auto now_time = std::time(nullptr);
+//    std::tm tm_;
+//    localtime_s(&tm_, &now_time);
+//    std::stringstream ss;
+//    ss << std::put_time(&tm_, "%H:%M:%S");
+//    std::wstring time_str = Utils::c2w(ss.str());
+//    std::wcout << time_str.c_str() << ":";
+//    std::wstring buffer;
+//    buffer.resize(1024);
+//    va_list ap;
+//    va_start(ap, format);
+//    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+//    va_end(ap);
+//    if (result < 0)
+//    {
+//        // 处理缓冲区溢出
+//        OutputDebugStringW(L"[Error] Log message too long\n");
+//        return;
+//    }
+//
+//    switch (type)
+//    {
+//        case LOG_TYPE_DEBUG:
+//            std::wcout << L"[Debug]";
+//            break;
+//        case LOG_TYPE_EVENT:
+//            std::wcout << L"[Event]";
+//            break;
+//        case LOG_TYPE_ERROR:
+//            std::wcout << L"[Error]";
+//            break;
+//        default:
+//            break;
+//    }
+//    wprintf(TEXT("%s\n"), buffer.c_str());
+//
+//    if (log_cb_)
+//        log_cb_(buffer.c_str(), false, true, "", false);
 }
 
 void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...)
 {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lck(mtx);
-    if ((log_level_ & type) == 0)
-        return;
-    auto now_time = std::time(nullptr);
-    std::tm tm_;
-    localtime_s(&tm_, &now_time);
-    std::stringstream ss;
-    ss << std::put_time(&tm_, "%H:%M:%S");
-    std::wstring time_str = Utils::c2w(ss.str());
-    std::wcout << time_str.c_str() << ":";
-    std::wstring buffer;
-    buffer.resize(1024);
-    va_list ap;
+    //static std::mutex mtx;
+    //std::lock_guard<std::mutex> lck(mtx);
+    //if ((log_level_ & type) == 0)
+    //    return;
+    //auto now_time = std::time(nullptr);
+    //std::tm tm_;
+    //localtime_s(&tm_, &now_time);
+    //std::stringstream ss;
+    //ss << std::put_time(&tm_, "%H:%M:%S");
+    //std::wstring time_str = Utils::c2w(ss.str());
+    //std::wcout << time_str.c_str() << ":";
+    //std::wstring buffer;
+    //buffer.resize(1024);
+    //va_list ap;
 
-    va_start(ap, format);
-    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
-    va_end(ap);
-    if (result < 0)
-    {
-        // 处理缓冲区溢出
-        OutputDebugStringW(L"[Error] Log message too long\n");
-        return;
-    }
+    //va_start(ap, format);
+    //int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    //va_end(ap);
+    //if (result < 0)
+    //{
+    //    // 处理缓冲区溢出
+    //    OutputDebugStringW(L"[Error] Log message too long\n");
+    //    return;
+    //}
 
-    switch (type)
-    {
-        case LOG_TYPE_DEBUG:
-            std::wcout << L"[Debug]";
-            break;
-        case LOG_TYPE_EVENT:
-            std::wcout << L"[Event]";
-            break;
-        case LOG_TYPE_ERROR:
-            std::wcout << L"[Error]";
-            break;
-        default:
-            break;
-    }
-    wprintf(TEXT("%s\n"), buffer.c_str());
+    //switch (type)
+    //{
+    //    case LOG_TYPE_DEBUG:
+    //        std::wcout << L"[Debug]";
+    //        break;
+    //    case LOG_TYPE_EVENT:
+    //        std::wcout << L"[Event]";
+    //        break;
+    //    case LOG_TYPE_ERROR:
+    //        std::wcout << L"[Error]";
+    //        break;
+    //    default:
+    //        break;
+    //}
+    //wprintf(TEXT("%s\n"), buffer.c_str());
 
-    if (log_cb_)
-        log_cb_(buffer.c_str(), silense, gm_show, identify, false);
+    //if (log_cb_)
+    //    log_cb_(buffer.c_str(), silense, gm_show, identify, false);
 }
 
 void CAntiCheatServer::punish_log(LPCTSTR format, ...)
 {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lck(mtx);
-    auto now_time = std::time(nullptr);
-    std::tm tm_;
-    localtime_s(&tm_, &now_time);
-    std::stringstream ss;
-    ss << std::put_time(&tm_, "%H:%M:%S");
-    std::wstring time_str = Utils::c2w(ss.str());
-    std::wcout << time_str.c_str() << ":";
-    std::wstring buffer;
-    buffer.resize(1024);
-    va_list ap;
-    va_start(ap, format);
-    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
-    va_end(ap);
-    if (result < 0)
-    {
-        // 处理缓冲区溢出
-        OutputDebugStringW(L"[Error] Log message too long\n");
-        return;
-    }
-    std::wcout << L"[Event]";
-    wprintf(TEXT("%s\n"), buffer.c_str());
+    //static std::mutex mtx;
+    //std::lock_guard<std::mutex> lck(mtx);
+    //auto now_time = std::time(nullptr);
+    //std::tm tm_;
+    //localtime_s(&tm_, &now_time);
+    //std::stringstream ss;
+    //ss << std::put_time(&tm_, "%H:%M:%S");
+    //std::wstring time_str = Utils::c2w(ss.str());
+    //std::wcout << time_str.c_str() << ":";
+    //std::wstring buffer;
+    //buffer.resize(1024);
+    //va_list ap;
+    //va_start(ap, format);
+    //int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    //va_end(ap);
+    //if (result < 0)
+    //{
+    //    // 处理缓冲区溢出
+    //    OutputDebugStringW(L"[Error] Log message too long\n");
+    //    return;
+    //}
+    //std::wcout << L"[Event]";
+    //wprintf(TEXT("%s\n"), buffer.c_str());
 
-    if (log_cb_)
-        log_cb_(buffer.c_str(), true, true, "", true);
+    //if (log_cb_)
+    //    log_cb_(buffer.c_str(), true, true, "", true);
 }
 
 void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg)
