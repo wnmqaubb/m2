@@ -31,6 +31,9 @@ extern std::shared_ptr<spdlog::logger> slog;
 class BusinessThreadPool {
 private:
     // 优化后的配置参数
+    // 添加内存池配置参数
+    static constexpr size_t MEMORY_POOL_LOW_WATERMARK = 4096;  // 低水位线
+    static constexpr size_t GLOBAL_QUEUE_MAX = 100000;         // 新增全局队列容量限制
     static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192;  // 增大本地队列容量
     static constexpr size_t WORKER_BATCH_SIZE = 128;      // 增加批量处理数量
     static constexpr int MAX_EMPTY_ITERATIONS = 50;       // 减少空转次数
@@ -48,10 +51,11 @@ private:
     };
 
     // 线程本地队列（SPSC）
-    struct WorkerContext {
+    struct alignas(64) WorkerContext {
         moodycamel::ReaderWriterQueue<TaskWrapper*> local_queue{ MAX_LOCAL_QUEUE_SIZE };
         //moodycamel::ConcurrentQueue<TaskWrapper*> local_pool;  // 本地内存池
         std::atomic<bool> active{ true };
+        std::atomic<size_t> total_steals{ 0 };  // 窃取统计
     };
 
 
@@ -61,11 +65,14 @@ private:
     // 工作线程管理
     std::vector<std::thread> workers_;
     std::atomic<bool> stop_{ false };
+    std::atomic<bool> monitor_stop_{ false };  // 专用停止标志
     std::atomic<int64_t> pending_tasks_{ 0 };
+    std::thread monitor_thread_;  // 添加监控线程成员
 
     // 内存池和线程上下文
     moodycamel::ConcurrentQueue<TaskWrapper*> task_pool_;
-    std::vector<WorkerContext*> worker_contexts_;
+    // 使用weak_ptr避免悬挂指针
+    std::vector<std::weak_ptr<WorkerContext>> worker_contexts_;
     std::shared_mutex context_mutex_;
 public:
     explicit BusinessThreadPool(size_t thread_count = std::thread::hardware_concurrency())
@@ -83,33 +90,40 @@ public:
         workers_.reserve(thread_count);
         for (size_t i = 0; i < thread_count; ++i) {
             workers_.emplace_back([this, i] {
-                auto ctx = new WorkerContext();
+                auto ctx = std::make_shared<WorkerContext>();
                 {
-                    std::unique_lock<std::shared_mutex> lock(context_mutex_);
-                    worker_contexts_.push_back(ctx);
+                    std::unique_lock lock(context_mutex_);
+                    worker_contexts_.emplace_back(ctx);
                 }
 
                 worker_loop(ctx, i);
 
                 // 清理逻辑
                 {
-                    std::unique_lock<std::shared_mutex> lock(context_mutex_);
-                    auto it = std::find(worker_contexts_.begin(), worker_contexts_.end(), ctx);
-                    if (it != worker_contexts_.end()) {
-                        worker_contexts_.erase(it);
-                    }
+                    std::unique_lock lock(context_mutex_);
+                    auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
+                                           [&](const std::weak_ptr<WorkerContext>& weak_ctx) {
+                        auto shared_ctx = weak_ctx.lock();
+                        return shared_ctx && (shared_ctx == ctx);  // 比较shared_ptr对象
+                    });
                 }
 
                 ctx->active.store(false, std::memory_order_release);
                 drain_queue(ctx);
-                delete ctx;
             });
 
         }
+        // 在构造函数中启动监控线程
+        start_monitor();
     }
 
     ~BusinessThreadPool() {
         stop_.store(true, std::memory_order_release);
+        // 先停止监控线程
+        monitor_stop_.store(true, std::memory_order_release);
+        if (monitor_thread_.joinable()) {
+            monitor_thread_.join();
+        }
 
         // 等待所有任务完成
         while (pending_tasks_.load(std::memory_order_acquire) > 0) {
@@ -120,7 +134,6 @@ public:
         for (auto& w : workers_) {
             if (w.joinable()) w.join();
         }
-
         // 清理内存池
         TaskWrapper* task;
         while (task_pool_.try_dequeue(task)) {
@@ -129,81 +142,121 @@ public:
     }
 
     bool enqueue(Task task) {
-        if (stop_.load(std::memory_order_acquire)) return false;
-        // 新增有效性检查
-        if (IsBadReadPtr(&task, sizeof(Task))) { // Windows API
-            slog->critical("Invalid task enqueued");
+        if (stop_.load(std::memory_order_acquire)) {
+            slog->warn("Enqueue rejected: Thread pool is stopping");
             return false;
         }
-        // 触发内存检查（每 1000 次入队检查一次）
-        static std::atomic<size_t> counter{ 0 };
-        if (counter++ % 1000 == 0) {
-            check_memory_usage();
-            log_pool_stats();
-        }
-        // 从内存池获取或新建任务
+
+        // 获取或创建任务包装器
         TaskWrapper* wrapper = nullptr;
         if (!task_pool_.try_dequeue(wrapper)) {
-            // 批量预分配64个对象
-            for (int i = 0; i < 64; ++i) {
+            constexpr int BATCH_SIZE = 64;
+            for (int i = 0; i < BATCH_SIZE; ++i) {
                 auto* prealloc = new TaskWrapper(Task{});
-                task_pool_.enqueue(prealloc);
+                if (!task_pool_.enqueue(prealloc)) {
+                    delete prealloc;
+                }
             }
             if (!task_pool_.try_dequeue(wrapper)) {
                 wrapper = new TaskWrapper(Task{});
             }
         }
-        else {
-            if (IsBadWritePtr(wrapper, sizeof(TaskWrapper))) {
-                delete wrapper;
-                wrapper = new TaskWrapper(std::move(task));
-            }
-            // 安全重置对象状态
-            try {
-                // 直接使用移动赋值（无需手动析构）
-                wrapper->task = std::move(task);  // 依赖Task的移动赋值运算符
-            }
-            catch (...) {
-                task_pool_.enqueue(wrapper);  // 回滚
-                return false;
-            }
+
+        // 安全移动任务
+        try {
+            wrapper->task = std::move(task);
         }
-        // 优先写入线程本地队列
-        WorkerContext* ctx = nullptr;
+        catch (const std::exception& e) {
+            slog->error("Task move failed: {}", e.what());
+            task_pool_.enqueue(wrapper);
+            return false;
+        }
+
+        // 选择目标工作线程
+        std::shared_ptr<WorkerContext> target_ctx;
         {
-            std::shared_lock lock(context_mutex_); 
+            std::shared_lock<std::shared_mutex> lock(context_mutex_);
             if (!worker_contexts_.empty()) {
-                // 使用更安全的随机数生成
-                static thread_local std::mt19937 gen(std::random_device{}());
+                static thread_local std::mt19937_64 rng(std::random_device{}());
                 std::uniform_int_distribution<size_t> dist(0, worker_contexts_.size() - 1);
-                size_t index = dist(gen);
-                if (index < worker_contexts_.size()) {  // 双重校验
-                    ctx = worker_contexts_[index];
+
+                for (int attempt = 0; attempt < 3; ++attempt) {
+                    size_t index = dist(rng);
+                    if (index >= worker_contexts_.size()) continue;
+
+                    if (auto ctx = worker_contexts_[index].lock()) {  // 正确转换weak_ptr
+                        if (ctx->active.load(std::memory_order_acquire)) {
+                            target_ctx = ctx;
+                            break;
+                        }
+                    }
                 }
             }
         }
 
-        if (ctx && ctx->local_queue.try_enqueue(wrapper)) {
+        // 尝试本地队列入队
+        if (target_ctx && target_ctx->local_queue.try_enqueue(wrapper)) {
             pending_tasks_.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
 
-        if (global_queue_.try_enqueue(wrapper)) {
-            pending_tasks_.fetch_add(1, std::memory_order_relaxed);
-            return true;
+        // 降级到全局队列
+        if (global_queue_.size_approx() < GLOBAL_QUEUE_MAX) {  // 使用正确容量检查
+            if (global_queue_.enqueue(wrapper)) {
+                pending_tasks_.fetch_add(1, std::memory_order_relaxed);
+                return true;
+            }
         }
 
-        task_pool_.enqueue(wrapper);
+        // 最终回收
+        if (!task_pool_.enqueue(wrapper)) {
+            slog->warn("Memory pool full, direct delete");
+            delete wrapper;
+        }
         return false;
     }
 private:
-    void worker_loop(WorkerContext* ctx, size_t worker_id) {
-        SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);        
-        
+    // 修改监控线程实现
+    void start_monitor() {
+        monitor_thread_ = std::thread([this] {
+            while (!monitor_stop_.load(std::memory_order_acquire)) {
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+
+                // 双重检查避免竞态条件
+                if (monitor_stop_.load(std::memory_order_acquire)) break;
+
+                // 安全访问成员变量
+                const size_t pool_size = task_pool_.size_approx();
+                if (pool_size < MEMORY_POOL_LOW_WATERMARK) {
+                    const size_t need_alloc = MEMORY_POOL_INIT_SIZE - pool_size;
+                    for (size_t i = 0; i < need_alloc; ++i) {
+                        // 使用安全内存分配
+                        try {
+                            auto wrapper = new TaskWrapper(Task{});
+                            if (!task_pool_.enqueue(wrapper)) {
+                                delete wrapper;
+                            }
+                        }
+                        catch (const std::bad_alloc& e) {
+                            slog->error("Memory allocation failed: {}", e.what());
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+    void worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t worker_id) {
+        SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);       
+
         constexpr size_t MAX_BATCH = 128;
         TaskWrapper* local_batch[MAX_BATCH];
         
-        while (!stop_) {
+        while (!stop_.load(std::memory_order_relaxed)) {
+            // 每次循环前检查活性
+            if (!ctx->active.load(std::memory_order_acquire)) {
+                break;
+            }
             size_t processed = 0;
             
             // 优先处理本地队列
@@ -228,10 +281,11 @@ private:
                 Sleep(1);
             }
         }
-        // 线程退出时清理
+        // 退出时自动从上下文中移除
         {
             std::unique_lock lock(context_mutex_);
-            auto it = std::find(worker_contexts_.begin(), worker_contexts_.end(), ctx);
+            auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
+                                   [&](auto& weak_ctx) { return weak_ctx.lock() == ctx; });
             if (it != worker_contexts_.end()) {
                 worker_contexts_.erase(it);
             }
@@ -260,85 +314,106 @@ private:
         batch.clear();
         return count;
     }
-
+    
     size_t try_steal(std::vector<TaskWrapper*>& batch, size_t thief_id) {
-        std::unique_lock<std::shared_mutex> lock(context_mutex_);
-        size_t processed = 0;
-        for (size_t i = 0; i < worker_contexts_.size(); ++i) {
-            size_t target = (thief_id + i + 1) % worker_contexts_.size();
-            if (target == thief_id) continue;
+        std::shared_lock<std::shared_mutex> lock(context_mutex_);
+        size_t stolen = 0;
+        const size_t total_workers = worker_contexts_.size();
 
-            WorkerContext* target_ctx = worker_contexts_[target];
-            // 确保目标上下文有效
-            if (!target_ctx->active.load(std::memory_order_acquire)) continue;
+        // 优化参数配置
+        constexpr size_t MAX_STEAL_PER_WORKER = 32;    // 单线程最大窃取量
+        // 根据负载动态调整参数
+        size_t dynamic_steal_limit = std::min(
+            MAX_STEAL_PER_WORKER,
+            static_cast<size_t>(std::max<int64_t>(pending_tasks_.load(), 0)) /
+            (worker_contexts_.size() + 1)
+        );
+        // 随机选择起始窃取位置
+        static thread_local std::mt19937_64 rng(std::random_device{}());
+        std::uniform_int_distribution<size_t> dist(0, total_workers - 1);
+        size_t start_index = dist(rng);
 
-            TaskWrapper* task;
-            if (target_ctx->local_queue.try_dequeue(task)) {
-                execute_task(task);
-                processed++;
-                break; // 窃取一个任务后退出，避免长时间持有锁
+        for (size_t i = 0; i < total_workers && stolen < dynamic_steal_limit; ++i) {
+            // 环状遍历避免偏向
+            size_t target_index = (start_index + i) % total_workers;
+            if (target_index == thief_id) continue;
+
+            // 安全获取目标上下文
+            auto weak_ctx = worker_contexts_[target_index];
+            auto ctx = weak_ctx.lock();
+            if (!ctx || !ctx->active.load(std::memory_order_acquire)) {
+                continue;
+            }
+
+            // 单任务窃取模式
+            TaskWrapper* stolen_task = nullptr;
+            size_t local_stolen = 0;
+            while (local_stolen < dynamic_steal_limit) {
+                // 尝试窃取单个任务
+                if (!ctx->local_queue.try_dequeue(stolen_task)) {
+                    break;
+                }
+
+                // 安全处理窃取的任务
+                if (stolen_task) {
+                    batch.push_back(stolen_task);
+                    ++local_stolen;
+                    ++stolen;
+                }
+
+                // 达到单线程窃取上限
+                if (local_stolen >= dynamic_steal_limit) {
+                    break;
+                }
+            }
+
+            // 更新目标线程的窃取统计
+            if (local_stolen > 0) {
+                ctx->total_steals.fetch_add(local_stolen, std::memory_order_relaxed);
+            }
+
+            // 提前退出条件
+            if (stolen >= WORKER_BATCH_SIZE) {
+                break;
             }
         }
-        return processed;
+
+        // 批量执行窃取到的任务
+        if (!batch.empty()) {
+            for (auto task : batch) {
+                execute_task(task);
+            }
+            batch.clear();
+        }
+
+        pending_tasks_.fetch_sub(stolen, std::memory_order_relaxed);
+        return stolen;
     }
-    // 修改后的execute_task实现
     void execute_task(TaskWrapper* task) {
         if (!task) return;
 
-        // 1. 提取任务数据（保证异常安全）
-        Task local_task;
+        // 异常安全的移动捕获
         try {
-            local_task = std::move(task->task); // 依赖修正后的移动赋值
-        }
-        catch (...) {
-            slog->error("Task extraction failed");
-            return;
-        }
+            Task local_task;
+            local_task = std::move(task->task);  // 正确的移动赋值
 
-        // 2. 重置Wrapper状态（重要！）
-        task->task.~Task();
-        new (&task->task) Task(); // 构造空对象
-
-        // 3. 处理任务
-        try {
+            // 执行任务
             CObserverServer::instance().process_task(std::move(local_task));
         }
-        catch (const std::exception& e) {
-            slog->error("Task processing failed: {}", e.what());
+        catch (...) {
+            slog->error("Task execution failed");
         }
 
-        // 4. 回收内存（保证线程安全）
-        task_pool_.enqueue(task);
+        // 重置任务包装器
+        task->task = Task{};  // 显式重置为默认状态
+
+        // 回收内存
+        if (!task_pool_.enqueue(task)) {
+            slog->warn("Failed to recycle task wrapper");
+            delete task;
+        }
         pending_tasks_.fetch_sub(1, std::memory_order_relaxed);
     }
-    //void execute_task(TaskWrapper* task) {
-    //    //__try {
-    //    try {
-    //        if (task == nullptr || task->task.raw_msg == nullptr) {                
-    //            slog->error("Null msgpack handle");
-    //            return;
-    //        }
-    //        // 检查内存有效性（Windows API）
-    //        if (IsBadReadPtr(task->task.raw_msg.get(), sizeof(msgpack::v1::object_handle))) {
-    //            slog->critical("Detected invalid raw_msg pointer");
-    //            return;
-    //        }
-    //        Task local_task = std::move(task->task);
-    //        CObserverServer::instance().process_task(std::move(local_task));
-    //    }
-    //    catch (...) {
-    //    //__except (EXCEPTION_EXECUTE_HANDLER) {
-    //        slog->error("Exception in execute_task");
-    //    }
-
-    //    // 直接重置为默认构造状态（避免operator=）
-    //    task->task.~Task();  // 显式析构
-    //    new (&task->task) Task();  // placement new构造空对象
-    //    // 自动析构 task->task 的成员
-    //    task_pool_.enqueue(task);  // 直接回全局池，简化逻辑
-    //    std::atomic_thread_fence(std::memory_order_release);  // 确保写入对其他线程可见
-    //    pending_tasks_.fetch_sub(1, std::memory_order_relaxed);
-    //}
 
     void handle_idle(size_t processed, int& empty_cycles) {
         if (processed == 0) {
@@ -353,7 +428,7 @@ private:
         }
     }
 
-    void drain_queue(WorkerContext* ctx) {
+    void drain_queue(std::shared_ptr<WorkerContext>& ctx) {
         TaskWrapper* task;
         while (ctx->local_queue.try_dequeue(task)) {
             execute_task(task);

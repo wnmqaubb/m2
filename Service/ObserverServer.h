@@ -51,43 +51,36 @@ struct Task {
         }
     }
 
+    // 修改移动构造函数和移动赋值运算符，移除冗余操作
     Task(Task&& other) noexcept
         : package_id(other.package_id),
         session(std::move(other.session)),
         package(std::move(other.package)),
-        raw_msg(std::move(other.raw_msg)) // 正确转移所有权
+        raw_msg(std::move(other.raw_msg))
     {
-        assert(other.raw_msg.get() == nullptr || "Moving from non-empty Task");
-        // 确保源对象处于可安全析构状态
-        other.package_id = 0;
-        other.raw_msg.reset(nullptr);
+        other.package_id = 0; // 仅置package_id，其他由移动操作处理
     }
+
     Task& operator=(Task&& other) noexcept {
         if (this != &other) {
-            // 1. 释放当前对象的旧资源
-            session.reset();      // 释放旧的 session
-            package = {};         // 清理 package
-            raw_msg.reset();      // 释放 raw_msg
-
-            // 2. 转移新资源的所有权
+            // 成员移动自动处理旧资源
+            raw_msg.reset();
             package_id = other.package_id;
-            session = std::move(other.session);    // 正确转移 session
+            session = std::move(other.session);
             package = std::move(other.package);
             raw_msg = std::move(other.raw_msg);
 
-            // 3. 清空源对象状态
             other.package_id = 0;
-            other.session.reset();     // 确保 other 不再持有资源
-            other.raw_msg.reset(nullptr);
         }
         return *this;
     }
-
     // 添加资源跟踪日志
     ~Task()=default;
     // 禁止拷贝
     Task(const Task&) = delete;
-    Task& operator=(const Task&) = delete;
+    Task& operator=(const Task&) = delete; 
+    //Task(Task&& other) noexcept;
+    //Task& operator=(Task&& other) noexcept;
 };
 
 
