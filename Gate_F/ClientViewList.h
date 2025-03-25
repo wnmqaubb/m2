@@ -1,11 +1,11 @@
-#pragma once
+ï»¿#pragma once
 #include "ViewList.h"
 #include <map>
 class CGateFDlgList :
     public CViewList
 {
 private:
-    // ¼ì²â³öÓÃÍâ¹ÒµÄÍæ¼ÒµÄuuid
+    // æ£€æµ‹å‡ºç”¨å¤–æŒ‚çš„ç©å®¶çš„uuid
     std::map<std::wstring, bool> m_suspicious_uuids;
 public:
     CGateFDlgList();

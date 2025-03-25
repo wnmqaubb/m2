@@ -190,7 +190,7 @@ void CClientImpl::query_plugin_list()
 
 void CClientImpl::start_plugin_list_timer()
 {
-    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(2), [this]() {
+    start_timer<unsigned int>(QUERY_PLUGIN_LIST_TIMER_ID, std::chrono::minutes(5), [this]() {
         query_plugin_list();
     });
 }

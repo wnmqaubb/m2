@@ -1,4 +1,4 @@
-// COBSCLogicDlg.cpp: 实现文件
+﻿// COBSCLogicDlg.cpp: 实现文件
 //
 
 #include "pch.h"
@@ -67,37 +67,6 @@ BOOL COBSCLogicDlg::OnInitDialog()
 	m_log_observer_client.SetBackgroundColor(false, RGB(0, 0, 0));
 	//SetTextColor(RGB(0, 255, 0));
 	/*AddLog(L"33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));
-	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(255, 0, 0));
 	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 255, 0));
 	AddLog(L"[Event]12:27:27|处罚玩家:反外挂联盟传奇部 - 我是传奇 处罚类型:退出游戏 处罚原因:外挂程序为:TXPlatfor.exe|", RGB(0, 0, 255));*/
 	return TRUE;
