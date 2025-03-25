@@ -273,12 +273,19 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         }
     }
 
-    // if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
-    // {
-    //     auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
-    //     on_recv_heartbeat(session, package, msg);
-    //     return;
-    // }
+     if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
+     {
+         auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
+
+         ProtocolS2CHeartBeat resp;
+         resp.tick = msg.tick;
+         async_send(session, &resp);
+         auto userdata = get_user_data_(session);
+         userdata->update_heartbeat_time();
+         user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
+         //on_recv_heartbeat(session, package, msg);
+         return;
+     }
 #ifdef G_SERVICE    
     // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
     if (OBPKG_ID_C2S_AUTH == package_id)
@@ -287,10 +294,10 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         return;
     }
 #else
-    if (package_mgr_.dispatch(package_id, session, package, raw_msg))
-    {
-        return;
-    }
+    // if (package_mgr_.dispatch(package_id, session, package, raw_msg))
+    // {
+    //     return;
+    // }
 #endif
     if (!on_recv(package_id, session, package, std::move(raw_msg)))
     {
@@ -345,78 +352,78 @@ void CAntiCheatServer::stop_timer(unsigned int timer_id)
 
 void CAntiCheatServer::log(int type, LPCTSTR format, ...)
 {
-//    static std::mutex mtx;
-//    std::lock_guard<std::mutex> lck(mtx);
-//#ifndef _DEBUG
-//    if ((log_level_ & type) == 0)
-//        return;
-//#endif // _DEBUG
-//    auto now_time = std::time(nullptr);
-//    std::tm tm_;
-//    localtime_s(&tm_, &now_time);
-//    std::stringstream ss;
-//    ss << std::put_time(&tm_, "%H:%M:%S");
-//    std::wstring time_str = Utils::c2w(ss.str());
-//    std::wcout << time_str.c_str() << ":";
-//    std::wstring buffer;
-//    buffer.resize(1024);
-//    va_list ap;
-//    va_start(ap, format);
-//    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
-//    va_end(ap);
-//    if (result < 0)
-//    {
-//        // 处理缓冲区溢出
-//        OutputDebugStringW(L"[Error] Log message too long\n");
-//        return;
-//    }
-//
-//    switch (type)
-//    {
-//        case LOG_TYPE_DEBUG:
-//            std::wcout << L"[Debug]";
-//            break;
-//        case LOG_TYPE_EVENT:
-//            std::wcout << L"[Event]";
-//            break;
-//        case LOG_TYPE_ERROR:
-//            std::wcout << L"[Error]";
-//            break;
-//        default:
-//            break;
-//    }
-//    wprintf(TEXT("%s\n"), buffer.c_str());
-//
-//    if (log_cb_)
-//        log_cb_(buffer.c_str(), false, true, "", false);
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lck(mtx);
+#ifndef _DEBUG
+    if ((log_level_ & type) == 0)
+        return;
+#endif // _DEBUG
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
+    localtime_s(&tm_, &now_time);
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::wstring time_str = Utils::c2w(ss.str());
+    std::wcout << time_str.c_str() << ":";
+    std::wstring buffer;
+    buffer.resize(1024);
+    va_list ap;
+    va_start(ap, format);
+    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringW(L"[Error] Log message too long\n");
+        return;
+    }
+
+    switch (type)
+    {
+        case LOG_TYPE_DEBUG:
+            std::wcout << L"[Debug]";
+            break;
+        case LOG_TYPE_EVENT:
+            std::wcout << L"[Event]";
+            break;
+        case LOG_TYPE_ERROR:
+            std::wcout << L"[Error]";
+            break;
+        default:
+            break;
+    }
+    wprintf(TEXT("%s\n"), buffer.c_str());
+
+    if (log_cb_)
+        log_cb_(buffer.c_str(), false, true, "", false);
 }
 
 void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...)
 {
-    //static std::mutex mtx;
-    //std::lock_guard<std::mutex> lck(mtx);
-    //if ((log_level_ & type) == 0)
-    //    return;
-    //auto now_time = std::time(nullptr);
-    //std::tm tm_;
-    //localtime_s(&tm_, &now_time);
-    //std::stringstream ss;
-    //ss << std::put_time(&tm_, "%H:%M:%S");
-    //std::wstring time_str = Utils::c2w(ss.str());
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lck(mtx);
+    if ((log_level_ & type) == 0)
+        return;
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
+    localtime_s(&tm_, &now_time);
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::wstring time_str = Utils::c2w(ss.str());
     //std::wcout << time_str.c_str() << ":";
-    //std::wstring buffer;
-    //buffer.resize(1024);
-    //va_list ap;
+    std::wstring buffer;
+    buffer.resize(1024);
+    va_list ap;
 
-    //va_start(ap, format);
-    //int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
-    //va_end(ap);
-    //if (result < 0)
-    //{
-    //    // 处理缓冲区溢出
-    //    OutputDebugStringW(L"[Error] Log message too long\n");
-    //    return;
-    //}
+    va_start(ap, format);
+    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringW(L"[Error] Log message too long\n");
+        return;
+    }
 
     //switch (type)
     //{
@@ -434,38 +441,38 @@ void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std:
     //}
     //wprintf(TEXT("%s\n"), buffer.c_str());
 
-    //if (log_cb_)
-    //    log_cb_(buffer.c_str(), silense, gm_show, identify, false);
+    if (log_cb_)
+        log_cb_(buffer.c_str(), silense, gm_show, identify, false);
 }
 
 void CAntiCheatServer::punish_log(LPCTSTR format, ...)
 {
-    //static std::mutex mtx;
-    //std::lock_guard<std::mutex> lck(mtx);
-    //auto now_time = std::time(nullptr);
-    //std::tm tm_;
-    //localtime_s(&tm_, &now_time);
-    //std::stringstream ss;
-    //ss << std::put_time(&tm_, "%H:%M:%S");
-    //std::wstring time_str = Utils::c2w(ss.str());
-    //std::wcout << time_str.c_str() << ":";
-    //std::wstring buffer;
-    //buffer.resize(1024);
-    //va_list ap;
-    //va_start(ap, format);
-    //int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
-    //va_end(ap);
-    //if (result < 0)
-    //{
-    //    // 处理缓冲区溢出
-    //    OutputDebugStringW(L"[Error] Log message too long\n");
-    //    return;
-    //}
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lck(mtx);
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
+    localtime_s(&tm_, &now_time);
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::wstring time_str = Utils::c2w(ss.str());
+    std::wcout << time_str.c_str() << ":";
+    std::wstring buffer;
+    buffer.resize(1024);
+    va_list ap;
+    va_start(ap, format);
+    int result = _vsnwprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringW(L"[Error] Log message too long\n");
+        return;
+    }
     //std::wcout << L"[Event]";
     //wprintf(TEXT("%s\n"), buffer.c_str());
 
-    //if (log_cb_)
-    //    log_cb_(buffer.c_str(), true, true, "", true);
+    if (log_cb_)
+        log_cb_(buffer.c_str(), true, true, "", true);
 }
 
 void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg)

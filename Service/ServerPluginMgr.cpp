@@ -1,126 +1,92 @@
 ﻿#include "pch.h"
+#include <iostream>
 #include "LogicServer.h"
 #include "ServerPluginMgr.h"
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <filesystem>
-#include <iosfwd>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <set>
-#include <shared_mutex>
-#include <string>
-#include <string_view>
-#include <system_error>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-#include <msgpack/v1/object_fwd.hpp>
-#include <msgpack/v1/pack.hpp>
-#include <msgpack/v1/sbuffer.hpp>
-#include <msgpack/v3/unpack.hpp>
-#include "NetUtils.h"
-#include "Protocol.h"
-#include "SubServicePackage.h"
 
-// 优化后的插件管理实现
-RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash) {
-    constexpr int SHARD_COUNT = 256;
-    size_t shard_idx = plugin_hash % SHARD_COUNT;
-    PluginShard& shard = plugin_shards_[shard_idx];
-    std::shared_lock lock(shard.mtx);
-    
-    tbb::concurrent_hash_map<unsigned int, 
-        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::const_accessor ca;
-    if (shard.plugins.find(ca, plugin_hash)) {
-        return ca->second.first;
+RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash)
+{
+    std::shared_lock<std::shared_mutex> lck(mtx_);
+    for (auto [file_hash, data] : plugin_cache_)
+    {
+        if (data.second.plugin_hash == plugin_hash)
+        {
+            return data.first;
+        }
     }
     return RawProtocolImpl();
 }
 
-bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash) {
-    constexpr int SHARD_COUNT = 256;
-    size_t shard_idx = file_hash % SHARD_COUNT;
-    PluginShard& shard = plugin_shards_[shard_idx];
-    std::shared_lock lock(shard.mtx);
-    
-    tbb::concurrent_hash_map<unsigned int, 
-        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::const_accessor ca;
-    return shard.plugins.find(ca, file_hash);
+bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash)
+{
+    std::shared_lock<std::shared_mutex> lck(mtx_);
+    return plugin_cache_.find(file_hash) != plugin_cache_.end();
 }
 
-void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin) {
-    constexpr int SHARD_COUNT = 256;
-    size_t shard_idx = file_hash % SHARD_COUNT;
-    PluginShard& shard = plugin_shards_[shard_idx];
-    std::unique_lock lock(shard.mtx);
-
-    tbb::concurrent_hash_map<unsigned int, 
-        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::accessor acc;
-    if (shard.plugins.insert(acc, file_hash)) {
+void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin)
+{
+    std::unique_lock<std::shared_mutex> lck(mtx_);
+    if (plugin_cache_.find(file_hash) == plugin_cache_.end())
+    {
         msgpack::sbuffer buffer;
         msgpack::pack(buffer, plugin);
         RawProtocolImpl raw_package;
         raw_package.encode(buffer.data(), buffer.size());
-        acc->second = std::make_pair(raw_package, plugin);
+        plugin.data.clear();
+        plugin_cache_.emplace(std::make_pair(file_hash, std::make_pair(raw_package, plugin)));
         printf("加载插件:%s\n", plugin.plugin_name.c_str());
     }
 }
 
-void CServerPluginMgr::remove_plugin(unsigned int file_hash) {
-    constexpr int SHARD_COUNT = 256;
-    size_t shard_idx = file_hash % SHARD_COUNT;
-    PluginShard& shard = plugin_shards_[shard_idx];
-    std::unique_lock lock(shard.mtx);
-
-    tbb::concurrent_hash_map<unsigned int, 
-        std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::accessor acc;
-    if (shard.plugins.find(acc, file_hash)) {
-        printf("卸载插件:%s\n", acc->second.second.plugin_name.c_str());
-        shard.plugins.erase(acc);
+void CServerPluginMgr::remove_plugin(unsigned int file_hash)
+{
+    std::unique_lock<std::shared_mutex> lck(mtx_);
+    if (plugin_cache_.find(file_hash) != plugin_cache_.end())
+    {
+        printf("卸载插件:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
+        plugin_cache_.erase(file_hash);
     }
 }
 
-
-void CServerPluginMgr::reload_all_plugin()
-{
+void CServerPluginMgr::reload_all_plugin() {
+    std::lock_guard<std::mutex> reload_guard(reload_mutex_);  // 防止并发重载
     namespace fs = std::filesystem;
     std::error_code ec;
     fs::path dir = g_cur_dir / "plugin";
-    if (fs::is_directory(dir, ec))
-    {
+
+    if (fs::is_directory(dir, ec)) {
+        // 1. 构建新插件列表
         std::map<unsigned int, fs::path> new_plugin_list;
-        for (auto& file_path : std::filesystem::directory_iterator(dir))
-        {
-            if (file_path.path().extension() != ".dll")
-                continue;
-            std::ifstream file(file_path.path(), std::ios::in | std::ios::binary);
-            if (file.is_open())
-            {
-                file.seekg(sizeof(RawProtocolHead), file.beg);
+        for (auto& file_path : fs::directory_iterator(dir)) {
+            if (file_path.path().extension() != ".dll") continue;
+            // 读取 file_hash...
+            std::string file_path_str = file_path.path().string();
+            std::ifstream file(file_path_str, std::ios::in | std::ios::binary);
+            if (file.is_open()) {
+                file.seekg(sizeof(RawProtocolHead), std::ios::beg);
                 unsigned int file_hash = 0;
                 file.read((char*)&file_hash, sizeof(file_hash));
                 file.close();
-                new_plugin_list.emplace(std::make_pair(file_hash, file_path));
+                new_plugin_list.emplace(file_hash, file_path.path());
             }
         }
 
-        for (auto loaded_plugin_file_hash : get_plugin_file_hash_set())
-        {
-            if (new_plugin_list.find(loaded_plugin_file_hash) == new_plugin_list.end())
-            {
-                remove_plugin(loaded_plugin_file_hash);
+        // 2. 删除旧插件（直接操作 plugin_cache_）
+        auto it = plugin_cache_.begin();
+        while (it != plugin_cache_.end()) {
+            if (new_plugin_list.find(it->first) == new_plugin_list.end()) {
+                it = plugin_cache_.erase(it);  // 直接删除，无需调用 remove_plugin
+            }
+            else {
+                ++it;
             }
         }
-        for (auto[file_hash, plugin_path] : new_plugin_list)
-        {
-            if (!is_plugin_file_hash_exist(file_hash))
-            {
-                std::ifstream file(plugin_path, std::ios::in | std::ios::binary);
-                if (file.is_open())
-                {
+
+        // 3. 加载新增插件（直接操作 plugin_cache_）
+        for (const auto& [file_hash, path] : new_plugin_list) {
+            if (plugin_cache_.find(file_hash) == plugin_cache_.end()) {  // 直接检查缓存
+                std::ifstream file(path, std::ios::in | std::ios::binary);
+                if (file.is_open()) {
+                    // 加载插件并插入 plugin_cache_...
                     RawProtocolImpl package;
                     std::stringstream ss;
                     ss << file.rdbuf();
@@ -128,14 +94,18 @@ void CServerPluginMgr::reload_all_plugin()
                     auto str = ss.str();
                     std::string_view sv(str.data(), str.size());
                     package.decode(sv);
-                    try
-                    {
+                    try {
                         auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
-                        add_plugin(file_hash, msg.get().as<ProtocolS2CDownloadPlugin>());
+                        ProtocolS2CDownloadPlugin plugin = msg.get().as<ProtocolS2CDownloadPlugin>();
+                        // 直接构造缓存项，避免调用 add_plugin
+                        msgpack::sbuffer buffer;
+                        msgpack::pack(buffer, plugin);
+                        RawProtocolImpl raw_package;
+                        raw_package.encode(buffer.data(), buffer.size());
+                        plugin_cache_.emplace(file_hash, std::make_pair(raw_package, plugin));
                     }
-                    catch (...)
-                    {
-                        fs::remove(plugin_path);
+                    catch (...) {
+                        fs::remove(path);
                     }
                 }
             }
@@ -175,31 +145,24 @@ void CServerPluginMgr::remove_plugin_file(const std::string& file_name)
     }
 }
 
-std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set() {
+std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set()
+{
+    std::shared_lock<std::shared_mutex> lck(mtx_);
     std::set<unsigned int> result;
-    for(int i=0; i<256; ++i) {
-        PluginShard& shard = plugin_shards_[i];
-        std::shared_lock lock(shard.mtx);
-        tbb::concurrent_hash_map<unsigned int, 
-            std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::iterator it;
-        for (it = shard.plugins.begin(); it != shard.plugins.end(); ++it) {
-            result.emplace(it->first);
-        }
+    for (auto itor : plugin_cache_)
+    {
+        result.emplace(itor.first);
     }
     return result;
 }
 
-ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set() {
+ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set()
+{
+    std::shared_lock<std::shared_mutex> lck(mtx_);
     ProtocolS2CQueryPlugin result;
-    for (auto& shard : plugin_shards_) {
-        std::shared_lock lock(shard.mtx);
-        tbb::concurrent_hash_map<unsigned int, 
-            std::pair<RawProtocolImpl, ProtocolS2CDownloadPlugin>>::const_iterator it;
-        for (it = shard.plugins.begin(); it != shard.plugins.end(); ++it) {
-            result.plugin_list.emplace_back(
-                it->second.second.plugin_hash, 
-                it->second.second.plugin_name);
-        }
+    for (auto [file_hash, data] : plugin_cache_)
+    {
+        result.plugin_list.push_back(std::make_pair(data.second.plugin_hash, data.second.plugin_name));
     }
     return result;
 }
@@ -223,7 +186,7 @@ std::unique_ptr<ProtocolPolicy> CServerPolicyMgr::find_policy(unsigned int polic
 std::unique_ptr<ProtocolPolicy> CServerPolicyMgr::find_policy(PolicyType policy_type)
 {
     std::shared_lock<std::shared_mutex> lck(mtx_);
-    for(auto [policy_id, policy] : policy_.policies)
+    for (auto [policy_id, policy] : policy_.policies)
     {
         if (policy.policy_type == policy_type)
         {
@@ -241,20 +204,20 @@ bool CServerPolicyMgr::is_policy_file_hash_exist(unsigned int file_hash)
 
 void CServerPolicyMgr::add_policy(unsigned int file_hash, ProtocolS2CPolicy& policy)
 {
-	std::unique_lock<std::shared_mutex> lck(mtx_);
-	if (policy_cache_.find(file_hash) == policy_cache_.end())
-	{
-		policy_cache_.emplace(std::make_pair(file_hash, policy));
-		policy_.policies.clear();
-		for (auto [file_hash, policy] : policy_cache_)
-		{
-			for (auto [policy_id, sub_policy] : policy.policies)
-			{
-				policy_.policies[policy_id] = sub_policy;
-			}
-		}
-		printf("加载配置：%08X\n", file_hash);
-	}
+    std::unique_lock<std::shared_mutex> lck(mtx_);
+    if (policy_cache_.find(file_hash) == policy_cache_.end())
+    {
+        policy_cache_.emplace(std::make_pair(file_hash, policy));
+        policy_.policies.clear();
+        for (auto [file_hash, policy] : policy_cache_)
+        {
+            for (auto [policy_id, sub_policy] : policy.policies)
+            {
+                policy_.policies[policy_id] = sub_policy;
+            }
+        }
+        printf("加载配置：%08X\n", file_hash);
+    }
 }
 
 void CServerPolicyMgr::add_policy(ProtocolPolicy& policy)
@@ -270,7 +233,7 @@ void CServerPolicyMgr::add_policy(ProtocolPolicy& policy)
     auto str = ss.str();
     auto policies = ProtocolS2CPolicy::load(str.data(), str.size());
     unsigned int new_policy_id = 0;
-    for (auto[policy_id, policy] : policies->policies)
+    for (auto [policy_id, policy] : policies->policies)
     {
         new_policy_id = policy_id;
     }
@@ -285,20 +248,20 @@ void CServerPolicyMgr::add_policy(ProtocolPolicy& policy)
 
 void CServerPolicyMgr::remove_policy(unsigned int file_hash)
 {
-	std::unique_lock<std::shared_mutex> lck(mtx_);
-	if (policy_cache_.find(file_hash) != policy_cache_.end())
-	{
-		policy_cache_.erase(file_hash);
-		policy_.policies.clear();
-		for (auto [file_hash, policy] : policy_cache_)
-		{
-			for (auto [policy_id, sub_policy] : policy.policies)
-			{
-				policy_.policies[policy_id] = sub_policy;
-			}
-		}
-		printf("卸载配置：%08X\n", file_hash);
-	}
+    std::unique_lock<std::shared_mutex> lck(mtx_);
+    if (policy_cache_.find(file_hash) != policy_cache_.end())
+    {
+        policy_cache_.erase(file_hash);
+        policy_.policies.clear();
+        for (auto [file_hash, policy] : policy_cache_)
+        {
+            for (auto [policy_id, sub_policy] : policy.policies)
+            {
+                policy_.policies[policy_id] = sub_policy;
+            }
+        }
+        printf("卸载配置：%08X\n", file_hash);
+    }
 }
 
 void CServerPolicyMgr::reload_all_policy()
@@ -313,14 +276,15 @@ void CServerPolicyMgr::reload_all_policy()
         {
             if (file_path.path().extension() != ".cfg")
                 continue;
-            std::ifstream file(file_path.path(), std::ios::in | std::ios::binary);
+            std::string file_path_str = file_path.path().string();
+            std::ifstream file(file_path_str, std::ios::in | std::ios::binary);
             if (file.is_open())
             {
                 file.seekg(sizeof(RawProtocolHead), file.beg);
                 unsigned int file_hash = 0;
                 file.read((char*)&file_hash, sizeof(file_hash));
                 file.close();
-                new_policy_list.emplace(std::make_pair(file_hash, file_path));
+                new_policy_list.emplace(std::make_pair(file_hash, file_path_str));
             }
         }
 
@@ -331,7 +295,7 @@ void CServerPolicyMgr::reload_all_policy()
                 remove_policy(loaded_policy_file_hash);
             }
         }
-        for (auto[file_hash, policy_path] : new_policy_list)
+        for (auto [file_hash, policy_path] : new_policy_list)
         {
             if (!is_policy_file_hash_exist(file_hash))
             {
@@ -345,7 +309,7 @@ void CServerPolicyMgr::reload_all_policy()
                     auto str = ss.str();
                     std::string_view sv(str.data(), str.size());
                     package.decode(sv);
-                    try 
+                    try
                     {
                         auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
                         add_policy(file_hash, msg.get().as<ProtocolS2CPolicy>());
@@ -408,48 +372,48 @@ void CServerPolicyMgr::on_policy_reload()
     }
 
     {
-		std::unique_lock<std::shared_mutex> lck(mtx_);
-		mac_ban_set_.clear();
-		ip_ban_set_.clear();
-		rolename_ban_set_.clear();
-		mac_white_set_.clear();
-		ip_white_set_.clear();
-		rolename_white_set_.clear();
-		std::string path;
-		path = "机器码黑名单.txt";
-		read_file_white_and_black(g_cur_dir / path, mac_ban_set_);
-		path = "IP黑名单.txt";
-		read_file_white_and_black(g_cur_dir / path, ip_ban_set_);
-		path = "角色名黑名单.txt";
-		read_file_white_and_black(g_cur_dir / path, rolename_ban_set_);
+        std::unique_lock<std::shared_mutex> lck(mtx_);
+        mac_ban_set_.clear();
+        ip_ban_set_.clear();
+        rolename_ban_set_.clear();
+        mac_white_set_.clear();
+        ip_white_set_.clear();
+        rolename_white_set_.clear();
+        std::string path;
+        path = "机器码黑名单.txt";
+        read_file_white_and_black(g_cur_dir / path, mac_ban_set_);
+        path = "IP黑名单.txt";
+        read_file_white_and_black(g_cur_dir / path, ip_ban_set_);
+        path = "角色名黑名单.txt";
+        read_file_white_and_black(g_cur_dir / path, rolename_ban_set_);
         path = "机器码白名单.txt";
-		read_file_white_and_black(g_cur_dir / path, mac_white_set_);
-		path = "IP白名单.txt";
-		read_file_white_and_black(g_cur_dir / path, ip_white_set_);
-		path = "角色名白名单.txt";
-		read_file_white_and_black(g_cur_dir / path, rolename_white_set_);
-	}
+        read_file_white_and_black(g_cur_dir / path, mac_white_set_);
+        path = "IP白名单.txt";
+        read_file_white_and_black(g_cur_dir / path, ip_white_set_);
+        path = "角色名白名单.txt";
+        read_file_white_and_black(g_cur_dir / path, rolename_white_set_);
+    }
 }
 
 void CServerPolicyMgr::read_file_white_and_black(const std::filesystem::path& filePath, std::unordered_set<unsigned int>& white_and_black_list)
 {
-	if (filePath.empty())
-		return;
-	std::ifstream inFile(filePath);
-	if (inFile.is_open())
-	{
-		std::string line_txt;
-		while (std::getline(inFile, line_txt))
-		{
-			white_and_black_list.emplace(NetUtils::hash(line_txt.c_str(), line_txt.size()));
-		}
-		inFile.close();
-	}
+    if (filePath.empty())
+        return;
+    std::ifstream inFile(filePath);
+    if (inFile.is_open())
+    {
+        std::string line_txt;
+        while (std::getline(inFile, line_txt))
+        {
+            white_and_black_list.emplace(NetUtils::hash(line_txt.c_str(), line_txt.size()));
+        }
+        inFile.close();
+    }
 }
 // 白名单优先级高于黑名单
-bool CServerPolicyMgr::is_svip(const std::string& mac, const std::string& ip, const std::string& rolename) 
+bool CServerPolicyMgr::is_svip(const std::string& mac, const std::string& ip, const std::string& rolename)
 {
-	std::shared_lock<std::shared_mutex> lck(mtx_);
+    std::shared_lock<std::shared_mutex> lck(mtx_);
     if (mac_white_set_.find(NetUtils::hash(mac.c_str(), mac.size())) != mac_white_set_.end()) {
         return true;
     }
@@ -465,15 +429,15 @@ bool CServerPolicyMgr::is_svip(const std::string& mac, const std::string& ip, co
 // 黑名单
 bool CServerPolicyMgr::is_ban(const std::string& mac, const std::string& ip, const std::string& rolename)
 {
-	std::shared_lock<std::shared_mutex> lck(mtx_);
-	if (mac_ban_set_.find(NetUtils::hash(mac.c_str(), mac.size())) != mac_ban_set_.end()) {
-		return true;
-	}
-	if (ip_ban_set_.find(NetUtils::hash(ip.c_str(), ip.size())) != ip_ban_set_.end()) {
-		return true;
-	}
-	if (rolename_ban_set_.find(NetUtils::hash(rolename.c_str(), rolename.size())) != rolename_ban_set_.end()) {
-		return true;
-	}
-	return false;
+    std::shared_lock<std::shared_mutex> lck(mtx_);
+    if (mac_ban_set_.find(NetUtils::hash(mac.c_str(), mac.size())) != mac_ban_set_.end()) {
+        return true;
+    }
+    if (ip_ban_set_.find(NetUtils::hash(ip.c_str(), ip.size())) != ip_ban_set_.end()) {
+        return true;
+    }
+    if (rolename_ban_set_.find(NetUtils::hash(rolename.c_str(), rolename.size())) != rolename_ban_set_.end()) {
+        return true;
+    }
+    return false;
 }

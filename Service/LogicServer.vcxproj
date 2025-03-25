@@ -225,6 +225,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AntiCheatServer.cpp" />
+    <ClCompile Include="BusinessThreadPool.cpp" />
     <ClCompile Include="LogicServer.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -240,6 +241,7 @@
     <ClInclude Include="LogicServer.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ServerPluginMgr.h" />
+    <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="Service.vcxproj">

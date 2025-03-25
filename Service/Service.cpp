@@ -30,47 +30,14 @@
 
 std::shared_ptr<asio::io_service> io = std::make_shared<asio::io_service>();
 std::shared_ptr<spdlog::logger> slog;
+std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> clog;
+// 全局声明线程池和日志器
+std::shared_ptr<spdlog::details::thread_pool> tp;
+void init_logger();
 
 int main(int argc, char** argv)
 {
-    // 创建异步线程池（队列大小8192）
-    auto tp = std::make_shared<spdlog::details::thread_pool>(8192,2);
-	// 创建控制台日志器
-	//auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-	//console_sink->set_level(spdlog::level::debug);
-    //auto slog = spdlog::create_async<spdlog::sinks::daily_file_sink_mt>("logger", "logs/anti_cheat.log");
-	// 初始化日志系统
-    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 1024, 5);
-
-    // 创建组合日志器时使用 sink
-    std::vector<spdlog::sink_ptr> sinks{/*console_sink,*/ rotating_sink };
-
-    // 使用 sinks 创建异步日志器
-    slog = std::make_shared<spdlog::async_logger>(
-        "async_logger",
-        sinks.begin(),
-        sinks.end(),
-        tp,
-        spdlog::async_overflow_policy::block
-    );
-        
-	// 设置日志级别为调试
-#ifndef _DEBUG
-	spdlog::set_level(spdlog::level::trace);
-#else
-	spdlog::set_level(spdlog::level::warn);
-#endif
-
-	// 注册为全局日志器
-	spdlog::register_logger(slog);
-	spdlog::set_default_logger(slog);
-
-	// 设置日志消息的格式模式
-	spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
-	slog->flush_on(spdlog::level::warn);
-	spdlog::flush_every(std::chrono::seconds(1));
-	slog->info("Logger initialized successfully");
-
+    init_logger();
 	std::shared_ptr<asio::detail::thread_group> g_thread_group = std::make_shared<asio::detail::thread_group>();
 	//std::shared_ptr<CObserverServer> server = std::make_shared<CObserverServer>();
 	auto hEvent = CreateMutex(NULL, FALSE, TEXT("mtx_service"));
@@ -117,4 +84,47 @@ int main(int argc, char** argv)
 		CloseHandle(hEvent);
 	}
 	return 0;
+}
+
+void init_logger()
+{    
+    // 创建异步线程池（队列大小8192）
+    tp = std::make_shared<spdlog::details::thread_pool>(8192, 2);
+    // 创建控制台日志器
+    clog = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    // 设置控制台日志器日志级别为错误级别
+    clog->set_level(spdlog::level::err);
+    //auto slog = spdlog::create_async<spdlog::sinks::daily_file_sink_mt>("logger", "logs/anti_cheat.log");
+    // 初始化日志系统
+    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 1024, 5);
+
+    // 创建组合日志器时使用 sink
+    std::vector<spdlog::sink_ptr> sinks{ clog, rotating_sink };
+
+    // 使用 sinks 创建异步日志器
+    slog = std::make_shared<spdlog::async_logger>(
+        "async_logger",
+        sinks.begin(),
+        sinks.end(),
+        tp,
+        spdlog::async_overflow_policy::block
+    );
+
+    // 设置日志级别为调试
+#ifdef _DEBUG
+    spdlog::set_level(spdlog::level::trace);
+    spdlog::flush_every(std::chrono::seconds(1));
+    slog->flush_on(spdlog::level::trace);
+#else
+    spdlog::set_level(spdlog::level::info);
+    spdlog::flush_every(std::chrono::seconds(3));
+    slog->flush_on(spdlog::level::info);
+#endif
+
+    // 注册为全局日志器
+    spdlog::register_logger(slog);
+    spdlog::set_default_logger(slog);
+
+    // 设置日志消息的格式模式
+    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 }

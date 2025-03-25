@@ -2,6 +2,7 @@
 #include "AntiCheatServer.h"
 #include "ObServerPackage.h"
 #include "ServerPluginMgr.h"
+#include "ThreadPool.h"
 
 #define CONFIG_APP_NAME "及时雨"
 extern std::filesystem::path g_cur_dir;
@@ -93,7 +94,11 @@ private:
 class CLogicServer : public CAntiCheatServer
 {
 	using super = CAntiCheatServer;
-public:
+public:    
+	static CLogicServer& instance() {
+		static CLogicServer instance;
+		return instance;
+	}
 	void send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp_session_shared_ptr_t& session, std::size_t session_id);
 	CLogicServer();
 	void clear_txt(const std::string& file_name);
@@ -144,19 +149,21 @@ public:
 	virtual void detect(tcp_session_shared_ptr_t& session, std::size_t session_id);
 	virtual void close_socket(tcp_session_shared_ptr_t& session, std::size_t session_id);
 	std::string trim_user_name(const std::string& username_);
-	inline CObsSessionMgr& obs_sessions_mgr() { return obs_sessions_mgr_; }
-	inline CSessionMgr& usr_sessions_mgr() { return usr_sessions_mgr_; }
+	inline std::shared_ptr<CObsSessionMgr> obs_sessions_mgr() { return obs_sessions_mgr_; }
+	inline std::shared_ptr<CSessionMgr> usr_sessions_mgr() { return usr_sessions_mgr_; }
 	inline int get_policy_detect_interval() { return policy_detect_interval_; }
 	inline void set_policy_detect_interval(int interval) { policy_detect_interval_ = interval; }
+    void process_task(Task&& task);
 private:
 	void OnlineCheck();
 protected:
+	bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) override;
 	using observer_package_type = std::function<void(tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
-	CServerPluginMgr plugin_mgr_;
-	CServerPolicyMgr policy_mgr_;
+	std::shared_ptr<CServerPluginMgr> plugin_mgr_;
+    std::shared_ptr<CServerPolicyMgr> policy_mgr_;
 	NetUtils::EventMgr<observer_package_type> ob_pkg_mgr_;
 	NetUtils::EventMgr<observer_package_type> policy_pkg_mgr_;
-	CObsSessionMgr obs_sessions_mgr_;
-	CSessionMgr usr_sessions_mgr_;
+    std::shared_ptr<CObsSessionMgr> obs_sessions_mgr_;
+    std::shared_ptr<CSessionMgr> usr_sessions_mgr_;
 	int policy_detect_interval_;
 };

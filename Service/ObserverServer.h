@@ -4,7 +4,6 @@
 #include "LogicClient.h"
 #include "Protocol.h"
 #include <asio2/tcp/tcp_server.hpp>
-#include <asio2/tcp/tcp_session.hpp>
 #include <chrono>
 #include <memory>
 #include <msgpack/v1/object.hpp>
@@ -13,76 +12,10 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <ThreadPool.h>
+#include <ConcurrentQueue/BlockingConcurrentQueue.h>
 //#include <folly/ProducerConsumerQueue.h>
 #//include <readerwriterqueue/readerwriterqueue.h>
-#include <concurrentqueue/blockingconcurrentqueue.h> 
-using tcp_session_shared_ptr_t = std::shared_ptr<asio2::tcp_session>;
-
-#include <memory>
-//#include <concurrentqueue/concurrentqueue.h>
-// 检查msgpack::v1::object_handle的移动语义
-static_assert(
-    std::is_nothrow_move_constructible<msgpack::v1::object_handle>::value,
-    "msgpack::v1::object_handle must be nothrow movable"
-    );
-struct Task {
-    unsigned int package_id;
-    tcp_session_shared_ptr_t session;
-    RawProtocolImpl package;
-    std::unique_ptr<msgpack::v1::object_handle> raw_msg;  // 改为智能指针
-
-    // 默认构造函数
-    Task()
-        : package_id(0),
-        session(nullptr),
-        package(),
-        raw_msg(nullptr)
-    {
-    }
-    Task(unsigned int id, tcp_session_shared_ptr_t s,
-         const RawProtocolImpl& p, msgpack::v1::object_handle&& msg)
-        : package_id(id),
-        session(std::move(s)),
-        package(p),
-        raw_msg(std::make_unique<msgpack::v1::object_handle>(std::move(msg)))
-    {
-        if (!raw_msg) {
-            slog->error("Failed to initialize raw_msg in Task constructor");
-        }
-    }
-
-    // 修改移动构造函数和移动赋值运算符，移除冗余操作
-    Task(Task&& other) noexcept
-        : package_id(other.package_id),
-        session(std::move(other.session)),
-        package(std::move(other.package)),
-        raw_msg(std::move(other.raw_msg))
-    {
-        other.package_id = 0; // 仅置package_id，其他由移动操作处理
-    }
-
-    Task& operator=(Task&& other) noexcept {
-        if (this != &other) {
-            // 成员移动自动处理旧资源
-            raw_msg.reset();
-            package_id = other.package_id;
-            session = std::move(other.session);
-            package = std::move(other.package);
-            raw_msg = std::move(other.raw_msg);
-
-            other.package_id = 0;
-        }
-        return *this;
-    }
-    // 添加资源跟踪日志
-    ~Task()=default;
-    // 禁止拷贝
-    Task(const Task&) = delete;
-    Task& operator=(const Task&) = delete; 
-    //Task(Task&& other) noexcept;
-    //Task& operator=(Task&& other) noexcept;
-};
-
 
 class CObserverServer : public CAntiCheatServer {
     using super = CAntiCheatServer;
@@ -212,4 +145,4 @@ private:
     }
 };
 
-static HeartbeatThreadPool g_heartbeat_pool;
+//static HeartbeatThreadPool g_heartbeat_pool;
