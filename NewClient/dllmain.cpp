@@ -4,10 +4,12 @@
 #include "version.build"
 #include "../lf_rungate_server_plug/lf_plug_sdk.h"
 #include "Lightbone/lighthook.h"
+//#include <asio/experimental/channel.hpp>
 //#include "anti_monitor_directory/ReadDirectoryChanges.h"
 
 #define RUNGATE_API void __stdcall
 using namespace lfengine::client;
+
 
 std::shared_ptr<TAppFuncDefExt> g_AppFunc;
 std::shared_ptr<HINSTANCE> dll_base;
@@ -16,6 +18,9 @@ std::shared_ptr<asio::detail::thread_group> g_thread_group;
 std::shared_ptr<int> g_client_rev_version;
 std::shared_ptr<CClientImpl> client_;
 std::shared_ptr<asio2::timer> g_timer;
+// 新增全局变量：专用JS线程池和信号量
+//std::shared_ptr<asio::thread_pool> g_js_thread_pool = std::make_shared<asio::thread_pool>(4); // 4线程池
+//std::shared_ptr<asio::experimental::channel<void(asio::error_code)>> g_js_semaphore;
 // dll 退出信号
 //std::shared_ptr<HANDLE> dll_exit_event_handle_;
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen);
@@ -47,7 +52,7 @@ RUNGATE_API Init(PAppFuncDef AppFunc)
 	AddChatText = AppFunc->AddChatText;
 	SendSocket = AppFunc->SendSocket;
 
-	LOG("lf客户端插件拉起成功 dll_base:%p", dll_base);
+	LOG("lf客户端插件拉起成功 dll_base:%p", *dll_base);
 	//AddChatText("lf客户端插件拉起成功", 0x0000ff, 0);
 }
 
@@ -62,7 +67,8 @@ RUNGATE_API client_entry(std::string guard_gate_ip)
 	g_game_io = std::make_shared<asio::io_service>();
 	g_thread_group = std::make_shared<asio::detail::thread_group>();
 	g_timer = std::make_shared<asio2::timer>();
-	dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+    dll_base = std::make_shared<HINSTANCE>((HINSTANCE) & client_entry);
+	//dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
 #endif
 	VMP_VIRTUALIZATION_BEGIN();
 	setlocale(LC_CTYPE, "");
@@ -90,12 +96,18 @@ RUNGATE_API client_entry(std::string guard_gate_ip)
 
 void client_start_routine()
 {
-	LOG("client_start_routine ");
-	WndProcHook::install_hook();
-	auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
-	auto port = client_->cfg()->get_field<int>(port_field_id);
-	client_->start(ip, port);
-	LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+    LOG("client_start_routine ");
+    //WndProcHook::install_hook();
+
+    // 确保 ASIO 线程组在 client_ 前初始化
+    //g_thread_group = std::make_shared<asio::detail::thread_group>();
+    //g_thread_group->create_threads([&]() {
+    //    g_game_io->run();
+    //}, 2);
+    auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
+    auto port = client_->cfg()->get_field<int>(port_field_id);
+    client_->start(ip, port);
+    LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
 }
 
 RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
@@ -121,79 +133,127 @@ RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLe
 
 }
 
-//std::unique_ptr<FileChangeNotifier> notifier;
 RUNGATE_API DoUnInit() noexcept
 {
-	try
-	{
-		LOG("插件卸载开始");
-		//SetEvent(dll_exit_event_handle_);
+    //try
+    __try
+    {
+        LOG("插件卸载开始");
+        //SetEvent(dll_exit_event_handle_);
 
-		//client_->wait_stop();
-		//if (notifier) {
-		//	notifier->join_all();
-		//}
-		LOG("插件卸载 FileChangeNotifier -- join_all ok");
-		g_timer->stop();
-		g_timer->destroy();
-		WndProcHook::restore_hook();
-		LightHook::HookMgr::instance().restore();
-		LOG("插件卸载  -- restore_hook ok");
-		g_game_io->stop();
-		g_game_io->reset();
-		/*作者建议：
-		if(!game_io->stopped()) 把这个判断删了，直接stop即可
-		你在这个uninit里加个日志，检测一下是在哪个步骤阻塞的，好判断问题范围
-		client.post([&client](){client.socket().close();})  先把socket直接关了就行 这样后续的包就不会发送了，很快就结束 了
-		client.stop();
-		*/
-		LOG("插件卸载stop 1");
-		auto start = std::chrono::steady_clock::now(); // 记录开始时间
-		/*client_->post([]() {LOG("插件卸载socket close 1");
-			client_->socket().close(); LOG("插件卸载socket close 2");
-		});*/
-		if (client_->is_started())
-		{
-			client_->stop_all_timers();
-			client_->stop_all_timed_tasks();
-			client_->stop_all_timed_events();
-			if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {				
-				LOG("win_version > WINDOWS_7");
-			}
-			else {
-				LOG("win_version <= WINDOWS_7");
-				asio::detail::win_thread::set_terminate_threads(true);
-				// 判断是否是win7系统，如果是，则设置线程终止标志
-			}
-			client_->socket().close();
-			client_->stop();
-		}
-		auto end = std::chrono::steady_clock::now(); // 记录结束时间
-		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-		LOG("插件卸载stop 2 %d ms", elapsed);
-		/*
-		* set_terminate_threads 强制退出asio的线程,否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
-		必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
-		*/
-		client_->destroy();
-		client_.reset();
-		/*if(dll_exit_event_handle_){
-			CloseHandle(dll_exit_event_handle_);
-		}*/
-		LOG("插件卸载完成");
-	}
-	catch (...)
-	{
-		LOG("DoUnInit 异常");
-	}
+        //client_->wait_stop();
+        //if (notifier) {
+        //	notifier->join_all();
+        //}
+        LOG("插件卸载 FileChangeNotifier -- join_all ok");
+        g_timer->stop();
+        g_timer->destroy();
+        //WndProcHook::restore_hook();
+        LOG("插件卸载LightHook::HookMgr::instance().restore()1");
+        LightHook::HookMgr::instance().restore();
+        LOG("插件卸载  -- restore_hook ok");
+        g_game_io->stop();
+        g_game_io->reset();
+        /*作者建议：
+        if(!game_io->stopped()) 把这个判断删了，直接stop即可
+        你在这个uninit里加个日志，检测一下是在哪个步骤阻塞的，好判断问题范围
+        client.post([&client](){client.socket().close();})  先把socket直接关了就行 这样后续的包就不会发送了，很快就结束 了
+        client.stop();
+        */
+        LOG("插件卸载stop 1");
+        auto start = std::chrono::steady_clock::now(); // 记录开始时间
+        /*client_->post([]() {LOG("插件卸载socket close 1");
+            client_->socket().close(); LOG("插件卸载socket close 2");
+        });*/
+        client_->stop_all_timers();
+        client_->stop_all_timed_tasks();
+        client_->stop_all_timed_events();
+        if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {
+            LOG("win_version > WINDOWS_7");
+        }
+        else {
+            LOG("win_version <= WINDOWS_7");
+            asio::detail::win_thread::set_terminate_threads(true);
+            // 判断是否是win7系统，如果是，则设置线程终止标志
+        }
+        client_->socket().close();
+        client_->stop();
+        auto end = std::chrono::steady_clock::now(); // 记录结束时间
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        LOG("插件卸载stop 2 %d ms", elapsed);
+        /*
+        * set_terminate_threads 强制退出asio的线程,否则会导致线程无法退出, 导致线程句柄泄露, 导致崩溃
+        必须要destroy, 否则会导致定时器无法销毁, 导致定时器的线程还在执行, 小退再开始游戏时线程还在执行之前dll的地址, 会导致崩溃
+        */
+        LOG("插件卸载完成1");
+        client_->destroy();
+        LOG("插件卸载完成2");
+        client_.reset();
+        LOG("插件卸载完成3");
+        /*if(dll_exit_event_handle_){
+            CloseHandle(dll_exit_event_handle_);
+        }*/
+        LOG("插件卸载完成");
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    //catch (...)
+    {
+        LOG("DoUnInit 异常");
+    }
 }
+
+//RUNGATE_API DoUnInit() noexcept 
+//{
+//    __try {
+//    //try {
+//        LOG("插件卸载开始");
+//
+//        // 1. 停止JS线程池
+//        if (g_js_thread_pool) {
+//            g_js_thread_pool->stop(); // 停止接收新任务
+//            g_js_thread_pool->join();  // 等待所有任务完成
+//            g_js_thread_pool.reset();
+//            g_js_semaphore.reset();
+//            LOG("JS线程池已释放");
+//        }
+//
+//        // 2. 恢复钩子
+//        //WndProcHook::restore_hook();
+//        //LightHook::HookMgr::instance().restore();
+//
+//        // 3. 强制关闭Socket和客户端
+//        if (client_ && client_->is_started()) {
+//            client_->socket().close();
+//            client_->stop_all_timers();
+//            asio::detail::win_thread::set_terminate_threads(true);
+//            client_->stop();
+//            client_->destroy();
+//        }
+//        client_.reset();
+//
+//        // 4. 清理Asio资源
+//        if (g_game_io) {
+//            g_game_io->stop();
+//            g_game_io.reset();
+//        }
+//        g_thread_group.reset();
+//
+//        LOG("插件卸载完成");
+//    }
+//    __except (EXCEPTION_EXECUTE_HANDLER) {
+//        LOG("DoUnInit 异常");
+//    }
+//    /*catch (...) {
+//        LOG("DoUnInit 异常");
+//    }*/
+//}
 
 BOOL APIENTRY DllMain(HMODULE hModule,	DWORD  ul_reason_for_call,	LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
 		case DLL_PROCESS_ATTACH:
-			dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH"); break;
+			dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH hModule:%p", hModule); break;
 		case DLL_THREAD_ATTACH:
 			LOG("DLL_THREAD_ATTACH"); break;
 		case DLL_THREAD_DETACH:
