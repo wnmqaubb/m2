@@ -321,9 +321,10 @@ namespace BasicUtils
 
         if (!ExtractIconW || !GetObjectW || !DeleteObject || !DestroyIcon || !CopyImage || !GetIconInfo)
             return false;
+
         bool result = false;
         HICON hicon = NULL;
-        ICONINFO icon_info;
+        ICONINFO icon_info = { 0 }; ;
         try
         {
             HMODULE curr_hmodule = GetModuleHandle(NULL);
@@ -332,30 +333,32 @@ namespace BasicUtils
                 hicon = ExtractIconW(curr_hmodule, path.c_str(), 0);
                 if (hicon)
                 {
-                    if (GetIconInfo(hicon, &icon_info))
+                    if (!GetIconInfo(hicon, &icon_info))
                     {
-                        HBITMAP hbitmap;
-                        DIBSECTION ds;
-                        int ds_size = GetObjectW(icon_info.hbmColor, sizeof(ds), &ds);
-                        if (sizeof(ds) != ds_size)
-                        {
-                            hbitmap = (HBITMAP)CopyImage(icon_info.hbmColor, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-                            ds_size = GetObjectW(hbitmap, sizeof(ds), &ds);
-                        }
-
-                        std::unique_ptr<unsigned char[]> icon_buffer(new unsigned char[ds.dsBmih.biSizeImage]);
-                        __movsb(icon_buffer.get(), (unsigned char*)ds.dsBm.bmBits, ds.dsBmih.biSizeImage);
-
-                        if (hash_val)
-                            *hash_val = aphash(icon_buffer.get(), ds.dsBmih.biSizeImage);
-
                         DestroyIcon(hicon);
-                        DeleteObject(hbitmap);
-                        DeleteObject(icon_info.hbmColor);
-                        DeleteObject(icon_info.hbmMask);
-
-                        result = true;
+                        return false;
                     }
+                    HBITMAP hbitmap;
+                    DIBSECTION ds;
+                    int ds_size = GetObjectW(icon_info.hbmColor, sizeof(ds), &ds);
+                    if (sizeof(ds) != ds_size)
+                    {
+                        hbitmap = (HBITMAP)CopyImage(icon_info.hbmColor, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+                        ds_size = GetObjectW(hbitmap, sizeof(ds), &ds);
+                    }
+
+                    std::unique_ptr<unsigned char[]> icon_buffer(new unsigned char[ds.dsBmih.biSizeImage]);
+                    __movsb(icon_buffer.get(), (unsigned char*)ds.dsBm.bmBits, ds.dsBmih.biSizeImage);
+
+                    if (hash_val)
+                        *hash_val = aphash(icon_buffer.get(), ds.dsBmih.biSizeImage);
+
+                    DestroyIcon(hicon);
+                    DeleteObject(hbitmap);
+                    DeleteObject(icon_info.hbmColor);
+                    DeleteObject(icon_info.hbmMask);
+
+                    result = true;
                 }
             }
         }
