@@ -58,6 +58,8 @@ CGateApp::CGateApp() noexcept
     strcpy_s(m_ExeDir, cParentDir.c_str());
     m_cCfgPath = m_ExeDir;
     m_cCfgPath = m_cCfgPath + TEXT("\\config.cfg");
+    m_inner_CfgPath = m_ExeDir;
+    m_inner_CfgPath = m_inner_CfgPath + TEXT("\\jishiyu.cfg");
 
 	m_bHiColorIcons = TRUE;
     m_childpHandle = NULL;
@@ -444,8 +446,23 @@ void CGateApp::OnServiceSettings()
 
 void CGateApp::OnConfig()
 {
-    OnServiceSettings();
-    m_wndConfig.ShowConfigDlg();
+    // 原大小退延时设置,先保留
+    /*OnServiceSettings();
+    m_wndConfig.ShowConfigDlg();*/
+
+    // 内部策略管理
+    auto tConfig = GetDocTemplateMgr().Find("Config");
+    tConfig->CloseAllDocuments(TRUE);
+    m_ConfigDoc = tConfig->OpenDocumentFile(m_inner_CfgPath);
+    if (!m_ConfigDoc)
+    {
+        ProtocolS2CPolicy policy;
+        std::ofstream cfg(m_inner_CfgPath.GetBuffer(), std::ios::out | std::ios::binary);
+        auto buffer = policy.dump();
+        cfg.write(buffer.data(), buffer.size());
+        cfg.close();
+        m_ConfigDoc = tConfig->OpenDocumentFile(m_inner_CfgPath);
+    }
 }
 
 

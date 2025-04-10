@@ -68,6 +68,7 @@ public:
 // 实现
     CHAR  m_ExeDir[MAX_PATH];
     CString m_cCfgPath;
+    CString m_inner_CfgPath;
     UINT  m_nAppLook;
 	BOOL  m_bHiColorIcons;
     CObserverClientGroupImpl m_ObServerClientGroup;

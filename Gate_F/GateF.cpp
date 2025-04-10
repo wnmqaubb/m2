@@ -102,7 +102,7 @@ BOOL CGateFApp::InitInstance()
         }
         pHandles[0] = pi.hProcess;
 
-        si.wShowWindow = SW_HIDE;
+        //si.wShowWindow = SW_HIDE;
         path = path.parent_path() / "g_LogicServer.exe";
         std::string strLogicServerCmdline = path.string() + strCmdLine;
         res = CreateProcessA(NULL,

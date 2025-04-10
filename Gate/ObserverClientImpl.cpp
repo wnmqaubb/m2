@@ -95,7 +95,6 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_) : super(), user_
             // 如果需要惩罚
             if (req.punish_flag)
             {
-#ifndef GATE_ADMIN
                 // 获取当前时间并格式化为字符串
                 std::time_t now_time = time(0);
                 char time_str[MAX_PATH] = { 0 };
@@ -104,10 +103,9 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_) : super(), user_
                 strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%m-%d %H:%M:%S", &tm_);
                 // 构造日志消息
                 std::string result;
-                result = result + "[事件]" + time_str + "|";
-#endif
+                result = result + "[事件]" + time_str + "|" + Utils::w2c(msg);
                 // 记录日志到惩罚文件
-                log_to_punish_file(Utils::w2c(msg));
+                log_to_punish_file(result);
             }
 #ifdef GATE_ADMIN
             // 如果不需要静默

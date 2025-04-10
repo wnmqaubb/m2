@@ -436,47 +436,47 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
             //    theApp.is_service_stauts = false;
             //}
 
-            bool service_stoped = false;
-            bool logic_server_stoped = false;
+            //bool service_stoped = false;
+            //bool logic_server_stoped = false;
 
-            // 已停止
-            HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
-            if (existingMutex != NULL) {
-                if (!isProcessRunning("g_Service.exe")) {
-                    // 互斥体已存在，但是进程已经退出,尝试关闭和释放它
-                    ReleaseMutex(existingMutex);
-                    CloseHandle(existingMutex);
-                    service_stoped = true;
-                }
-                else {
-                    CloseHandle(existingMutex);
-                }
-            }
-            else {
-                service_stoped = true;
-            }
+            //// 已停止
+            //HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
+            //if (existingMutex != NULL) {
+            //    if (!isProcessRunning("g_Service.exe")) {
+            //        // 互斥体已存在，但是进程已经退出,尝试关闭和释放它
+            //        ReleaseMutex(existingMutex);
+            //        CloseHandle(existingMutex);
+            //        service_stoped = true;
+            //    }
+            //    else {
+            //        CloseHandle(existingMutex);
+            //    }
+            //}
+            //else {
+            //    service_stoped = true;
+            //}
 
-            HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
-            if (existingMutex1 != NULL) {
-                if (!isProcessRunning("g_LogicServer.exe")) {
-                    // 互斥体已存在，但是进程已经退出,尝试关闭和释放它
-                    ReleaseMutex(existingMutex1);
-                    CloseHandle(existingMutex1);
-                    logic_server_stoped = true;
-                }
-                else {
-                    CloseHandle(existingMutex1);
-                }
-            }
-            else {
-                logic_server_stoped = true;
-            }
+            //HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
+            //if (existingMutex1 != NULL) {
+            //    if (!isProcessRunning("g_LogicServer.exe")) {
+            //        // 互斥体已存在，但是进程已经退出,尝试关闭和释放它
+            //        ReleaseMutex(existingMutex1);
+            //        CloseHandle(existingMutex1);
+            //        logic_server_stoped = true;
+            //    }
+            //    else {
+            //        CloseHandle(existingMutex1);
+            //    }
+            //}
+            //else {
+            //    logic_server_stoped = true;
+            //}
 
-            if (service_stoped || logic_server_stoped)
-            {
-                ReStartChildProcess();
-            }
-            break;
+            //if (service_stoped || logic_server_stoped)
+            //{
+            //    ReStartChildProcess();
+            //}
+            //break;
         }
     }
     CDialogEx::OnTimer(nIDEvent);

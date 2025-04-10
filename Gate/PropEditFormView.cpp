@@ -131,6 +131,7 @@ void CPropEditFormView::OnCbnDropdownComboPolicyType()
 void CPropEditFormView::OnInitialUpdate()
 {
     CFormView::OnInitialUpdate();
+    m_PolicyConfigEdit.SetLimitText(1 * 1024 * 1024); // 设置为1MB
     int nIndex = 0;
     for (int index = ENM_POLICY_TYPE_MODULE_NAME; index < ENM_POLICY_TYPE_MAX; index++)
     {
