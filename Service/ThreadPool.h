@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "pch.h"
 #include "Protocol.h"
 #include <asio2/tcp/tcp_session.hpp>
@@ -12,9 +12,9 @@ struct Task {
     unsigned int package_id;
     tcp_session_shared_ptr_t session;
     RawProtocolImpl package;
-    std::unique_ptr<msgpack::v1::object_handle> raw_msg;  // ¸ÄÎªÖÇÄÜÖ¸Õë
+    std::unique_ptr<msgpack::v1::object_handle> raw_msg;  // æ”¹ä¸ºæ™ºèƒ½æŒ‡é’ˆ
 
-    // Ä¬ÈÏ¹¹Ôìº¯Êı
+    // é»˜è®¤æ„é€ å‡½æ•°
     Task()
         : package_id(0),
         session(nullptr),
@@ -34,19 +34,19 @@ struct Task {
         }
     }
 
-    // ĞŞ¸ÄÒÆ¶¯¹¹Ôìº¯ÊıºÍÒÆ¶¯¸³ÖµÔËËã·û£¬ÒÆ³ıÈßÓà²Ù×÷
+    // ä¿®æ”¹ç§»åŠ¨æ„é€ å‡½æ•°å’Œç§»åŠ¨èµ‹å€¼è¿ç®—ç¬¦ï¼Œç§»é™¤å†—ä½™æ“ä½œ
     Task(Task&& other) noexcept
         : package_id(other.package_id),
         session(std::move(other.session)),
         package(std::move(other.package)),
         raw_msg(std::move(other.raw_msg))
     {
-        other.package_id = 0; // ½öÖÃpackage_id£¬ÆäËûÓÉÒÆ¶¯²Ù×÷´¦Àí
+        other.package_id = 0; // ä»…ç½®package_idï¼Œå…¶ä»–ç”±ç§»åŠ¨æ“ä½œå¤„ç†
     }
 
     Task& operator=(Task&& other) noexcept {
         if (this != &other) {
-            // ³ÉÔ±ÒÆ¶¯×Ô¶¯´¦Àí¾É×ÊÔ´
+            // æˆå‘˜ç§»åŠ¨è‡ªåŠ¨å¤„ç†æ—§èµ„æº
             raw_msg.reset();
             package_id = other.package_id;
             session = std::move(other.session);
@@ -57,20 +57,20 @@ struct Task {
         }
         return *this;
     }
-    // Ìí¼Ó×ÊÔ´¸ú×ÙÈÕÖ¾
+    // æ·»åŠ èµ„æºè·Ÿè¸ªæ—¥å¿—
     ~Task() = default;
-    // ½ûÖ¹¿½±´
+    // ç¦æ­¢æ‹·è´
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
 };
 
-static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192*4;  // Ôö´ó±¾µØ¶ÓÁĞÈİÁ¿
+static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192 * 2;  // å¢å¤§æœ¬åœ°é˜Ÿåˆ—å®¹é‡
 
 struct TaskWrapper {
     Task task;
     explicit TaskWrapper(Task&& t) noexcept : task(std::move(t)) {}
 
-    // È·±£ÒÆ¶¯°²È«
+    // ç¡®ä¿ç§»åŠ¨å®‰å…¨
     TaskWrapper(TaskWrapper&& other) noexcept : task(std::move(other.task)) {}
     TaskWrapper& operator=(TaskWrapper&& other) noexcept {
         task = std::move(other.task);
@@ -78,12 +78,12 @@ struct TaskWrapper {
     }
 };
 
-// Ïß³Ì±¾µØ¶ÓÁĞ£¨SPSC£©
+// çº¿ç¨‹æœ¬åœ°é˜Ÿåˆ—ï¼ˆSPSCï¼‰
 struct alignas(64) WorkerContext {
     moodycamel::ReaderWriterQueue<TaskWrapper*> local_queue{ MAX_LOCAL_QUEUE_SIZE };
-    //moodycamel::ConcurrentQueue<TaskWrapper*> local_pool;  // ±¾µØÄÚ´æ³Ø
+    //moodycamel::ConcurrentQueue<TaskWrapper*> local_pool;  // æœ¬åœ°å†…å­˜æ± 
     std::atomic<bool> active{ true };
-    std::atomic<size_t> total_steals{ 0 };  // ÇÔÈ¡Í³¼Æ
+    std::atomic<size_t> total_steals{ 0 };  // çªƒå–ç»Ÿè®¡
 };
 class BusinessThreadPool {
 public:
@@ -91,8 +91,8 @@ public:
 
     ~BusinessThreadPool();
 private:
-    // ĞŞ¸Ä¼à¿ØÏß³ÌÊµÏÖ
-    void start_monitor();
+    // ä¿®æ”¹ç›‘æ§çº¿ç¨‹å®ç°
+    void start_monitor(const size_t INITIAL_POOL_SIZE);
 
     void worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t worker_id);
 
@@ -115,27 +115,27 @@ public:
     void log_pool_stats();
     void log_thread_pool_status();
 private:
-    // ÓÅ»¯ºóµÄÅäÖÃ²ÎÊı
-    // Ìí¼ÓÄÚ´æ³ØÅäÖÃ²ÎÊı
-    static constexpr size_t MEMORY_POOL_LOW_WATERMARK = 4096;  // µÍË®Î»Ïß
-    static constexpr size_t GLOBAL_QUEUE_MAX = 100000;         // ĞÂÔöÈ«¾Ö¶ÓÁĞÈİÁ¿ÏŞÖÆ
-    static constexpr size_t WORKER_BATCH_SIZE = 128;      // Ôö¼ÓÅúÁ¿´¦ÀíÊıÁ¿
-    static constexpr int MAX_EMPTY_ITERATIONS = 50;       // ¼õÉÙ¿Õ×ª´ÎÊı
-    static constexpr size_t MEMORY_POOL_INIT_SIZE = 16384;// Ô¤·ÖÅäÄÚ´æ³Ø´óĞ¡
+    // ä¼˜åŒ–åçš„é…ç½®å‚æ•°
+    // æ·»åŠ å†…å­˜æ± é…ç½®å‚æ•°
+    static constexpr size_t MEMORY_POOL_LOW_WATERMARK = 2048;  // ä½æ°´ä½çº¿
+    static constexpr size_t GLOBAL_QUEUE_MAX = 5000;         // æ–°å¢å…¨å±€é˜Ÿåˆ—å®¹é‡é™åˆ¶
+    static constexpr size_t WORKER_BATCH_SIZE = 64;      // å¢åŠ æ‰¹é‡å¤„ç†æ•°é‡
+    static constexpr int MAX_EMPTY_ITERATIONS = 50;       // å‡å°‘ç©ºè½¬æ¬¡æ•°
+    static constexpr size_t MEMORY_POOL_INIT_SIZE = 4096;// é¢„åˆ†é…å†…å­˜æ± å¤§å°
 
-    // È«¾Ö¶ÓÁĞ£¨MPMC£©
+    // å…¨å±€é˜Ÿåˆ—ï¼ˆMPMCï¼‰
     moodycamel::ConcurrentQueue<TaskWrapper*> global_queue_;
 
-    // ¹¤×÷Ïß³Ì¹ÜÀí
+    // å·¥ä½œçº¿ç¨‹ç®¡ç†
     std::vector<std::thread> workers_;
     std::atomic<bool> stop_{ false };
-    std::atomic<bool> monitor_stop_{ false };  // ×¨ÓÃÍ£Ö¹±êÖ¾
+    std::atomic<bool> monitor_stop_{ false };  // ä¸“ç”¨åœæ­¢æ ‡å¿—
     std::atomic<int64_t> pending_tasks_{ 0 };
-    std::thread monitor_thread_;  // Ìí¼Ó¼à¿ØÏß³Ì³ÉÔ±
+    std::thread monitor_thread_;  // æ·»åŠ ç›‘æ§çº¿ç¨‹æˆå‘˜
 
-    // ÄÚ´æ³ØºÍÏß³ÌÉÏÏÂÎÄ
+    // å†…å­˜æ± å’Œçº¿ç¨‹ä¸Šä¸‹æ–‡
     moodycamel::ConcurrentQueue<TaskWrapper*> task_pool_;
-    // Ê¹ÓÃweak_ptr±ÜÃâĞü¹ÒÖ¸Õë
+    // ä½¿ç”¨weak_ptré¿å…æ‚¬æŒ‚æŒ‡é’ˆ
     std::vector<std::weak_ptr<WorkerContext>> worker_contexts_;
     std::shared_mutex context_mutex_;
 };

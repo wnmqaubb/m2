@@ -10,9 +10,6 @@
 #include "ServicePackage.h"
 #include "SubServicePackage.h"
 #include "vmprotect/VMProtectSDK.h"
-#include <asio/basic_waitable_timer.hpp>
-#include <asio/error.hpp>
-#include <asio/steady_timer.hpp>
 #include <chrono>
 #include <clocale>
 #include <cstdint>
@@ -29,7 +26,6 @@
 #include <msgpack/v1/pack.hpp>
 #include <msgpack/v1/sbuffer.hpp>
 #include <msgpack/v3/unpack.hpp>
-#include <ostream>
 #include <spdlog/common.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -59,7 +55,7 @@ using namespace std::literals;
 #else
 #define LOG(x)
 #endif
-
+//#define _DEBUG
 std::shared_ptr<spdlog::logger> slog;
 std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> clog;
 // 全局声明线程池和日志器
@@ -71,7 +67,7 @@ int main(int argc, char** argv)
     init_logger();
     VMProtectBeginVirtualization(__FUNCTION__);
     // 创建互斥体，检查是否已存在实例
-    HANDLE hMutex = CreateMutex(NULL, FALSE, TEXT("mtx_logic_server"));
+    HANDLE hMutex = CreateMutex(NULL, FALSE, TEXT("mtx_logic_server_2"));
     if (GetLastError() == ERROR_ALREADY_EXISTS)
     {
         // 互斥体创建失败或已存在实例，退出程序
@@ -136,24 +132,24 @@ void init_logger()
         tp,
         spdlog::async_overflow_policy::block
     );
-
-    // 设置日志级别为调试
+    // 日志格式添加线程ID和毫秒时间戳
 #ifdef _DEBUG
-    spdlog::set_level(spdlog::level::trace);
-    spdlog::flush_every(std::chrono::seconds(1));
+    slog->set_level(spdlog::level::trace);
     slog->flush_on(spdlog::level::trace);
+    spdlog::flush_every(std::chrono::seconds(1));
+    spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S.%e][T%t][%l]%$ %v");
 #else
-    spdlog::set_level(spdlog::level::info);
-    spdlog::flush_every(std::chrono::seconds(3));
+    slog->set_level(spdlog::level::info);
     slog->flush_on(spdlog::level::info);
+    spdlog::flush_every(std::chrono::seconds(3));
+    // 设置日志消息的格式模式
+    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 #endif
 
     // 注册为全局日志器
     spdlog::register_logger(slog);
     spdlog::set_default_logger(slog);
 
-    // 设置日志消息的格式模式
-    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 }
 
 #define REGISTER_TRANSPORT(PKG_ID) \
@@ -210,11 +206,6 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
 #endif
     VMProtectEnd();
 }
-
-static BusinessThreadPool pool(std::max<size_t>(4, std::thread::hardware_concurrency() * 2));
-
-
-// 转发到logic_server
 bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
     try {
         //slog->info("CLogicServer::on_recv: {}", package_id);
@@ -242,7 +233,7 @@ bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& se
 
 void CLogicServer::process_task(Task&& task)
 {
-    if (IsBadReadPtr(task.raw_msg.get(), sizeof(msgpack::object_handle))) {
+    if (task.raw_msg->get().is_nil()) {
         slog->critical("Invalid msgpack handle detected");
         return;
     }
@@ -250,6 +241,28 @@ void CLogicServer::process_task(Task&& task)
     // 执行任务
     try {
         auto& [package_id, session, package, raw_msg] = task;
+
+        if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
+        {
+            auto msg = raw_msg->get().as<ProtocolC2SHandShake>();
+            on_recv_handshake(session, package, msg);
+            return;
+        }
+
+        if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
+        {
+            auto msg = raw_msg->get().as<ProtocolC2SHeartBeat>();
+
+            ProtocolS2CHeartBeat resp;
+            resp.tick = msg.tick;
+            async_send(session, &resp);
+            auto userdata = get_user_data_(session);
+            userdata->update_heartbeat_time();
+            //user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
+            //on_recv_heartbeat(session, package, msg);
+            return;
+        }
+
         package_mgr_.dispatch(package_id, session, package, *raw_msg);
     }
     catch (const std::exception& e) {
@@ -282,8 +295,8 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
         catch (...) {
             slog->error("重新加载插件和策略时发生未知错误");
         }
-    };
-    start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(5), reload_plugins_and_policies);
+    }; 
+    start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(15), reload_plugins_and_policies);
     start_timer(ONLINE_CHECK_TIMER_ID, std::chrono::seconds(40), [this]() {
         try {
             OnlineCheck();
@@ -300,18 +313,18 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
         auto req = msg.get().as<ProtocolLC2LSAddObsSession>();
         obs_sessions_mgr()->add_session(req.session_id);
         set_field(session, req.session_id, "logic_ver", TEXT(FILE_VERSION_STR));
-        slog->debug("LSPKG_ID_C2S_ADD_OBS_SESSION {} {}", req.session_id, session->hash_key());
+        //slog->debug("LSPKG_ID_C2S_ADD_OBS_SESSION {} {}", req.session_id, session->hash_key());
     });
     package_mgr_.register_handler(LSPKG_ID_C2S_REMOVE_OBS_SESSION, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto req = msg.get().as<ProtocolLC2LSRemoveObsSession>();
         obs_sessions_mgr()->remove_session(req.session_id);
-        slog->debug("LSPKG_ID_C2S_REMOVE_OBS_SESSION {} {}", req.session_id, session->hash_key());
+        //slog->debug("LSPKG_ID_C2S_REMOVE_OBS_SESSION {} {}", req.session_id, session->hash_key());
     });
     package_mgr_.register_handler(LSPKG_ID_C2S_ADD_USR_SESSION, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         try {
             auto req = msg.get().as<ProtocolLC2LSAddUsrSession>();
             usr_sessions_mgr()->add_session(req.data.session_id, req.data);
-            slog->debug("LSPKG_ID_C2S_ADD_USR_SESSION {} {}", req.data.session_id, session->hash_key());
+            //slog->debug("LSPKG_ID_C2S_ADD_USR_SESSION {} {}", req.data.session_id, session->hash_key());
             auto user_data = usr_sessions_mgr()->get_user_data(req.data.session_id);
             if (user_data) {
                 std::wstring json_dump = Utils::c2w(user_data->json.dump());
@@ -342,7 +355,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
         #endif
         }
         usr_sessions_mgr()->remove_session(req.data.session_id);
-        slog->debug("LSPKG_ID_C2S_REMOVE_USR_SESSION {} {}", req.data.session_id, session->hash_key());
+        //slog->debug("LSPKG_ID_C2S_REMOVE_USR_SESSION {} {}", req.data.session_id, session->hash_key());
     });
     // service 转发玩家的包
     package_mgr_.register_handler(LSPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
@@ -463,7 +476,6 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
     });
     // 查询插件列表 客户端 --> service --> logicserver
     ob_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        slog->debug("SPKG_ID_C2S_QUERY_PLUGIN 1");
         auto plugin_hash_set = plugin_mgr_->get_plugin_hash_set();
         ProtocolS2CQueryPlugin resp(plugin_hash_set);
         send(session, package.head.session_id, &resp);
@@ -471,7 +483,6 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
 
     // 请求下载插件 客户端 --> service --> logicserver
     ob_pkg_mgr_.register_handler(SPKG_ID_C2S_DOWNLOAD_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-        slog->debug("SPKG_ID_C2S_DOWNLOAD_PLUGIN 1");
         auto& req = msg.get().as<ProtocolC2SDownloadPlugin>();
         auto resp = plugin_mgr_->get_plugin(req.plugin_hash);
         if (!resp.body.buffer.empty())
@@ -500,7 +511,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
         auto user_data = usr_sessions_mgr()->get_user_data(package.head.session_id);
         auto user_name = (user_data && user_data->json.contains("usrname") ? user_data->json.at("usrname").get<std::wstring>().c_str() : L"");
         //wprintf(L"usrname %s==%s\n", user_name, req.username.c_str());
-        if (!req.username.empty() && req.username != user_name)
+        if (user_data && !req.username.empty() && req.username != user_name)
         {
             //wprintf(L"set_field=======\n");
             set_field(session, package.head.session_id, "usrname", req.username);
@@ -840,12 +851,14 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, std::size_t session
                 }
             });
 
-            // 处罚玩家写到GM的开挂玩家列表.txt
-            punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
-                       usr_name.c_str(),
-                       punish_type_str[(PunishType)policy.punish_type],
-                       comment.c_str(),
-                       comment_2.c_str()
+            // 处罚玩家写到GM的处罚玩家日志.log
+            punish_log(TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
+                    usr_name.c_str(),
+                    policy_type_str[(PolicyType)policy.policy_type],
+                    policy.policy_id,
+                    punish_type_str[(PunishType)policy.punish_type],
+                    comment.c_str(),
+                    comment_2.c_str()
             );
 
             user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),

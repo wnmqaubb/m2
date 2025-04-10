@@ -7,9 +7,7 @@
 #include "ProxyTunnel.h"
 #endif
 #include "Protocol.h"
-#include <parallel_hashmap/phmap.h>
 #include <WinBase.h>
-#include <WinNT.h>
 #include <stdio.h>
 #include <time.h>
 #include <chrono>
@@ -21,29 +19,28 @@
 #include <iomanip>
 #include <iosfwd>
 #include <iostream>
-#include <map>
 #include <mutex>
-#include <set>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <vadefs.h>
 #include <asio2/base/error.hpp>
 #include <asio2/base/impl/user_timer_cp.hpp>
 #include <asio2/tcp/tcp_server.hpp>
 #include <msgpack/v1/object_fwd.hpp>
-#include <msgpack/v1/object_fwd_decl.hpp>
-#include <msgpack/v3/unpack.hpp>
 #include "Package.h"
 #include <ObServerPackage.h>
 #ifdef G_SERVICE 
 #include <ObServerServer.h>
+#include <parallel_hashmap/phmap.h>
 #endif
-#include <execution>
 
-static std::set<std::string> ddos_black_List;
-static std::map<std::string, uint32_t> ddos_black_map;
-CAntiCheatServer::CAntiCheatServer() : super()
+#ifdef G_SERVICE 
+static phmap::flat_hash_set<std::string> ddos_black_list;    // 黑名单IP集合
+static phmap::flat_hash_map<std::string, uint32_t> ddos_black_map; // IP计数器
+static std::shared_mutex ddos_black_list_mutex;  // 黑名单访问锁
+static std::shared_mutex ddos_black_map_mutex;   // 计数器访问锁
+#endif
+CAntiCheatServer::CAntiCheatServer() : super(), pool(std::max<size_t>(4, std::thread::hardware_concurrency() * 2))
 {
     bind_init(&CAntiCheatServer::on_init, this);
     bind_start(&CAntiCheatServer::on_start, this);
@@ -157,16 +154,26 @@ void CAntiCheatServer::on_start()
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
+#ifdef G_SERVICE 
     auto remote_address = session->remote_address();
-    // 黑名单
-    if (ddos_black_List.find(remote_address) != ddos_black_List.end() && remote_address != kDefaultLocalhost) {
-        session->stop();
-        if (ddos_black_map[remote_address] > 0) {
-            ddos_black_map[remote_address] -= 1;
-            log(LOG_TYPE_ERROR, TEXT("拦截ddos攻击黑名单IP:%s"), Utils::c2w(remote_address).c_str());
-            slog->error("拦截ddos攻击黑名单IP: {}", remote_address);
+    // 使用读锁检查黑名单
+    {
+        std::shared_lock<std::shared_mutex> lock(ddos_black_list_mutex);
+        if (ddos_black_list.contains(remote_address)) {
+            session->stop();
+
+            // 原子递减计数器
+            std::unique_lock<std::shared_mutex> map_lock(ddos_black_map_mutex);
+            if (auto it = ddos_black_map.find(remote_address);
+                it != ddos_black_map.end() && it->second > 0) {
+                it->second -= 1;
+                log(LOG_TYPE_ERROR, "拦截ddos攻击黑名单IP:%s", remote_address.c_str());
+                slog->warn("拦截ddos攻击黑名单IP: {}", remote_address);
+            }
+            return;
         }
     }
+#endif
 }
 
 void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
@@ -186,16 +193,20 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 {
     try
     {
+    #ifdef G_SERVICE 
         // 认证锁,优先处理网关后台认证
-        if (auth_lock_.load()) {
+        if (auth_lock_.load()) [[unlikely]] {
             if (session->remote_address() == kDefaultLocalhost) {
                 _on_recv(session, sv); 
                 return;
             }
         }
-        else {
+        else [[likely]] {
             _on_recv(session, sv); 
         }
+    #else
+        _on_recv(session, sv);
+    #endif
     }
     catch (...)
     {
@@ -206,64 +217,53 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
+#ifdef G_SERVICE 
     auto remote_address = session->remote_address();
-    // 黑名单
-    if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
-        return;
-    }
-    if (sv.size() == 0 && remote_address != kDefaultLocalhost)
+    // 快速检查是否在黑名单中
     {
-        auto it = ddos_black_map.find(remote_address);
-        if (it != ddos_black_map.end()) {
-            if (++it->second >= 10) {
-                ddos_black_List.emplace(remote_address);
-            }
+        std::shared_lock<std::shared_mutex> lock(ddos_black_list_mutex);
+        if (ddos_black_list.contains(remote_address)) {
+            return;
         }
-        else {
-            ddos_black_map[remote_address] = 1;
-        }
-
-        log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d ==> %s:%d 长度:%d"),
-            Utils::c2w(remote_address).c_str(),
-            session->remote_port(),
-            Utils::c2w(session->local_address()).c_str(),
-            session->local_port(),
-            sv.size());
-        session->stop();
-        return;
     }
 
+    if (sv.empty() && remote_address != kDefaultLocalhost) {
+        std::unique_lock<std::shared_mutex> map_lock(ddos_black_map_mutex);
+        auto& count = ddos_black_map[remote_address]; // phmap自动初始化
+
+        if (++count >= 10) {
+            std::unique_lock<std::shared_mutex> list_lock(ddos_black_list_mutex);
+            ddos_black_list.insert(remote_address);
+            log(LOG_TYPE_ERROR, "IP %s 触发阈值加入黑名单", remote_address.c_str());
+            session->stop();
+        }
+        return;
+    }
+#endif
     RawProtocolImpl package;
-    
-    // 使用共享指针管理msgpack对象生命周期
-    // 使用线程本地zone进行反序列化
+    msgpack::object_handle raw_msg;     // 反序列化结果
+    std::error_code ec;            // 错误码
 
-    if (!package.decode(sv))
-    {
-        log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
-            Utils::c2w(session->remote_address()).c_str(),
-            session->remote_port(),
-            sv.size());
+    // 合并步骤：协议解析+反序列化
+    if (!package.decode(sv, raw_msg, ec)) {
+        log(LOG_TYPE_DEBUG, "协议解析失败: %s", ec.message().c_str());
         return;
     }
-    // ✅ 添加缓冲区有效性检查
-    if (package.body.buffer.empty()) {
-        log(LOG_TYPE_ERROR, TEXT("协议体为空"));
-        return;
-    }
-    auto raw_msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
-    if (raw_msg.get().type != msgpack::type::ARRAY) throw msgpack::type_error();
-    if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
-    if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
-    const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
+    // 直接使用反序列化结果
+    const auto& root = raw_msg.get();
+    const auto package_id = root.via.array.ptr[0].as<unsigned int>();
     auto user_data = get_user_data_(session);
-
     if (user_data->get_handshake() == false)
     {
         if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
         {
-            auto msg = raw_msg.get().as<ProtocolC2SHandShake>();
-            on_recv_handshake(session, package, msg);
+            if (!on_recv(package_id, session, package, std::move(raw_msg)))
+            {
+                log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
+                    Utils::c2w(session->remote_address()).c_str(),
+                    session->remote_port(),
+                    package_id);
+            }
             return;
         }
         else
@@ -271,19 +271,17 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
             //log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"), Utils::c2w(session->remote_address()).c_str(), session->remote_port());
             return;
         }
-    }
+     }
 
      if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
      {
-         auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
-
-         ProtocolS2CHeartBeat resp;
-         resp.tick = msg.tick;
-         async_send(session, &resp);
-         auto userdata = get_user_data_(session);
-         userdata->update_heartbeat_time();
-         user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
-         //on_recv_heartbeat(session, package, msg);
+         if (!on_recv(package_id, session, package, std::move(raw_msg)))
+         {
+             log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
+                 Utils::c2w(session->remote_address()).c_str(),
+                 session->remote_port(),
+                 package_id);
+         }
          return;
      }
 #ifdef G_SERVICE    
@@ -293,11 +291,6 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         CObserverServer::instance().obpkg_id_c2s_auth(session, package, std::move(raw_msg));
         return;
     }
-#else
-    // if (package_mgr_.dispatch(package_id, session, package, raw_msg))
-    // {
-    //     return;
-    // }
 #endif
     if (!on_recv(package_id, session, package, std::move(raw_msg)))
     {
@@ -316,6 +309,9 @@ void CAntiCheatServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
 
 void CAntiCheatServer::on_stop()
 {
+    stop_all_timers();
+    stop_all_timed_tasks();
+    stop_all_timed_events();
     // session_cleaner_running_.store(false);
     // if (session_cleaner_thread_.joinable()) {
     //     session_cleaner_thread_.join();
@@ -398,6 +394,54 @@ void CAntiCheatServer::log(int type, LPCTSTR format, ...)
         log_cb_(buffer.c_str(), false, true, "", false);
 }
 
+void CAntiCheatServer::log(int type, LPCSTR format, ...)
+{
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lck(mtx);
+#ifndef _DEBUG
+    if ((log_level_ & type) == 0)
+        return;
+#endif // _DEBUG
+    auto now_time = std::time(nullptr);
+    std::tm tm_;
+    localtime_s(&tm_, &now_time);
+    std::stringstream ss;
+    ss << std::put_time(&tm_, "%H:%M:%S");
+    std::string time_str = ss.str();
+    std::cout << time_str.c_str() << ":";
+    std::string buffer;
+    buffer.resize(1024);
+    va_list ap;
+    va_start(ap, format);
+    int result = _vsnprintf_s(buffer.data(), buffer.size(), buffer.size(), format, ap);
+    va_end(ap);
+    if (result < 0)
+    {
+        // 处理缓冲区溢出
+        OutputDebugStringA("[Error] Log message too long");
+        return;
+    }
+
+    switch (type)
+    {
+        case LOG_TYPE_DEBUG:
+            std::cout << "[Debug]";
+            break;
+        case LOG_TYPE_EVENT:
+            std::cout << "[Event]";
+            break;
+        case LOG_TYPE_ERROR:
+            std::cout << "[Error]";
+            break;
+        default:
+            break;
+    }
+    printf("%s\n", buffer.c_str());
+
+    if (log_cb_)
+        log_cb_(Utils::c2w(buffer).c_str(), false, true, "", false);
+}
+
 void CAntiCheatServer::user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...)
 {
     static std::mutex mtx;
@@ -478,90 +522,90 @@ void CAntiCheatServer::punish_log(LPCTSTR format, ...)
 void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg)
 {
     // 批量发送心跳响应
-    auto& send_queue = batch_send_queue_[session->hash_key()];
-    if (!send_queue) {
-        send_queue = std::make_unique<SessionSendQueue>();
-    }
+    // auto& send_queue = batch_send_queue_[session->hash_key()];
+    // if (!send_queue) {
+    //     send_queue = std::make_unique<SessionSendQueue>();
+    // }
 
     // 使用智能指针管理缓冲区生命周期
-    auto buffer = std::make_shared<msgpack::sbuffer>();
-    msgpack::pack(*buffer, ProtocolS2CHeartBeat{ PKG_ID_S2C_HEARTBEAT, msg.tick });
-    send_queue->packets.enqueue(std::string(buffer->data(), buffer->size()));
+    // auto buffer = std::make_shared<msgpack::sbuffer>();
+    // msgpack::pack(*buffer, ProtocolS2CHeartBeat{ PKG_ID_S2C_HEARTBEAT, msg.tick });
+    // send_queue->packets.enqueue(std::string(buffer->data(), buffer->size()));
 
-    // 触发异步批量发送
-    if (!send_queue->sending.test_and_set()) {
-        this->post([this, session, &send_queue]() {
-            std::vector<std::string> packets;
-            packets.reserve(32);
-            send_queue->packets.try_dequeue_bulk(std::back_inserter(packets), 32);
+    // // 触发异步批量发送
+    // if (!send_queue->sending.test_and_set()) {
+    //     this->post([this, session, &send_queue]() {
+    //         std::vector<std::string> packets;
+    //         packets.reserve(32);
+    //         send_queue->packets.try_dequeue_bulk(std::back_inserter(packets), 32);
 
-            if (!packets.empty()) {
-                std::string combined;
-                combined.reserve(4096);
-                for (auto& pkt : packets) {
-                    combined.append(pkt);
-                }
-            // 使用智能指针管理协议包
-            auto package = std::make_shared<RawProtocolImpl>();
-            package->encode(combined.data(), combined.size());
-            // 直接传递智能指针
-            session->send(package->release());
-            }
-            send_queue->sending.clear();
-        });
-    }
+    //         if (!packets.empty()) {
+    //             std::string combined;
+    //             combined.reserve(4096);
+    //             for (auto& pkt : packets) {
+    //                 combined.append(pkt);
+    //             }
+    //         // 使用智能指针管理协议包
+    //         auto package = std::make_shared<RawProtocolImpl>();
+    //         package->encode(combined.data(), combined.size());
+    //         // 直接传递智能指针
+    //         session->send(package->release());
+    //         }
+    //         send_queue->sending.clear();
+    //     });
+    // }
 
-    // 更新时间轮
-    const auto now = std::chrono::steady_clock::now();
-    const auto session_id = session->hash_key();
+    // // 更新时间轮
+    // const auto now = std::chrono::steady_clock::now();
+    // const auto session_id = session->hash_key();
 
-    // 使用分层时间轮的无锁更新接口
-    const auto timestamp = static_cast<size_t>(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
-    time_wheels_[0].update_timestamp(
-        0, // level
-        session_id % HierarchicalTimeWheel::L1_SLOTS, // slot index
-        timestamp,
-        HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
+    // // 使用分层时间轮的无锁更新接口
+    // const auto timestamp = static_cast<size_t>(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
+    // time_wheels_[0].update_timestamp(
+    //     0, // level
+    //     session_id % HierarchicalTimeWheel::L1_SLOTS, // slot index
+    //     timestamp,
+    //     HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
 
-    // 更新用户心跳状态
-    auto userdata = get_user_data_(session);
-    userdata->update_heartbeat_time();
-    user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
+    // // 更新用户心跳状态
+    // auto userdata = get_user_data_(session);
+    // userdata->update_heartbeat_time();
+    // user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
 
-    // 分片级触发清理（每分片独立计数）
-    const size_t shard_idx = session_id % 12;
-    if (shard_clean_counters_[shard_idx].fetch_add(1) % 128 == 0) {
-        const auto cutoff = now - std::chrono::minutes(5);
+    // // 分片级触发清理（每分片独立计数）
+    // const size_t shard_idx = session_id % 12;
+    // if (shard_clean_counters_[shard_idx].fetch_add(1) % 128 == 0) {
+    //     const auto cutoff = now - std::chrono::minutes(5);
 
-        // 使用phmap线程安全遍历接口
-        session_last_active_times_.with_submap_m(
-            shard_idx,
-            [cutoff, this](auto& submap) {
-            std::vector<std::size_t> expired;
-            expired.reserve(submap.size() / 2);
+    //     // 使用phmap线程安全遍历接口
+    //     session_last_active_times_.with_submap_m(
+    //         shard_idx,
+    //         [cutoff, this](auto& submap) {
+    //         std::vector<std::size_t> expired;
+    //         expired.reserve(submap.size() / 2);
 
-            // phmap已自动加锁，直接操作
-            for (auto it = submap.begin(); it != submap.end();) {
-                if (it->second < cutoff) {
-                    expired.push_back(it->first);
-                    it = submap.erase(it);  // 线程安全删除
-                }
-                else {
-                    ++it;
-                }
-            }
+    //         // phmap已自动加锁，直接操作
+    //         for (auto it = submap.begin(); it != submap.end();) {
+    //             if (it->second < cutoff) {
+    //                 expired.push_back(it->first);
+    //                 it = submap.erase(it);  // 线程安全删除
+    //             }
+    //             else {
+    //                 ++it;
+    //             }
+    //         }
 
-            // 批量提交需要全局处理的会话
-            if (!expired.empty()) {
-                expired_sessions_queue_.enqueue_bulk(
-                    expired.data(),
-                    expired.size()
-                );
-            }
-            return true; // 必须返回布尔值
-        }
-        );
-    }
+    //         // 批量提交需要全局处理的会话
+    //         if (!expired.empty()) {
+    //             expired_sessions_queue_.enqueue_bulk(
+    //                 expired.data(),
+    //                 expired.size()
+    //             );
+    //         }
+    //         return true; // 必须返回布尔值
+    //     }
+    //     );
+    // }
 }
 
 void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)
@@ -572,8 +616,6 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         auto userdata = get_user_data_(session);
 
         // 安全复制UUID
-        // 添加边界检查
-        static_assert(sizeof(userdata->uuid) == sizeof(msg.uuid), "UUID size mismatch");
         std::memcpy(userdata->uuid, msg.uuid, sizeof(userdata->uuid));
 
         // 原子地标记握手状态
@@ -592,12 +634,12 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         userdata->set_field("pid", msg.pid);
         userdata->set_field("is_client", msg.is_client);
 
-        // 通知和响应
-        user_notify_mgr_.dispatch(CLIENT_HANDSHAKE_NOTIFY_ID, session);
-
         ProtocolS2CHandShake resp;
         memcpy(resp.uuid, msg.uuid, sizeof(msg.uuid));
-        async_send(session, &resp);
+        /*async_*/send(session, &resp);
+
+        // 通知和响应
+        user_notify_mgr_.dispatch(CLIENT_HANDSHAKE_NOTIFY_ID, session);
 
         //slog->info("握手成功: session_id={}", session->hash_key());
     }

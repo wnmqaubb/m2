@@ -3,7 +3,6 @@
 // 项目自有头文件
 #include "ObserverServer.h"
 #include "LogicClient.h"
-#include "ObserverServer.h"
 #include "VmpSerialValidate.h"
 
 // 标准库和第三方库
@@ -27,11 +26,12 @@
 #include <WinBase.h>
 #include "ThreadPool.h"
 //slog->info(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
-// 全局线程池
-static BusinessThreadPool pool(std::max<size_t>(4, std::thread::hardware_concurrency() * 2));
 // 转发到logic_server
-bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session,
-                              const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
+bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
+    // 在创建 Task 前检查传入的 raw_msg 是否为空
+    if (raw_msg.get().is_nil()) {
+        slog->warn("on_recv received a nil msgpack handle for package_id: {}", package_id);
+    }
     try {
         // 将任务放入队列
         Task task(package_id, session, package, std::move(raw_msg));
@@ -55,11 +55,37 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
 
 void CObserverServer::process_task(Task&& task)
 {
-    if (IsBadReadPtr(task.raw_msg.get(), sizeof(msgpack::object_handle))) {
-        slog->critical("Invalid msgpack handle detected");
+    // 基本参数检查
+    if (task.raw_msg->get().is_nil()) {
+        slog->critical("Null msgpack handle detected");
         return;
     }
+
     auto& [package_id, session, package, raw_msg] = task;
+
+    if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
+    {
+        auto msg = raw_msg->get().as<ProtocolC2SHandShake>();
+        on_recv_handshake(session, package, msg);
+        return;
+    }
+
+    if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
+    {
+        auto msg = raw_msg->get().as<ProtocolC2SHeartBeat>();
+
+        ProtocolS2CHeartBeat resp;
+        resp.tick = msg.tick;
+        async_send(session, &resp);
+        auto userdata = get_user_data_(session);
+        userdata->update_heartbeat_time();
+        //user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
+
+        on_recv_client_heartbeat(session);
+        //on_recv_heartbeat(session, package, msg);
+        return;
+    }
+
     std::shared_ptr<AntiCheatUserData> user_data;
     if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE) {
         // 减少包处理数量,临时用,待登录器更新后移除
@@ -118,36 +144,36 @@ void CObserverServer::process_task(Task&& task)
 }
 // 优化后的心跳处理(分批+无锁)
 void CObserverServer::batch_heartbeat(const std::vector<tcp_session_shared_ptr_t>& sessions) {
-    constexpr size_t BATCH_SIZE = 512;
-    auto now = std::chrono::steady_clock::now();
+    // constexpr size_t BATCH_SIZE = 512;
+    // auto now = std::chrono::steady_clock::now();
     
-    // 分批处理减少锁持有时间
-    for (size_t i = 0; i < sessions.size(); i += BATCH_SIZE) {
-        auto end = std::min(i + BATCH_SIZE, sessions.size());
-        std::shared_lock<std::shared_mutex> lock(session_times_mtx_);
+    // // 分批处理减少锁持有时间
+    // for (size_t i = 0; i < sessions.size(); i += BATCH_SIZE) {
+    //     auto end = std::min(i + BATCH_SIZE, sessions.size());
+    //     std::shared_lock<std::shared_mutex> lock(session_times_mtx_);
         
-        // 使用预分配内存避免重复分配
-        thread_local static phmap::flat_hash_map<std::size_t, std::chrono::steady_clock::time_point> local_cache;
-        local_cache.reserve(BATCH_SIZE);
+    //     // 使用预分配内存避免重复分配
+    //     thread_local static phmap::flat_hash_map<std::size_t, std::chrono::steady_clock::time_point> local_cache;
+    //     local_cache.reserve(BATCH_SIZE);
         
-        for (size_t j = i; j < end; ++j) {
-            auto& session = sessions[j];
-            local_cache[session->hash_key()] = now;
-            if (auto user_data = get_user_data_(session)) {
-                user_data->update_heartbeat_time();
-            }
-        }
+    //     for (size_t j = i; j < end; ++j) {
+    //         auto& session = sessions[j];
+    //         local_cache[session->hash_key()] = now;
+    //         if (auto user_data = get_user_data_(session)) {
+    //             user_data->update_heartbeat_time();
+    //         }
+    //     }
         
-        // 批量更新到主存储
-        {
-            std::unique_lock<std::shared_mutex> unique_lock(session_times_mtx_);
-            // 手动合并map内容,因为merge不支持不同类型map的合并
-            for (const auto& [session_id, time] : local_cache) {
-                session_last_active_times_[session_id] = time;
-            }
-        }
-        local_cache.clear();
-    }
+    //     // 批量更新到主存储
+    //     {
+    //         std::unique_lock<std::shared_mutex> unique_lock(session_times_mtx_);
+    //         // 手动合并map内容,因为merge不支持不同类型map的合并
+    //         for (const auto& [session_id, time] : local_cache) {
+    //             session_last_active_times_[session_id] = time;
+    //         }
+    //     }
+    //     local_cache.clear();
+    // }
 }
 CObserverServer::CObserverServer()
 {
@@ -324,7 +350,7 @@ CObserverServer::CObserverServer()
         ProtocolLC2LSAddUsrSession req;
         auto user_data = get_user_data_(session);
         ProtocolUserData& _userdata = req.data;
-        if (user_data->get_handshake())
+        if (auto handshake =user_data->get_handshake())
         {
             _userdata.session_id = session->hash_key();
             if (user_data && user_data->uuid) {
@@ -333,29 +359,15 @@ CObserverServer::CObserverServer()
             else {
                 memset(_userdata.uuid, 0, sizeof(_userdata.uuid));
             }
-            _userdata.has_handshake = user_data->get_handshake();
+            _userdata.has_handshake = handshake;
             _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
             _userdata.json = user_data->data;
             logic_client_->send(&req);
         }
 
     });
-    user_notify_mgr_.register_handler(CLIENT_HEARTBEAT_NOTIFY_ID, [this](tcp_session_shared_ptr_t& session) {
-        if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))
-            return;
-        ProtocolLC2LSSend req;
-        ProtocolC2SHeartBeat heartbeat;
-        heartbeat.tick = time(0);
-        msgpack::sbuffer sbuf;
-        msgpack::pack(sbuf, heartbeat);
-        RawProtocolImplBase package;
-        package.encode(sbuf.data(), sbuf.size());
-        req.package.head = package.head;
-        req.package.body = package.body;
-        req.package.head.session_id = session->hash_key();
-        logic_client_->async_send(&req, package.head.session_id);
-    });
 }
+
 // OBPKG_ID_C2S_AUTH
 void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
 {
@@ -426,7 +438,7 @@ void CObserverServer::on_recv_client_heartbeat(tcp_session_shared_ptr_t& session
         return;
     ProtocolLC2LSSend req;
     ProtocolC2SHeartBeat heartbeat;
-    heartbeat.tick = time(0);
+    heartbeat.tick = time(nullptr);
     msgpack::sbuffer sbuf;
     msgpack::pack(sbuf, heartbeat);
     RawProtocolImplBase package;
@@ -475,6 +487,7 @@ void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned sh
 void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag)
 {
     ProtocolOBS2OBCLogPrint log;
+    log.text = msg;
     log.silence = silence;
     log.gm_show = gm_show;
     log.punish_flag = punish_flag;

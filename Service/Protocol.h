@@ -31,7 +31,37 @@ const unsigned int kRawProtocolMaxSize = (std::numeric_limits<unsigned int>::max
 const size_t kCompressBound = 1024 * 10;
 //const unsigned int kProtocolXorKey[4] = { 0x6432A2DF, 0xE6A253B6, 0x6F62F83C, 0x8B7BEFA4 };
 const unsigned int kProtocolXorKey[4] = { 0x6431A2DF, 0xE6A953B6, 0x6F64F83C, 0x8A7BEFA4 };
+// 错误码定义（需在协议层补充）
+enum class ProtoErrc {
+    DecodeFailed = 1,
+    InvalidMsgpack,
+    UnpackFailed
+};
 
+struct ProtoErrCategory : std::error_category {
+    const char* name() const noexcept override;
+    std::string message(int ev) const override;
+};
+
+// 成员函数实现移到类外并用inline
+inline const char* ProtoErrCategory::name() const noexcept {
+    return "protocol";
+}
+
+inline std::string ProtoErrCategory::message(int ev) const {
+    switch (static_cast<ProtoErrc>(ev)) {
+        case ProtoErrc::DecodeFailed: return "协议头/体解析失败";
+        case ProtoErrc::InvalidMsgpack: return "Msgpack格式非法";
+        case ProtoErrc::UnpackFailed: return "反序列化失败";
+        default: return "未知协议错误";
+    }
+}
+
+// 对象和函数添加inline
+inline const ProtoErrCategory protoErrCategory{};
+inline std::error_code make_error_code(ProtoErrc e) {
+    return { static_cast<int>(e), protoErrCategory };
+}
 #pragma pack(push, 1)
 class RawProtocolHead
 {
@@ -386,6 +416,44 @@ public:
         catch (...) {
             // ❌ 修复：失败时清空 buffer
             body.buffer.clear(); // 或 body.buffer = std::vector<char>();
+            return false;
+        }
+    }
+#else
+        ;
+#endif
+    PROTOCOL_EXPORT virtual bool decode(
+        std::string_view sv,
+        msgpack::object_handle& oh,  // 输出反序列化对象
+        std::error_code& ec          // 错误码传递
+    )
+    #if defined(PROTOCOL_IMPL)
+    {
+        ec.clear();
+        try {
+            // 1. 基础协议解析
+            if (!decode(sv)) {
+                ec = make_error_code(ProtoErrc::DecodeFailed);
+                return false;
+            }
+
+            // 2. 直接对已解析的body进行反序列化
+            oh = msgpack::unpack(
+                reinterpret_cast<const char*>(this->body.buffer.data()),
+                this->body.buffer.size()
+            );
+
+            // 3. 校验反序列化结果
+            if (oh.get().type != msgpack::type::ARRAY ||
+                oh.get().via.array.size < 1) {
+                ec = make_error_code(ProtoErrc::InvalidMsgpack);
+                return false;
+            }
+
+            return true;
+        }
+        catch (const std::exception& e) {
+            ec = make_error_code(ProtoErrc::UnpackFailed);
             return false;
         }
     }

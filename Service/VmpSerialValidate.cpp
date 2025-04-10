@@ -34,7 +34,7 @@ bool VmpSerialValidator::validate_timer(bool slience)
 #ifdef _DEBUG
 	CObserverServer::instance().set_auth_ticket("");
 	CObserverServer::instance().auth_success();
-	CObserverServer::instance().get_vmp_expire() = TEXT("测试");
+    CObserverServer::instance().get_vmp_expire() = TEXT("2026-03-10");//TEXT("测试");
 	status = true;
 #else
 	is_multi_serial_ = false;

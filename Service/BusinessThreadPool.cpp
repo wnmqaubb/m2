@@ -1,19 +1,19 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ThreadPool.h"
 #ifdef G_SERVICE
 #include <ObserverServer.h>
 #else
 #include <LogicServer.h>
 #endif
-
+#include <Psapi.h>
 
 BusinessThreadPool::BusinessThreadPool(size_t thread_count)
-    : global_queue_(thread_count * 4096/*8192*/)
+    : global_queue_(thread_count * 4096)
 {
-    // Ô¤·ÖÅäÄÚ´æ³Ø¶ÔÏó£¨¼ÙÉè Task ¿ÉÄ¬ÈÏ¹¹Ôì£©
-    const size_t INITIAL_POOL_SIZE = global_queue_.size_approx() * 4;
+    // é¢„åˆ†é…å†…å­˜æ± å¯¹è±¡ï¼ˆå‡è®¾ Task å¯é»˜è®¤æ„é€ ï¼‰
+    const size_t INITIAL_POOL_SIZE = global_queue_.size_approx() * 2;
     for (size_t i = 0; i < INITIAL_POOL_SIZE; ++i) {
-        //TaskWrapper* wrapper = new TaskWrapper(Task{});  // Ğè Task Ö§³ÖÄ¬ÈÏ¹¹Ôì
+        //TaskWrapper* wrapper = new TaskWrapper(Task{});  // éœ€ Task æ”¯æŒé»˜è®¤æ„é€ 
         auto* wrapper = new TaskWrapper(
             Task(0, nullptr, RawProtocolImpl{}, msgpack::v1::object_handle{})
         );
@@ -30,13 +30,13 @@ BusinessThreadPool::BusinessThreadPool(size_t thread_count)
 
             worker_loop(ctx, i);
 
-            // ÇåÀíÂß¼­
+            // æ¸…ç†é€»è¾‘
             {
                 std::unique_lock lock(context_mutex_);
                 auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
                                        [&](const std::weak_ptr<WorkerContext>& weak_ctx) {
                     auto shared_ctx = weak_ctx.lock();
-                    return shared_ctx && (shared_ctx == ctx);  // ±È½Ïshared_ptr¶ÔÏó
+                    return shared_ctx && (shared_ctx == ctx);  // æ¯”è¾ƒshared_ptrå¯¹è±¡
                 });
             }
 
@@ -45,32 +45,38 @@ BusinessThreadPool::BusinessThreadPool(size_t thread_count)
         });
 
     }
-    // ÔÚ¹¹Ôìº¯ÊıÖĞÆô¶¯¼à¿ØÏß³Ì
-    start_monitor();
+    // åœ¨æ„é€ å‡½æ•°ä¸­å¯åŠ¨ç›‘æ§çº¿ç¨‹
+    start_monitor(INITIAL_POOL_SIZE);
 }
 
 BusinessThreadPool::~BusinessThreadPool() {
     stop_.store(true, std::memory_order_release);
-    // ÏÈÍ£Ö¹¼à¿ØÏß³Ì
+    // å…ˆåœæ­¢ç›‘æ§çº¿ç¨‹
     monitor_stop_.store(true, std::memory_order_release);
     if (monitor_thread_.joinable()) {
         monitor_thread_.join();
     }
 
-    // µÈ´ıËùÓĞÈÎÎñÍê³É
+    // ç­‰å¾…æ‰€æœ‰ä»»åŠ¡å®Œæˆ
     while (pending_tasks_.load(std::memory_order_acquire) > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    // Í£Ö¹¹¤×÷Ïß³Ì
+    // åœæ­¢å·¥ä½œçº¿ç¨‹
     for (auto& w : workers_) {
         if (w.joinable()) w.join();
     }
-    // ÇåÀíÄÚ´æ³Ø
+    // æ¸…ç†å†…å­˜æ± 
     TaskWrapper* task;
     while (task_pool_.try_dequeue(task)) {
         delete task;
     }
+    // æ¸…ç©ºé˜Ÿåˆ—é˜²æ­¢æ®‹ç•™ä»»åŠ¡
+    while (global_queue_.try_dequeue(task)) {
+        delete task;
+    }
+
+    log_thread_pool_status();
 }
 
 bool BusinessThreadPool::enqueue(Task task) {
@@ -79,7 +85,7 @@ bool BusinessThreadPool::enqueue(Task task) {
         return false;
     }
 
-    // »ñÈ¡»ò´´½¨ÈÎÎñ°ü×°Æ÷
+    // è·å–æˆ–åˆ›å»ºä»»åŠ¡åŒ…è£…å™¨
     TaskWrapper* wrapper = nullptr;
     if (!task_pool_.try_dequeue(wrapper)) {
         constexpr int BATCH_SIZE = 64;
@@ -94,7 +100,7 @@ bool BusinessThreadPool::enqueue(Task task) {
         }
     }
 
-    // °²È«ÒÆ¶¯ÈÎÎñ
+    // å®‰å…¨ç§»åŠ¨ä»»åŠ¡
     try {
         wrapper->task = std::move(task);
     }
@@ -104,7 +110,7 @@ bool BusinessThreadPool::enqueue(Task task) {
         return false;
     }
 
-    // Ñ¡ÔñÄ¿±ê¹¤×÷Ïß³Ì
+    // é€‰æ‹©ç›®æ ‡å·¥ä½œçº¿ç¨‹
     std::shared_ptr<WorkerContext> target_ctx;
     {
         std::shared_lock<std::shared_mutex> lock(context_mutex_);
@@ -116,7 +122,7 @@ bool BusinessThreadPool::enqueue(Task task) {
                 size_t index = dist(rng);
                 if (index >= worker_contexts_.size()) continue;
 
-                if (auto ctx = worker_contexts_[index].lock()) {  // ÕıÈ·×ª»»weak_ptr
+                if (auto ctx = worker_contexts_[index].lock()) {  // æ­£ç¡®è½¬æ¢weak_ptr
                     if (ctx->active.load(std::memory_order_acquire)) {
                         target_ctx = ctx;
                         break;
@@ -126,21 +132,21 @@ bool BusinessThreadPool::enqueue(Task task) {
         }
     }
 
-    // ³¢ÊÔ±¾µØ¶ÓÁĞÈë¶Ó
+    // å°è¯•æœ¬åœ°é˜Ÿåˆ—å…¥é˜Ÿ
     if (target_ctx && target_ctx->local_queue.try_enqueue(wrapper)) {
         pending_tasks_.fetch_add(1, std::memory_order_relaxed);
         return true;
     }
 
-    // ½µ¼¶µ½È«¾Ö¶ÓÁĞ
-    if (global_queue_.size_approx() < GLOBAL_QUEUE_MAX) {  // Ê¹ÓÃÕıÈ·ÈİÁ¿¼ì²é
+    // é™çº§åˆ°å…¨å±€é˜Ÿåˆ—
+    if (global_queue_.size_approx() < GLOBAL_QUEUE_MAX) {  // ä½¿ç”¨æ­£ç¡®å®¹é‡æ£€æŸ¥
         if (global_queue_.enqueue(wrapper)) {
             pending_tasks_.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
     }
 
-    // ×îÖÕ»ØÊÕ
+    // æœ€ç»ˆå›æ”¶
     if (!task_pool_.enqueue(wrapper)) {
         slog->warn("Memory pool full, direct delete");
         delete wrapper;
@@ -148,33 +154,51 @@ bool BusinessThreadPool::enqueue(Task task) {
     return false;
 }
 
-// ĞŞ¸Ä¼à¿ØÏß³ÌÊµÏÖ
-void BusinessThreadPool::start_monitor() {
-    monitor_thread_ = std::thread([this] {
-        while (!monitor_stop_.load(std::memory_order_acquire)) {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
 
-            // Ë«ÖØ¼ì²é±ÜÃâ¾ºÌ¬Ìõ¼ş
-            if (monitor_stop_.load(std::memory_order_acquire)) break;
-            log_thread_pool_status();
-            // °²È«·ÃÎÊ³ÉÔ±±äÁ¿
-            const size_t pool_size = task_pool_.size_approx();
-            if (pool_size < MEMORY_POOL_LOW_WATERMARK) {
-                const size_t need_alloc = MEMORY_POOL_INIT_SIZE - pool_size;
-                for (size_t i = 0; i < need_alloc; ++i) {
-                    // Ê¹ÓÃ°²È«ÄÚ´æ·ÖÅä
-                    try {
-                        auto wrapper = new TaskWrapper(Task{});
-                        if (!task_pool_.enqueue(wrapper)) {
-                            delete wrapper;
-                        }
-                    }
-                    catch (const std::bad_alloc& e) {
-                        slog->error("Memory allocation failed: {}", e.what());
+// ä¿®æ”¹ç›‘æ§çº¿ç¨‹å®ç°
+void BusinessThreadPool::start_monitor(const size_t INITIAL_POOL_SIZE) {
+    monitor_thread_ = std::thread([this, INITIAL_POOL_SIZE] {
+        size_t prev_pending = 0;
+        while (!monitor_stop_.load(std::memory_order_acquire)) {
+            // åŠ¨æ€è°ƒæ•´ä¼‘çœ æ—¶é—´(1-10ç§’)
+            const auto sleep_duration = std::chrono::seconds(prev_pending > 1000 ? 1 : 10);
+            std::this_thread::sleep_for(sleep_duration);
+
+            // å¼¹æ€§å†…å­˜è¡¥å……ç­–ç•¥
+            const size_t current_pool = task_pool_.size_approx();
+            const size_t current_pending = pending_tasks_.load();
+
+            // è®¡ç®—ç›®æ ‡æ± å¤§å°ï¼ˆåŸºäºå½“å‰è´Ÿè½½ï¼‰
+            const size_t target_pool = std::clamp(
+                current_pending * 2,
+                MEMORY_POOL_LOW_WATERMARK,
+                MEMORY_POOL_INIT_SIZE
+            );
+
+            // æ¸è¿›å¼è¡¥å……
+            if (current_pool < target_pool) {
+                const size_t need = target_pool - current_pool;
+                for (size_t i = 0; i < need; ++i) {
+                    auto wrapper = new (std::nothrow) TaskWrapper(Task{});
+                    if (wrapper && !task_pool_.enqueue(wrapper)) {
+                        delete wrapper;
                         break;
                     }
                 }
             }
+
+            // ä¸»åŠ¨é‡Šæ”¾ç­–ç•¥ï¼ˆè°ƒæ•´é‡Šæ”¾é˜ˆå€¼ï¼‰
+            if (current_pool > target_pool * 1.2) {
+                TaskWrapper* buffer[128];
+                while (auto count = task_pool_.try_dequeue_bulk(buffer, 128)) {
+                    for (size_t i = 0; i < count; ++i) {
+                        delete buffer[i];
+                    }
+                }
+            }
+
+            prev_pending = current_pending;
+        
         }
     });
 }
@@ -183,37 +207,47 @@ void BusinessThreadPool::worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t
 
     constexpr size_t MAX_BATCH = 128;
     TaskWrapper* local_batch[MAX_BATCH];
+    int idle_retries = 0;
 
     while (!stop_.load(std::memory_order_relaxed)) {
-        // Ã¿´ÎÑ­»·Ç°¼ì²é»îĞÔ
+        // æ¯æ¬¡å¾ªç¯å‰æ£€æŸ¥æ´»æ€§
         if (!ctx->active.load(std::memory_order_acquire)) {
             break;
         }
         size_t processed = 0;
 
-        // ÓÅÏÈ´¦Àí±¾µØ¶ÓÁĞ
+        // ä¼˜å…ˆå¤„ç†æœ¬åœ°é˜Ÿåˆ—
         TaskWrapper* task;
         while (ctx->local_queue.try_dequeue(task)) {
             execute_task(task);
             processed++;
         }
 
-        // ´¦ÀíÈ«¾Ö¶ÓÁĞ£¨±£³ÖÔ­ÓĞÂß¼­£©
+        // å¤„ç†å…¨å±€é˜Ÿåˆ—ï¼ˆä¿æŒåŸæœ‰é€»è¾‘ï¼‰
         std::vector<TaskWrapper*> batch;
         int count = process_global(batch);
         processed += count;
 
-        // ¹¤×÷ÇÔÈ¡ÓÅ»¯£¨Ê¹ÓÃÒÑÓĞ·½·¨£©
+        // å·¥ä½œçªƒå–ä¼˜åŒ–ï¼ˆä½¿ç”¨å·²æœ‰æ–¹æ³•ï¼‰
         if (processed == 0) {
-            processed += try_steal(batch, worker_id);  // ĞŞÕı·½·¨Ãû
+            processed += try_steal(batch, worker_id);  // ä¿®æ­£æ–¹æ³•å
         }
 
-        // ×ÔÊÊÓ¦ĞİÃß
+        // è‡ªé€‚åº”ä¼‘çœ 
         if (processed == 0) {
-            Sleep(1);
+            if (idle_retries < 10) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1 << idle_retries));
+                idle_retries++;
+            }
+            else {
+                std::this_thread::yield();
+            }
+        }
+        else {
+            idle_retries = 0;
         }
     }
-    // ÍË³öÊ±×Ô¶¯´ÓÉÏÏÂÎÄÖĞÒÆ³ı
+    // é€€å‡ºæ—¶è‡ªåŠ¨ä»ä¸Šä¸‹æ–‡ä¸­ç§»é™¤
     {
         std::unique_lock lock(context_mutex_);
         auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
@@ -252,65 +286,74 @@ size_t BusinessThreadPool::try_steal(std::vector<TaskWrapper*>& batch, size_t th
     size_t stolen = 0;
     const size_t total_workers = worker_contexts_.size();
 
-    // ÓÅ»¯²ÎÊıÅäÖÃ
-    constexpr size_t MAX_STEAL_PER_WORKER = 32;    // µ¥Ïß³Ì×î´óÇÔÈ¡Á¿
-    // ¸ù¾İ¸ºÔØ¶¯Ì¬µ÷Õû²ÎÊı
+    // ä¼˜åŒ–å‚æ•°é…ç½®
+    constexpr size_t MAX_STEAL_PER_WORKER = 32;    // å•çº¿ç¨‹æœ€å¤§çªƒå–é‡
+    // æ ¹æ®è´Ÿè½½åŠ¨æ€è°ƒæ•´å‚æ•°
     size_t dynamic_steal_limit = std::min(
         MAX_STEAL_PER_WORKER,
         static_cast<size_t>(std::max<int64_t>(pending_tasks_.load(), 0)) /
         (worker_contexts_.size() + 1)
     );
-    // Ëæ»úÑ¡ÔñÆğÊ¼ÇÔÈ¡Î»ÖÃ
+    // éšæœºé€‰æ‹©èµ·å§‹çªƒå–ä½ç½®
     static thread_local std::mt19937_64 rng(std::random_device{}());
     std::uniform_int_distribution<size_t> dist(0, total_workers - 1);
     size_t start_index = dist(rng);
 
     for (size_t i = 0; i < total_workers && stolen < dynamic_steal_limit; ++i) {
-        // »·×´±éÀú±ÜÃâÆ«Ïò
+        // ç¯çŠ¶éå†é¿å…åå‘
         size_t target_index = (start_index + i) % total_workers;
         if (target_index == thief_id) continue;
 
-        // °²È«»ñÈ¡Ä¿±êÉÏÏÂÎÄ
+        // å®‰å…¨è·å–ç›®æ ‡ä¸Šä¸‹æ–‡
         auto weak_ctx = worker_contexts_[target_index];
         auto ctx = weak_ctx.lock();
         if (!ctx || !ctx->active.load(std::memory_order_acquire)) {
             continue;
         }
 
-        // µ¥ÈÎÎñÇÔÈ¡Ä£Ê½
+        // å•ä»»åŠ¡çªƒå–æ¨¡å¼
         TaskWrapper* stolen_task = nullptr;
         size_t local_stolen = 0;
         while (local_stolen < dynamic_steal_limit) {
-            // ³¢ÊÔÇÔÈ¡µ¥¸öÈÎÎñ
+            // å°è¯•çªƒå–å•ä¸ªä»»åŠ¡
             if (!ctx->local_queue.try_dequeue(stolen_task)) {
                 break;
             }
 
-            // °²È«´¦ÀíÇÔÈ¡µÄÈÎÎñ
+            // å®‰å…¨å¤„ç†çªƒå–çš„ä»»åŠ¡
             if (stolen_task) {
                 batch.push_back(stolen_task);
                 ++local_stolen;
                 ++stolen;
             }
 
-            // ´ïµ½µ¥Ïß³ÌÇÔÈ¡ÉÏÏŞ
+            // è¾¾åˆ°å•çº¿ç¨‹çªƒå–ä¸Šé™
             if (local_stolen >= dynamic_steal_limit) {
                 break;
             }
         }
 
-        // ¸üĞÂÄ¿±êÏß³ÌµÄÇÔÈ¡Í³¼Æ
+        // æ›´æ–°ç›®æ ‡çº¿ç¨‹çš„çªƒå–ç»Ÿè®¡
         if (local_stolen > 0) {
             ctx->total_steals.fetch_add(local_stolen, std::memory_order_relaxed);
         }
 
-        // ÌáÇ°ÍË³öÌõ¼ş
+        // æå‰é€€å‡ºæ¡ä»¶
         if (stolen >= WORKER_BATCH_SIZE) {
             break;
         }
     }
 
-    // ÅúÁ¿Ö´ĞĞÇÔÈ¡µ½µÄÈÎÎñ
+    // åŠ¨æ€è®¡ç®—ä¼‘çœ æ—¶é—´ï¼ˆåŸºäºå…¨å±€é˜Ÿåˆ—æ·±åº¦ï¼‰
+    const size_t global_pending = pending_tasks_.load();
+    const auto sleep_time = global_pending > 1000 ?
+        std::chrono::microseconds(50) :   // é«˜è´Ÿè½½æ—¶çŸ­ä¼‘çœ 
+        std::chrono::microseconds(200);   // ä½è´Ÿè½½æ—¶é•¿ä¼‘çœ 
+
+    if (stolen == 0) {
+        std::this_thread::sleep_for(sleep_time);  // åŠ¨æ€ä¼‘çœ 
+    }
+    // æ‰¹é‡æ‰§è¡Œçªƒå–åˆ°çš„ä»»åŠ¡
     if (!batch.empty()) {
         for (auto task : batch) {
             execute_task(task);
@@ -318,17 +361,18 @@ size_t BusinessThreadPool::try_steal(std::vector<TaskWrapper*>& batch, size_t th
         batch.clear();
     }
 
-    pending_tasks_.fetch_sub(stolen, std::memory_order_relaxed);
+    //pending_tasks_.fetch_sub(stolen, std::memory_order_relaxed);
     return stolen;
 }
+
 void BusinessThreadPool::execute_task(TaskWrapper* task) {
     if (!task) return;
 
-    // Òì³£°²È«µÄÒÆ¶¯²¶»ñ
+    // å¼‚å¸¸å®‰å…¨çš„ç§»åŠ¨æ•è·
     try {
         Task local_task;
-        local_task = std::move(task->task);  // ÕıÈ·µÄÒÆ¶¯¸³Öµ
-        // Ö´ĞĞÈÎÎñ
+        local_task = std::move(task->task);  // æ­£ç¡®çš„ç§»åŠ¨èµ‹å€¼
+        // æ‰§è¡Œä»»åŠ¡
     #ifdef G_SERVICE    
         CObserverServer::instance().process_task(std::move(local_task));
     #else
@@ -339,10 +383,10 @@ void BusinessThreadPool::execute_task(TaskWrapper* task) {
         slog->error("Task execution failed");
     }
 
-    // ÖØÖÃÈÎÎñ°ü×°Æ÷
-    task->task = Task{};  // ÏÔÊ½ÖØÖÃÎªÄ¬ÈÏ×´Ì¬
+    // é‡ç½®ä»»åŠ¡åŒ…è£…å™¨
+    task->task = Task{};  // æ˜¾å¼é‡ç½®ä¸ºé»˜è®¤çŠ¶æ€
 
-    // »ØÊÕÄÚ´æ
+    // å›æ”¶å†…å­˜
     if (!task_pool_.enqueue(task)) {
         slog->warn("Failed to recycle task wrapper");
         delete task;
@@ -371,15 +415,15 @@ void BusinessThreadPool::drain_queue(std::shared_ptr<WorkerContext>& ctx) {
 }
 
 void BusinessThreadPool::check_memory_usage() {
-    constexpr size_t MAX_POOL_SIZE = 100000;
+    constexpr size_t MAX_POOL_SIZE = 10000;
     size_t current = task_pool_.size_approx();
 
-    // °²È«ÊÍ·Å¶àÓà¶ÔÏó
+    // å®‰å…¨é‡Šæ”¾å¤šä½™å¯¹è±¡
     if (current > MAX_POOL_SIZE) {
         TaskWrapper* wrappers[256];
         size_t count = task_pool_.try_dequeue_bulk(wrappers, 256);
         for (size_t i = 0; i < count; ++i) {
-            delete wrappers[i];  // ÕıÈ·ÊÍ·ÅÄÚ´æ
+            delete wrappers[i];  // æ­£ç¡®é‡Šæ”¾å†…å­˜
         }
     }
 }
@@ -390,14 +434,14 @@ void BusinessThreadPool::log_pool_stats() {
     slog->info("Memory: pool={} tasks={} workers={}",
                global, in_flight, worker_contexts_.size());
 }
-// BusinessThreadPool.cpp ĞÂÔö·½·¨
+// BusinessThreadPool.cpp æ–°å¢æ–¹æ³•
 void BusinessThreadPool::log_thread_pool_status() {
     const size_t pending = pending_tasks_.load(std::memory_order_relaxed);
     const size_t workers = worker_contexts_.size();
     const size_t global_queue_size = global_queue_.size_approx();
     size_t total_local_queue_size = 0;
 
-    // ±éÀúËùÓĞworkerµÄ±¾µØ¶ÓÁĞ
+    // éå†æ‰€æœ‰workerçš„æœ¬åœ°é˜Ÿåˆ—
     {
         std::shared_lock lock(context_mutex_);
         for (const auto& weak_ctx : worker_contexts_) {
@@ -419,9 +463,18 @@ void BusinessThreadPool::log_thread_pool_status() {
                total_local_queue_size,
                task_pool_.size_approx());
 
-    // ´¥·¢¾¯¸æµÄÌõ¼ş£¨Ê¾Àı£ºµ±¶ÓÁĞÉî¶È³¬¹ı2500Ê±£©
+    // è§¦å‘è­¦å‘Šçš„æ¡ä»¶ï¼ˆç¤ºä¾‹ï¼šå½“é˜Ÿåˆ—æ·±åº¦è¶…è¿‡2500æ—¶ï¼‰
     constexpr size_t WARNING_THRESHOLD = 2500;
     if (pending > WARNING_THRESHOLD) {
         slog->warn("[ThreadPool Warning] High pending tasks: {}", pending);
     }
+
+    PROCESS_MEMORY_COUNTERS pmc;
+    GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
+    slog->info("[Resource] å†…å­˜ä½¿ç”¨: {:.2f} MB", pmc.WorkingSetSize / 1024.0 / 1024.0);
+
+    // ç›‘æ§å¥æŸ„æ•°ï¼ˆWindows APIï¼‰
+    DWORD handleCount;
+    GetProcessHandleCount(GetCurrentProcess(), &handleCount);
+    slog->info("[Resource] å½“å‰å¥æŸ„æ•°: {}", handleCount);
 }

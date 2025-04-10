@@ -40,7 +40,7 @@ int main(int argc, char** argv)
     init_logger();
 	std::shared_ptr<asio::detail::thread_group> g_thread_group = std::make_shared<asio::detail::thread_group>();
 	//std::shared_ptr<CObserverServer> server = std::make_shared<CObserverServer>();
-	auto hEvent = CreateMutex(NULL, FALSE, TEXT("mtx_service"));
+	auto hEvent = CreateMutex(NULL, FALSE, TEXT("mtx_service_2"));
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 	{
 		CloseHandle(hEvent);
@@ -112,19 +112,19 @@ void init_logger()
 
     // 设置日志级别为调试
 #ifdef _DEBUG
-    spdlog::set_level(spdlog::level::trace);
-    spdlog::flush_every(std::chrono::seconds(1));
+    slog->set_level(spdlog::level::trace);
     slog->flush_on(spdlog::level::trace);
+    spdlog::flush_every(std::chrono::seconds(1));
+    spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S.%e][T%t][%l]%$ %v");
 #else
-    spdlog::set_level(spdlog::level::info);
-    spdlog::flush_every(std::chrono::seconds(3));
+    slog->set_level(spdlog::level::info);
     slog->flush_on(spdlog::level::info);
+    spdlog::flush_every(std::chrono::seconds(3));
+    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 #endif
 
     // 注册为全局日志器
     spdlog::register_logger(slog);
     spdlog::set_default_logger(slog);
 
-    // 设置日志消息的格式模式
-    spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 }
