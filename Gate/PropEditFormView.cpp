@@ -16,7 +16,6 @@ IMPLEMENT_DYNCREATE(CPropEditFormView, CFormView)
 CPropEditFormView::CPropEditFormView()
 	: CFormView(IDD_PROP_EDIT_VIEW)
 {
-
 }
 
 CPropEditFormView::~CPropEditFormView()
@@ -130,6 +129,7 @@ void CPropEditFormView::OnCbnDropdownComboPolicyType()
 void CPropEditFormView::OnInitialUpdate()
 {
     CFormView::OnInitialUpdate();
+    m_PolicyConfigEdit.SetLimitText(1 * 1024 * 1024); // 设置为1MB
     int nIndex = 0;
     for (int index = ENM_POLICY_TYPE_MODULE_NAME; index < ENM_POLICY_TYPE_MAX; index++)
     {
