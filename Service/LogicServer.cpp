@@ -113,7 +113,7 @@ CLogicServer::CLogicServer()
 	VMProtectBeginVirtualization(__FUNCTION__);
 	is_logic_server_ = true;
 	set_log_cb(std::bind(&CLogicServer::log_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
- 	start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(5), [this]() {
+ 	start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(15), [this]() {
 		try {
 			policy_mgr_.reload_all_policy();
 		}
@@ -549,7 +549,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 		{ENM_POLICY_TYPE_THREAD_START,TEXT("线程特征")}
 	};
 	auto user_data = usr_sessions_mgr().get_user_data(session_id);
-	bool gm_show = 688000 < policy.policy_id && policy.policy_id < 689000;
+    bool gm_show = true;// 688000 < policy.policy_id && policy.policy_id < 689000;
 	if (user_data)
 	{
 		std::string ip = user_data->json.find("ip") != user_data->json.end() ? user_data->json.at("ip").get<std::string>() : "(NULL)";
@@ -589,11 +589,13 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 			}
 			});
 		// 处罚玩家写到GM的开挂玩家列表.txt
-		punish_log(TEXT("处罚玩家:%s 处罚类型:%s 处罚原因:%s|%s"),
-			usr_name.c_str(),
-			punish_type_str[(PunishType)policy.punish_type],
-			comment.c_str(),
-			comment_2.c_str()
+		punish_log(TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),
+            usr_name.c_str(),
+            policy_type_str[(PolicyType)policy.policy_type],
+            policy.policy_id,
+            punish_type_str[(PunishType)policy.punish_type],
+            comment.c_str(),
+            comment_2.c_str()
 		);
 
 		user_log(LOG_TYPE_EVENT, false, gm_show, user_data->get_uuid().str(), TEXT("处罚玩家:%s 策略类型:%s 策略id:%d 处罚类型:%s 处罚原因:%s|%s"),

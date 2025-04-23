@@ -83,7 +83,7 @@ RUNGATE_API ClientStart(int clientID)
 	TRunGatePlugClientInfo clientInfo{};
 	GetClientInfo(clientID, &clientInfo);
 	//clientInfo.DataAdd.AddData1 = 1000; // 附加自己的数据
-	DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
+	//DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
 	//DbgPrint("=====客户端断开=====，ID:%d， GetClientInfo:%08X", clientID, GetClientInfo);
 
 }

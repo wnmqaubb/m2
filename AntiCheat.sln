@@ -35,6 +35,25 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_client_plugin", "test_
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NewClient_test", "NewClient_test\NewClient_test.vcxproj", "{C13223AB-4AE0-48B1-BB5A-0B5D9814AB34}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "js", "js", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		js\1 copy.js = js\1 copy.js
+		js\1.js = js\1.js
+		js\内存检测689023.js = js\内存检测689023.js
+		js\内部线程689055.js = js\内部线程689055.js
+		js\图标检测689021_暂时不用.js = js\图标检测689021_暂时不用.js
+		js\本地线程689022.js = js\本地线程689022.js
+		js\水仙机器码689060.js = js\水仙机器码689060.js
+		js\猎手检测689061.js = js\猎手检测689061.js
+		js\第一代机器码689051.js = js\第一代机器码689051.js
+		js\第五代机器码689054.js = js\第五代机器码689054.js
+		js\虚拟机检测689056.js = js\虚拟机检测689056.js
+		js\驱动检测689052.js = js\驱动检测689052.js
+		js\鸿蒙新增9051.js = js\鸿蒙新增9051.js
+		js\鸿蒙新增待解密.js = js\鸿蒙新增待解密.js
+		js\鸿蒙新增待解密_原.js = js\鸿蒙新增待解密_原.js
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -224,6 +243,7 @@ Global
 		{9A1825A4-43C4-45F8-9D60-99883A22F797} = {431125BC-35CD-422D-8143-9805AE767CC6}
 		{B0FB89A6-F0E5-4FE6-9FF8-E1556008D848} = {9AFF9C87-E13D-436C-B089-281C615D2838}
 		{C13223AB-4AE0-48B1-BB5A-0B5D9814AB34} = {9AFF9C87-E13D-436C-B089-281C615D2838}
+		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {9AFF9C87-E13D-436C-B089-281C615D2838}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AFCF4415-F6CD-4026-8FDF-D7F637652B3C}

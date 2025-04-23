@@ -276,10 +276,11 @@ void CServerPolicyMgr::reload_all_policy()
     if (fs::is_directory(dir, ec))
     {
         std::map<unsigned int, fs::path> new_policy_list;
-        for (auto& file_path : std::filesystem::directory_iterator(dir))
+        //for (auto& file_path : std::filesystem::directory_iterator(dir))
         {
-            if (file_path.path().extension() != ".cfg")
-                continue;
+            /*if (file_path.path().filename() != "config.cfg")
+                continue;*/
+            auto file_path = g_cur_dir / "config.cfg";
             std::ifstream file(file_path, std::ios::in | std::ios::binary);
             if (file.is_open())
             {
