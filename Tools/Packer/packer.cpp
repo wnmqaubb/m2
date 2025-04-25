@@ -195,11 +195,12 @@ namespace Packer
                 {
                     continue;
                 }
-                printf("obfuse import %s\n", import_function_name);
+                //printf("obfuse import %s\n", import_function_name);
                 uint32_t hash_val = ApiResolver::hash(import_function_name);
-                memset(import_function_name, 0, len);
                 char temp[10] = { 0 };
                 snprintf(temp, sizeof(temp) - 1, "_%08X", hash_val);
+                printf("obfuse import %s --> %s\n", import_function_name, temp);
+                memset(import_function_name, 0, len);
                 strcpy(import_function_name, temp);
             }
         }
