@@ -216,6 +216,56 @@ namespace BasicUtils
         VMP_VIRTUALIZATION_END()
     }
 
+    std::vector<std::tuple<std::string, u_short>> get_tcp_table()
+    {
+        std::vector<std::tuple<std::string, u_short>> tcp_table;
+        DWORD table_size = 0;
+        std::string remote_ip;
+        auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
+        if (GetModuleHandleA("Iphlpapi.dll") == NULL)
+            LoadLibraryA("Iphlpapi.dll");
+
+        auto GetExtendedTcpTable = IMPORT(L"Iphlpapi.dll", GetExtendedTcpTable);
+        if (!GetExtendedTcpTable)
+            return tcp_table;
+
+        GetExtendedTcpTable(0, &table_size, false, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+
+
+        PMIB_TCPTABLE_OWNER_PID ip_table = (PMIB_TCPTABLE_OWNER_PID)malloc(table_size);
+        if (!ip_table) return tcp_table;
+
+        if (GetExtendedTcpTable(ip_table, &table_size, false, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) != NO_ERROR)
+        {
+            free(ip_table);
+            return tcp_table;
+        }
+
+        for (int i = 0; i < ip_table->dwNumEntries; ++i)
+        {
+            const auto& row = ip_table->table[i];
+            remote_ip = inet_ntoa(*(in_addr*)&row.dwRemoteAddr);
+            u_short remote_port = static_cast<u_short>(row.dwRemotePort);
+            remote_port = ntohs(remote_port);
+            if (remote_ip == "0.0.0.0" || remote_ip == "127.0.0.1")
+                continue;
+
+            const auto new_entry = std::make_tuple(remote_ip, remote_port);
+
+            // 检查是否已存在相同条目
+            const auto it = std::find(tcp_table.begin(), tcp_table.end(), new_entry);
+            if (it != tcp_table.end()) {
+                continue;
+            }
+
+            // 添加新条目
+            tcp_table.push_back(new_entry);
+        }
+
+        free(ip_table);
+        return tcp_table;
+    }
+
 	std::tuple<std::string, std::string> scan_tcp_table(const std::shared_ptr<std::vector<std::tuple<std::string, std::string>>>& black_ip_table)
     {
         std::tuple<std::string, std::string> empty_tuple{ "", "" };

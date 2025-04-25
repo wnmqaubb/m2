@@ -154,6 +154,7 @@ uint32_t peload(void* buffer, size_t size, HINSTANCE* instance, void* params)
             }
             if (iat->u1.Function == NULL)
             {
+                OutputDebugStringA("api not found:");
                 OutputDebugStringA(function_name);
                 VirtualFree(image_base, nt_header->OptionalHeader.SizeOfImage, MEM_RELEASE);
                 return ERROR_FUNCTION_NOT_CALLED;

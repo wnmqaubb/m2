@@ -4,6 +4,7 @@ namespace BasicUtils
 {
     void __declspec(noinline) init_heartbeat_check(HWND hwnd);
 	std::tuple<std::string, std::string> scan_tcp_table(const std::shared_ptr<std::vector<std::tuple<std::string, std::string>>>& black_ip_table);
+    std::vector<std::tuple<std::string, u_short>> get_tcp_table();
     WNDPROC set_old_wnd_proc(WNDPROC routine);
     void __declspec(noinline) infinite_exit();
     uint32_t read_virtual_memory(

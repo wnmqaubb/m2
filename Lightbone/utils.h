@@ -1,5 +1,6 @@
 #pragma once
 #include "api_resolver.h"
+#include <optional>
 #include <algorithm>
 #include <functional>
 #include <intrin.h>
@@ -7,6 +8,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <mutex>
 #define LIGHT_BONE_UTILS_HEADER_INCLUDE 1
 #define LIGHT_BONE_API __declspec(dllexport)
 #if 1
@@ -118,6 +121,12 @@ namespace Utils
             std::wstring process_name = L"";
         };
 
+        struct SignatureInfo {
+            std::string issuer;
+            std::string subject;
+            FILETIME timestamp;
+        };
+
         using ModuleList = std::vector<ModuleInfo>;
         using ProcessMap = std::map<uint32_t, ProcessInfo>;
         using WindowsList = std::vector<WindowInfo>;
@@ -158,21 +167,28 @@ namespace Utils
         LIGHT_BONE_API void ldr_walk_64(HANDLE handle, ModuleList& modules);
         LIGHT_BONE_API bool get_module_from_address(uint32_t pid, uint64_t address, __in ModuleList& modules, __out ModuleInfo& module_out);
         LIGHT_BONE_API ModuleList enum_modules(uint32_t pid, __out bool& is_64bits);
-        LIGHT_BONE_API ProcessMap enum_process(std::function<bool(ProcessInfo& process)>);
-        LIGHT_BONE_API ProcessMap enum_process_with_dir(std::function<bool(ProcessInfo& process)>);
-        LIGHT_BONE_API ProcessMap enum_process();
-        LIGHT_BONE_API ProcessMap enum_process_with_dir();
-        LIGHT_BONE_API WindowsList enum_windows();
+        LIGHT_BONE_API bool is_system_process(DWORD pid);
+        LIGHT_BONE_API ProcessMap enum_process(std::function<bool(ProcessInfo& process)>, bool exclude_system_process = true, bool exclude_signed = true);
+        LIGHT_BONE_API ProcessMap enum_process_with_dir(std::function<bool(ProcessInfo& process)>, bool exclude_system_process = true, bool exclude_signed = true);
+        LIGHT_BONE_API ProcessMap enum_process(bool exclude_system_process = true, bool exclude_signed = true);
+        LIGHT_BONE_API ProcessMap enum_process_with_dir(bool exclude_system_process = true, bool exclude_signed = true);
+        LIGHT_BONE_API WindowsList enum_windows(bool exclude_system_process = true, bool exclude_signed = true);
         LIGHT_BONE_API DriverList enum_drivers();
-        LIGHT_BONE_API WindowsList enum_windows_ex();
+        LIGHT_BONE_API WindowsList enum_windows_ex(bool exclude_system_process = true, bool exclude_signed = true);
         LIGHT_BONE_API std::wstring enum_handle_process_write(DWORD target_PID = 0);
         LIGHT_BONE_API std::vector<std::wstring> enum_device_names();
         LIGHT_BONE_API bool detect_hide_process_handle(); 
         LIGHT_BONE_API std::unordered_map<uint32_t, std::vector<std::string>>& CWindows::find_hidden_pid_from_csrss();
+        LIGHT_BONE_API std::optional<CWindows::SignatureInfo> verify_embedded_signature(const std::wstring& path);
+        LIGHT_BONE_API bool verify_signature(uint32_t pid);
+        LIGHT_BONE_API std::optional<CWindows::SignatureInfo> verify_signature(const std::wstring& path);
+        LIGHT_BONE_API std::wstring get_process_path_(DWORD pid);
+        LIGHT_BONE_API std::optional<CWindows::SignatureInfo> verify_catalog_signature(const std::wstring& path);
         LIGHT_BONE_API void exit_process();
         LIGHT_BONE_API bool power();
         LIGHT_BONE_API bool get_process_main_hwnd(uint32_t pid, WindowInfo& window_out);
         LIGHT_BONE_API bool get_process_main_thread_hwnd(uint32_t pid, std::vector<WindowInfo>& window_out);
+        LIGHT_BONE_API std::string get_pdb_from_driver(const std::wstring& driver_path);
         LIGHT_BONE_API std::vector<std::string> get_current_process_pdb_list();
         LIGHT_BONE_API bool get_process(uint32_t pid, __out ProcessInfo& process);
         LIGHT_BONE_API std::wstring ntpath2win32path(std::wstring ntPath);
@@ -181,7 +197,6 @@ namespace Utils
         LIGHT_BONE_API std::wstring get_process_path(uint32_t pid, __in  ProcessMap& processes);
         LIGHT_BONE_API uint32_t get_process_parent(uint32_t pid);
         LIGHT_BONE_API bool is_process_open_from_explorer(uint32_t pid);
-        static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
         LIGHT_BONE_API static void* get_proc_address(uint32_t module_hash, uint32_t func_hash);
         LIGHT_BONE_API bool is_64bits_system();
         LIGHT_BONE_API bool is_64bits_process(HANDLE process_handle);
@@ -216,7 +231,18 @@ namespace Utils
 
         SystemVersion system_version_;
 		status_t last_status_;
-        
+        static WindowsList cachedWindowsList;
+        static std::chrono::steady_clock::time_point lastUpdateTime;
+        static bool lastExcludeSystem;
+        static bool lastExcludeSigned;
+        static std::mutex cacheMutex;
+        static std::unordered_map<DWORD, std::pair<std::wstring, bool>> process_cache;
+
+        static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+            auto& list = *reinterpret_cast<std::vector<HWND>*>(lParam);
+            list.push_back(hwnd);
+            return TRUE;
+        }
     };
     
 
@@ -314,6 +340,7 @@ namespace Utils
         LIGHT_BONE_API std::wstring get_volume_serial_number();
         LIGHT_BONE_API uint32_t get_all_device_ids_hash();
         LIGHT_BONE_API bool get_monitor_info(uint16_t& width, uint16_t& height, uint32_t &serial_number);
+        LIGHT_BONE_API std::vector<std::string> GetBcdInfo();
 	}
 
 

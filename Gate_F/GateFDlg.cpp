@@ -440,7 +440,7 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
             //bool logic_server_stoped = false;
 
             //// 已停止
-            //HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
+            //HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service_2");
             //if (existingMutex != NULL) {
             //    if (!isProcessRunning("g_Service.exe")) {
             //        // 互斥体已存在，但是进程已经退出,尝试关闭和释放它
@@ -456,7 +456,7 @@ void CGateFDlg::OnTimer(UINT_PTR nIDEvent)
             //    service_stoped = true;
             //}
 
-            //HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
+            //HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server_2");
             //if (existingMutex1 != NULL) {
             //    if (!isProcessRunning("g_LogicServer.exe")) {
             //        // 互斥体已存在，但是进程已经退出,尝试关闭和释放它

@@ -4,6 +4,11 @@
 #include <shared_mutex>
 #include <filesystem>
 #include <set>
+#include <wincrypt.h>
+#include <optional>
+#include <mscat.h>
+#pragma comment(lib, "crypt32.lib")
+#pragma comment(lib, "Wintrust.lib")
 
 using namespace Utils;
 using namespace Utils::String;
@@ -14,13 +19,21 @@ CWindows::access_mask_t CWindows::ThreadQueryAccess;
 CWindows::access_mask_t CWindows::ThreadSetAccess;
 CWindows::access_mask_t CWindows::ThreadAllAccess;
 std::map<uint32_t, void*> CWindows::api_;
-
+// 静态成员初始化
+CWindows::WindowsList CWindows::cachedWindowsList;
+std::chrono::steady_clock::time_point CWindows::lastUpdateTime = std::chrono::steady_clock::now();
+bool CWindows::lastExcludeSystem = false;
+bool CWindows::lastExcludeSigned = false;
+std::mutex CWindows::cacheMutex;
+std::unordered_map<DWORD, std::pair<std::wstring, bool>> CWindows::process_cache;
 CWindows::CWindows()
 {
     system_version_ = get_system_version_();
     initialize_access();
 
     LoadLibraryW(L"advapi32.dll");
+    LoadLibraryW(L"crypt32.dll");
+    LoadLibraryW(L"Wintrust.dll");
 }
 
 CWindows::~CWindows()
@@ -53,6 +66,7 @@ CWindows::access_mask_t CWindows::get_thread_all_access()
 {
     return ThreadAllAccess;
 }
+
 void CWindows::initialize_access()
 {
     if (system_version_ >= WINDOWS_VISTA)
@@ -364,7 +378,48 @@ NTSTATUS CWindows::get_processes(PVOID *processes, uint32_t& system_information_
     return status;
 }
 
-CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& process)> callback)
+bool CWindows::is_system_process(DWORD pid) {
+    auto OpenProcess = IMPORT(L"kernel32.dll", OpenProcess);
+
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!hProcess) return false;
+
+    HANDLE hToken;
+    if (!OpenProcessToken(hProcess, TOKEN_QUERY, &hToken)) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    DWORD dwSize = 0;
+    GetTokenInformation(hToken, TokenUser, NULL, 0, &dwSize);
+    PTOKEN_USER pTokenUser = (PTOKEN_USER)malloc(dwSize);
+    GetTokenInformation(hToken, TokenUser, pTokenUser, dwSize, &dwSize);
+
+    char szAccount[256] = { 0 };
+    char szDomain[256] = { 0 };
+    DWORD dwAccountLen = 256, dwDomainLen = 256;
+    SID_NAME_USE sidType;
+
+    LookupAccountSidA(
+        NULL,
+        pTokenUser->User.Sid,
+        szAccount,
+        &dwAccountLen,
+        szDomain,
+        &dwDomainLen,
+        &sidType
+    );
+
+    free(pTokenUser);
+    CloseHandle(hToken);
+    CloseHandle(hProcess);
+
+    return (strcmp(szAccount, "SYSTEM") == 0) ||
+        (strcmp(szAccount, "LOCAL SERVICE") == 0) ||
+        (strcmp(szAccount, "NETWORK SERVICE") == 0);
+}
+
+CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& process)> callback, bool exclude_system_process, bool exclude_signed)
 {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lck(mtx);
@@ -402,6 +457,26 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
     {
         ProcessInfo process = { 0 };
         process.pid = reinterpret_cast<uint32_t>(info->UniqueProcessId);
+        // 排除系统进程
+        if (exclude_system_process && is_system_process(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
+        // 排除有签名的进程
+        if (exclude_signed && verify_signature(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
         process.name = info->ImageName.Buffer ? info->ImageName.Buffer : L"";
         process.parent_pid = reinterpret_cast<uint32_t>(info->InheritedFromUniqueProcessId);
         process.modules = enum_modules(process.pid, process.is_64bits);
@@ -490,7 +565,7 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
     return process_map;
 }
 
-CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessInfo& process)> callback)
+CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessInfo& process)> callback, bool exclude_system_process, bool exclude_signed)
 {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lck(mtx);
@@ -529,6 +604,26 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
     {
         ProcessInfo process = { 0 };
         process.pid = reinterpret_cast<uint32_t>(info->UniqueProcessId);
+        // 排除系统进程
+        if (exclude_system_process && is_system_process(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
+        // 排除有签名的进程
+        if (exclude_signed && verify_signature(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
         process.name = info->ImageName.Buffer ? info->ImageName.Buffer : L"";
         process.parent_pid = reinterpret_cast<uint32_t>(info->InheritedFromUniqueProcessId);
         process.modules = enum_modules(process.pid, process.is_64bits);
@@ -662,18 +757,18 @@ void Utils::CWindows::ldr_walk_64(HANDLE handle, ModuleList& modules)
     return ldr_walk<uint64_t>(handle, modules);
 }
 
-CWindows::ProcessMap CWindows::enum_process()
+CWindows::ProcessMap CWindows::enum_process(bool exclude_system_process, bool exclude_signed)
 {
     return enum_process([](ProcessInfo&)->bool {
         return true;
-    });
+    }, exclude_system_process, exclude_signed);
 }
 
-CWindows::ProcessMap CWindows::enum_process_with_dir()
+CWindows::ProcessMap CWindows::enum_process_with_dir(bool exclude_system_process, bool exclude_signed)
 {
     return enum_process_with_dir([](ProcessInfo&)->bool {
         return true;
-    });
+    }, exclude_system_process, exclude_signed);
 }
 
 bool Utils::CWindows::get_process(uint32_t pid, __out ProcessInfo& process)
@@ -797,54 +892,77 @@ bool CWindows::is_process_open_from_explorer(uint32_t pid)
     return false;
 }
 
-// 回调函数，用于在枚举每个窗口时收集窗口信息
-BOOL CALLBACK CWindows::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-	//过滤掉非窗体和有不可见样式的窗体
-	if (!::IsWindow(hwnd)/* || !IsWindowVisible(hwnd)*/)
-		return TRUE;	
-
-	auto results = (std::vector<HWND>*)lParam;
-	results->push_back(hwnd);
-	return TRUE;
-}
-
-CWindows::WindowsList CWindows::enum_windows()
+CWindows::WindowsList CWindows::enum_windows(bool exclude_system_process, bool exclude_signed)
 {
-    auto EnumDesktopWindows = IMPORT(L"user32.dll", EnumDesktopWindows);
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    auto now = std::chrono::steady_clock::now();
+
+    // 检查缓存有效性（5秒内且参数相同）
+    if (exclude_system_process == lastExcludeSystem &&
+        exclude_signed == lastExcludeSigned &&
+        std::chrono::duration_cast<std::chrono::seconds>(now - lastUpdateTime).count() < 5) {
+        return cachedWindowsList;
+    }
+
+    // 重新枚举窗口
+    WindowsList result;
+    std::vector<HWND> hwnds;
+    if (auto EnumDesktopWindows = IMPORT(L"user32.dll", EnumDesktopWindows)) {
+        EnumDesktopWindows(nullptr, &EnumWindowsProc, reinterpret_cast<LPARAM>(&hwnds));
+    }
+
+    wchar_t title[MAX_PATH];
+    wchar_t className[MAX_PATH];
+
     auto GetWindowTextW = IMPORT(L"user32.dll", GetWindowTextW);
     auto GetClassNameW = IMPORT(L"user32.dll", GetClassNameW);
     auto GetWindowThreadProcessId = IMPORT(L"user32.dll", GetWindowThreadProcessId);
 
-    WindowsList result;
-    std::vector<HWND> hwnds;
-    EnumDesktopWindows(NULL, CWindows::EnumWindowsProc, (LPARAM)&hwnds);
-	DWORD process_id;
-	DWORD thread_id;
-    for (HWND hwnd : hwnds)
-    {
-		PSTR pszMem = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
-		PSTR pszCls = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE); 
-        if (pszMem != NULL)
-		{
-			::GetWindowText(hwnd, (LPWSTR)pszMem, MAX_PATH);
-			::GetClassNameW(hwnd, (LPWSTR)pszCls, MAX_PATH);
-			if (_wcsicmp((LPWSTR)pszMem, L"") != NULL || _wcsicmp((LPWSTR)pszCls, L"") != NULL/* && !IsIconic(hwnd) && IsWindowVisible(hwnd)*/)
-			{				
-				thread_id = GetWindowThreadProcessId(hwnd, &process_id);
-				WindowInfo window;
-				window.caption = (LPWSTR)pszMem;
-				window.class_name = (LPWSTR)pszCls;
-				window.hwnd = hwnd;
-				window.pid = process_id;
-				window.tid = thread_id;
-				result.push_back(window);
-			}
-		}
-		VirtualFree(pszMem, 0, MEM_RELEASE);
-		VirtualFree(pszCls, 0, MEM_RELEASE);
+    for (HWND hwnd : hwnds) {
+        // 获取窗口基础信息
+        if (!GetWindowTextW(hwnd, title, MAX_PATH)) title[0] = L'\0';
+        if (!GetClassNameW(hwnd, className, MAX_PATH)) className[0] = L'\0';
+
+        // 快速跳过不可见窗口和空窗口
+        if ((title[0] == L'\0' && className[0] == L'\0')
+            //|| !IsWindowVisible(hwnd) ||
+            //IsIconic(hwnd)
+        ){
+            continue;
+        }
+
+        // 获取进程信息
+        DWORD process_id = 0;
+        DWORD thread_id = GetWindowThreadProcessId(hwnd, &process_id);
+
+        // 系统进程过滤
+        if (exclude_system_process && is_system_process(process_id)) {
+            continue;
+        }
+
+        // 签名验证过滤
+        if (exclude_signed && verify_signature(process_id)) {
+            continue;
+        }
+
+        // 构建窗口信息
+        result.emplace_back(WindowInfo{
+            /*hwnd*/      hwnd,
+            /*caption*/    title,
+            /*class_name*/ className,
+            /*pid*/       process_id,
+            /*tid*/       thread_id
+                            });
     }
-    return result;
-}
+
+    // 更新缓存
+    cachedWindowsList = std::move(result);
+    lastExcludeSystem = exclude_system_process;
+    lastExcludeSigned = exclude_signed;
+    lastUpdateTime = now;
+
+    return cachedWindowsList;
+};
 
 std::wstring CWindows::ntpath2win32path(std::wstring ntPath)
 {
@@ -1136,10 +1254,10 @@ bool CWindows::detect_hide_process_handle()
     return false;
 }
 
-CWindows::WindowsList CWindows::enum_windows_ex()
+CWindows::WindowsList CWindows::enum_windows_ex(bool exclude_system_process, bool exclude_signed)
 {
-    ProcessMap processes = enum_process();
-    WindowsList windows = enum_windows();
+    ProcessMap processes = enum_process(exclude_system_process, exclude_signed);
+    WindowsList windows = enum_windows(exclude_system_process, exclude_signed);
     for (auto& window : windows)
     {
         if (processes.find(window.pid) != processes.end())
@@ -1255,53 +1373,107 @@ BOOL ptr_is_region_valid(PVOID Base, DWORD Size, PVOID Addr, DWORD RegionSize)
     return ((PBYTE)Addr >= (PBYTE)Base && ((PBYTE)Addr + RegionSize) <= ((PBYTE)Base + Size));
 }
 
-std::vector<std::string> CWindows::get_current_process_pdb_list()
-{
+// 新增通用解析方法
+std::string get_pdb_from_pe(uint8_t* image_base) {
     decltype(&IsBadReadPtr) IsBadReadPtr = IMPORT(L"kernel32.dll", IsBadReadPtr);
-    bool is_64bit = false;
-    std::vector<std::string> result;
-    auto modules = Utils::CWindows::instance().enum_modules(GetCurrentProcessId(), is_64bit);
-    for (auto& module : modules)
+    std::string pdb_name = "";
+    if (!IsBadReadPtr) {
+        return pdb_name;
+    }
+    try
     {
-        uint32_t image_base = (uint32_t)module.base;
         if (ApiResolver::get_image_dos_header(image_base)->e_magic != IMAGE_DOS_SIGNATURE)
         {
-            continue;
+            return pdb_name;
         }
         PIMAGE_NT_HEADERS nt_header = ApiResolver::get_image_nt_header(image_base);
         if (!ApiResolver::get_data_directory(nt_header, IMAGE_DIRECTORY_ENTRY_DEBUG).VirtualAddress)
         {
-            continue;
+            return pdb_name;
         }
-        
+
         PIMAGE_DEBUG_DIRECTORY dbg_dir = (PIMAGE_DEBUG_DIRECTORY)ApiResolver::get_data_directory_va(image_base, IMAGE_DIRECTORY_ENTRY_DEBUG);
         if (!dbg_dir && IsBadReadPtr(dbg_dir, 1))
         {
-            continue;
+            return pdb_name;
         }
         if (!dbg_dir->AddressOfRawData || dbg_dir->Type != IMAGE_DEBUG_TYPE_CODEVIEW)
-            continue;
+            return pdb_name;
         CV_HEADER* cv_info = (CV_HEADER*)ApiResolver::rva2va(image_base, dbg_dir->AddressOfRawData);
         if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_HEADER)))
-            continue;
-        std::string pdb_name;
+            return pdb_name;
         if (cv_info->Signature == NB10_SIG) //VC6.0 (GBK)
         {
             if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_INFO_PDB20) + MAX_PATH))
-                break;
+                return pdb_name;
             pdb_name = (char*)((CV_INFO_PDB20*)cv_info)->PdbFileName;
         }
         else if (cv_info->Signature == RSDS_SIG) //VS2003+ (UTF-8)
         {
             if (!ptr_is_region_valid((unsigned char*)image_base, nt_header->OptionalHeader.SizeOfImage, cv_info, sizeof(CV_INFO_PDB70) + MAX_PATH))
-                break;
+                return pdb_name;
             pdb_name = (char*)((CV_INFO_PDB70*)cv_info)->PdbFileName;
         }
         else
         {
-            continue;
+            return pdb_name; 
         }
-        result.push_back(pdb_name);
+        return pdb_name;
+    }
+    catch (...)
+    {
+        return pdb_name;
+    }
+}
+
+// 新增驱动路径PDB获取方法
+std::string CWindows::get_pdb_from_driver(const std::wstring& driver_path) {
+    auto CreateFile = IMPORT(L"kernel32.dll", CreateFile);
+    auto CreateFileMapping = IMPORT(L"kernel32.dll", CreateFileMapping);
+    auto MapViewOfFile = IMPORT(L"kernel32.dll", MapViewOfFile);
+    std::string pdb = "";
+    if (!CreateFile || !CreateFileMapping || !MapViewOfFile) return pdb;
+
+    HANDLE hFile = CreateFile(driver_path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                               NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE) return pdb;
+
+    HANDLE hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+    if (!hMapping) {
+        CloseHandle(hFile);
+        return pdb;
+    }
+
+    uint8_t* pe_base = (uint8_t*)MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
+    if (!pe_base) {
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+        return pdb;
+    }
+
+    pdb = get_pdb_from_pe(pe_base);
+
+    UnmapViewOfFile(pe_base);
+    CloseHandle(hMapping);
+    CloseHandle(hFile);
+
+    return pdb;
+}
+
+std::vector<std::string> CWindows::get_current_process_pdb_list()
+{
+    auto IsBadReadPtr = IMPORT(L"kernel32.dll", IsBadReadPtr);
+    bool is_64bit = false;
+    std::vector<std::string> result;
+    auto modules = Utils::CWindows::instance().enum_modules(GetCurrentProcessId(), is_64bit);
+    for (auto& module : modules)
+    {
+        auto pdb_name = get_pdb_from_pe((uint8_t*)module.base);
+        if (!pdb_name.empty())
+        {
+            result.push_back(pdb_name);
+        }
     }
     return result;
 }
@@ -1435,4 +1607,197 @@ std::unordered_map<uint32_t, std::vector<std::string>>& CWindows::find_hidden_pi
 
     delete[](BYTE*)pHandleInformation;
     return pid_directories;
+}
+
+std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const std::wstring& path) {
+    auto CryptQueryObject = IMPORT(L"Crypt32.dll", CryptQueryObject);
+    auto CryptMsgGetParam = IMPORT(L"Crypt32.dll", CryptMsgGetParam);
+    auto CertFindCertificateInStore = IMPORT(L"Crypt32.dll", CertFindCertificateInStore);
+    auto CertCloseStore = IMPORT(L"Crypt32.dll", CertCloseStore);
+    auto CertGetCertificateChain = IMPORT(L"Crypt32.dll", CertGetCertificateChain);
+    auto CertGetNameStringA = IMPORT(L"Crypt32.dll", CertGetNameStringA);
+    auto CertFreeCertificateChain = IMPORT(L"Crypt32.dll", CertFreeCertificateChain);
+    auto CertFreeCertificateContext = IMPORT(L"Crypt32.dll", CertFreeCertificateContext);
+    auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
+    auto Wow64DisableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64DisableWow64FsRedirection);
+    HCERTSTORE hStore = nullptr;
+    HCRYPTMSG hMsg = nullptr;
+    PCCERT_CONTEXT pCertContext = nullptr;
+    CERT_INFO CertInfo{};
+    DWORD dwEncoding, dwContentType, dwFormatType;
+    PVOID oldValue = nullptr;
+    Wow64DisableWow64FsRedirection(&oldValue);
+    std::wstring real_path = path;
+    auto pos = real_path.find(L"System32\\");
+    if (pos != std::wstring::npos) {
+        real_path.replace(pos, 8, L"Sysnative");
+    }
+
+    if (!CryptQueryObject(CERT_QUERY_OBJECT_FILE, real_path.c_str(),
+                          CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED,
+                          CERT_QUERY_FORMAT_FLAG_BINARY, 0, &dwEncoding,
+                          &dwContentType, &dwFormatType, &hStore, &hMsg, nullptr)) {
+        Wow64EnableWow64FsRedirection(true);
+        /*DWORD dwError = GetLastError();
+        LPVOID lpMsgBuf;
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                      NULL, dwError, 0, (LPSTR)&lpMsgBuf, 0, NULL);
+        printf("Error %d: %s", dwError, (char*)lpMsgBuf);*/
+        return std::nullopt;
+    }
+
+    // 获取签名信息
+    DWORD dwSignerInfoSize = 0;
+    CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, nullptr, &dwSignerInfoSize);
+    auto pSignerInfo = std::make_unique<BYTE[]>(dwSignerInfoSize);
+    CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, pSignerInfo.get(), &dwSignerInfoSize);
+
+    CertInfo.Issuer = reinterpret_cast<CMSG_SIGNER_INFO*>(pSignerInfo.get())->Issuer;
+    CertInfo.SerialNumber = reinterpret_cast<CMSG_SIGNER_INFO*>(pSignerInfo.get())->SerialNumber;
+
+    pCertContext = CertFindCertificateInStore(hStore, dwEncoding, 0, CERT_FIND_SUBJECT_CERT, &CertInfo, nullptr);
+
+    if (!pCertContext) {
+        CertCloseStore(hStore, 0);
+        Wow64EnableWow64FsRedirection(true);
+        return std::nullopt;
+    }
+
+    SignatureInfo info{};
+    char buffer[256]{};
+        CERT_CHAIN_PARA ChainPara = { sizeof(ChainPara) };
+    PCCERT_CHAIN_CONTEXT pChainContext = nullptr;
+    CertGetCertificateChain(nullptr, pCertContext, nullptr, hStore, &ChainPara, 
+        CERT_CHAIN_REVOCATION_CHECK_CHAIN, nullptr, &pChainContext);
+
+    if (pChainContext && pChainContext->TrustStatus.dwErrorStatus == CERT_TRUST_NO_ERROR) {
+        CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, buffer, sizeof(buffer));
+        info.issuer = buffer;
+        CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_NAME_ISSUER_FLAG, 
+            nullptr, buffer, sizeof(buffer));
+        info.subject = buffer;
+    }
+    if (pChainContext) CertFreeCertificateChain(pChainContext);
+
+    // 获取证书有效期
+    info.timestamp = pCertContext->pCertInfo->NotBefore;
+
+    CertFreeCertificateContext(pCertContext);
+    CertCloseStore(hStore, 0);
+    Wow64EnableWow64FsRedirection(true);
+    return info;
+}
+
+std::optional<CWindows::SignatureInfo> CWindows::verify_catalog_signature(const std::wstring& path) {
+    if (path.empty()) return std::nullopt;
+    auto CreateFileW = IMPORT(L"Kernel32.dll", CreateFileW);
+    auto CloseHandle = IMPORT(L"Kernel32.dll", CloseHandle);
+    auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
+    auto Wow64DisableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64DisableWow64FsRedirection);
+    auto CryptCATAdminAcquireContext = IMPORT(L"Wintrust.dll", CryptCATAdminAcquireContext);
+    auto CryptCATAdminCalcHashFromFileHandle = IMPORT(L"Wintrust.dll", CryptCATAdminCalcHashFromFileHandle);
+    auto CryptCATAdminReleaseContext = IMPORT(L"Wintrust.dll", CryptCATAdminReleaseContext);
+    auto CryptCATAdminEnumCatalogFromHash = IMPORT(L"Wintrust.dll", CryptCATAdminEnumCatalogFromHash);
+    auto CryptCATCatalogInfoFromContext = IMPORT(L"Wintrust.dll", CryptCATCatalogInfoFromContext);
+    auto CryptCATAdminReleaseCatalogContext = IMPORT(L"Wintrust.dll", CryptCATAdminReleaseCatalogContext);
+    PVOID oldValue = nullptr;
+    Wow64DisableWow64FsRedirection(&oldValue);
+    std::wstring real_path = path;
+    auto pos = real_path.find(L"System32\\");
+    if (pos != std::wstring::npos) {
+        real_path.replace(pos, 8, L"Sysnative");
+    }
+    HANDLE hFile = CreateFileW(real_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) return std::nullopt;
+
+    HCATADMIN hCatAdmin = nullptr;
+    if (!CryptCATAdminAcquireContext(&hCatAdmin, nullptr, 0)) {
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    BYTE hash[100];
+    DWORD hashSize = sizeof(hash);
+    if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0)) {
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    HCATINFO hCatInfo = CryptCATAdminEnumCatalogFromHash(hCatAdmin, hash, hashSize, 0, nullptr);
+    if (!hCatInfo) {
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    CATALOG_INFO catalogInfo = { sizeof(catalogInfo) };
+    if (!CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0)) {
+        CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    // 验证目录文件的嵌入式签名
+    auto catalogSignature = verify_signature(catalogInfo.wszCatalogFile);
+    if (!catalogSignature) {
+        CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    // 使用目录文件的签名信息
+    SignatureInfo info;
+    info.issuer = catalogSignature->issuer;
+    info.subject = catalogSignature->subject;
+    info.timestamp = catalogSignature->timestamp;
+
+    CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+    CryptCATAdminReleaseContext(hCatAdmin, 0);
+    CloseHandle(hFile);
+    return info;
+}
+
+bool CWindows::verify_signature(uint32_t pid) {
+    if (auto it = process_cache.find(pid); it != process_cache.end()) {
+        if (it->second.second) return true;
+    }
+    else {
+        auto path = get_process_path_(pid);
+        bool is_signed = !path.empty() && verify_signature(path);
+        process_cache[pid] = { path, is_signed };
+        return is_signed;
+    }
+    return false;
+}
+
+std::optional<CWindows::SignatureInfo> CWindows::verify_signature(const std::wstring& path) {
+    if (path.empty()) return std::nullopt;
+    auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
+    power();
+    auto embeddedInfo = verify_embedded_signature(path);
+    if (embeddedInfo) {
+        Wow64EnableWow64FsRedirection(true);
+        return embeddedInfo;
+    }
+
+    auto catalogInfo = verify_catalog_signature(path);
+    Wow64EnableWow64FsRedirection(true);
+    return catalogInfo ? catalogInfo : std::nullopt;
+}
+
+std::wstring CWindows::get_process_path_(DWORD pid) {
+    auto OpenProcess = IMPORT(L"kernel32.dll", OpenProcess);
+    auto QueryFullProcessImageNameW = IMPORT(L"kernel32.dll", QueryFullProcessImageNameW);
+    auto CloseHandle = IMPORT(L"kernel32.dll", CloseHandle);
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!hProcess) return L"";
+
+    wchar_t path[MAX_PATH]{};
+    DWORD size = MAX_PATH;
+    QueryFullProcessImageNameW(hProcess, 0, path, &size);
+    CloseHandle(hProcess);
+    return path;
 }
