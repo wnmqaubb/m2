@@ -65,7 +65,6 @@ static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192;  //1024  8192 * 4;  // 增�
 
 struct TaskWrapper {
     Task task;
-    std::atomic<bool> is_active{ true };
     explicit TaskWrapper(Task&& t) noexcept : task(std::move(t)) {}
 
     // 确保移动安全
@@ -78,7 +77,7 @@ struct TaskWrapper {
 
 // 线程本地队列（SPSC）
 struct alignas(64) WorkerContext {
-    moodycamel::ReaderWriterQueue<TaskWrapper*> local_queue{ MAX_LOCAL_QUEUE_SIZE };
+    moodycamel::ReaderWriterQueue<std::unique_ptr<TaskWrapper>> local_queue{ MAX_LOCAL_QUEUE_SIZE };
     //moodycamel::ConcurrentQueue<TaskWrapper*> local_pool;  // 本地内存池
     std::atomic<bool> active{ true };
     std::atomic<size_t> total_steals{ 0 };  // 窃取统计
@@ -94,13 +93,13 @@ private:
 
     void worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t worker_id);
 
-    size_t process_local(WorkerContext* ctx, std::vector<TaskWrapper*>& batch);
+    size_t process_local(WorkerContext* ctx, std::vector<std::unique_ptr<TaskWrapper>>& batch);
 
-    size_t process_global(std::vector<TaskWrapper*>& batch);
+    size_t process_global(std::vector<std::unique_ptr<TaskWrapper>>& batch);
 
-    size_t try_steal(std::vector<TaskWrapper*>& batch, size_t thief_id);
+    size_t try_steal(std::vector<std::unique_ptr<TaskWrapper>>& batch, size_t thief_id);
 
-    void execute_task(TaskWrapper* task);
+    void execute_task(std::unique_ptr<TaskWrapper>& task);
 
     void handle_idle(size_t processed, int& empty_cycles);
 
@@ -122,7 +121,7 @@ private:
     static constexpr size_t MEMORY_POOL_INIT_SIZE = 4096;  //  8192;// 预分配内存池大小
 
     // 全局队列（MPMC）
-    moodycamel::ConcurrentQueue<TaskWrapper*> global_queue_;
+    moodycamel::ConcurrentQueue<std::unique_ptr<TaskWrapper>> global_queue_;
 
     // 工作线程管理
     std::vector<std::thread> workers_;
@@ -132,7 +131,7 @@ private:
     std::thread monitor_thread_;  // 添加监控线程成员
 
     // 内存池和线程上下文
-    moodycamel::ConcurrentQueue<TaskWrapper*> task_pool_;
+    moodycamel::ConcurrentQueue<std::unique_ptr<TaskWrapper>> task_pool_;
     // 使用weak_ptr避免悬挂指针
     std::vector<std::weak_ptr<WorkerContext>> worker_contexts_;
     std::shared_mutex context_mutex_;
