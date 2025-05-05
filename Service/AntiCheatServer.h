@@ -170,7 +170,9 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            session->send(package.release());
+            this->post([session, package]() {
+                session->send(package.release()); // 在IO线程安全发送数据
+            });            
             /*auto data_size = session->send(package.release());
             if (data_size < 1){
                 if (auto error = asio2::get_last_error()) {
@@ -199,7 +201,9 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            session->async_send(package.release());
+            this->post([session, package]() {
+                session->async_send(package.release()); // 在IO线程安全发送数据
+            });
         }
     }
 
@@ -295,7 +299,7 @@ protected:
     //     decltype(session_last_active_times_)& map_;
     // };
 
-protected:
+
     // 批量发送队列（每会话独立）
     // struct alignas(64) SessionSendQueue {
     //     moodycamel::ConcurrentQueue<std::string> packets; // 还原为原始队列类型
@@ -329,6 +333,9 @@ protected:
     std::string auth_url_;
     std::atomic<bool> auth_lock_{true}; // 启动时锁定
     BusinessThreadPool pool;
+    std::atomic<bool> is_shutdown{ false };
+    std::shared_mutex mutex_;
+
 };
 
 class HeartbeatTracker {
@@ -422,31 +429,26 @@ struct AntiCheatUserData
     }
 };
 
-inline auto get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
--> std::shared_ptr<AntiCheatUserData>
+inline AntiCheatUserData* get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
 {
+    AntiCheatUserData* userdata = nullptr;
     try {
-        // 双检锁+内存屏障优化
-        auto userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>();
-        if (!userdata) { // 第一次无锁检查
-            static std::mutex init_mutex;
-            std::unique_lock<std::mutex> lock(init_mutex);
-            userdata = session->get_user_data<std::shared_ptr<AntiCheatUserData>>(); // 第二次加锁检查
-            if (!userdata) {
-                userdata = std::make_shared<AntiCheatUserData>();
-                session->set_user_data(userdata);
-            }
+        userdata = session->get_user_data<AntiCheatUserData*>();
+        if (userdata == nullptr)
+        {
+            userdata = new AntiCheatUserData();
+            session->set_user_data<AntiCheatUserData*>(std::move(userdata));
         }
         return userdata;
     }
     catch (const std::bad_any_cast& e) {
         slog->error("Bad cast: {}", e.what());
-        auto smart_ptr = std::make_shared<AntiCheatUserData>();
-        session->set_user_data(smart_ptr);
-        return smart_ptr;
+        userdata = new AntiCheatUserData();
+        session->set_user_data<AntiCheatUserData*>(std::move(userdata));
+        return userdata;
     }
     catch (const std::exception& e) {
         slog->error("Get user data failed: {}", e.what());
-        return std::make_shared<AntiCheatUserData>();
+        return new AntiCheatUserData();
     }
 }

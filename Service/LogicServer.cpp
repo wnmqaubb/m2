@@ -55,7 +55,7 @@ using namespace std::literals;
 #else
 #define LOG(x)
 #endif
-//#define _DEBUG
+#define _DEBUG
 std::shared_ptr<spdlog::logger> slog;
 std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> clog;
 // 全局声明线程池和日志器
@@ -119,7 +119,7 @@ void init_logger()
     clog->set_level(spdlog::level::err);
     //auto slog = spdlog::create_async<spdlog::sinks::daily_file_sink_mt>("logger", "logs/anti_cheat.log");
     // 初始化日志系统
-    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logic_server.log", 1024 * 1024 * 1024, 5);
+    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logic_server.log", 1024 * 1024 * 5, 1, true);
 
     // 创建组合日志器时使用 sink
     std::vector<spdlog::sink_ptr> sinks{ clog, rotating_sink };
@@ -136,12 +136,12 @@ void init_logger()
 #ifdef _DEBUG
     slog->set_level(spdlog::level::trace);
     slog->flush_on(spdlog::level::trace);
-    spdlog::flush_every(std::chrono::seconds(1));
+    spdlog::flush_every(std::chrono::seconds(3));
     spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S.%e][T%t][%l]%$ %v");
 #else
     slog->set_level(spdlog::level::info);
     slog->flush_on(spdlog::level::info);
-    spdlog::flush_every(std::chrono::seconds(3));
+    spdlog::flush_every(std::chrono::seconds(5));
     // 设置日志消息的格式模式
     spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 #endif
@@ -207,6 +207,15 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
     VMProtectEnd();
 }
 bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
+    if (!session || session->is_stopped()) {
+        slog->warn("Enqueue task for stopped session");
+        return false;
+    }
+    // 在创建 Task 前检查传入的 raw_msg 是否为空
+    if (raw_msg.get().is_nil()) {
+        slog->warn("on_recv received a nil msgpack handle for package_id: {}", package_id);
+        return false;
+    }
     try {
         //slog->info("CLogicServer::on_recv: {}", package_id);
         //package_mgr_.dispatch(package_id, session, package, raw_msg);
@@ -233,8 +242,8 @@ bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& se
 
 void CLogicServer::process_task(Task&& task)
 {
-    if (task.raw_msg->get().is_nil()) {
-        slog->critical("Invalid msgpack handle detected");
+    if (!task.raw_msg || task.raw_msg->get().is_nil()) {
+        slog->warn("Invalid msgpack handle detected");
         return;
     }
 
@@ -296,7 +305,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
             slog->error("重新加载插件和策略时发生未知错误");
         }
     }; 
-    start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(15), reload_plugins_and_policies);
+    start_timer(PLUGIN_RELOAD_TIMER_ID, std::chrono::seconds(5), reload_plugins_and_policies);
     start_timer(ONLINE_CHECK_TIMER_ID, std::chrono::seconds(40), [this]() {
         try {
             OnlineCheck();
@@ -487,6 +496,8 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
         auto resp = plugin_mgr_->get_plugin(req.plugin_hash);
         if (!resp.body.buffer.empty())
         {
+            auto user_data = usr_sessions_mgr()->get_user_data(package.head.session_id);
+            if (user_data && !user_data->is_loaded_plugin())
             send(session, package.head.session_id, plugin_mgr_->get_plugin(req.plugin_hash));
         }
     });

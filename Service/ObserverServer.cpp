@@ -17,9 +17,9 @@
 //#include <folly/MPMCQueue.h>
 //#include <folly/AtomicUnorderedMap.h>
 //#include <folly/ProducerConsumerQueue.h>
-#include <concurrentqueue/concurrentqueue.h>
-#include <readerwriterqueue/readerwriterqueue.h>
-#include <parallel_hashmap/phmap.h>
+//#include <concurrentqueue/concurrentqueue.h>
+//#include <readerwriterqueue/readerwriterqueue.h>
+//#include <parallel_hashmap/phmap.h>
 
 // Windows头文件（置于最后以避免宏冲突）
 #include <Psapi.h>
@@ -28,17 +28,25 @@
 //slog->info(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
 // 转发到logic_server
 bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
+    if (!session || session->is_stopped()) {
+        slog->warn("Enqueue task for stopped session");
+        return false;
+    }
     // 在创建 Task 前检查传入的 raw_msg 是否为空
     if (raw_msg.get().is_nil()) {
         slog->warn("on_recv received a nil msgpack handle for package_id: {}", package_id);
+        return false;
     }
     try {
         // 将任务放入队列
         Task task(package_id, session, package, std::move(raw_msg));
-        if (!pool.enqueue(std::move(task))) {
-            slog->warn("Failed to enqueue task, queue may be full");
-            return false;
-        }
+        post([this, task = std::move(task)]() mutable {
+            // 通过ASIO2 post确保线程安全
+            if (!pool.enqueue(std::move(task))) {
+                slog->warn("Failed to enqueue task, queue may be full");
+                return false;
+            }
+        });
         // 检查内存使用情况
         //pool.check_memory_usage();
 
@@ -56,17 +64,29 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
 void CObserverServer::process_task(Task&& task)
 {
     // 基本参数检查
-    if (task.raw_msg->get().is_nil()) {
-        slog->critical("Null msgpack handle detected");
+    if (!task.raw_msg || task.raw_msg->get().is_nil()) {
+        slog->warn("Null msgpack handle detected");
         return;
     }
 
     auto& [package_id, session, package, raw_msg] = task;
 
+    // ========== 关键修改 1：统一会话有效性检查 ==========
+    tcp_session_shared_ptr_t local_session;
+
+    // 使用 weak_ptr 检测会话有效性
+    std::weak_ptr<asio2::tcp_session> weak_session = session;
+    if (auto shared_session = weak_session.lock()) {
+        local_session = shared_session;
+    }
+    else {
+        slog->warn("Session expired in task processing");
+        return;
+    }
     if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
     {
         auto msg = raw_msg->get().as<ProtocolC2SHandShake>();
-        on_recv_handshake(session, package, msg);
+        on_recv_handshake(local_session, package, msg);
         return;
     }
 
@@ -76,21 +96,44 @@ void CObserverServer::process_task(Task&& task)
 
         ProtocolS2CHeartBeat resp;
         resp.tick = msg.tick;
-        async_send(session, &resp);
-        auto userdata = get_user_data_(session);
-        userdata->update_heartbeat_time();
-        //user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
+        async_send(local_session, &resp);
 
-        on_recv_client_heartbeat(session);
-        //on_recv_heartbeat(session, package, msg);
+        // ========== 关键修改 2：安全访问 userdata ==========
+        AntiCheatUserData* userdata = nullptr;
+
+        // 方法 1：双重有效性检查
+        if (local_session && !local_session->is_stopped()) {
+            userdata = get_user_data_(local_session);
+        }
+
+        // 方法 2：安全获取函数
+        /*auto safe_get_user_data = [](tcp_session_shared_ptr_t s) -> AntiCheatUserData* {
+            if (!s || s->is_stopped()) return nullptr;
+            try {
+                return get_user_data_(s);
+            }
+            catch (...) {
+                return nullptr;
+            }
+        };
+
+        if (auto userdata = safe_get_user_data(local_session)) {*/
+        if (userdata) {
+            userdata->update_heartbeat_time();
+        }
+        else {
+            slog->warn("Failed to get userdata for session");
+            return;
+        }
+
+        on_recv_client_heartbeat(local_session); // 使用 local_session
         return;
     }
-
-    std::shared_ptr<AntiCheatUserData> user_data;
+    AntiCheatUserData* user_data = nullptr;
     if (SPKG_ID_START < package_id && package_id < SPKG_ID_MAX_PACKAGE_ID_SIZE) {
         // 减少包处理数量,临时用,待登录器更新后移除
         if (SPKG_ID_C2S_UPDATE_USER_NAME == package_id) {
-            user_data = get_user_data_(session);
+            user_data = get_user_data_(local_session);
             auto& req = raw_msg->get().as<ProtocolC2SUpdateUsername>();
             auto username = user_data->get_field("usrname");
             std::wstring username_str = username.has_value() ? username.value() : L"";
@@ -103,14 +146,14 @@ void CObserverServer::process_task(Task&& task)
         //slog->info("ProtocolLC2LSSend package_id: {}", package_id);
         ProtocolLC2LSSend req;
         req.package = package;
-        req.package.head.session_id = session->hash_key();
+        req.package.head.session_id = local_session->hash_key();
         logic_client_->async_send(&req, package.head.session_id);
         return;
     }
 
     if (!user_data)
     {
-        user_data = get_user_data_(session);
+        user_data = get_user_data_(local_session);
     }
 
     // auto is_observer_client = user_data->get_field<bool>("is_observer_client");
@@ -122,21 +165,21 @@ void CObserverServer::process_task(Task&& task)
 
     if (OBSPKG_ID_START < package_id && package_id < OBSPKG_ID_END) {
         // 执行任务
-        try {
+        //try {
             // 调用 dispatch
-            ob_pkg_mgr_.dispatch(package_id, session, package, *raw_msg);
-        }
+            ob_pkg_mgr_.dispatch(package_id, local_session, package, *raw_msg);
+        /*}
         catch (const std::exception& e) {
             slog->error("Package dispatch failed: {}", e.what());
         }
         catch (...) {
             slog->error("Package dispatch failed with unknown exception");
-        }
+        }*/
     }
     else if (LSPKG_ID_START < package_id && package_id < LSPKG_ID_END) {
         ProtocolLC2LSSend req;
         req.package = package;
-        req.package.head.session_id = session->hash_key();
+        req.package.head.session_id = local_session->hash_key();
         logic_client_->send(&req, package.head.session_id);
         return;
     }
@@ -278,7 +321,7 @@ CObserverServer::CObserverServer()
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         ProtocolOBS2OBCQueryUsers resp;
         // 收集所有用户数据
-        slog->info("查询所有用户数据");
+        //slog->info("查询所有用户数据");
         std::vector<std::pair<uint64_t, ProtocolUserData>> user_data_list;
         foreach_session([this, &user_data_list](tcp_session_shared_ptr_t& session) {
             auto user_data = get_user_data_(session);
@@ -371,6 +414,9 @@ CObserverServer::CObserverServer()
 // OBPKG_ID_C2S_AUTH
 void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
 {
+    if (!session || session->is_stopped()) {
+        return;
+    }
 #ifdef _DEBUG        
     get_user_data_(session)->set_field("is_observer_client", true);
     super::log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),

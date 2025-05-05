@@ -39,7 +39,6 @@ int main(int argc, char** argv)
 {
     init_logger();
 	std::shared_ptr<asio::detail::thread_group> g_thread_group = std::make_shared<asio::detail::thread_group>();
-	//std::shared_ptr<CObserverServer> server = std::make_shared<CObserverServer>();
 	auto hEvent = CreateMutex(NULL, FALSE, TEXT("mtx_service_2"));
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 	{
@@ -96,7 +95,7 @@ void init_logger()
     clog->set_level(spdlog::level::err);
     //auto slog = spdlog::create_async<spdlog::sinks::daily_file_sink_mt>("logger", "logs/anti_cheat.log");
     // 初始化日志系统
-    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 1024, 5);
+    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("service.log", 1024 * 1024 * 5, 1, true);
 
     // 创建组合日志器时使用 sink
     std::vector<spdlog::sink_ptr> sinks{ clog, rotating_sink };
@@ -114,12 +113,12 @@ void init_logger()
 #ifdef _DEBUG
     slog->set_level(spdlog::level::trace);
     slog->flush_on(spdlog::level::trace);
-    spdlog::flush_every(std::chrono::seconds(1));
+    spdlog::flush_every(std::chrono::seconds(3));
     spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S.%e][T%t][%l]%$ %v");
 #else
     slog->set_level(spdlog::level::info);
     slog->flush_on(spdlog::level::info);
-    spdlog::flush_every(std::chrono::seconds(3));
+    spdlog::flush_every(std::chrono::seconds(5));
     spdlog::set_pattern("%^[%m-%d %H:%M:%S][%l]%$ %v");
 #endif
 

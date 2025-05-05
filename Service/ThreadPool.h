@@ -29,9 +29,6 @@ struct Task {
         package(p),
         raw_msg(std::make_unique<msgpack::v1::object_handle>(std::move(msg)))
     {
-        if (!raw_msg) {
-            slog->error("Failed to initialize raw_msg in Task constructor");
-        }
     }
 
     // 修改移动构造函数和移动赋值运算符，移除冗余操作
@@ -64,10 +61,11 @@ struct Task {
     Task& operator=(const Task&) = delete;
 };
 
-static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192 * 2;  // 增大本地队列容量
+static constexpr size_t MAX_LOCAL_QUEUE_SIZE = 8192;  //1024  8192 * 4;  // 增大本地队列容量
 
 struct TaskWrapper {
     Task task;
+    std::atomic<bool> is_active{ true };
     explicit TaskWrapper(Task&& t) noexcept : task(std::move(t)) {}
 
     // 确保移动安全
@@ -117,11 +115,11 @@ public:
 private:
     // 优化后的配置参数
     // 添加内存池配置参数
-    static constexpr size_t MEMORY_POOL_LOW_WATERMARK = 2048;  // 低水位线
-    static constexpr size_t GLOBAL_QUEUE_MAX = 5000;         // 新增全局队列容量限制
-    static constexpr size_t WORKER_BATCH_SIZE = 64;      // 增加批量处理数量
+    static constexpr size_t MEMORY_POOL_LOW_WATERMARK = 1024;  //  2048;  // 低水位线
+    static constexpr size_t GLOBAL_QUEUE_MAX = 2048;         // 新增全局队列容量限制
+    static constexpr size_t WORKER_BATCH_SIZE = 32;      // 增加批量处理数量
     static constexpr int MAX_EMPTY_ITERATIONS = 50;       // 减少空转次数
-    static constexpr size_t MEMORY_POOL_INIT_SIZE = 4096;// 预分配内存池大小
+    static constexpr size_t MEMORY_POOL_INIT_SIZE = 4096;  //  8192;// 预分配内存池大小
 
     // 全局队列（MPMC）
     moodycamel::ConcurrentQueue<TaskWrapper*> global_queue_;
@@ -138,5 +136,15 @@ private:
     // 使用weak_ptr避免悬挂指针
     std::vector<std::weak_ptr<WorkerContext>> worker_contexts_;
     std::shared_mutex context_mutex_;
+
+    // 新增 CPU 亲和性配置
+    static constexpr bool ENABLE_CPU_AFFINITY = true;
+    static constexpr DWORD IDEAL_CORE_MASK = 0xAAAAAAAA; // 偶数核
+    // --- 新增成员变量 ---
+    size_t configured_thread_count_;                 // 配置的线程数
+    std::atomic<size_t> completed_tasks_count_{ 0 };   // 已完成任务总数
+    std::atomic<size_t> rejected_tasks_count_{ 0 };    // 已拒绝任务总数
+    std::chrono::steady_clock::time_point last_log_time_; // 上次记录日志的时间
+    size_t last_completed_tasks_count_{ 0 };          // 上次记录日志时的已完成任务数
 };
 

@@ -103,6 +103,7 @@ void CServerPluginMgr::reload_all_plugin() {
                         RawProtocolImpl raw_package;
                         raw_package.encode(buffer.data(), buffer.size());
                         plugin_cache_.emplace(file_hash, std::make_pair(raw_package, plugin));
+                        printf("加载插件:%s\n", plugin.plugin_name.c_str());
                     }
                     catch (...) {
                         fs::remove(path);
@@ -274,6 +275,8 @@ void CServerPolicyMgr::reload_all_policy()
         std::map<unsigned int, fs::path> new_policy_list;
         for (auto& file_path : std::filesystem::directory_iterator(dir))
         {
+            // 读取指定文件名
+            
             if (file_path.path().extension() != ".cfg")
                 continue;
             std::string file_path_str = file_path.path().string();
