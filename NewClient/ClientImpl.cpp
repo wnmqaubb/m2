@@ -5,8 +5,6 @@
 
 using namespace Utils;
 
-//#define LOG_SHOW
-
 #ifdef LOG_SHOW
 #define log(LOG_TYPE,x,...) log(LOG_TYPE, x, __VA_ARGS__ )
 #else

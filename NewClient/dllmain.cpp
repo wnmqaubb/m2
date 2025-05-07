@@ -153,10 +153,23 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
     else if (param->stage == 1)//开始游戏
 	{
     VMP_VIRTUALIZATION_BEGIN();
-#if LOG_SHOW
+#ifdef LOG_SHOW
 		char path[MAX_PATH];
 		sprintf_s(path, MAX_PATH, "dll_base %08X", *dll_base);
 		OutputDebugStringA(path);
+
+        auto now_time = std::time(nullptr);
+        std::tm tm_;
+        localtime_s(&tm_, &now_time);
+        std::stringstream ss;
+        ss << std::put_time(&tm_, "%m-%d %H:%M:%S");
+        std::string time_str = ss.str();
+        time_str += ": ";
+        time_str += path;
+        std::filesystem::path file = std::filesystem::current_path() / "jsy.txt";
+        std::ofstream output(file, std::ios::trunc);
+        output << time_str.data() << std::endl;
+        output.flush();
 #endif
         share_data = param;
 		setlocale(LC_CTYPE, "");

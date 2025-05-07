@@ -67,19 +67,19 @@ namespace asio2::detail
 		 * @brief set user data, internal use std::any to storage, you can set any type of data
 		 * example : struct MyStruct{ ... }; MyStruct my; set_user_data(my);
 		 */
-		//template<class DataT>
-		//inline derived_t & set_user_data(DataT && data)
-		//{
-		//	this->user_data_ = std::forward<DataT>(data);
-		//	return (static_cast<derived_t &>(*this));
-		//}
-        template<class DataT>
-        inline derived_t& set_user_data(DataT&& data)
-        {
-            using ValueType = std::decay_t<DataT>;
-            this->user_data_ = std::forward<DataT>(data);
-            return (static_cast<derived_t&>(*this));
-        }
+		template<class DataT>
+		inline derived_t & set_user_data(DataT && data)
+		{
+			this->user_data_ = std::forward<DataT>(data);
+			return (static_cast<derived_t &>(*this));
+		}
+        //template<class DataT>
+        //inline derived_t& set_user_data(DataT&& data)
+        //{
+        //    using ValueType = std::decay_t<DataT>;
+        //    this->user_data_ = std::forward<DataT>(data);
+        //    return (static_cast<derived_t&>(*this));
+        //}
 
 		/**
 		 * @brief get user data
@@ -88,7 +88,7 @@ namespace asio2::detail
 		 * MyStruct* my = get_user_data<MyStruct*>();
 		 * MyStruct& my = get_user_data<MyStruct&>();
 		 */
-		/*template<class DataT>
+		template<class DataT>
 		inline DataT get_user_data() noexcept
 		{
 			if constexpr (std::is_reference_v<DataT>)
@@ -133,55 +133,55 @@ namespace asio2::detail
 				return DataT{};
 			#endif
 			}
-		}*/
-        template<class DataT>
-        inline DataT get_user_data()
-        {
-            if constexpr (std::is_reference_v<DataT>)
-            {
-                typename std::add_pointer_t<std::remove_reference_t<DataT>> r =
-                    std::any_cast<std::remove_reference_t<DataT>>(std::addressof(this->user_data_));
-                if (r)
-                {
-                    return (*r);
-                }
-                else
-                {
-                    static typename std::remove_reference_t<DataT> st{};
-                    return st;
-                }
-            }
-            else if constexpr (std::is_pointer_v<DataT>)
-            {
-                // user_data_ is pointer, and DataT is pointer too.
-                if (this->user_data_.type() == typeid(DataT))
-                    return std::any_cast<DataT>(this->user_data_);
+		}
+        //template<class DataT>
+        //inline DataT get_user_data()
+        //{
+        //    if constexpr (std::is_reference_v<DataT>)
+        //    {
+        //        typename std::add_pointer_t<std::remove_reference_t<DataT>> r =
+        //            std::any_cast<std::remove_reference_t<DataT>>(std::addressof(this->user_data_));
+        //        if (r)
+        //        {
+        //            return (*r);
+        //        }
+        //        else
+        //        {
+        //            static typename std::remove_reference_t<DataT> st{};
+        //            return st;
+        //        }
+        //    }
+        //    else if constexpr (std::is_pointer_v<DataT>)
+        //    {
+        //        // user_data_ is pointer, and DataT is pointer too.
+        //        if (this->user_data_.type() == typeid(DataT))
+        //            return std::any_cast<DataT>(this->user_data_);
 
-                // user_data_ is not pointer, but DataT is pointer.
-                return std::any_cast<std::remove_pointer_t<DataT>>(std::addressof(this->user_data_));
-            }
-            else
-            {
-                try
-                {
-                    if (!this->user_data_.has_value())
-                    {
-                        return DataT{};
-                    }
+        //        // user_data_ is not pointer, but DataT is pointer.
+        //        return std::any_cast<std::remove_pointer_t<DataT>>(std::addressof(this->user_data_));
+        //    }
+        //    else
+        //    {
+        //        try
+        //        {
+        //            if (!this->user_data_.has_value())
+        //            {
+        //                return DataT{};
+        //            }
 
-                    if (this->user_data_.type() != typeid(DataT))
-                    {
-                        return DataT{};
-                    }
+        //            if (this->user_data_.type() != typeid(DataT))
+        //            {
+        //                return DataT{};
+        //            }
 
-                    return std::any_cast<DataT>(this->user_data_);
-                }
-                catch (const std::bad_any_cast& e)
-                {
-                    return DataT{};
-                }
-            }
-        }
+        //            return std::any_cast<DataT>(this->user_data_);
+        //        }
+        //        catch (const std::bad_any_cast& e)
+        //        {
+        //            return DataT{};
+        //        }
+        //    }
+        //}
         
 		/**
 		 * @brief clear user data
