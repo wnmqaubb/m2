@@ -325,10 +325,10 @@ CObserverServer::CObserverServer()
         std::vector<std::pair<uint64_t, ProtocolUserData>> user_data_list;
         foreach_session([this, &user_data_list](tcp_session_shared_ptr_t& session) {
             auto user_data = get_user_data_(session);
-            if (user_data->get_handshake()) {
+            if (user_data && user_data->get_handshake()) {
                 ProtocolUserData _userdata;
                 _userdata.session_id = session->hash_key();
-                if (user_data && user_data->uuid) {
+                if (user_data->uuid) {
                     memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
                 }
                 else {
@@ -386,6 +386,8 @@ CObserverServer::CObserverServer()
         }
         else
         {
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
             super::log(LOG_TYPE_EVENT, TEXT("更新LogicServer成功"));
         }
     });

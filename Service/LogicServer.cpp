@@ -64,6 +64,10 @@ void init_logger();
 
 int main(int argc, char** argv)
 {
+    // 在 main 函数或初始化代码中注册 SEH 过滤器
+    _se_translator_function old_seh = _set_se_translator([](unsigned code, EXCEPTION_POINTERS*) {
+        throw std::runtime_error("SEH Exception: code=" + std::to_string(code));
+    });
     init_logger();
     VMProtectBeginVirtualization(__FUNCTION__);
     // 创建互斥体，检查是否已存在实例
@@ -235,6 +239,10 @@ bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& se
     }
     catch (const std::exception& e) {
         slog->error("Exception in on_recv: {}", e.what());
+        return false;
+    }
+    catch (...) {
+        slog->error("Exception in on_recv");
         return false;
     }
 

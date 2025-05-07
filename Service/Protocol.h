@@ -35,7 +35,8 @@ const unsigned int kProtocolXorKey[4] = { 0x6431A2DF, 0xE6A953B6, 0x6F64F83C, 0x
 enum class ProtoErrc {
     DecodeFailed = 1,
     InvalidMsgpack,
-    UnpackFailed
+    UnpackFailed,
+    InvalidBody
 };
 
 struct ProtoErrCategory : std::error_category {
@@ -438,6 +439,10 @@ public:
             }
 
             // 2. 直接对已解析的body进行反序列化
+            if (this->body.buffer.empty() || this->body.buffer.data() == nullptr) {
+                ec = make_error_code(ProtoErrc::InvalidBody);
+                return false;
+            }
             oh = msgpack::unpack(
                 reinterpret_cast<const char*>(this->body.buffer.data()),
                 this->body.buffer.size()
@@ -453,6 +458,11 @@ public:
             return true;
         }
         catch (const std::exception& e) {
+            ec = make_error_code(ProtoErrc::UnpackFailed);
+            return false;
+        }
+        catch (...) {
+            // 处理其他异常（包括 SEH 转换后的异常）
             ec = make_error_code(ProtoErrc::UnpackFailed);
             return false;
         }

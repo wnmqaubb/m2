@@ -175,6 +175,9 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
         catch (const std::exception& e) {
             log(LOG_TYPE_ERROR, "on_accept: {}", e.what());
         }
+        catch (...) {
+            log(LOG_TYPE_ERROR, "on_accept 异常");
+        }
 #endif
     });
 }
@@ -260,6 +263,10 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
         }
         catch (const std::system_error& e) {
             log(LOG_TYPE_ERROR, "获取远程地址失败: %s", e.what());
+            return;
+        }
+        catch (...) {
+            log(LOG_TYPE_ERROR, "获取远程地址失败");
             return;
         }
         if (ddos_black_list.contains(remote_address)) {
@@ -353,6 +360,9 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
     }
     catch (const std::exception& e) {
         log(LOG_TYPE_ERROR, "_on_recv异常: %s", e.what());
+    }
+    catch (...) {
+        log(LOG_TYPE_ERROR, "_on_recv异常");
     }
 }
 
@@ -707,5 +717,9 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
     {
         log(LOG_TYPE_ERROR, TEXT("握手异常:%s"), Utils::c2w(e.what()).c_str());
         session->socket().close(asio2::get_last_error());
+    }
+    catch (...)
+    {
+        log(LOG_TYPE_ERROR, TEXT("握手异常"));
     }
 }
