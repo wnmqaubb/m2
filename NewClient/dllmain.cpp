@@ -121,7 +121,8 @@ namespace AntiDebugger {
 
     // 改进的反检测逻辑
     BOOL performAntiDetection() {
-        __try {
+        VMP_VIRTUALIZATION_BEGIN();
+        __try {            
             if (isDebuggerPresent() || checkVirtualMachine() || checkTimingAttack()) {
                 // 检测到调试环境，采取对抗措施
                 ExitProcess(0);
@@ -132,6 +133,7 @@ namespace AntiDebugger {
             return FALSE;
         }
         return FALSE;
+        VMP_VIRTUALIZATION_END();
     }
 }
 

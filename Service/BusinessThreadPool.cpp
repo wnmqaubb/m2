@@ -262,13 +262,38 @@ void BusinessThreadPool::worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t
             }
         }
     }
-    // 退出时自动从上下文中移除
+    // worker_loop 退出时的清理逻辑
     {
-        std::unique_lock lock(context_mutex_);
-        auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
-                               [&](auto& weak_ctx) { return weak_ctx.lock() == ctx; });
-        if (it != worker_contexts_.end()) {
-            worker_contexts_.erase(it);
+        size_t target_index = SIZE_MAX;
+        // 第一步：查找目标索引（共享锁）
+        {
+            std::shared_lock<std::shared_mutex> read_lock(context_mutex_);
+            for (size_t i = 0; i < worker_contexts_.size(); ++i) {
+                if (auto shared_ctx = worker_contexts_[i].lock()) {
+                    if (shared_ctx.get() == ctx.get()) {  // 比较原始指针
+                        target_index = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 第二步：删除目标元素（独占锁）
+        if (target_index != SIZE_MAX) {
+            try {
+                std::unique_lock<std::shared_mutex> write_lock(context_mutex_);
+                if (target_index < worker_contexts_.size()) {
+                    if (auto shared_ctx = worker_contexts_[target_index].lock()) {
+                        if (shared_ctx.get() == ctx.get()) {
+                            worker_contexts_.erase(worker_contexts_.begin() + target_index);
+                            slog->debug("Worker context at index {} removed.", target_index);
+                        }
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                slog->error("Context erase failed: {}", e.what());
+            }
         }
     }
     ctx->active.store(false, std::memory_order_seq_cst); // 标记为非活动
@@ -300,9 +325,14 @@ size_t BusinessThreadPool::process_global(std::vector<std::unique_ptr<TaskWrappe
 
 size_t BusinessThreadPool::try_steal(std::vector<std::unique_ptr<TaskWrapper>>& batch, size_t thief_id) {
     batch.clear(); // 清空 batch 准备接收窃取的任务
-    std::shared_lock<std::shared_mutex> lock(context_mutex_);
+    // 基于 contexts_copy 进行窃取逻辑
+    std::vector<std::weak_ptr<WorkerContext>> contexts_copy;
+    {
+        std::shared_lock lock(context_mutex_);
+        contexts_copy = worker_contexts_;  // 复制列表，避免长时间持有锁
+    }
     size_t stolen = 0;
-    const size_t total_workers = worker_contexts_.size();
+    const size_t total_workers = contexts_copy.size();
 
     // 优化参数配置
     constexpr size_t MAX_STEAL_PER_WORKER = 16;    // 单线程最大窃取量
@@ -310,7 +340,7 @@ size_t BusinessThreadPool::try_steal(std::vector<std::unique_ptr<TaskWrapper>>& 
     size_t dynamic_steal_limit = std::min(
         MAX_STEAL_PER_WORKER,
         static_cast<size_t>(std::max<int64_t>(pending_tasks_.load(), 0)) /
-        (worker_contexts_.size() + 1)
+        (contexts_copy.size() * 2)
     );
     // 随机选择起始窃取位置
     static thread_local std::mt19937_64 rng(std::random_device{}());
@@ -323,7 +353,7 @@ size_t BusinessThreadPool::try_steal(std::vector<std::unique_ptr<TaskWrapper>>& 
         if (target_index == thief_id) continue;
 
         // 安全获取目标上下文
-        auto weak_ctx = worker_contexts_[target_index];
+        auto weak_ctx = contexts_copy[target_index];
         auto ctx = weak_ctx.lock();
         if (!ctx || !ctx->active.load(std::memory_order_acquire)) {
             continue;

@@ -250,7 +250,7 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
     try {
-        if (!session || session->is_stopped() || !session->socket().is_open()) {
+        if (!session || session->is_stopped()) {
             return;
         }
     #ifdef G_SERVICE 
@@ -681,7 +681,10 @@ void CAntiCheatServer::on_recv_heartbeat(tcp_session_shared_ptr_t& session, cons
 void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg)
 {
     try
-    {
+    {        
+        if (!session || session->is_stopped()) {
+            return;
+        }
         // 使用原子操作和更安全的方法
         auto userdata = get_user_data_(session);
 
@@ -689,7 +692,7 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         std::memcpy(userdata->uuid, msg.uuid, sizeof(userdata->uuid));
 
         // 原子地标记握手状态
-        userdata->set_handshake(true);
+        userdata->set_handshake(true);   
         session->stop_timer((unsigned int)UUID_CHECK_TIMER_ID);
 
         userdata->set_field("sysver", msg.system_version);
@@ -698,8 +701,12 @@ void CAntiCheatServer::on_recv_handshake(tcp_session_shared_ptr_t& session, cons
         userdata->set_field("mac", msg.mac);
         userdata->set_field("vol", msg.volume_serial_number);
         userdata->set_field("rev_ver", msg.rev_version);
-        userdata->set_field("commit_ver", msg.commited_hash);
-        userdata->set_field("ip", session->get_remote_address());
+        userdata->set_field("commit_ver", msg.commited_hash);    
+        std::string remote_address;    
+        if (session && !session->is_stopped()) {
+            remote_address = session->get_remote_address();
+        }
+        userdata->set_field("ip", remote_address);
         userdata->set_field("logintime", std::time(nullptr));
         userdata->set_field("pid", msg.pid);
         userdata->set_field("is_client", msg.is_client);

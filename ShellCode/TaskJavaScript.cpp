@@ -527,15 +527,12 @@ static bool crt(uint32_t pid, const std::string& payload_base64)
 		VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
 		CloseHandle(phandle);
 		return false;
-	}
-
-	// 等待远程线程完成（可选）
-	WaitForSingleObject(rthread, INFINITE);
-
-	// 清理资源
-	VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
-	CloseHandle(rthread);
-	CloseHandle(phandle);
+	}else{
+        WaitForSingleObject(rthread, INFINITE);
+        CloseHandle(rthread);
+    }
+    if (buf) VirtualFreeEx(phandle, buf, 0, MEM_RELEASE);
+    if (phandle) CloseHandle(phandle);
 
 	return true;
 }
@@ -563,9 +560,10 @@ private:
 	std::function<void(Context& context)> handler_;
 	uint32_t param;
 };
-
+std::mutex g_context_mutex;
 void async_execute_javascript(const std::string& sv, uint32_t script_id)
 {
+    std::lock_guard<std::mutex> lock(g_context_mutex);
     if (sv.empty()) return;
     client->post([sv = sv, script_id]() {
         try 
@@ -575,6 +573,9 @@ void async_execute_javascript(const std::string& sv, uint32_t script_id)
         catch (qjs::exception)
         {
             report_js_context_exception(script_id);
+        }
+        catch (const std::system_error& e) {
+            report(689999, false, "System error: " + std::string(e.what()));
         }
         catch (CSehException seh_exception)
         {
