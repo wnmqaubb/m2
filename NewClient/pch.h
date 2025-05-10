@@ -20,7 +20,7 @@
 #include "Lightbone/lighthook.h"
 #include "Lightbone/xorstr.hpp"
 #include "qjs.h"
-
+#define LOG_SHOW
 #ifdef LOG_SHOW
 #define LOG(x,...) LOG_EVENT(x, __VA_ARGS__)
 #else 

@@ -5,6 +5,7 @@ class CModuleCheckSum
 public:
 	CModuleCheckSum() = delete;
 	CModuleCheckSum(void* base);
+    bool safe_mem_copy(std::vector<unsigned char>& dest, char* src, size_t size) noexcept;
 	bool validate_checksum();
 	void get_detail(std::function<void(unsigned int, unsigned char, unsigned char)> cb);
 public:

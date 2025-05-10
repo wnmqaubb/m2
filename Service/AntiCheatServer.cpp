@@ -411,7 +411,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
 			Utils::c2w(session->local_address()).c_str(),
 			session->local_port(),
             sv.size());
-        session->stop();
+        session->socket().close(asio2::get_last_error());
         return;
     }
     if (is_enable_proxy_tunnel())

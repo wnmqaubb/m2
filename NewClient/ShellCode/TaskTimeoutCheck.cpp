@@ -15,7 +15,7 @@ std::shared_ptr<std::chrono::system_clock::time_point> last_time_out_check_timep
 extern std::shared_ptr<int> reconnect_count;
 extern std::shared_ptr<CClientImpl> client_;
 extern std::shared_ptr<asio2::timer> g_timer;
-extern std::shared_ptr<HWND> g_main_window_hwnd;
+extern HWND g_main_window_hwnd;
 
 void __forceinline unmap_ntdll()
 {
@@ -41,8 +41,8 @@ void TimeOutCheckRoutine()
         )
     {
 
-		if (*g_main_window_hwnd != 0) {
-			MessageBoxA(*g_main_window_hwnd, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+		if (g_main_window_hwnd != 0) {
+			MessageBoxA(g_main_window_hwnd, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
 		}
 		else {
 			MessageBoxA(nullptr, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
@@ -76,7 +76,12 @@ void InitTimeoutCheck()
 {
 #if 0
 	g_timer->start_timer<unsigned int>(CLIENT_TIMEOUT_CHECK_TIMER_ID, client_->heartbeat_duration(), []() {
-        TimeOutCheckRoutine();
+		__try {
+			TimeOutCheckRoutine();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
+        }
     });
 #endif
 	client_->cfg()->set_field<bool>(hack_type_version_dll_field_id, false);
@@ -84,7 +89,12 @@ void InitTimeoutCheck()
 
 	LOG(__FUNCTION__);
 	g_timer->start_timer<unsigned int>(RECONNECT_RESET_TIMER_ID, std::chrono::minutes(10), []() {
-		*reconnect_count = 0;
+		__try {
+			*reconnect_count = 0;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
+        }
 	});
     static auto last_recv_package_notify_handler = client_->notify_mgr().get_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID);
     client_->notify_mgr().replace_handler(CLIENT_ON_RECV_PACKAGE_NOTIFY_ID, []() {

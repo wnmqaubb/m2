@@ -4,12 +4,17 @@
 #include "Lightbone/pointer.hpp"
 #include "Lightbone/utils.h"
 #include "NewClient/ClientImpl.h"
+#include "NewClient/shellcode/TaskBasic.h"
 #include "Gate/cmdline.h"
 #include "PEScan.h"
+#include <Lightbone/api_resolver.h>
 
 void async_execute_javascript(const std::string& sv, uint32_t script_id);
 
-void __stdcall client_entry(const std::string& ip);
+extern void __stdcall client_entry(std::string guard_gate_ip) noexcept;
+extern void __stdcall DoUnInit();
+using client_entry_t = decltype(&client_entry);
+using uninit_t = decltype(&DoUnInit);
 
 void hook_calc_pe_ico_hash()
 {
@@ -69,12 +74,25 @@ void InitUnitTest()
     //hook_calc_pe_ico_hash();
 }
 
+void init_client_entry_dll() {
+    auto hmodule = LoadLibraryA("NewClient_f.dll");
+    client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+    uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
+    //entry("43.139.236.115");
+    entry("");
+    /*Sleep(30000);
+    uninit();
+    if (FreeLibrary(hmodule))
+        std::cout << "FreeLibrary ok!\n";*/
+}
+
 int main(int argc, char** argv)
 {
     setlocale(LC_CTYPE, "");
 
     InitUnitTest();
-    
+   
+    InitJavaScript();
     std::vector<std::string> args;
     for (int i = 1; i < argc; i++) args.push_back(argv[i]);
     

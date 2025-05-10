@@ -1,4 +1,4 @@
-#include "../pch.h"
+﻿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include "Service/SubServicePackage.h"
@@ -277,7 +277,7 @@ public:
     HANDLE file_handle_;
     std::size_t size_;
 };
-std::unique_ptr<Console> console_ptr;
+std::shared_ptr<Console> console_ptr;
 const unsigned int DEFINE_TIMER_ID(kCmdPipeTimerId);
 const unsigned int DEFINE_TIMER_ID(kCmdBindSessionId);
 void InitRmc()
@@ -294,24 +294,30 @@ void InitRmc()
             std::string(system_dir) + xorstr("\\cmd.exe"),
             ".\\"
         };
-        console_ptr = std::make_unique<Console>(cmd_prop);
+        console_ptr = std::make_shared<Console>(cmd_prop);
         console_ptr->open();
 
         RmcProtocolC2SCreateCommandLine resp;
         client_->send(&resp, package.head.session_id);
         client_->stop_timer(kCmdPipeTimerId);
 		LOG(__FUNCTION__);
-		g_timer->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10), [session_id = package.head.session_id]() {
-            if (!console_ptr)
-                return;
-            console_ptr->read([session_id](const std::string& text) {
-                if (text.size())
-                {
-                    RmcProtocolC2SEcho resp;
-                    resp.text = text;
-                    client_->send(&resp, session_id);
+		g_timer->start_timer(kCmdPipeTimerId, std::chrono::milliseconds(10),
+            [session_id = package.head.session_id, console_weak = std::weak_ptr(console_ptr)]() {
+            try {
+                if (auto console = console_weak.lock()) {
+                    console->read([session_id](const std::string& text) {
+                        if (text.size())
+                        {
+                            RmcProtocolC2SEcho resp;
+                            resp.text = text;
+                            client_->send(&resp, session_id);
+                        }
+                    });
                 }
-            });
+            }
+            catch (...) {
+                LOG("线程异常: %s|%s|%d", __FILE__, __FUNCTION__, __LINE__);
+            }
         });
     });
     client_->package_mgr().register_handler(SPKG_ID_S2C_RMC_EXECUTE_CMD, [](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {

@@ -40,7 +40,7 @@ void InitMiniDump()
 #include <client/windows/handler/exception_handler.h>
 #include <client/windows/common/ipc_protocol.h>
 using namespace google_breakpad;
-extern std::shared_ptr<HWND> g_main_window_hwnd;
+extern HWND g_main_window_hwnd;
 bool ShowDumpResults(const wchar_t* dump_path,
     const wchar_t* minidump_id,
     void* context,
@@ -48,7 +48,7 @@ bool ShowDumpResults(const wchar_t* dump_path,
     MDRawAssertionInfo* assertion,
     bool succeeded)
 {
-    MessageBoxA(*g_main_window_hwnd, "程序可能被劫持，若频繁出现，请使用360急救箱或重装系统", "提示", MB_OK | MB_ICONERROR);
+    MessageBoxA(g_main_window_hwnd, "程序可能被劫持，若频繁出现，请使用360急救箱或重装系统", "提示", MB_OK | MB_ICONERROR);
     return succeeded;
 }
 

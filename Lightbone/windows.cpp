@@ -4,6 +4,11 @@
 #include <shared_mutex>
 #include <filesystem>
 #include <set>
+#include <wincrypt.h>
+#include <optional>
+#include <mscat.h>
+#pragma comment(lib, "crypt32.lib")
+#pragma comment(lib, "Wintrust.lib")
 
 using namespace Utils;
 using namespace Utils::String;
@@ -14,13 +19,21 @@ CWindows::access_mask_t CWindows::ThreadQueryAccess;
 CWindows::access_mask_t CWindows::ThreadSetAccess;
 CWindows::access_mask_t CWindows::ThreadAllAccess;
 std::map<uint32_t, void*> CWindows::api_;
-
+// 静态成员初始化
+CWindows::WindowsList CWindows::cachedWindowsList;
+std::chrono::steady_clock::time_point CWindows::lastUpdateTime = std::chrono::steady_clock::now();
+bool CWindows::lastExcludeSystem = false;
+bool CWindows::lastExcludeSigned = false;
+std::mutex CWindows::cacheMutex;
+std::unordered_map<DWORD, std::pair<std::wstring, bool>> CWindows::process_cache;
 CWindows::CWindows()
 {
     system_version_ = get_system_version_();
     initialize_access();
 
     LoadLibraryW(L"advapi32.dll");
+    LoadLibraryW(L"crypt32.dll");
+    LoadLibraryW(L"Wintrust.dll");
 }
 
 CWindows::~CWindows()
@@ -53,6 +66,7 @@ CWindows::access_mask_t CWindows::get_thread_all_access()
 {
     return ThreadAllAccess;
 }
+
 void CWindows::initialize_access()
 {
     if (system_version_ >= WINDOWS_VISTA)
@@ -75,16 +89,16 @@ void CWindows::initialize_access()
 
 void* CWindows::get_proc_address(uint32_t module_hash, uint32_t func_hash)
 {
-    if (api_.find(module_hash^func_hash) != api_.end())
+    if (api_.find(module_hash ^ func_hash) != api_.end())
     {
-        return api_[module_hash^func_hash];
+        return api_[module_hash ^ func_hash];
     }
     HMODULE module_handle = ApiResolver::get_module_handle(module_hash);
     if (!module_handle)
     {
         return nullptr;
     }
-    return api_[module_hash^func_hash] = ApiResolver::get_proc_address(module_handle, func_hash);
+    return api_[module_hash ^ func_hash] = ApiResolver::get_proc_address(module_handle, func_hash);
 }
 
 CWindows::SystemVersion CWindows::get_system_version_()
@@ -178,7 +192,7 @@ bool CWindows::is_64bits_process(HANDLE process_handle)
 using SmartHandle = std::unique_ptr<void, decltype(&::NtClose)>;
 #pragma warning(push)
 #pragma warning(disable:4244)
-template<> 
+template<>
 NTSTATUS CWindows::read_virtual_memory<uint64_t>(
     HANDLE handle,
     uint64_t base_address,
@@ -202,12 +216,12 @@ NTSTATUS CWindows::read_virtual_memory<uint32_t>(
     return NtReadVirtualMemory(handle, (PVOID)base_address, buffer, buffer_size, (SIZE_T*)bytes_of_read);
 }
 template<>
-NTSTATUS 
+NTSTATUS
 Utils::CWindows::query_information_process<uint32_t>(
-    HANDLE process_handle, 
-    uint32_t process_information_class, 
+    HANDLE process_handle,
+    uint32_t process_information_class,
     PVOID process_information,
-    uint32_t process_information_length, 
+    uint32_t process_information_length,
     uint32_t* return_length)
 {
     auto NtQueryInformationProcess = IMPORT(L"ntdll.dll", NtQueryInformationProcess);
@@ -235,7 +249,7 @@ void CWindows::ldr_walk(HANDLE handle, ModuleList& modules)
     _PROCESS_BASIC_INFORMATION_T<T> pbi;
     uint64_t bytes_of_read = 0;
     NTSTATUS status = 0;
-    
+
     status = query_information_process<T>(handle, ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
     if (!NT_SUCCESS(status))
         return;
@@ -308,7 +322,7 @@ CWindows::ModuleList CWindows::enum_modules(uint32_t pid, bool& is_64bits)
         set_last_status(status);
         return modules;
     }
-    
+
     do
     {
         is_64bits = is_64bits_process(handle.get());
@@ -325,7 +339,7 @@ CWindows::ModuleList CWindows::enum_modules(uint32_t pid, bool& is_64bits)
     return modules;
 }
 
-NTSTATUS CWindows::get_processes(PVOID *processes, uint32_t& system_information_class)
+NTSTATUS CWindows::get_processes(PVOID* processes, uint32_t& system_information_class)
 {
     auto NtQuerySystemInformation = IMPORT(L"ntdll.dll", NtQuerySystemInformation);
     NTSTATUS status;
@@ -333,7 +347,7 @@ NTSTATUS CWindows::get_processes(PVOID *processes, uint32_t& system_information_
 
     system_information_class = SystemExtendedProcessInformation;
     uint8_t* buffer = new uint8_t[bytes_of_read];
-    
+
     while (TRUE)
     {
         status = NtQuerySystemInformation((SYSTEM_INFORMATION_CLASS)system_information_class, buffer, bytes_of_read, &bytes_of_read);
@@ -364,14 +378,55 @@ NTSTATUS CWindows::get_processes(PVOID *processes, uint32_t& system_information_
     return status;
 }
 
-CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& process)> callback)
+bool CWindows::is_system_process(DWORD pid) {
+    auto OpenProcess = IMPORT(L"kernel32.dll", OpenProcess);
+
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!hProcess) return false;
+
+    HANDLE hToken;
+    if (!OpenProcessToken(hProcess, TOKEN_QUERY, &hToken)) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    DWORD dwSize = 0;
+    GetTokenInformation(hToken, TokenUser, NULL, 0, &dwSize);
+    PTOKEN_USER pTokenUser = (PTOKEN_USER)malloc(dwSize);
+    GetTokenInformation(hToken, TokenUser, pTokenUser, dwSize, &dwSize);
+
+    char szAccount[256] = { 0 };
+    char szDomain[256] = { 0 };
+    DWORD dwAccountLen = 256, dwDomainLen = 256;
+    SID_NAME_USE sidType;
+
+    LookupAccountSidA(
+        NULL,
+        pTokenUser->User.Sid,
+        szAccount,
+        &dwAccountLen,
+        szDomain,
+        &dwDomainLen,
+        &sidType
+    );
+
+    free(pTokenUser);
+    CloseHandle(hToken);
+    CloseHandle(hProcess);
+
+    return (strcmp(szAccount, "SYSTEM") == 0) ||
+        (strcmp(szAccount, "LOCAL SERVICE") == 0) ||
+        (strcmp(szAccount, "NETWORK SERVICE") == 0);
+}
+
+CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& process)> callback, bool exclude_system_process, bool exclude_signed)
 {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lck(mtx);
     auto NtQueryInformationThread = IMPORT(L"ntdll.dll", NtQueryInformationThread);
     auto OpenThread = IMPORT(L"kernel32.dll", OpenThread);
     ProcessMap process_map;
-	power();
+    power();
     uint32_t system_information_class = SystemExtendedProcessInformation;
     NTSTATUS status;
     static PVOID processes = NULL;
@@ -402,6 +457,26 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
     {
         ProcessInfo process = { 0 };
         process.pid = reinterpret_cast<uint32_t>(info->UniqueProcessId);
+        // 排除系统进程
+        if (exclude_system_process && is_system_process(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
+        // 排除有签名的进程
+        if (exclude_signed && verify_signature(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
         process.name = info->ImageName.Buffer ? info->ImageName.Buffer : L"";
         process.parent_pid = reinterpret_cast<uint32_t>(info->InheritedFromUniqueProcessId);
         process.modules = enum_modules(process.pid, process.is_64bits);
@@ -411,69 +486,69 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
         }
         uint64_t min_time = (std::numeric_limits<uint64_t>::max)();
         uint32_t main_thread_tid = 0;
-       
+
         for (uint32_t i = 0; i < info->NumberOfThreads; i++)
         {
-			if (system_information_class == SystemExtendedProcessInformation)
-			{
-				ThreadInfo thread;
-				auto& thd = info->Threads[i].ThreadInfo;
+            if (system_information_class == SystemExtendedProcessInformation)
+            {
+                ThreadInfo thread;
+                auto& thd = info->Threads[i].ThreadInfo;
 
-				thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-				if (process.is_64bits && process.no_access == false)
-				{
-					HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-					uint64_t start_address = 0;
-					ULONG return_length = 0;
-					status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-					CloseHandle(thread_handle);
-					if (NT_SUCCESS(status))
-					{
-						thread.start_address = start_address;
-					}
-				}
-				else
-				{
-					thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
-				}
+                thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
+                if (process.is_64bits && process.no_access == false)
+                {
+                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                    uint64_t start_address = 0;
+                    ULONG return_length = 0;
+                    status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                    CloseHandle(thread_handle);
+                    if (NT_SUCCESS(status))
+                    {
+                        thread.start_address = start_address;
+                    }
+                }
+                else
+                {
+                    thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
+                }
 
 
-				if (thd.CreateTime.QuadPart < min_time)
-				{
-					min_time = thd.CreateTime.QuadPart;
-					main_thread_tid = thread.tid;
-				}
-				process.threads.emplace(std::make_pair(thread.tid, thread));
-			}
-			else {
-				ThreadInfo thread;
-				SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
+                if (thd.CreateTime.QuadPart < min_time)
+                {
+                    min_time = thd.CreateTime.QuadPart;
+                    main_thread_tid = thread.tid;
+                }
+                process.threads.emplace(std::make_pair(thread.tid, thread));
+            }
+            else {
+                ThreadInfo thread;
+                SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
 
-				thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-				if(thread.tid > 0)
-				{
-					HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-					uint32_t start_address = 0;
-					ULONG return_length = 0;
-					if (thread_handle != NULL) 
-					{
-						status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-						CloseHandle(thread_handle);
-						if (NT_SUCCESS(status))
-						{
-							thread.start_address = start_address;
-						}
-					}
-				}            
+                thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
+                if (thread.tid > 0)
+                {
+                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                    uint32_t start_address = 0;
+                    ULONG return_length = 0;
+                    if (thread_handle != NULL)
+                    {
+                        status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                        CloseHandle(thread_handle);
+                        if (NT_SUCCESS(status))
+                        {
+                            thread.start_address = start_address;
+                        }
+                    }
+                }
 
-				if (thd.CreateTime.QuadPart < min_time)
-				{
-					min_time = thd.CreateTime.QuadPart;
-					main_thread_tid = thread.tid;
-				}
-				process.threads.emplace(std::make_pair(thread.tid, thread));
-			}
-			
+                if (thd.CreateTime.QuadPart < min_time)
+                {
+                    min_time = thd.CreateTime.QuadPart;
+                    main_thread_tid = thread.tid;
+                }
+                process.threads.emplace(std::make_pair(thread.tid, thread));
+            }
+
         }
         process.threads[main_thread_tid].is_main_thread = true;
         process_map.emplace(std::make_pair(process.pid, process));
@@ -481,7 +556,7 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
         {
             return process_map;
         }
-        
+
         if (info->NextEntryOffset)
             info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
         else
@@ -490,14 +565,15 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
     return process_map;
 }
 
-CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessInfo& process)> callback)
+CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessInfo& process)> callback, bool exclude_system_process, bool exclude_signed)
 {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lck(mtx);
     auto NtQueryInformationThread = IMPORT(L"ntdll.dll", NtQueryInformationThread);
     auto OpenThread = IMPORT(L"kernel32.dll", OpenThread);
+    auto GetFileSizeEx = IMPORT(L"kernel32.dll", GetFileSizeEx);
     ProcessMap process_map;
-	power();
+    power();
     uint32_t system_information_class = SystemExtendedProcessInformation;
     NTSTATUS status;
     static PVOID processes = NULL;
@@ -528,6 +604,26 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
     {
         ProcessInfo process = { 0 };
         process.pid = reinterpret_cast<uint32_t>(info->UniqueProcessId);
+        // 排除系统进程
+        if (exclude_system_process && is_system_process(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
+        // 排除有签名的进程
+        if (exclude_signed && verify_signature(process.pid)) {
+            if (info->NextEntryOffset)
+            {
+                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+                continue;
+            }
+            else
+                break;
+        }
         process.name = info->ImageName.Buffer ? info->ImageName.Buffer : L"";
         process.parent_pid = reinterpret_cast<uint32_t>(info->InheritedFromUniqueProcessId);
         process.modules = enum_modules(process.pid, process.is_64bits);
@@ -537,76 +633,94 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
         }
         uint64_t min_time = (std::numeric_limits<uint64_t>::max)();
         uint32_t main_thread_tid = 0;
-       
+
         for (uint32_t i = 0; i < info->NumberOfThreads; i++)
         {
-			if (system_information_class == SystemExtendedProcessInformation)
-			{
-				ThreadInfo thread;
-				auto& thd = info->Threads[i].ThreadInfo;
+            if (system_information_class == SystemExtendedProcessInformation)
+            {
+                ThreadInfo thread;
+                auto& thd = info->Threads[i].ThreadInfo;
 
-				thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-				if (process.is_64bits && process.no_access == false)
-				{
-					HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-					uint64_t start_address = 0;
-					ULONG return_length = 0;
-					status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-					CloseHandle(thread_handle);
-					if (NT_SUCCESS(status))
-					{
-						thread.start_address = start_address;
-					}
-				}
-				else
-				{
-					thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
-				}
+                thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
+                if (process.is_64bits && process.no_access == false)
+                {
+                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                    uint64_t start_address = 0;
+                    ULONG return_length = 0;
+                    status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                    CloseHandle(thread_handle);
+                    if (NT_SUCCESS(status))
+                    {
+                        thread.start_address = start_address;
+                    }
+                }
+                else
+                {
+                    thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
+                }
 
 
-				if (thd.CreateTime.QuadPart < min_time)
-				{
-					min_time = thd.CreateTime.QuadPart;
-					main_thread_tid = thread.tid;
-				}
-				process.threads.emplace(std::make_pair(thread.tid, thread));
-			}
-			else {
-				ThreadInfo thread;
-				SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
+                if (thd.CreateTime.QuadPart < min_time)
+                {
+                    min_time = thd.CreateTime.QuadPart;
+                    main_thread_tid = thread.tid;
+                }
+                process.threads.emplace(std::make_pair(thread.tid, thread));
+            }
+            else {
+                ThreadInfo thread;
+                SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
 
-				thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-				if(thread.tid > 0)
-				{
-					HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-					uint32_t start_address = 0;
-					ULONG return_length = 0;
-					if (thread_handle != NULL) 
-					{
-						status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-						CloseHandle(thread_handle);
-						if (NT_SUCCESS(status))
-						{
-							thread.start_address = start_address;
-						}
-					}
-				}            
+                thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
+                if (thread.tid > 0)
+                {
+                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                    uint32_t start_address = 0;
+                    ULONG return_length = 0;
+                    if (thread_handle != NULL)
+                    {
+                        status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                        CloseHandle(thread_handle);
+                        if (NT_SUCCESS(status))
+                        {
+                            thread.start_address = start_address;
+                        }
+                    }
+                }
 
-				if (thd.CreateTime.QuadPart < min_time)
-				{
-					min_time = thd.CreateTime.QuadPart;
-					main_thread_tid = thread.tid;
-				}
-				process.threads.emplace(std::make_pair(thread.tid, thread));
-			}
-			
+                if (thd.CreateTime.QuadPart < min_time)
+                {
+                    min_time = thd.CreateTime.QuadPart;
+                    main_thread_tid = thread.tid;
+                }
+                process.threads.emplace(std::make_pair(thread.tid, thread));
+            }
+
         }
         process.threads[main_thread_tid].is_main_thread = true;
         if (!process.modules.empty())
         {
-            auto walk_path = std::filesystem::path(process.modules.front().path).parent_path();
+            auto process_path = process.modules.front().path;
+            auto walk_path = std::filesystem::path(process_path).parent_path();
             std::error_code ec;
             size_t file_count = 0;
+            if (!process_path.empty() && std::filesystem::exists(process_path, ec))
+            {
+                process.process_file_size = std::filesystem::file_size(process_path);
+                if (process.process_file_size <= 0)
+                {
+                    LARGE_INTEGER fileSize;
+                    HANDLE hFile = CreateFile(process_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (hFile != INVALID_HANDLE_VALUE)
+                    {
+                        if (GetFileSizeEx(hFile, &fileSize))
+                        {
+                            process.process_file_size = fileSize.QuadPart;
+                        }
+                        CloseHandle(hFile);
+                    }
+                }
+            }
             for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
             {
                 if (file_count++ >= 50)
@@ -624,7 +738,7 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
         {
             return process_map;
         }
-        
+
         if (info->NextEntryOffset)
             info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
         else
@@ -643,18 +757,18 @@ void Utils::CWindows::ldr_walk_64(HANDLE handle, ModuleList& modules)
     return ldr_walk<uint64_t>(handle, modules);
 }
 
-CWindows::ProcessMap CWindows::enum_process()
+CWindows::ProcessMap CWindows::enum_process(bool exclude_system_process, bool exclude_signed)
 {
     return enum_process([](ProcessInfo&)->bool {
         return true;
-    });
+    }, exclude_system_process, exclude_signed);
 }
 
-CWindows::ProcessMap CWindows::enum_process_with_dir()
+CWindows::ProcessMap CWindows::enum_process_with_dir(bool exclude_system_process, bool exclude_signed)
 {
     return enum_process_with_dir([](ProcessInfo&)->bool {
         return true;
-    });
+    }, exclude_system_process, exclude_signed);
 }
 
 bool Utils::CWindows::get_process(uint32_t pid, __out ProcessInfo& process)
@@ -672,7 +786,7 @@ bool Utils::CWindows::get_process(uint32_t pid, __out ProcessInfo& process)
     return found;
 }
 
-bool CWindows::power() 
+bool CWindows::power()
 {
     auto GetCurrentProcess = IMPORT(L"kernel32.dll", GetCurrentProcess);
     auto OpenProcessToken = IMPORT(L"advapi32.dll", OpenProcessToken);
@@ -754,7 +868,7 @@ bool CWindows::is_process_open_from_explorer(uint32_t pid)
 {
     uint32_t parent_pid = get_process_parent(pid);
     ProcessInfo parent_process;
-    if(!get_process(parent_pid, parent_process))
+    if (!get_process(parent_pid, parent_process))
     {
         return false;
     }
@@ -768,9 +882,9 @@ bool CWindows::is_process_open_from_explorer(uint32_t pid)
         {'7', 'z', 'f', 'm', '.', 'e', 'x', 'e'}
     };
     transform(parent_process.name.begin(), parent_process.name.end(), parent_process.name.begin(), ::towlower);
-    for(std::wstring desktop : desktop_list)
+    for (std::wstring desktop : desktop_list)
     {
-        if(parent_process.name.find(desktop) == 0)
+        if (parent_process.name.find(desktop) == 0)
         {
             return true;
         }
@@ -778,80 +892,104 @@ bool CWindows::is_process_open_from_explorer(uint32_t pid)
     return false;
 }
 
-BOOL CALLBACK CWindows::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-	//过滤掉非窗体和有不可见样式的窗体
-	if (!::IsWindow(hwnd)/* || !IsWindowVisible(hwnd)*/)
-		return TRUE;
-
-	auto results = (std::vector<HWND>*)lParam;
-	results->push_back(hwnd);
-	return TRUE;
-}
-
-CWindows::WindowsList CWindows::enum_windows()
+CWindows::WindowsList CWindows::enum_windows(bool exclude_system_process, bool exclude_signed)
 {
-    auto EnumDesktopWindows = IMPORT(L"user32.dll", EnumDesktopWindows);
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    auto now = std::chrono::steady_clock::now();
+
+    // 检查缓存有效性（5秒内且参数相同）
+    if (exclude_system_process == lastExcludeSystem &&
+        exclude_signed == lastExcludeSigned &&
+        std::chrono::duration_cast<std::chrono::seconds>(now - lastUpdateTime).count() < 5) {
+        return cachedWindowsList;
+    }
+
+    // 重新枚举窗口
+    WindowsList result;
+    std::vector<HWND> hwnds;
+    if (auto EnumDesktopWindows = IMPORT(L"user32.dll", EnumDesktopWindows)) {
+        EnumDesktopWindows(nullptr, &EnumWindowsProc, reinterpret_cast<LPARAM>(&hwnds));
+    }
+
+    wchar_t title[MAX_PATH];
+    wchar_t className[MAX_PATH];
+
     auto GetWindowTextW = IMPORT(L"user32.dll", GetWindowTextW);
     auto GetClassNameW = IMPORT(L"user32.dll", GetClassNameW);
     auto GetWindowThreadProcessId = IMPORT(L"user32.dll", GetWindowThreadProcessId);
 
-    WindowsList result;
-    std::vector<HWND> hwnds;
-    EnumDesktopWindows(NULL, CWindows::EnumWindowsProc, (LPARAM)&hwnds);
-    DWORD process_id;
-    DWORD thread_id;
-    for (HWND hwnd : hwnds)
-    {
-        PSTR pszMem = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
-        PSTR pszCls = (PSTR)VirtualAlloc((LPVOID)NULL, MAX_PATH, MEM_COMMIT, PAGE_READWRITE);
-        if (pszMem != NULL)
-        {
-            ::GetWindowText(hwnd, (LPWSTR)pszMem, MAX_PATH);
-			::GetClassNameW(hwnd, (LPWSTR)pszCls, MAX_PATH);
-			if (_wcsicmp((LPWSTR)pszMem, L"") != NULL || _wcsicmp((LPWSTR)pszCls, L"") != NULL/* && !IsIconic(hwnd) && IsWindowVisible(hwnd)*/)
-            {
-                thread_id = GetWindowThreadProcessId(hwnd, &process_id);
-                WindowInfo window;
-                window.caption = (LPWSTR)pszMem;
-                window.class_name = (LPWSTR)pszCls;
-                window.hwnd = hwnd;
-                window.pid = process_id;
-                window.tid = thread_id;
-                result.push_back(window);
-            }
+    for (HWND hwnd : hwnds) {
+        // 获取窗口基础信息
+        if (!GetWindowTextW(hwnd, title, MAX_PATH)) title[0] = L'\0';
+        if (!GetClassNameW(hwnd, className, MAX_PATH)) className[0] = L'\0';
+
+        // 快速跳过不可见窗口和空窗口
+        if ((title[0] == L'\0' && className[0] == L'\0')
+            //|| !IsWindowVisible(hwnd) ||
+            //IsIconic(hwnd)
+            ) {
+            continue;
         }
-        VirtualFree(pszMem, 0, MEM_RELEASE);
-        VirtualFree(pszCls, 0, MEM_RELEASE);
+
+        // 获取进程信息
+        DWORD process_id = 0;
+        DWORD thread_id = GetWindowThreadProcessId(hwnd, &process_id);
+
+        // 系统进程过滤
+        if (exclude_system_process && is_system_process(process_id)) {
+            continue;
+        }
+
+        // 签名验证过滤
+        if (exclude_signed && verify_signature(process_id)) {
+            continue;
+        }
+
+        // 构建窗口信息
+        result.emplace_back(WindowInfo{
+            /*hwnd*/      hwnd,
+            /*caption*/    title,
+            /*class_name*/ className,
+            /*pid*/       process_id,
+            /*tid*/       thread_id
+                            });
     }
-    return result;
-}
+
+    // 更新缓存
+    cachedWindowsList = std::move(result);
+    lastExcludeSystem = exclude_system_process;
+    lastExcludeSigned = exclude_signed;
+    lastUpdateTime = now;
+
+    return cachedWindowsList;
+};
 
 std::wstring CWindows::ntpath2win32path(std::wstring ntPath)
 {
     wchar_t system_path[MAX_PATH] = L"";
     GetWindowsDirectory(system_path, MAX_PATH);
-    if(ntPath._Starts_with(L"\\\\?\\"))
+    if (ntPath._Starts_with(L"\\\\?\\"))
     {
         ntPath.erase(ntPath.begin(), ntPath.begin() + 4);
         return ntPath;
     }
-    if(ntPath._Starts_with(L"\\??\\"))
+    if (ntPath._Starts_with(L"\\??\\"))
     {
         ntPath.erase(ntPath.begin(), ntPath.begin() + 4);
     }
-    if(ntPath._Starts_with(L"\\"))
+    if (ntPath._Starts_with(L"\\"))
     {
         ntPath.erase(ntPath.begin(), ntPath.begin() + 1);
     }
-    if(ntPath._Starts_with(L"globalroot\\"))
+    if (ntPath._Starts_with(L"globalroot\\"))
     {
         ntPath.erase(ntPath.begin(), ntPath.begin() + 11);
     }
-    if(ntPath._Starts_with(L"SystemRoot"))
+    if (ntPath._Starts_with(L"SystemRoot"))
     {
         ntPath.replace(ntPath.begin(), ntPath.begin() + 10, system_path);
     }
-    if(ntPath._Starts_with(L"Windows"))
+    if (ntPath._Starts_with(L"Windows"))
     {
         ntPath.replace(ntPath.begin(), ntPath.begin() + 7, system_path);
     }
@@ -868,19 +1006,19 @@ CWindows::DriverList CWindows::enum_drivers()
     NTSTATUS status;
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[0x100]);
     status = NtQuerySystemInformation(SystemModuleInformation, buffer.get(), 0x100, &bytes_of_read);
-    if(!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status))
     {
         buffer.reset(new uint8_t[bytes_of_read]);
         status = NtQuerySystemInformation(SystemModuleInformation, buffer.get(), bytes_of_read, &bytes_of_read);
-        if(!NT_SUCCESS(status))
+        if (!NT_SUCCESS(status))
         {
             return drivers;
         }
     }
     SYSTEM_MODULE_INFORMATION* info = (SYSTEM_MODULE_INFORMATION*)buffer.get();
-    for(uint32_t i = 0; i < info->ModuleCount; i++)
+    for (uint32_t i = 0; i < info->ModuleCount; i++)
     {
-        DriverInfo driver = {0};
+        DriverInfo driver = { 0 };
         SYSTEM_MODULE module_info = info->Module[i];
         driver.image_name = module_info.ImageName ? c2w(module_info.ImageName) : L"";
         driver.image_name = ntpath2win32path(driver.image_name);
@@ -908,7 +1046,7 @@ std::vector<std::wstring> CWindows::enum_device_names()
     RtlInitUnicodeString(&strDirName, L"\\??\\Global");
     InitializeObjectAttributes(&oba, &strDirName, OBJ_CASE_INSENSITIVE, NULL, NULL);
     ntStatus = ZwOpenDirectoryObject(&hDirectory, DIRECTORY_QUERY, &oba);
-    if(ntStatus != STATUS_SUCCESS)
+    if (ntStatus != STATUS_SUCCESS)
     {
         return device_names;
     }
@@ -921,20 +1059,20 @@ std::vector<std::wstring> CWindows::enum_device_names()
     // 查询目录对象  
     do
     {
-        if(pBuffer != NULL)
+        if (pBuffer != NULL)
         {
             free(pBuffer);
         }
         ulLength = ulLength * 2;
         pBuffer = (PDIRECTORY_BASIC_INFORMATION)malloc(ulLength);
         memset(pBuffer, 0, ulLength);
-        if(NULL == pBuffer)
+        if (NULL == pBuffer)
         {
-            if(pBuffer != NULL)
+            if (pBuffer != NULL)
             {
                 free(pBuffer);
             }
-            if(hDirectory != NULL)
+            if (hDirectory != NULL)
             {
                 ZwClose(hDirectory);
             }
@@ -942,12 +1080,12 @@ std::vector<std::wstring> CWindows::enum_device_names()
             return device_names;
         }
         ntStatus = ZwQueryDirectoryObject(hDirectory, pBuffer, ulLength, FALSE, TRUE, &ulContext, &ulRet);
-    } while(ntStatus == STATUS_MORE_ENTRIES || ntStatus == STATUS_BUFFER_TOO_SMALL);
+    } while (ntStatus == STATUS_MORE_ENTRIES || ntStatus == STATUS_BUFFER_TOO_SMALL);
 
-    if(STATUS_SUCCESS == ntStatus)
+    if (STATUS_SUCCESS == ntStatus)
     {
         pBuffer2 = pBuffer;
-        while((pBuffer2->ObjectName.Length != 0) && (pBuffer2->ObjectTypeName.Length != 0))
+        while ((pBuffer2->ObjectName.Length != 0) && (pBuffer2->ObjectTypeName.Length != 0))
         {
             std::wstring strDriverName;
             strDriverName = pBuffer2->ObjectName.Buffer;
@@ -955,11 +1093,11 @@ std::vector<std::wstring> CWindows::enum_device_names()
             pBuffer2++;
         }
     }
-    if(pBuffer != NULL)
+    if (pBuffer != NULL)
     {
         free(pBuffer);
     }
-    if(hDirectory != NULL)
+    if (hDirectory != NULL)
     {
         ZwClose(hDirectory);
     }
@@ -976,7 +1114,7 @@ LIGHT_BONE_API PSYSTEM_HANDLE_INFORMATION get_system_handle_info()
     do
     {
         status = NtQuerySystemInformation(SystemHandleInformation, buff, buffLen, &buffLen);
-        if(status == STATUS_INFO_LENGTH_MISMATCH)
+        if (status == STATUS_INFO_LENGTH_MISMATCH)
         {
             delete[] buff;
             buff = new BYTE[buffLen];
@@ -984,7 +1122,7 @@ LIGHT_BONE_API PSYSTEM_HANDLE_INFORMATION get_system_handle_info()
         else
             break;
 
-    } while(TRUE);
+    } while (TRUE);
     return (PSYSTEM_HANDLE_INFORMATION)buff;
 }
 
@@ -1002,24 +1140,24 @@ std::wstring CWindows::enum_handle_process_write(DWORD target_pid_)
     DWORD target_pid = target_pid_ == 0 ? GetCurrentProcessId() : target_pid_;
     NTSTATUS Status;
     SYSTEM_HANDLE_TABLE_ENTRY_INFO* CurHandle;
-    OBJECT_TYPE_INFORMATION *ObjectType;
+    OBJECT_TYPE_INFORMATION* ObjectType;
     char BufferForObjectType[1024];
     HANDLE hDuplicate = NULL, hSource = NULL;
-    SYSTEM_HANDLE_INFORMATION *system_handle_info = get_system_handle_info();
-    if(system_handle_info)
+    SYSTEM_HANDLE_INFORMATION* system_handle_info = get_system_handle_info();
+    if (system_handle_info)
     {
         auto parent_processID = get_process_parent(target_pid);
-        for(DWORD i = 0; i < system_handle_info->NumberOfHandles; i++)
+        for (DWORD i = 0; i < system_handle_info->NumberOfHandles; i++)
         {
             CurHandle = &(system_handle_info->Handles[i]);
-            if(CurHandle->GrantedAccess & PROCESS_VM_WRITE)
+            if (CurHandle->GrantedAccess & PROCESS_VM_WRITE)
             {
                 CLIENT_ID clientId;
                 clientId.UniqueThread = NULL;
 
                 hSource = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE, FALSE, CurHandle->UniqueProcessId);
-                if(!hSource) continue;
-                
+                if (!hSource) continue;
+
                 ZeroMemory(BufferForObjectType, 1024);
 
                 PROCESS_BASIC_INFORMATION basicInfo;
@@ -1037,20 +1175,20 @@ std::wstring CWindows::enum_handle_process_write(DWORD target_pid_)
                 CloseHandle(hSource);
                 hSource = NULL;
 
-                if(!NT_SUCCESS(Status))
+                if (!NT_SUCCESS(Status))
                     continue;
 
                 Status = ZwQueryObject(hDuplicate,
-                    ObjectTypeInformation,
-                    BufferForObjectType,
-                    sizeof(BufferForObjectType),
-                    NULL);
+                                       ObjectTypeInformation,
+                                       BufferForObjectType,
+                                       sizeof(BufferForObjectType),
+                                       NULL);
 
                 ObjectType = (OBJECT_TYPE_INFORMATION*)BufferForObjectType;
-                if(Status == STATUS_INFO_LENGTH_MISMATCH || !NT_SUCCESS(Status))
+                if (Status == STATUS_INFO_LENGTH_MISMATCH || !NT_SUCCESS(Status))
                     continue;
 
-                if(ObjectType->TypeName.Buffer == NULL || 0 == wcsstr((wchar_t *)(ObjectType->TypeName.Buffer), L"Process"))
+                if (ObjectType->TypeName.Buffer == NULL || 0 == wcsstr((wchar_t*)(ObjectType->TypeName.Buffer), L"Process"))
                 {
                     CloseHandle(hDuplicate);
                     hDuplicate = NULL;
@@ -1067,12 +1205,12 @@ std::wstring CWindows::enum_handle_process_write(DWORD target_pid_)
                 ZwClose(hDuplicate);
                 hDuplicate = NULL;
 
-                if(!NT_SUCCESS(Status))
+                if (!NT_SUCCESS(Status))
                     continue;
 
-                if(CurHandle->UniqueProcessId == parent_processID ||
+                if (CurHandle->UniqueProcessId == parent_processID ||
                     (uint32_t)basicInfo.UniqueProcessId != target_pid)
-                {                   
+                {
                     continue;
                 }
 
@@ -1083,7 +1221,7 @@ std::wstring CWindows::enum_handle_process_write(DWORD target_pid_)
 
                 std::wstring processName((PWCHAR)processInfo->ImageName.Buffer, processInfo->ImageName.Length / sizeof(WCHAR));
 
-                if(processInfo && processName != L"csrss.exe" && processName != L"lsass.exe" && processName != L"svchost.exe" /*&& processName != L"sesvc.exe"*/)
+                if (processInfo && processName != L"csrss.exe" && processName != L"lsass.exe" && processName != L"svchost.exe" /*&& processName != L"sesvc.exe"*/)
                 {
                     process_name = processName;
                     break;
@@ -1099,14 +1237,14 @@ std::wstring CWindows::enum_handle_process_write(DWORD target_pid_)
 bool CWindows::detect_hide_process_handle()
 {
     SYSTEM_HANDLE_TABLE_ENTRY_INFO* CurHandle;
-    SYSTEM_HANDLE_INFORMATION *pInfo = get_system_handle_info();
+    SYSTEM_HANDLE_INFORMATION* pInfo = get_system_handle_info();
     ProcessMap processes = enum_process();
-    if(pInfo)
+    if (pInfo)
     {
-        for(DWORD i = 0; i < pInfo->NumberOfHandles; i++)
+        for (DWORD i = 0; i < pInfo->NumberOfHandles; i++)
         {
             CurHandle = &(pInfo->Handles[i]);
-            if(processes.find(CurHandle->UniqueProcessId) == processes.end())
+            if (processes.find(CurHandle->UniqueProcessId) == processes.end())
             {
                 delete[] pInfo;
                 return true;
@@ -1116,10 +1254,10 @@ bool CWindows::detect_hide_process_handle()
     return false;
 }
 
-CWindows::WindowsList CWindows::enum_windows_ex()
+CWindows::WindowsList CWindows::enum_windows_ex(bool exclude_system_process, bool exclude_signed)
 {
-    ProcessMap processes = enum_process();
-    WindowsList windows = enum_windows();
+    ProcessMap processes = enum_process(exclude_system_process, exclude_signed);
+    WindowsList windows = enum_windows(exclude_system_process, exclude_signed);
     for (auto& window : windows)
     {
         if (processes.find(window.pid) != processes.end())
@@ -1166,7 +1304,7 @@ bool CWindows::get_process_main_hwnd(uint32_t pid, WindowInfo& window_out)
         if (window.tid == main_tid)
         {
             window_out = window;
-           return true;
+            return true;
         }
     }
     return false;
@@ -1290,14 +1428,14 @@ std::string get_pdb_from_pe(uint8_t* image_base) {
 
 // 新增驱动路径PDB获取方法
 std::string CWindows::get_pdb_from_driver(const std::wstring& driver_path) {
-    decltype(&CreateFileW) CreateFileW = IMPORT(L"kernel32.dll", CreateFileW);
-    decltype(&CreateFileMapping) CreateFileMapping = IMPORT(L"kernel32.dll", CreateFileMapping);
-    decltype(&MapViewOfFile) MapViewOfFile = IMPORT(L"kernel32.dll", MapViewOfFile);
+    auto CreateFile = IMPORT(L"kernel32.dll", CreateFile);
+    auto CreateFileMapping = IMPORT(L"kernel32.dll", CreateFileMapping);
+    auto MapViewOfFile = IMPORT(L"kernel32.dll", MapViewOfFile);
     std::string pdb = "";
-    if (!CreateFileW || !CreateFileMapping || !MapViewOfFile) return pdb;
+    if (!CreateFile || !CreateFileMapping || !MapViewOfFile) return pdb;
 
-    HANDLE hFile = CreateFileW(driver_path.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                               NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hFile = CreateFile(driver_path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (hFile == INVALID_HANDLE_VALUE) return pdb;
 
@@ -1325,7 +1463,7 @@ std::string CWindows::get_pdb_from_driver(const std::wstring& driver_path) {
 
 std::vector<std::string> CWindows::get_current_process_pdb_list()
 {
-    decltype(&IsBadReadPtr) IsBadReadPtr = IMPORT(L"kernel32.dll", IsBadReadPtr);
+    auto IsBadReadPtr = IMPORT(L"kernel32.dll", IsBadReadPtr);
     bool is_64bit = false;
     std::vector<std::string> result;
     auto modules = Utils::CWindows::instance().enum_modules(GetCurrentProcessId(), is_64bit);
@@ -1393,7 +1531,7 @@ std::unordered_map<uint32_t, std::vector<std::string>>& CWindows::find_hidden_pi
         return pid_directories;
     }
 
-    for (auto &p : processes)
+    for (auto& p : processes)
     {
         if (p.second.name == L"csrss.exe")
         {
@@ -1433,10 +1571,10 @@ std::unordered_map<uint32_t, std::vector<std::string>>& CWindows::find_hidden_pi
         HANDLE duplicated_handle = NULL;
 
         if (DuplicateHandle(process_handle,
-            (HANDLE)pHandleInformation->Handles[i].HandleValue,
-            GetCurrentProcess(),
-            &duplicated_handle,
-            get_process_query_access() | PROCESS_VM_READ, FALSE, 0) == NULL)
+                            (HANDLE)pHandleInformation->Handles[i].HandleValue,
+                            GetCurrentProcess(),
+                            &duplicated_handle,
+                            get_process_query_access() | PROCESS_VM_READ, FALSE, 0) == NULL)
         {
             CloseHandle(process_handle);
             continue;
@@ -1469,4 +1607,197 @@ std::unordered_map<uint32_t, std::vector<std::string>>& CWindows::find_hidden_pi
 
     delete[](BYTE*)pHandleInformation;
     return pid_directories;
+}
+
+std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const std::wstring& path) {
+    auto CryptQueryObject = IMPORT(L"Crypt32.dll", CryptQueryObject);
+    auto CryptMsgGetParam = IMPORT(L"Crypt32.dll", CryptMsgGetParam);
+    auto CertFindCertificateInStore = IMPORT(L"Crypt32.dll", CertFindCertificateInStore);
+    auto CertCloseStore = IMPORT(L"Crypt32.dll", CertCloseStore);
+    auto CertGetCertificateChain = IMPORT(L"Crypt32.dll", CertGetCertificateChain);
+    auto CertGetNameStringA = IMPORT(L"Crypt32.dll", CertGetNameStringA);
+    auto CertFreeCertificateChain = IMPORT(L"Crypt32.dll", CertFreeCertificateChain);
+    auto CertFreeCertificateContext = IMPORT(L"Crypt32.dll", CertFreeCertificateContext);
+    auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
+    auto Wow64DisableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64DisableWow64FsRedirection);
+    HCERTSTORE hStore = nullptr;
+    HCRYPTMSG hMsg = nullptr;
+    PCCERT_CONTEXT pCertContext = nullptr;
+    CERT_INFO CertInfo{};
+    DWORD dwEncoding, dwContentType, dwFormatType;
+    PVOID oldValue = nullptr;
+    Wow64DisableWow64FsRedirection(&oldValue);
+    std::wstring real_path = path;
+    auto pos = real_path.find(L"System32\\");
+    if (pos != std::wstring::npos) {
+        real_path.replace(pos, 8, L"Sysnative");
+    }
+
+    if (!CryptQueryObject(CERT_QUERY_OBJECT_FILE, real_path.c_str(),
+                          CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED,
+                          CERT_QUERY_FORMAT_FLAG_BINARY, 0, &dwEncoding,
+                          &dwContentType, &dwFormatType, &hStore, &hMsg, nullptr)) {
+        Wow64EnableWow64FsRedirection(true);
+        /*DWORD dwError = GetLastError();
+        LPVOID lpMsgBuf;
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                      NULL, dwError, 0, (LPSTR)&lpMsgBuf, 0, NULL);
+        printf("Error %d: %s", dwError, (char*)lpMsgBuf);*/
+        return std::nullopt;
+    }
+
+    // 获取签名信息
+    DWORD dwSignerInfoSize = 0;
+    CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, nullptr, &dwSignerInfoSize);
+    auto pSignerInfo = std::make_unique<BYTE[]>(dwSignerInfoSize);
+    CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, pSignerInfo.get(), &dwSignerInfoSize);
+
+    CertInfo.Issuer = reinterpret_cast<CMSG_SIGNER_INFO*>(pSignerInfo.get())->Issuer;
+    CertInfo.SerialNumber = reinterpret_cast<CMSG_SIGNER_INFO*>(pSignerInfo.get())->SerialNumber;
+
+    pCertContext = CertFindCertificateInStore(hStore, dwEncoding, 0, CERT_FIND_SUBJECT_CERT, &CertInfo, nullptr);
+
+    if (!pCertContext) {
+        CertCloseStore(hStore, 0);
+        Wow64EnableWow64FsRedirection(true);
+        return std::nullopt;
+    }
+
+    SignatureInfo info{};
+    char buffer[256]{};
+    CERT_CHAIN_PARA ChainPara = { sizeof(ChainPara) };
+    PCCERT_CHAIN_CONTEXT pChainContext = nullptr;
+    CertGetCertificateChain(nullptr, pCertContext, nullptr, hStore, &ChainPara,
+                            CERT_CHAIN_REVOCATION_CHECK_CHAIN, nullptr, &pChainContext);
+
+    if (pChainContext && pChainContext->TrustStatus.dwErrorStatus == CERT_TRUST_NO_ERROR) {
+        CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, buffer, sizeof(buffer));
+        info.issuer = buffer;
+        CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_NAME_ISSUER_FLAG,
+                           nullptr, buffer, sizeof(buffer));
+        info.subject = buffer;
+    }
+    if (pChainContext) CertFreeCertificateChain(pChainContext);
+
+    // 获取证书有效期
+    info.timestamp = pCertContext->pCertInfo->NotBefore;
+
+    CertFreeCertificateContext(pCertContext);
+    CertCloseStore(hStore, 0);
+    Wow64EnableWow64FsRedirection(true);
+    return info;
+}
+
+std::optional<CWindows::SignatureInfo> CWindows::verify_catalog_signature(const std::wstring& path) {
+    if (path.empty()) return std::nullopt;
+    auto CreateFileW = IMPORT(L"Kernel32.dll", CreateFileW);
+    auto CloseHandle = IMPORT(L"Kernel32.dll", CloseHandle);
+    auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
+    auto Wow64DisableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64DisableWow64FsRedirection);
+    auto CryptCATAdminAcquireContext = IMPORT(L"Wintrust.dll", CryptCATAdminAcquireContext);
+    auto CryptCATAdminCalcHashFromFileHandle = IMPORT(L"Wintrust.dll", CryptCATAdminCalcHashFromFileHandle);
+    auto CryptCATAdminReleaseContext = IMPORT(L"Wintrust.dll", CryptCATAdminReleaseContext);
+    auto CryptCATAdminEnumCatalogFromHash = IMPORT(L"Wintrust.dll", CryptCATAdminEnumCatalogFromHash);
+    auto CryptCATCatalogInfoFromContext = IMPORT(L"Wintrust.dll", CryptCATCatalogInfoFromContext);
+    auto CryptCATAdminReleaseCatalogContext = IMPORT(L"Wintrust.dll", CryptCATAdminReleaseCatalogContext);
+    PVOID oldValue = nullptr;
+    Wow64DisableWow64FsRedirection(&oldValue);
+    std::wstring real_path = path;
+    auto pos = real_path.find(L"System32\\");
+    if (pos != std::wstring::npos) {
+        real_path.replace(pos, 8, L"Sysnative");
+    }
+    HANDLE hFile = CreateFileW(real_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) return std::nullopt;
+
+    HCATADMIN hCatAdmin = nullptr;
+    if (!CryptCATAdminAcquireContext(&hCatAdmin, nullptr, 0)) {
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    BYTE hash[100];
+    DWORD hashSize = sizeof(hash);
+    if (!CryptCATAdminCalcHashFromFileHandle(hFile, &hashSize, hash, 0)) {
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    HCATINFO hCatInfo = CryptCATAdminEnumCatalogFromHash(hCatAdmin, hash, hashSize, 0, nullptr);
+    if (!hCatInfo) {
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    CATALOG_INFO catalogInfo = { sizeof(catalogInfo) };
+    if (!CryptCATCatalogInfoFromContext(hCatInfo, &catalogInfo, 0)) {
+        CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    // 验证目录文件的嵌入式签名
+    auto catalogSignature = verify_signature(catalogInfo.wszCatalogFile);
+    if (!catalogSignature) {
+        CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+        CryptCATAdminReleaseContext(hCatAdmin, 0);
+        CloseHandle(hFile);
+        return std::nullopt;
+    }
+
+    // 使用目录文件的签名信息
+    SignatureInfo info;
+    info.issuer = catalogSignature->issuer;
+    info.subject = catalogSignature->subject;
+    info.timestamp = catalogSignature->timestamp;
+
+    CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+    CryptCATAdminReleaseContext(hCatAdmin, 0);
+    CloseHandle(hFile);
+    return info;
+}
+
+bool CWindows::verify_signature(uint32_t pid) {
+    if (auto it = process_cache.find(pid); it != process_cache.end()) {
+        if (it->second.second) return true;
+    }
+    else {
+        auto path = get_process_path_(pid);
+        bool is_signed = !path.empty() && verify_signature(path);
+        process_cache[pid] = { path, is_signed };
+        return is_signed;
+    }
+    return false;
+}
+
+std::optional<CWindows::SignatureInfo> CWindows::verify_signature(const std::wstring& path) {
+    if (path.empty()) return std::nullopt;
+    auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
+    power();
+    auto embeddedInfo = verify_embedded_signature(path);
+    if (embeddedInfo) {
+        Wow64EnableWow64FsRedirection(true);
+        return embeddedInfo;
+    }
+
+    auto catalogInfo = verify_catalog_signature(path);
+    Wow64EnableWow64FsRedirection(true);
+    return catalogInfo ? catalogInfo : std::nullopt;
+}
+
+std::wstring CWindows::get_process_path_(DWORD pid) {
+    auto OpenProcess = IMPORT(L"kernel32.dll", OpenProcess);
+    auto QueryFullProcessImageNameW = IMPORT(L"kernel32.dll", QueryFullProcessImageNameW);
+    auto CloseHandle = IMPORT(L"kernel32.dll", CloseHandle);
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!hProcess) return L"";
+
+    wchar_t path[MAX_PATH]{};
+    DWORD size = MAX_PATH;
+    QueryFullProcessImageNameW(hProcess, 0, path, &size);
+    CloseHandle(hProcess);
+    return path;
 }

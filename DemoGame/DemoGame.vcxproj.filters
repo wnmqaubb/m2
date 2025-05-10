@@ -3,8 +3,10 @@
   <ItemGroup>
     <ClCompile Include="DemoGame.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="..\3rdparty\wmic\wmic.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="..\3rdparty\wmic\wmic.h" />
   </ItemGroup>
 </Project>

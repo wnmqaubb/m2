@@ -1,5 +1,5 @@
 LIBRARY
 EXPORTS
-Init=?Init@@YGXPAUTAppFuncDef@client@lfengine@@@Z
+Init
 DoUnInit
 HookRecv

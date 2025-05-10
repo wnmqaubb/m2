@@ -163,7 +163,7 @@ const cheat_set = new Set([
 	0x774B44,/*审判处理器*/
 	0x467C6D,/*变速齿轮*/
 	0x6BEF94,/*AM744封包软件*/
-	0x403883,/*AM744封包软件*/
+	//0x403883,/*AM744封包软件*/
 	0x12C6EFE,/*QE*/
 	0x21908FF,/*QE*/
 	0x414260,/*CE伪装QQ*/
@@ -194,7 +194,7 @@ const cheat_set = new Set([
 	0x4D4960,/*土豪金多开器*/
 	0x4161D0,/*内存修改器*/
 	0xDDC2FB,/*内存修改器*/
-	0x429C20,/*内存修改器*/
+	//0x429C20,/*内存修改器*/
 	0x4EAD30,/*内存修改器*/
 	0x49349C,/*内存修改器*/
 	0xEBCF00,/*BRCTR*/
@@ -958,6 +958,9 @@ const window_class_name_black_set = new Set([
 const window_class_name_white_set = new Set([
 	"Notepad",
 	"Progman",
+	//"Messaging",
+	//"Container",
+	//"Suspension",
 ]);
 // 模块名黑名单检测，必须要带后缀
 const module_name_black_set = new Set([
@@ -991,10 +994,9 @@ const processNameCountMap = new Map();
 for (const ps of process_name_map) {
 	const processName = ps[1];
     if (!processNameCountMap.has(processName)) {
-        processNameCountMap.set(processName, 1);
-    }else{
-		processNameCountMap.set(processName, processNameCountMap.get(processName) + 1);
-	}
+        processNameCountMap.set(processName, 0);
+    }
+    processNameCountMap.set(processName, processNameCountMap.get(processName) + 1);
 }
 
 let reason = "";
@@ -1028,7 +1030,7 @@ function check_no_access_process_rate() {
 }
 
 //猎手专用
-const classNamePattern = /^[A-Z][a-z]{3,11}$/;
+const classNamePattern = /^[A-Z][a-z]{5,7}$/;
 function calculateEntropy1(str) {
 	const len = str.length;
 	const freq = {};
@@ -1061,12 +1063,16 @@ for (let i = 0; i < windows.length; i++) {
 	}
 	
 	//猎手专用		
-	if(processNameCountMap.has(process_name) && processNameCountMap.get(process_name) > 1 && 3 < window_class_name.length && window_class_name.length < 13 && classNamePattern.test(window_class_name))
+	if(processNameCountMap.has(process_name) && processNameCountMap.get(process_name) > 1 && 
+		3 < window_class_name.length && window_class_name.length < 13 && 
+		classNamePattern.test(window_class_name))
 	{
 		const entropy = calculateEntropy1(window_class_name);
 		if(entropy > 2.5) {		
-			reason_test = "发现猎手外挂，【" + window_class_name + "|"+entropy.toFixed(2) + "】进程为:" + process_name;
-			api.report(689333, true, reason_test);
+			//reason_test = "发现猎手外挂，【" + window_class_name + "|"+entropy.toFixed(2) + "】进程为:" + process_name;
+			//api.report(689333, true, reason_test);
+			reason = "发现猎手外挂，【" + window_class_name + "|"+entropy.toFixed(2) + "】进程为:" + process_name;
+			break;
 		}
 	}
 

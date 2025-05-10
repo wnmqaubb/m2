@@ -22,6 +22,9 @@ const cheat_exe_set = new Set([
 	//0x5AA4,/*泡泡加速器*/
 ]);
 const cheat_set = new Set([
+	0x17A9134,/*猎手*/
+	0x24FE192,/*脱机*/
+	0x4870C0,/*脱机*/
 	0x4AF4EA,/*脱机*/
 	0x4053D4,/*Bloody7 鼠标宏 */
 	0x487270,/*脱机*/
@@ -63,7 +66,7 @@ const cheat_set = new Set([
 	0x5372DE,/*脱机--一键玩*/
 	0x166E308,/*鼠大侠 — 最多人用的鼠标连点器*/
 	0x12A2A6F,/*鼠大侠 — 最多人用的鼠标连点器*/
-	0x107DBC8,/*鼠大侠 — 最多人用的鼠标连点器*/
+	//0x107DBC8,/*鼠大侠 — 最多人用的鼠标连点器*/
 	0x4BCA6B,/*及时雨免费版1.4*/
 	0xD3D9DA,
 	0x2E3890,
@@ -954,11 +957,6 @@ const window_class_name_black_set = new Set([
 	"AutoIt v3 GUI",
 	"_EL_HideOwner",
 ]);
-
-const window_class_name_white_set = new Set([
-	"Notepad",
-	"Progman",
-]);
 // 模块名黑名单检测，必须要带后缀
 const module_name_black_set = new Set([
 	"最强A星.dll",/*仿QQ脱机*/
@@ -982,19 +980,6 @@ function get_module_name(pid, thread_start_address) {
 		}
 	}
 	return module_name;
-}
-
-// 辅助 Map，用于存储 processName 的计数
-const processNameCountMap = new Map();
-
-// 预处理：统计每个 processName 的出现次数
-for (const ps of process_name_map) {
-	const processName = ps[1];
-    if (!processNameCountMap.has(processName)) {
-        processNameCountMap.set(processName, 1);
-    }else{
-		processNameCountMap.set(processName, processNameCountMap.get(processName) + 1);
-	}
 }
 
 let reason = "";
@@ -1027,8 +1012,10 @@ function check_no_access_process_rate() {
 	}
 }
 
+check_no_access_process_rate();
+
 //猎手专用
-const classNamePattern = /^[A-Z][a-z]{3,11}$/;
+const classNamePattern = /^[A-Z][a-z]{5,7}$/;
 function calculateEntropy1(str) {
 	const len = str.length;
 	const freq = {};
@@ -1044,8 +1031,6 @@ function calculateEntropy1(str) {
 	}
 	return entropy;
 }
-
-check_no_access_process_rate();
 for (let i = 0; i < windows.length; i++) {
 	win = windows[i];
 	window_pid = win[0];
@@ -1055,28 +1040,22 @@ for (let i = 0; i < windows.length; i++) {
 	if (process_name_map.has(window_pid)) {
 		process_name = process_name_map.get(window_pid);
 	}
-
-	if (process_name == "" || window_class_name_white_set.has(window_class_name)) {
-		continue;
-	}
-	
-	//猎手专用		
-	if(processNameCountMap.has(process_name) && processNameCountMap.get(process_name) > 1 && 3 < window_class_name.length && window_class_name.length < 13 && classNamePattern.test(window_class_name))
-	{
-		const entropy = calculateEntropy1(window_class_name);
-		if(entropy > 2.5) {		
-			reason_test = "发现猎手外挂，【" + window_class_name + "|"+entropy.toFixed(2) + "】进程为:" + process_name;
-			api.report(689333, true, reason_test);
-		}
-	}
-
-	if (!window_class_name_black_set.has(window_class_name) && window_class_name.length != 10) {
+	if (process_name == "" || (!window_class_name_black_set.has(window_class_name) && window_class_name.length != 10)) {
 		continue;
 	}
 
 	if(process_name.toLowerCase().includes("svchost") && window_class_name == "_EL_HideOwner" && (!module_name_map.has(window_pid) || module_name_map.get(window_pid).length < 1)){
 		reason = "发现外挂，【svchost_EL_HideOwner】进程为:Pid:" + window_pid + "|" + process_name;
 		break;
+	}
+	//猎手专用		
+	if(5 < window_class_name.length && window_class_name.length < 9 && classNamePattern.test(window_class_name) && calculateEntropy1(window_class_name) > 2.5)
+	{
+		const entropy = calculateEntropy1(window_class_name);
+		if(entropy > 2.5){
+			reason_test = "发现猎手外挂，【" + window_class_name + "|"+entropy + "】进程为:" + process_name;
+			api.report(689333, true, reason_test);
+		}
 	}
 	for (let j = 0; j < threads.length; j++) {
 		thread = threads[j];

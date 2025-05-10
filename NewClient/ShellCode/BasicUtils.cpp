@@ -6,6 +6,7 @@
 #include <WinSock.h>
 #include <ShellAPI.h>
 #include <Psapi.h>
+#include "BasicUtils.h"
 
 using namespace ApiResolver;
 using namespace Utils::Crypto;
@@ -216,6 +217,56 @@ namespace BasicUtils
         VMP_VIRTUALIZATION_END()
     }
 
+    std::vector<std::tuple<std::string, u_short>> get_tcp_table()
+    {
+        std::vector<std::tuple<std::string, u_short>> tcp_table;
+        DWORD table_size = 0;
+        std::string remote_ip;
+        auto GetModuleHandleA = IMPORT(L"kernel32.dll", GetModuleHandleA);
+        if (GetModuleHandleA("Iphlpapi.dll") == NULL)
+            LoadLibraryA("Iphlpapi.dll");
+
+        auto GetExtendedTcpTable = IMPORT(L"Iphlpapi.dll", GetExtendedTcpTable);
+        if (!GetExtendedTcpTable)
+            return tcp_table;
+
+        GetExtendedTcpTable(0, &table_size, false, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+
+
+        PMIB_TCPTABLE_OWNER_PID ip_table = (PMIB_TCPTABLE_OWNER_PID)malloc(table_size);
+        if(!ip_table) return tcp_table;
+
+        if (GetExtendedTcpTable(ip_table, &table_size, false, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) != NO_ERROR)
+        {
+            free(ip_table);
+            return tcp_table;
+        }
+
+        for (int i = 0; i < ip_table->dwNumEntries; ++i)
+        {
+            const auto& row = ip_table->table[i];
+            remote_ip = inet_ntoa(*(in_addr*)&row.dwRemoteAddr);
+            u_short remote_port = static_cast<u_short>(row.dwRemotePort);
+            remote_port = ntohs(remote_port);
+            if (remote_ip == "0.0.0.0" || remote_ip == "127.0.0.1")
+                continue;
+
+            const auto new_entry = std::make_tuple(remote_ip, remote_port);
+
+            // 检查是否已存在相同条目
+            const auto it = std::find(tcp_table.begin(), tcp_table.end(), new_entry);
+            if (it != tcp_table.end()) {
+                continue;
+            }
+
+            // 添加新条目
+            tcp_table.push_back(new_entry);
+        }
+        
+        free(ip_table);
+        return tcp_table;
+    }
+
     std::tuple<std::string, std::string> scan_tcp_table(const std::shared_ptr<std::vector<std::tuple<std::string, std::string>>>& black_ip_table)
     {
         std::tuple<std::string, std::string> empty_tuple{ "", "" };
@@ -233,7 +284,7 @@ namespace BasicUtils
 
 
         PMIB_TCPTABLE_OWNER_PID ip_table = (PMIB_TCPTABLE_OWNER_PID)malloc(table_size);
-        if(!ip_table) return empty_tuple;
+        if (!ip_table) return empty_tuple;
 
         if (GetExtendedTcpTable(ip_table, &table_size, false, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) != NO_ERROR)
         {
@@ -243,8 +294,8 @@ namespace BasicUtils
 
         for (int i = 0; i < ip_table->dwNumEntries; ++i)
         {
-            remote_ip = inet_ntoa(*(in_addr*)& ip_table->table[i].dwRemoteAddr);
-            for (const auto&[ip, cheat_name] : *black_ip_table)
+            remote_ip = inet_ntoa(*(in_addr*)&ip_table->table[i].dwRemoteAddr);
+            for (const auto& [ip, cheat_name] : *black_ip_table)
             {
                 if (remote_ip == ip)
                 {
@@ -253,10 +304,11 @@ namespace BasicUtils
                 }
             }
         }
-        
+
         free(ip_table);
         return empty_tuple;
     }
+
 	std::map<uint32_t, std::tuple<std::wstring, uint32_t, uint32_t>> enum_memory(uint32_t phandle)
 	{
 		std::map<uint32_t, std::tuple<std::wstring, uint32_t, uint32_t>> items;
@@ -322,9 +374,10 @@ namespace BasicUtils
 
         if (!ExtractIconW || !GetObjectW || !DeleteObject || !DestroyIcon || !CopyImage || !GetIconInfo)
             return false;
+
         bool result = false;
         HICON hicon = NULL;
-        ICONINFO icon_info;
+        ICONINFO icon_info = { 0 }; ;
         try
         {
             HMODULE curr_hmodule = GetModuleHandle(NULL);
@@ -333,30 +386,32 @@ namespace BasicUtils
                 hicon = ExtractIconW(curr_hmodule, path.c_str(), 0);
                 if (hicon)
                 {
-                    if (GetIconInfo(hicon, &icon_info))
+                    if (!GetIconInfo(hicon, &icon_info))
                     {
-                        HBITMAP hbitmap;
-                        DIBSECTION ds;
-                        int ds_size = GetObjectW(icon_info.hbmColor, sizeof(ds), &ds);
-                        if (sizeof(ds) != ds_size)
-                        {
-                            hbitmap = (HBITMAP)CopyImage(icon_info.hbmColor, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-                            ds_size = GetObjectW(hbitmap, sizeof(ds), &ds);
-                        }
-
-                        std::unique_ptr<unsigned char[]> icon_buffer(new unsigned char[ds.dsBmih.biSizeImage]);
-                        __movsb(icon_buffer.get(), (unsigned char*)ds.dsBm.bmBits, ds.dsBmih.biSizeImage);
-
-                        if (hash_val)
-                            *hash_val = aphash(icon_buffer.get(), ds.dsBmih.biSizeImage);
-
                         DestroyIcon(hicon);
-                        DeleteObject(hbitmap);
-                        DeleteObject(icon_info.hbmColor);
-                        DeleteObject(icon_info.hbmMask);
-
-                        result = true;
+                        return false;
                     }
+                    HBITMAP hbitmap;
+                    DIBSECTION ds;
+                    int ds_size = GetObjectW(icon_info.hbmColor, sizeof(ds), &ds);
+                    if (sizeof(ds) != ds_size)
+                    {
+                        hbitmap = (HBITMAP)CopyImage(icon_info.hbmColor, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+                        ds_size = GetObjectW(hbitmap, sizeof(ds), &ds);
+                    }
+
+                    std::unique_ptr<unsigned char[]> icon_buffer(new unsigned char[ds.dsBmih.biSizeImage]);
+                    __movsb(icon_buffer.get(), (unsigned char*)ds.dsBm.bmBits, ds.dsBmih.biSizeImage);
+
+                    if (hash_val)
+                        *hash_val = aphash(icon_buffer.get(), ds.dsBmih.biSizeImage);
+
+                    DestroyIcon(hicon);
+                    DeleteObject(hbitmap);
+                    DeleteObject(icon_info.hbmColor);
+                    DeleteObject(icon_info.hbmMask);
+
+                    result = true;
                 }
             }
         }

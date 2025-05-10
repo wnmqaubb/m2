@@ -9,6 +9,7 @@
 #include <asio2/util/base64.hpp>
 #include "ModuleCheckSum.h"
 #include "ClientImpl.h"
+#include <TaskBasic.h>
 
 std::shared_ptr<qjs::Runtime> g_runtime = std::make_shared<qjs::Runtime>();
 std::shared_ptr<qjs::Context> g_context = std::make_shared<qjs::Context>(*g_runtime);
@@ -55,6 +56,7 @@ static JSValue enum_device()
     auto str = x.dump();
     return g_context->fromJSON(str);
 }
+// 获取当前显示设备的特定签名（OpenAdapter 函数在当前进程模块中的偏移量）
 static uint32_t get_display_device_sig()
 {
     static uint32_t device_sig_cache = 0;
@@ -341,6 +343,8 @@ static void report(unsigned int id, bool is_cheat, const std::string& reason)
     echo.text = Utils::String::from_utf8(reason);
     client_->send(&echo);
     client_->notify_mgr().dispatch(CLIENT_ON_JS_REPORT_NOTIFY_ID);
+    /*setlocale(LC_ALL, "en_US.UTF-8");
+    printf("report: %d, %d, %s\n", id, is_cheat, reason.c_str());*/
 }
 
 void report_js_context_exception(uint32_t identify)
@@ -564,16 +568,16 @@ private:
 
 void async_execute_javascript(const std::string& sv, uint32_t script_id)
 {
-	if (sv.empty()) return;
+    if (sv.empty()) return;
     client_->post([sv = sv, script_id]() {
         try 
         {
-            g_context->eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
-        }
+             g_context->eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
+         }
         catch (qjs::exception)
         {
-            report_js_context_exception(script_id);
-        }
+             report_js_context_exception(script_id);
+         }
         catch (CSehException seh_exception)
         {
             report(689999, false, std::to_string(script_id) + ":seh error " + std::to_string(seh_exception.m_exception_code));
@@ -581,8 +585,8 @@ void async_execute_javascript(const std::string& sv, uint32_t script_id)
         catch (...)
         {
             report(689999, false, std::to_string(script_id) + ":unknown error");
-        }
-    });
+            }
+        });
 }
 static uint32_t read_dword(uint32_t addr)
 {
@@ -645,6 +649,14 @@ static JSValue get_cur_module_list()
 	json x = result;
 	auto str = x.dump();
 	return g_context->fromJSON(str);
+}
+
+static JSValue get_tcp_table()
+{
+    std::vector<std::tuple<std::string, u_short>> result = BasicUtils::get_tcp_table();
+    json x = result;
+    auto str = x.dump();
+    return g_context->fromJSON(str);
 }
 
 static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_t>& mask)
@@ -738,11 +750,26 @@ static JSValue get_bcd_info() {
     return g_context->fromJSON(json(bcd_info).dump());
 }
 
+static intptr_t get_wnd_proc(uint64_t hWnd_) {
+    // 使用 SEH 处理异常
+    __try {
+        HWND hWnd = reinterpret_cast<HWND>(hWnd_);
+        if (!IsWindow(hWnd)) {
+            return 0; 
+        }
+        WNDPROC wndProc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_WNDPROC);
+        return reinterpret_cast<intptr_t>(wndProc);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0; // 访问异常时返回null
+    }
+}
+
 void InitJavaScript()
 {
     //g_client = client;
-    //g_thread_group.create_thread([]() {
-    client_->post([](){
+    g_thread_group->create_thread([]() {
+    //client_->post([](){
         _set_se_translator(&translate_seh_to_ce);
         JS_SetModuleLoaderFunc(g_runtime->rt, nullptr, js_module_loader, nullptr);
         js_std_add_helpers(g_context->ctx, NULL, nullptr);
@@ -795,6 +822,8 @@ void InitJavaScript()
             .function<&get_xidentifier>("get_xidentifier")
             .function<&get_pdb_path>("get_pdb_path")
             .function<&get_bcd_info>("get_bcd_info")
+            .function<&get_wnd_proc>("get_wnd_proc")
+            .function<&get_tcp_table>("get_tcp_table")
 			.function("open_process_all", [](uint32_t pid)->uint32_t {
 			return (uint32_t)OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 				})
@@ -817,10 +846,12 @@ void InitJavaScript()
 			auto str = json(result).dump();
 			return g_context->fromJSON(str);
 				})
-			.function<>("base", []()->uint32_t {
-            extern std::shared_ptr<HINSTANCE> dll_base;
-			return *dll_base == 0 ? (uint32_t)GetModuleHandleA(nullptr) : (uint32_t)*dll_base;
-                })
+			.function<>("base", []()->std::vector<uint32_t> {
+                extern std::shared_ptr<HINSTANCE> dll_base;
+                std::vector<uint32_t> result;
+                result.push_back(*dll_base == 0 ? (uint32_t)GetModuleHandleA(nullptr) : (uint32_t)*dll_base);
+                return result;
+             })
             .function<>("query_window_info", [](uint32_t hwnd)->std::vector<std::string> {
 					std::vector<std::string> result;
 					EnumPropsExA((HWND)hwnd, [](HWND hwnd, LPSTR lpszString, HANDLE hData, ULONG_PTR result_)->BOOL {
@@ -842,7 +873,12 @@ void InitJavaScript()
         js_std_free_handlers(g_runtime->rt);
     });
 	LOG(__FUNCTION__);
-	g_timer->start_timer(xorstr("Timer_JavaScript"), std::chrono::milliseconds(1000), []() {
-		js_std_loop(g_context->ctx);
-		});
+	//g_timer->start_timer(xorstr("Timer_JavaScript"), std::chrono::milliseconds(1000), []() {
+        __try {
+            js_std_loop(g_context->ctx);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
+        }
+	//});
 }

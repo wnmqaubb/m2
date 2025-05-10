@@ -1,4 +1,4 @@
-#include "../pch.h"
+ï»¿#include "../pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include <MMSystem.h>
@@ -24,7 +24,7 @@ void SpeedDetect()
         {
             if (*(uint8_t*)api == 0xE9)
             {
-                resp.text = xorstr("¼ì²âµ½¼ÓËÙ×÷±×");
+                resp.text = xorstr("æ£€æµ‹åˆ°åŠ é€Ÿä½œå¼Š");
                 resp.is_cheat = true;
             }
         }
@@ -51,7 +51,7 @@ void SpeedDetect()
     if (seconds <= 0.5 * 0.99)
     {
         char buffer[255] = { 0 };
-        snprintf(buffer, sizeof(buffer), xorstr("¼ì²âµ½Çý¶¯±äËÙ:%f"), seconds);
+        snprintf(buffer, sizeof(buffer), xorstr("æ£€æµ‹åˆ°é©±åŠ¨å˜é€Ÿ:%f"), seconds);
         resp.text = buffer;
         resp.is_cheat = true;
     }
@@ -66,6 +66,11 @@ void InitSpeedDetect()
 {
 	LOG(__FUNCTION__);
 	g_timer->start_timer(kSpeedDetectTimerId, std::chrono::seconds(5), []() {
-        SpeedDetect();
+        __try {
+            SpeedDetect();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            LOG("çº¿ç¨‹å¼‚å¸¸: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
+        }
     });
 }

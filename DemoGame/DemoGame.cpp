@@ -15,9 +15,15 @@
 #include "lf_rungate_server_plug/lf_plug_sdk.h"
 #include "NewClient/ShellCode/TaskBasic.h"
 #include "NewClient/ShellCode/anti_monitor_directory/ReadDirectoryChanges.h"
+#include "wmic/wmic.h"
+#include <NewClient/ShellCode/BasicUtils.h>
+#include <iphlpapi.h>
+#include <DbgHelp.h>
+#include <Psapi.h>
 //#include "NewClient/loader.h"
+#pragma comment(lib, "iphlpapi.lib")
 
-extern void __stdcall client_entry(const std::string& guard_gate_ip) noexcept;
+extern void __stdcall client_entry(std::string guard_gate_ip) noexcept;
 extern void __stdcall DoUnInit();
 using client_entry_t = decltype(&client_entry);
 using uninit_t = decltype(&DoUnInit);
@@ -29,13 +35,11 @@ extern void execute_entrypoint(HINSTANCE instance, uint32_t reason, void* param)
 extern void enable_seh_on_shellcode();
 extern std::shared_ptr<asio::io_service> g_game_io;
 void init_client_entry();
-std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key);
 void test_task_basic_dll(fs::path path);
-
+bool IsThreadFromModule(DWORD tid);
 int main(int argc, char** argv)
 {	
 	init_client_entry();
-	
 	//wchar_t* user_profile = nullptr;
 	//size_t len = 0;
 	//FileChangeNotifier notifier;
@@ -61,19 +65,105 @@ int main(int argc, char** argv)
 	
 	//fs::path path("d:\\");
 	//test_task_basic_dll(path);
+    /*auto windows = get_tcp_table();
+    for (auto& [ip,port] : windows)
+    {
+        std::cout << ip.c_str() << ":" << port << std::endl;
+
+    }*/
+    //auto processes = Utils::CWindows::instance().enum_process();
+    //int nub = 0;
+    //auto signature = Utils::CWindows::instance().verify_signature(L"e:\\sihost.exe");
+    //for (auto& i : processes) {
+    //    auto path = GetProcessPath(i.first);
+    //    if(path.empty()) continue;
+    //    auto signature = Utils::CWindows::instance().verify_signature(path);
+    //    Utils::CWindows::SignatureInfo sign;
+    //    if (!signature.has_value()) {
+    //        std::cout << ++nub << ": " << i.first << " - " << Utils::String::w2c(i.second.name).c_str() << "|无签名|" << Utils::String::w2c(path).c_str() << std::endl;
+    //        continue;
+    //    }
+    //    //else {
+    //    //    sign = signature.value();
+    //    //    std::cout << ++nub << ": " << i.first << " - " << Utils::String::w2c(i.second.name).c_str() << "|" << sign.issuer.c_str() 
+    //    //        << "|" << sign.subject.c_str() << "|" << FileTimeToString(sign.timestamp).c_str() << Utils::String::w2c(path).c_str() << std::endl;
+    //    //}
+    //}
+
+
+    //auto processes = Utils::CWindows::instance().enum_process();
+    //int nub = 0;
+    ////auto signature = Utils::CWindows::instance().verify_signature(L"e:\\sihost.exe");
+    //for (auto& i : processes) {
+    //    auto path = GetProcessPath(i.first);
+    //    if(path.empty()) continue;
+    //    //std::wstring filePath = L"e:\\sihost.exe";
+    //    std::wstring errorMsg;
+
+    //    if (!VerifySystemFileSignatureEx(path, errorMsg)) {
+    //        std::cout << ++nub << ": " << i.first << " - " << Utils::String::w2c(i.second.name).c_str() << "|无签名|" << Utils::String::w2c(errorMsg).c_str() << std::endl;
+    //        continue;
+    //    }
+    //}
+    //std::wstring filePath = L"e:\\sihost.exe";
+    //std::wstring errorMsg;
+
+    //if (VerifyFileSignature(filePath, errorMsg))
+    //{
+    //    MessageBoxW(nullptr, L"签名验证成功", L"结果", MB_OK);
+    //}
+    //else
+    //{
+    //    MessageBoxW(nullptr, errorMsg.c_str(), L"验证失败", MB_OK);
+    //}
     getchar();
     std::cout << "Hello World!\n";
 }
+#pragma comment(lib, "DbgHelp.lib")
+bool IsThreadFromModule(DWORD tid) {
+    HANDLE hThread = ::OpenThread(THREAD_GET_CONTEXT, FALSE, tid);
+    CONTEXT ctx = { 0 };
+    ctx.ContextFlags = CONTEXT_CONTROL;
 
+    // 获取线程上下文
+    if (!::GetThreadContext(hThread, &ctx)) return false;
+
+    // 获取线程起始地址
+    STACKFRAME64 stack = { 0 };
+    stack.AddrPC.Offset = ctx.Eip;
+    stack.AddrPC.Mode = AddrModeFlat;
+
+    // 符号解析
+    DWORD modBase = 0;
+    if (!::SymGetModuleBase(::GetCurrentProcess(), modBase)) {
+        return false;
+    }
+
+    // 检查模块地址范围
+    MODULEINFO modInfo;
+    if (::GetModuleInformation(
+        ::GetCurrentProcess(),
+        reinterpret_cast<HMODULE>(modBase),
+        &modInfo,
+        sizeof(MODULEINFO))
+        ) {
+        return (stack.AddrPC.Offset >= reinterpret_cast<DWORD_PTR>(modInfo.lpBaseOfDll) &&
+                stack.AddrPC.Offset <= reinterpret_cast<DWORD_PTR>(modInfo.lpBaseOfDll) + modInfo.SizeOfImage);
+    }
+    return false;
+}
 void init_client_entry() {
-	auto hmodule = LoadLibraryA("NewClient.dll");
+	auto hmodule = LoadLibraryA("NewClient_f.dll");
+    printf("hmodule: %p\n", hmodule);
 	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+    printf("client_entry: %p\n", entry);
 	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
-	//entry("43.139.236.115");
-	entry("");
-	/*Sleep(30000);
+    printf("uninit: %p\n", uninit);
+	entry("140.210.20.215");
+	//entry("");
+	Sleep(5000);
 	uninit();
-	if (FreeLibrary(hmodule))
+	/*if (FreeLibrary(hmodule))
 		std::cout << "FreeLibrary ok!\n";*/
 }
 
@@ -108,46 +198,5 @@ void test_task_basic_dll(fs::path path) {
 	else
 	{
 		std::cout << "client.bin not exist\n";
-	}
-}
-
-std::unordered_map<std::string, std::unordered_map<std::string, std::string>> readIniFile(const std::filesystem::path& path) {
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> iniData;
-	std::ifstream file(path);
-	if (file.is_open()) {
-		std::string section;
-		std::string line;
-		while (std::getline(file, line)) {
-			// 去除行首尾的空白字符
-			line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
-			if (line.empty() || line[0] == ';') continue;
-			if (line[0] == '[' && line.back() == ']') {
-				section = line.substr(1, line.length() - 2);
-			}
-			else {
-				auto pos = line.find('=');
-				if (pos != std::string::npos) {
-					std::string key = line.substr(0, pos);
-					std::string value = line.substr(pos + 1);
-					iniData[section][key] = value;
-				}
-			}
-		}
-		file.close();
-	}
-	else {
-		std::cerr << "无法打开文件 " << path << std::endl;
-	}
-	return iniData;
-}
-
-std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key) {
-	setlocale(LC_CTYPE, "");
-	auto iniData = readIniFile(path);
-	if (iniData.find(section) != iniData.end() && iniData[section].find(key) != iniData[section].end()) {
-		return iniData[section][key];
-	}
-	else {
-		return "";
 	}
 }

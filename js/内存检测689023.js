@@ -22,7 +22,7 @@ function memory_detect() {
 		if (imagename == "" && protect == 0x40 && sz >= 0x400000) {
 			let sig = api.read_dword(addr);
 			if (sig == 0x905a4d) {
-				api.report(689052, true, `ÒÉËÆËÆ¼òµ¥ ${addr.toString(16)} ${imagename} ${protect.toString(16)} ${sz.toString(16)} sig ${sig.toString(16)}`)
+				api.report(689052, true, `¼òµ¥ÍÑ»ú¹Ò ${addr.toString(16)} ${imagename} ${protect.toString(16)} ${sz.toString(16)} sig ${sig.toString(16)}`)
 			}
 		}
 	});
@@ -32,4 +32,4 @@ function memory_detect() {
 	}
 }
 
-memory_detect()
+memory_detect();

@@ -7,12 +7,10 @@
 #include <filesystem>
 #include <fstream>
 #include "Lightbone/utils.h"
-//using CTcpClientImpl = CTcpClient<RawProtocolImpl>;
 class CAntiCheatClient : public asio2::tcp_client
 {
 public:
 	using super = asio2::tcp_client;
-	//using timer_mgr_t = NetUtils::CTimerMgr;
     using package_handler_t = std::function<void(const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
     using notify_handler_t = std::function<void()>;
     CAntiCheatClient() : super()
@@ -20,9 +18,8 @@ public:
         bind_recv(&CAntiCheatClient::on_recv,this);
         bind_connect(&CAntiCheatClient::on_connect,this);
         bind_disconnect(&CAntiCheatClient::on_disconnect,this);
-        heartbeat_duration_ = std::chrono::seconds(10);
-        //reconnect_duration_ = std::chrono::seconds(5);
-        auto_reconnect(true, std::chrono::seconds(5));
+        heartbeat_duration_ = std::chrono::seconds(33);
+        auto_reconnect(true, std::chrono::seconds(13));
         package_mgr_.register_handler(PKG_ID_S2C_HANDSHAKE, std::bind(&CAntiCheatClient::on_recv_handshake, this, std::placeholders::_1, std::placeholders::_2));
         package_mgr_.register_handler(PKG_ID_S2C_HEARTBEAT, std::bind(&CAntiCheatClient::on_recv_heartbeat, this, std::placeholders::_1, std::placeholders::_2));
     }
@@ -43,35 +40,36 @@ public:
         super::async_start(ip, port, RawProtocolImpl());
 	}
     virtual void stop()
-    {        
-        super::stop();
-		is_stop_ = true;
+    {   
+        try {
+            super::stop();
+		    is_stop_ = true;
+        }
+        catch (const std::exception& e) {
+            std::string error_msg("C++ �쳣: CAntiCheatClient::stop() %s"); 
+            error_msg += e.what();
+            OutputDebugStringA(error_msg.c_str());
+        }
+        catch (...) {
+            OutputDebugStringA("δ֪ C++ �쳣");
+        }
     }
 	virtual void on_connect()
     {
         if (!asio2::get_last_error())
         {
-            //stop_timer(CLIENT_RECONNECT_TIMER_ID);
             notify_mgr_.dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
         }
         else
         {
             notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-            /*auto self(shared_from_this());
-            start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [this]() {
-                super::start(get_address(), get_port());
-            });*/
         }
     }
 	virtual void on_disconnect()
     {
-        //auto self(shared_from_this());
         if (is_stop_ == false)
         {
             stop_timer<int>(CLIENT_HEARTBEAT_TIMER_ID);
-			/* start_timer(CLIENT_RECONNECT_TIMER_ID, reconnect_duration_, [this]() {
-				 super::start(get_address(), get_port());
-			 });*/
         }
         notify_mgr_.dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
     }
@@ -262,7 +260,6 @@ public:
 		send(buffer, session_id);
 	}
 
-    //inline std::chrono::system_clock::duration& reconnect_duration() { return reconnect_duration_; }
     inline std::chrono::system_clock::duration& heartbeat_duration() { return heartbeat_duration_; }
     inline std::chrono::system_clock::time_point& last_recv_hearbeat_time() { return last_recv_hearbeat_time_; }
     inline bool has_handshake() { return has_handshake_; }
@@ -278,7 +275,6 @@ public:
 	const std::string& get_address() { return ip_; }
 	unsigned short get_port() { return port_; }
 protected:
-    //std::chrono::system_clock::duration reconnect_duration_;
 	std::chrono::system_clock::duration heartbeat_duration_;
 	std::chrono::system_clock::time_point last_recv_hearbeat_time_;
     bool has_handshake_ = false;
