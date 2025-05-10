@@ -187,6 +187,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeaderOutputFile>$(IntDir)Service.pch</PrecompiledHeaderOutputFile>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

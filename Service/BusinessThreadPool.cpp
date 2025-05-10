@@ -28,33 +28,35 @@ BusinessThreadPool::BusinessThreadPool(size_t thread_count)
     slog->info("Starting {} worker threads.", thread_count);
     for (size_t i = 0; i < thread_count; ++i) {
         workers_.emplace_back([this, i] {
-            if constexpr (ENABLE_CPU_AFFINITY) {
-                DWORD_PTR mask = (1ull << (i % 64)) | IDEAL_CORE_MASK;
-                SetThreadAffinityMask(GetCurrentThread(), mask);
-            }
+            SafeThread([this, i] {
+                if constexpr (ENABLE_CPU_AFFINITY) {
+                    DWORD_PTR mask = (1ull << (i % 64)) | IDEAL_CORE_MASK;
+                    SetThreadAffinityMask(GetCurrentThread(), mask);
+                }
 
-            auto ctx = std::make_shared<WorkerContext>();
-            {
-                std::unique_lock lock(context_mutex_);
-                worker_contexts_.emplace_back(ctx);
-            }
+                auto ctx = std::make_shared<WorkerContext>();
+                {
+                    std::unique_lock lock(context_mutex_);
+                    worker_contexts_.emplace_back(ctx);
+                }
 
-            slog->debug("Worker thread {} started.", i);
-            worker_loop(ctx, i);
-            slog->debug("Worker thread {} finished.", i);
+                slog->debug("Worker thread {} started.", i);
+                worker_loop(ctx, i);
+                slog->debug("Worker thread {} finished.", i);
 
-            // 清理逻辑
-            {
-                std::unique_lock lock(context_mutex_);
-                auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
-                                       [&](const std::weak_ptr<WorkerContext>& weak_ctx) {
-                    auto shared_ctx = weak_ctx.lock();
-                    return shared_ctx && (shared_ctx == ctx);  // 比较shared_ptr对象
-                });
-            }
+                // 清理逻辑
+                {
+                    std::unique_lock lock(context_mutex_);
+                    auto it = std::find_if(worker_contexts_.begin(), worker_contexts_.end(),
+                                           [&](const std::weak_ptr<WorkerContext>& weak_ctx) {
+                        auto shared_ctx = weak_ctx.lock();
+                        return shared_ctx && (shared_ctx == ctx);  // 比较shared_ptr对象
+                    });
+                }
 
-            ctx->active.store(false, std::memory_order_seq_cst);
-            drain_queue(ctx);
+                ctx->active.store(false, std::memory_order_seq_cst);
+                drain_queue(ctx);
+            });
         });
 
     }

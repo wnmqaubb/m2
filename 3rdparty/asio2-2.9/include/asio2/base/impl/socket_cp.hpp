@@ -136,7 +136,7 @@ namespace asio2::detail
 		/**
 		 * @brief get the remote address
 		 */
-		inline std::string get_remote_address() const noexcept
+		inline std::string get_remote_address() const
 		{
 			clear_last_error();
 
@@ -144,7 +144,13 @@ namespace asio2::detail
 
 			try
 			{
-				return this->socket_->lowest_layer().remote_endpoint().address().to_string();
+                if (!this->socket_ || !this->socket_->is_open()) return ""; // 防御性检查
+                
+                auto endpoint = socket_->lowest_layer().remote_endpoint(ec);
+                if (ec) return "";
+
+                return endpoint.address().to_string(); // noexcept安全
+				//return this->socket_->lowest_layer().remote_endpoint().address().to_string();
 			}
 			catch (const system_error& e)
 			{
@@ -166,7 +172,7 @@ namespace asio2::detail
 
 			set_last_error(ec);
 
-			return std::string();
+			return std::string();            
 		}
 
 		/**

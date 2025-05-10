@@ -3,8 +3,30 @@
 #include "NetUtils.h"
 //#include "concurrentqueue/concurrentqueue.h"
 #include <ThreadPool.h>
+#define CHECK_SESSION(s) \
+    if(!s || s->is_stopped()) { \
+        log(LOG_TYPE_DEBUG, "会话已失效 %p", s.get()); \
+        return; \
+    }
 extern std::shared_ptr<spdlog::logger> slog;
-
+inline LONG WINAPI GlobalExceptionFilter(_EXCEPTION_POINTERS* pExp)
+{
+    slog->error("GlobalExceptionFilter捕获异常: 0x%X", pExp->ExceptionRecord->ExceptionCode);
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+// 封装线程入口函数
+template<typename F>
+void SafeThread(F&& f)
+{
+    _set_se_translator([](unsigned code, EXCEPTION_POINTERS*) {
+        throw std::runtime_error("SEH:0x" + std::to_string(code));
+    });
+    try { f(); }
+    catch (...) {
+        /* 记录日志 */ 
+        slog->error("SafeThread: thread exception");
+    }
+}
 class CAntiCheatServer : public asio2::tcp_server
 {
 public:
@@ -155,7 +177,7 @@ public:
     virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
     virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
 private:
-    virtual void _on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
+    virtual void _on_recv(tcp_session_shared_ptr_t session1, std::string_view sv);
 
 protected:
     virtual void send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, std::size_t session_id = 0)
@@ -267,6 +289,7 @@ public:
     inline const std::string& get_auth_ticket() { return auth_ticket_; }
     inline void auth_success() { is_auth_success_ = true; }
     inline void auth_fail() { is_auth_success_ = false; }
+    std::string CAntiCheatServer::get_remote_ip(tcp_session_shared_ptr_t session);
 protected:
     // 分片数=CPU核心数×2的动态分片
     // phmap::parallel_flat_hash_map<

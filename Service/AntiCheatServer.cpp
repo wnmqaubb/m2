@@ -247,23 +247,25 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
     }
 }
 
-void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
+void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session1, std::string_view sv)
 {
     try {
-        if (!session || session->is_stopped()) {
-            return;
-        }
+        CHECK_SESSION(session1);
+        auto session = std::move(session1);
+
     #ifdef G_SERVICE 
         std::string remote_address;
         try {
-            // 异步环境下必须加锁访问socket属性
             std::shared_lock lock(mutex_);
-            if (session->is_stopped()) return; // 检查后可能状态变化，需再次确认
+            CHECK_SESSION(session);
             remote_address = session->get_remote_address();
         }
         catch (const std::system_error& e) {
             log(LOG_TYPE_ERROR, "获取远程地址失败: %s", e.what());
             return;
+        }
+        catch (const std::exception& e) {
+            log(LOG_TYPE_ERROR, "获取远程地址失败: %s", e.what());
         }
         catch (...) {
             log(LOG_TYPE_ERROR, "获取远程地址失败");
