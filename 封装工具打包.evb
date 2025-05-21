@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="windows-1252"?>
 <>
   <InputFile>D:\work\Repos\yk\build\bin\Release\Win32\packer_tool_public.vmp.exe</InputFile>
-  <OutputFile>D:\work\Repos\yk\build\bin\admin_server\批量封装工具[V].exe</OutputFile>
+  <OutputFile>D:\work\Repos\yk\build\bin\admin_server\批量封装工具.exe</OutputFile>
   <Files>
     <Enabled>True</Enabled>
     <DeleteExtractedOnExit>True</DeleteExtractedOnExit>

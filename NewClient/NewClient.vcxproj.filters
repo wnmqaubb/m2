@@ -21,5 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -19,9 +19,6 @@
       <Filter>shellcode</Filter>
     </ClCompile>
     <ClCompile Include="BasicUtils.cpp" />
-    <ClCompile Include="TaskMiniDump.cpp">
-      <Filter>shellcode</Filter>
-    </ClCompile>
     <ClCompile Include="TaskImageProtectCheck.cpp">
       <Filter>shellcode</Filter>
     </ClCompile>
@@ -52,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="shellcode">

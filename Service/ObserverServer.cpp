@@ -30,21 +30,29 @@
 bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
     if (!session || session->is_stopped()) {
         slog->warn("Enqueue task for stopped session");
-        return false;
+        return true;
     }
     // 在创建 Task 前检查传入的 raw_msg 是否为空
     if (raw_msg.get().is_nil()) {
         slog->warn("on_recv received a nil msgpack handle for package_id: {}", package_id);
-        return false;
+        return true;
     }
     try {
+        // 使用 weak_ptr 代替 shared_ptr
+        std::weak_ptr<asio2::tcp_session> weak_session = session;
+        if (weak_session.expired()) {
+            slog->warn("Enqueue task for expired session");
+            return true;
+        }
+        // weak_ptr 仍然有效，可以继续使用 session
+        auto local_session = weak_session.lock();
         // 将任务放入队列
-        Task task(package_id, session, package, std::move(raw_msg));
+        Task task(package_id, std::move(local_session), package, std::move(raw_msg));
         post([this, task = std::move(task)]() mutable {
             // 通过ASIO2 post确保线程安全
             if (!pool.enqueue(std::move(task))) {
                 slog->warn("Failed to enqueue task, queue may be full");
-                return false;
+                return true;
             }
         });
         // 检查内存使用情况
@@ -57,7 +65,7 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     }
     catch (const std::exception& e) {
         slog->error("Exception in on_recv: {}", e.what());
-        return false;
+        return true;
     }
 }
 
@@ -76,13 +84,12 @@ void CObserverServer::process_task(Task&& task)
 
     // 使用 weak_ptr 检测会话有效性
     std::weak_ptr<asio2::tcp_session> weak_session = session;
-    if (auto shared_session = weak_session.lock()) {
-        local_session = shared_session;
-    }
-    else {
+    local_session = weak_session.lock();
+    if (!local_session) {
         slog->warn("Session expired in task processing");
         return;
     }
+
     if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
     {
         auto msg = raw_msg->get().as<ProtocolC2SHandShake>();
@@ -447,6 +454,7 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
                    session->remote_address(), session->remote_port(), session->hash_key());
         ProtocolOBS2OBCQueryVmpExpire resp;
         resp.vmp_expire = get_vmp_expire();
+        slog->warn("vmp_expire: {}", Utils::w2c(resp.vmp_expire));
         send(session, &resp);
         ProtocolLC2LSAddObsSession req;
         req.session_id = session->hash_key();

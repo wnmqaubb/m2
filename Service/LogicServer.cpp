@@ -55,7 +55,7 @@ using namespace std::literals;
 #else
 #define LOG(x)
 #endif
-#define _DEBUG
+//#define _DEBUG
 std::shared_ptr<spdlog::logger> slog;
 std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> clog;
 // 全局声明线程池和日志器

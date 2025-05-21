@@ -155,10 +155,14 @@ void CAntiCheatServer::on_start()
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
 {
-    std::weak_ptr<asio2::tcp_session> weak_session(session);
-    post([this, weak_session]() {
+    try {
+        CHECK_SESSION(session);
+        std::string remote_address = session->get_remote_address();
+        if (remote_address.empty()) return;
+        unsigned short remote_port = session->get_remote_port();
 #ifdef G_SERVICE 
-        try {
+        std::weak_ptr<asio2::tcp_session> weak_session(session);
+        post([this, weak_session]() {
             if (auto session_ptr = weak_session.lock()) {
                 auto remote_address = session_ptr->get_remote_address();
                 // 并行哈希表的读操作自动加共享锁
@@ -171,15 +175,15 @@ void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
                     }
                 }
             }
-        }
-        catch (const std::exception& e) {
-            log(LOG_TYPE_ERROR, "on_accept: {}", e.what());
-        }
-        catch (...) {
-            log(LOG_TYPE_ERROR, "on_accept 异常");
-        }
+        });
 #endif
-    });
+    }
+    catch (const std::exception& e) {
+        log(LOG_TYPE_ERROR, "on_accept: {}", e.what());
+    }
+    catch (...) {
+        log(LOG_TYPE_ERROR, "on_accept 异常");
+    }
 }
 
 void CAntiCheatServer::on_post_connect(tcp_session_shared_ptr_t& session)
@@ -207,34 +211,74 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
         auto data_copy = std::make_shared<std::string>(sv);
         // 关键点2：使用weak_ptr避免循环引用
         std::weak_ptr<asio2::tcp_session> weak_session(session);
+        std::string remote_address;
+        unsigned short remote_port;
+        try {
+            CHECK_SESSION(session);
+            remote_address = session->get_remote_address();
+            remote_port = session->get_remote_port();
+            if (remote_address.empty()) return;
+        }
+        catch (const std::exception& e) {
+            log(LOG_TYPE_ERROR, "获取远程地址失败: %s", e.what());
+        }
+        catch (...) {
+            log(LOG_TYPE_ERROR, "获取远程地址失败");
+            return;
+        }
     #ifdef G_SERVICE 
         // 认证锁,优先处理网关后台认证
         if (auth_lock_.load()) [[unlikely]] {
             std::shared_lock lock(mutex_);
             if (session->is_stopped()) return; // 检查会话状态
-            if (session->get_remote_address() == kDefaultLocalhost) {
-                _on_recv(session, sv);
+            if (remote_address == kDefaultLocalhost) {
+                _on_recv(session, sv, remote_address, remote_port);
                 return;
             }
         }
         else [[likely]] {
-            post([this, weak_session, data_copy]() {
+            if (ddos_black_list.contains(remote_address)) {
+                session->socket().close(asio2::get_last_error());
+                log(LOG_TYPE_ERROR, "on_recv 拦截ddos攻击黑名单IP:%s", remote_address.c_str());
+                slog->warn("on_recv 拦截ddos攻击黑名单IP: {}", remote_address);
+                return;
+            }
+
+            if (sv.empty()/* && remote_address != kDefaultLocalhost*/) {
+                // 使用try_emplace保证线程安全的插入/访问
+                auto [it, inserted] = ddos_black_map.try_emplace(remote_address, 0);
+
+                // 递增计数器
+                uint32_t count = ++(it->second);
+                // 当达到阈值时转移至黑名单
+                if (count >= 10) {
+                    // 写操作需要独占锁保护
+                    ddos_black_list.emplace(remote_address);
+
+                    // 从map中移除（erase会自动加锁）
+                    //ddos_black_map.erase(remote_address); 
+                    log(LOG_TYPE_ERROR, "IP %s 触发阈值加入黑名单", remote_address.c_str());
+                    return;
+                }
+                return;
+            }
+            post([this, weak_session, data_copy, remote_address, remote_port]() {
                 if (auto session_ptr = weak_session.lock()) {
                     // 关键点5：验证服务器实例有效性
                     if (!is_shutdown.load(std::memory_order_acquire)) {
                         // 关键点6：使用拷贝后的数据
-                        _on_recv(session_ptr, *data_copy);
+                        _on_recv(session_ptr, *data_copy, remote_address, remote_port);
                     }
                 }
             });
         }
     #else
-        post([this, weak_session, data_copy]() {
+        post([this, weak_session, data_copy, remote_address, remote_port]() {
             if (auto session_ptr = weak_session.lock()) {
                 // 关键点5：验证服务器实例有效性
                 if (!is_shutdown.load(std::memory_order_acquire)) {
                     // 关键点6：使用拷贝后的数据
-                    _on_recv(session_ptr, *data_copy);
+                    _on_recv(session_ptr, *data_copy, remote_address, remote_port);
                 }
             }
         });
@@ -247,56 +291,12 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
     }
 }
 
-void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session1, std::string_view sv)
+void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session, std::string_view sv,const std::string remote_address, unsigned short remote_port)
 {
     try {
-        CHECK_SESSION(session1);
-        auto session = std::move(session1);
+        CHECK_SESSION(session);
+        //auto session = std::move(session1);
 
-    #ifdef G_SERVICE 
-        std::string remote_address;
-        try {
-            std::shared_lock lock(mutex_);
-            CHECK_SESSION(session);
-            remote_address = session->get_remote_address();
-        }
-        catch (const std::system_error& e) {
-            log(LOG_TYPE_ERROR, "获取远程地址失败: %s", e.what());
-            return;
-        }
-        catch (const std::exception& e) {
-            log(LOG_TYPE_ERROR, "获取远程地址失败: %s", e.what());
-        }
-        catch (...) {
-            log(LOG_TYPE_ERROR, "获取远程地址失败");
-            return;
-        }
-        if (ddos_black_list.contains(remote_address)) {
-            session->socket().close(asio2::get_last_error());
-            log(LOG_TYPE_ERROR, "on_recv 拦截ddos攻击黑名单IP:%s", remote_address.c_str());
-            slog->warn("on_recv 拦截ddos攻击黑名单IP: {}", remote_address);
-            return;
-        }
-
-        if (sv.empty() && remote_address != kDefaultLocalhost) {
-            // 使用try_emplace保证线程安全的插入/访问
-            auto [it, inserted] = ddos_black_map.try_emplace(remote_address, 0);
-
-            // 递增计数器
-            uint32_t count = ++(it->second);
-            // 当达到阈值时转移至黑名单
-            if (count >= 10) {
-                // 写操作需要独占锁保护
-                ddos_black_list.emplace(remote_address);
-
-                // 从map中移除（erase会自动加锁）
-                //ddos_black_map.erase(remote_address); 
-                log(LOG_TYPE_ERROR, "IP %s 触发阈值加入黑名单", remote_address.c_str());
-                return;
-            }
-            return;
-        }
-#endif
         RawProtocolImpl package;
         msgpack::object_handle raw_msg;     // 反序列化结果
         std::error_code ec;            // 错误码
@@ -319,16 +319,13 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session1, std::string_v
             {
                 if (!on_recv(package_id, session, package, std::move(raw_msg)))
                 {
-                    log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
-                        Utils::c2w(session->get_remote_address()).c_str(),
-                        session->remote_port(),
-                        package_id);
+                    log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
                 }
                 return;
             }
             else
             {
-                //log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"), Utils::c2w(session->get_remote_address()).c_str(), session->remote_port());
+                //log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"), Utils::c2w(remote_address).c_str(), remote_port);
                 return;
             }
          }
@@ -337,10 +334,7 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session1, std::string_v
          {
              if (!on_recv(package_id, session, package, std::move(raw_msg)))
              {
-                 log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
-                     Utils::c2w(session->get_remote_address()).c_str(),
-                     session->remote_port(),
-                     package_id);
+                 log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
              }
              return;
          }
@@ -354,11 +348,9 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session1, std::string_v
 #endif
         if (!on_recv(package_id, session, package, std::move(raw_msg)))
         {
-            log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
-                Utils::c2w(session->get_remote_address()).c_str(),
-                session->remote_port(),
-                package_id);
+            log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
         }
+        return;
     }
     catch (const std::exception& e) {
         log(LOG_TYPE_ERROR, "_on_recv异常: %s", e.what());

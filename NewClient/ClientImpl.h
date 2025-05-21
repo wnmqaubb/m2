@@ -2,8 +2,6 @@
 #include "Service/AntiCheatClient.h"
 #include "ClientPluginMgr.h"
 
-//#define LOG_SHOW
-
 class CClientImpl : public CAntiCheatClient
 {
 public:

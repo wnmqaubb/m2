@@ -177,7 +177,7 @@ public:
     virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
     virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
 private:
-    virtual void _on_recv(tcp_session_shared_ptr_t session1, std::string_view sv);
+    virtual void _on_recv(tcp_session_shared_ptr_t session, std::string_view sv, const std::string remote_address, unsigned short remote_port);
 
 protected:
     virtual void send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, std::size_t session_id = 0)

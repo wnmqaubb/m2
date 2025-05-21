@@ -22,9 +22,13 @@ namespace fs = std::filesystem;
 void on_recv_pkg_policy(ProtocolS2CPolicy& req);
 void get_public_ip();
 std::wstring GetProcessPath(DWORD pid);
+bool decode_plugin(std::string filename);
 int main(int argc, char** argv)
 {
 #ifndef _DEBUG
+    //decode_plugin("D:\\work\\mir\\竞品\\裁决网关\\plugin\\TaskBasic.dll");
+    //decode_plugin("D:\\work\\Repos\\yk\\build\\bin\\Release\\Win32\\plugin\\TaskBasic.dll");
+    //decode_plugin("D:\\work\\temp\\2\\cache\\2A6E4A2B");
 	//get_public_ip();
 	//while (true)
 	//{
@@ -47,20 +51,20 @@ int main(int argc, char** argv)
 	//	std::this_thread::sleep_for(std::chrono::seconds(1));
 	//}
 
- //   auto hmodule = LoadLibraryA("NewClient.dll");
-	//client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
-	//share_data_ptr_t param = new share_data_t();
-	//param->stage = 1;
-	//ProtocolCFGLoader cfg;
-	////cfg.set_field(ip_field_id, kDefaultLocalhost);
-	////cfg.set_field(ip_field_id, "140.210.20.215");
+    auto hmodule = LoadLibraryA("NewClient.dll");
+	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+	share_data_ptr_t param = new share_data_t();
+	param->stage = 1;
+	ProtocolCFGLoader cfg;
+	//cfg.set_field(ip_field_id, kDefaultLocalhost);
+	cfg.set_field(ip_field_id, "140.210.20.215");
 	//cfg.set_field(ip_field_id, "43.241.17.76");
-	//cfg.set_field(port_field_id, kDefaultServicePort);
-	//cfg.set_field(test_mode_field_id, false);
-	//auto cfg_bin = cfg.dump();
-	//param->cfg_size = cfg_bin.size();
-	//memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
-	//entry(param);
+	cfg.set_field(port_field_id, kDefaultServicePort);
+	cfg.set_field(test_mode_field_id, false);
+	auto cfg_bin = cfg.dump();
+	param->cfg_size = cfg_bin.size();
+	memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
+	entry(param);
 
 	/*std::wstring volume_serial_number = std::any_cast<std::wstring>(Utils::HardwareInfo::get_volume_serial_number());
 	unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());
@@ -94,102 +98,7 @@ int main(int argc, char** argv)
     //    }
     //    Sleep(1);
     //}
-    std::string_view host = "0.0.0.0";
-    std::string_view port = "8028";
-
-    // 由于tcp_server默认会启动cpu*2个数量的线程，假定cpu核数为4，那就是8个线程，
-    // 假定为“线程0，线程1，...到...线程7”
-    // 这里main函数的线程假定为“线程main”，（新版本asio2没有任何事件会在main线程中触发）
-
-    static std::size_t constexpr  tcp_frame_size = 1536;
-    static std::size_t constexpr  udp_frame_size = 1024;
-    static std::size_t constexpr http_frame_size = 1536;
-
-    static std::size_t constexpr max_buffer_size = (std::numeric_limits<std::size_t>::max)();
-    asio2::tcp_server server(tcp_frame_size, max_buffer_size,1);
-
-    // 针对server对象启动一个定时器
-    server.start_timer(123, std::chrono::seconds(1), []() {
-        // 这个定时器的回调函数固定在“线程0”中触发
-        printf("server.start_timer被执行了\n");
-    });
-
-    // 针对这个session_ptr投递一个异步事件
-    server.post([]() {
-        // 对这个server对象的投递的异步事件固定在“线程0”中触发
-        printf("投递的异步事件被执行了\n");
-    });
-
-
-    server.bind_init([]() {
-        // 固定在“线程0”中触发
-        printf("bind_init\n");
-    }).bind_start([&]() {
-        // 固定在“线程0”中触发
-        printf("bind_start\n");
-    }).bind_accept([](std::shared_ptr<asio2::tcp_session>& session_ptr) {
-        // 固定在“线程0”中触发
-        printf("bind_accept\n");
-
-    }).bind_connect([&](auto& session_ptr) {
-        // 固定在“线程0”中触发
-
-        // 连接成功以后，可以给这个连接(即session_ptr)启动一个定时器
-        session_ptr->start_timer("123", std::chrono::seconds(1), []() {
-            // 这个session_ptr的定时器的回调函数和bind_recv的触发线程是同一个线程
-            // (见下方bind_recv中的说明)
-        });
-
-        // 针对这个session_ptr投递一个异步事件
-        session_ptr->post([]() {
-            // 对这个session_ptr投递的异步事件的回调函数和bind_recv的触发线程是
-            // 同一个线程(见下方bind_recv中的说明)
-            printf("投递的异步事件被执行了\n");
-        });
-        printf("bind_connect\n");
-
-    }).bind_recv([&](std::shared_ptr<asio2::tcp_session>& session_ptr, std::string_view data) {
-        // 平均分布在“线程0，线程1，...到...线程7”中触发
-
-        // 假如session A的bind_recv在“线程2”中触发，session B的bind_recv在“线程3”中触发，
-        // 那么session A的bind_recv将永远只在“线程2”中触发，不会出现一会儿在“线程2”中触发
-        // 一会儿在“线程3”中触发这种情况，session B同理。
-
-        // 对于async_send发送数据函数来说，真正发送数据时所在的线
-        // 程和bind_recv的触发线程是同一个线程。
-
-        // 假定session A的bind_recv的触发线程是“线程2”，那么session A的async_send函数也是在“线程2”
-        // 中发送的数据的(不管async_send函数在哪里调用，不管在哪个线程调用，最终都是投递到“线程2”中
-        // 去发送的)。
-        session_ptr->async_send(data, [](std::size_t bytes_sent) {
-            // async_send函数可以设置一个回调函数，当发送数据结束以后(不管发送成功还是发送失败)，这个
-            // 回调函数就会被调用。
-            // 这个回调函数也是在“线程2”中触发的。
-            if (asio2::get_last_error())
-                printf("发送数据失败,失败原因:%s\n", asio2::last_error_msg().c_str());
-            else
-                printf("发送数据成功,共发送了%d个字节\n", int(bytes_sent));
-        });
-
-    }).bind_disconnect([&](auto& session_ptr) {
-        // 固定在“线程0”中触发
-        printf("bind_disconnect\n");
-
-    }).bind_stop([&]() {
-        // 固定在“线程0”中触发
-        printf("bind_stop\n");
-
-    });
-
-    printf("server.start1\n");
-    server.start(host, port);
-    printf("server.start2\n");
-
-    while (std::getchar() != '\n');  // press enter to exit this program
-
-    server.stop();
-
-    return 0;
+    
 	
     //std::cout << "Hello World" << sizeof(share_data_t) - offsetof(share_data_t, ret_opcode) << "  " << offsetof(share_data_t, ret_opcode);
 #else
@@ -555,4 +464,85 @@ void get_public_ip() {
 	{
 		std::cout << asio2::last_error_msg() << std::endl;
 	}
+}
+
+bool decode_plugin(std::string filename)
+{
+    std::ifstream file(filename, std::ios::in | std::ios::binary);
+    if (file.is_open()) {
+        // 加载插件并插入 plugin_cache_...
+        RawProtocolImpl package;
+        std::stringstream ss;
+        ss << file.rdbuf();
+        file.close();
+        auto str = ss.str();
+        std::string_view sv(str.data(), str.size());
+        package.decode(sv);
+        try {
+            auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
+            ProtocolS2CDownloadPlugin plugin = msg.get().as<ProtocolS2CDownloadPlugin>();
+            xor_buffer(plugin.data.data(), plugin.data.size(), kProtocolXorKey);
+            std::ofstream output(filename + "_decrypted.dll", std::ios::out | std::ios::binary);
+            output.write((const char*)plugin.data.data(), plugin.data.size());
+            output.close();
+            printf("加载插件:%s\n", plugin.plugin_name.c_str());
+        }
+        catch (...) {
+            fs::remove(filename);
+        }
+        return true;
+    }
+    try {
+
+        std::error_code ec;
+        HMODULE plugin_handle = NULL;
+
+        // 非调试模式下，检查插件缓存路径是否存在
+        if (!fs::exists(filename, ec))
+        {
+            return false;
+        }
+
+        // 打开插件缓存文件
+        std::ifstream file(filename, std::ios::in | std::ios::binary);
+        if (!file.is_open())
+        {
+            return false;
+        }
+
+        // 读取文件内容到字符串流
+        std::stringstream ss;
+        ss << file.rdbuf();
+        file.close();
+        auto buffer = ss.str();
+
+        // 解码协议包
+        RawProtocolImpl package;
+        if (!package.decode(std::string_view(buffer.data(), buffer.size())))
+        {
+            return false;
+        }
+
+        // 解包并检查插件信息
+        auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
+        auto plugin = msg.get().as<ProtocolS2CDownloadPlugin>();
+        if (!plugin.is_crypted)
+        {
+            return false;
+        }
+
+        // 解密插件数据
+        xor_buffer(plugin.data.data(), plugin.data.size(), kProtocolXorKey);
+
+        //std::ofstream output(filename.replace(filename.find_last_of("."), 4, "_decrypted.dll").c_str(), std::ios::out | std::ios::binary);
+        std::ofstream output(filename + "_decrypted.dll", std::ios::out | std::ios::binary);
+        output.write((const char*)plugin.data.data(), plugin.data.size());
+        output.close();
+
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
 }

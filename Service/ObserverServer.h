@@ -12,7 +12,7 @@
 //#include <ConcurrentQueue/BlockingConcurrentQueue.h>
 //#include <folly/ProducerConsumerQueue.h>
 //#include <readerwriterqueue/readerwriterqueue.h>
-#define _DEBUG
+//#define _DEBUG
 class CAntiCheatServer;
 class CObserverServer : public CAntiCheatServer {
     using super = CAntiCheatServer;

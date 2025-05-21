@@ -77,8 +77,10 @@ struct TaskWrapper {
 
 // 线程本地队列（SPSC）
 struct alignas(64) WorkerContext {
-    moodycamel::ReaderWriterQueue<std::unique_ptr<TaskWrapper>> local_queue{ MAX_LOCAL_QUEUE_SIZE };
-    //moodycamel::ConcurrentQueue<TaskWrapper*> local_pool;  // 本地内存池
+    // 线程本地队列（SPSC）单生产者单消费者,性能更好,但不支持窃取
+    //moodycamel::ReaderWriterQueue<std::unique_ptr<TaskWrapper>> local_queue{ MAX_LOCAL_QUEUE_SIZE };
+    // 线程本地队列（MPMC）多生产者多消费者,性能更好,天然支持窃取
+    moodycamel::ConcurrentQueue<std::unique_ptr<TaskWrapper>> local_queue{ MAX_LOCAL_QUEUE_SIZE };
     std::atomic<bool> active{ true };
     std::atomic<size_t> total_steals{ 0 };  // 窃取统计
 };
@@ -93,7 +95,7 @@ private:
 
     void worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t worker_id);
 
-    size_t process_local(WorkerContext* ctx, std::vector<std::unique_ptr<TaskWrapper>>& batch);
+    size_t process_local(std::shared_ptr<WorkerContext>& ctx, std::vector<std::unique_ptr<TaskWrapper>>& batch);
 
     size_t process_global(std::vector<std::unique_ptr<TaskWrapper>>& batch);
 
@@ -144,6 +146,7 @@ private:
     std::atomic<size_t> completed_tasks_count_{ 0 };   // 已完成任务总数
     std::atomic<size_t> rejected_tasks_count_{ 0 };    // 已拒绝任务总数
     std::chrono::steady_clock::time_point last_log_time_; // 上次记录日志的时间
+    std::chrono::steady_clock::time_point last_log_time1_; // 上次记录日志的时间
     size_t last_completed_tasks_count_{ 0 };          // 上次记录日志时的已完成任务数
 };
 

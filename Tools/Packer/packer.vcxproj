@@ -69,7 +69,7 @@
     <SpectreMitigation>false</SpectreMitigation>
     <DisableAdvancedSupport>true</DisableAdvancedSupport>
     <SupportWinXP>true</SupportWinXP>
-    <SupportLTL>true</SupportLTL>
+    <SupportLTL>false</SupportLTL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>

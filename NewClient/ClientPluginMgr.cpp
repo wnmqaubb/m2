@@ -105,7 +105,7 @@ bool CClientPluginMgr::load_plugin(plugin_hash_t plugin_hash, const std::string&
         decltype(&LoadPlugin) plugin_entry = (decltype(&LoadPlugin))ApiResolver::get_proc_address(plugin_handle, ApiResolver::hash("LoadPlugin"));
         if (plugin_entry)
         {
-    #if LOG_SHOW
+    #ifdef LOG_SHOW
             // 输出插件入口点地址
             char path[MAX_PATH];
             sprintf_s(path, MAX_PATH, "plugin_entry %08X", plugin_entry);

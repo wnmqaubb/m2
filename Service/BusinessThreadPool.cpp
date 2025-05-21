@@ -10,7 +10,8 @@
 BusinessThreadPool::BusinessThreadPool(size_t thread_count)
     : global_queue_(GLOBAL_QUEUE_MAX), // 初始化全局队列
     configured_thread_count_(thread_count), // 保存配置的线程数
-    last_log_time_(std::chrono::steady_clock::now()) // 初始化上次日志时间
+    last_log_time_(std::chrono::steady_clock::now()), // 初始化上次日志时间
+    last_log_time1_(std::chrono::steady_clock::now()) // 初始化上次日志时间
 {
     // 预分配内存池对象（假设 Task 可默认构造）
     const size_t INITIAL_POOL_SIZE = std::min(MAX_LOCAL_QUEUE_SIZE * 4, MEMORY_POOL_INIT_SIZE);
@@ -196,9 +197,9 @@ void BusinessThreadPool::start_monitor(const size_t INITIAL_POOL_SIZE) {
 
             // 计算目标池大小（基于当前负载）
             const size_t target_pool = std::clamp(
-                current_pending /** 2*/,
+                current_pending * 2,
                 MEMORY_POOL_LOW_WATERMARK,
-                MEMORY_POOL_INIT_SIZE
+                MEMORY_POOL_INIT_SIZE * 2
             );
 
             // 渐进式补充
@@ -218,7 +219,7 @@ void BusinessThreadPool::start_monitor(const size_t INITIAL_POOL_SIZE) {
                 task_pool_.try_dequeue_bulk(buffer, 128);
             }
             prev_pending = current_pending;
-        
+
         }
     });
 }
@@ -229,29 +230,29 @@ void BusinessThreadPool::worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t
     std::vector<std::unique_ptr<TaskWrapper>> batch;
     batch.reserve(MAX_BATCH);
 
-    while (!stop_.load(std::memory_order_relaxed)) {
+    while (!stop_.load(std::memory_order_acquire)) {
         // 每次循环前检查活性
         if (!ctx->active.load(std::memory_order_acquire)) {
             break;
         }
         size_t processed = 0;
-
-        // 优先处理本地队列
-        std::unique_ptr<TaskWrapper> task;
-        while (processed < MAX_BATCH && ctx->local_queue.try_dequeue(task)) {
-            execute_task(std::move(task));
-            processed++;
+        // 每60秒输出一次日志
+        if (std::chrono::steady_clock::now() - last_log_time1_ > std::chrono::minutes(1)) {
+            last_log_time1_ = std::chrono::steady_clock::now();
+            slog->info("当前线程池状态:{} local_queue:{} worker_id: {}", stop_.load(std::memory_order_acquire), ctx->local_queue.size_approx(), worker_id);
         }
+        // 优先处理本地队列
+        processed += process_local(ctx, batch);
 
-        // 处理全局队列（保持原有逻辑）
+        // 处理全局队列
         processed += process_global(batch);
 
-        // 工作窃取优化（使用已有方法）
+        // 工作窃取
         if (processed == 0) {
             processed += try_steal(batch, worker_id);
         }
 
-        // 修改为基于全局队列状态的动态休眠
+        // 基于全局队列状态的动态休眠
         if (processed == 0) {
             const size_t global_pending = pending_tasks_.load(std::memory_order_relaxed);
             if (global_pending == 0) {
@@ -302,12 +303,12 @@ void BusinessThreadPool::worker_loop(std::shared_ptr<WorkerContext>& ctx, size_t
     slog->debug("Worker {} loop finished.", worker_id);
 }
 
-size_t BusinessThreadPool::process_local(WorkerContext* ctx, std::vector<std::unique_ptr<TaskWrapper>>& batch) {
-    size_t processed = 0;
-    std::unique_ptr<TaskWrapper> task;
-    while (processed < WORKER_BATCH_SIZE && ctx->local_queue.try_dequeue(task)) {
+size_t BusinessThreadPool::process_local(std::shared_ptr<WorkerContext>& ctx, std::vector<std::unique_ptr<TaskWrapper>>& batch) {
+    // 清空 batch 以便重用
+    batch.clear();
+    size_t processed = ctx->local_queue.try_dequeue_bulk(std::back_inserter(batch), 128);
+    for (auto& task : batch) {
         execute_task(std::move(task));
-        ++processed;
     }
     return processed;
 }
@@ -337,12 +338,11 @@ size_t BusinessThreadPool::try_steal(std::vector<std::unique_ptr<TaskWrapper>>& 
     const size_t total_workers = contexts_copy.size();
 
     // 优化参数配置
-    constexpr size_t MAX_STEAL_PER_WORKER = 16;    // 单线程最大窃取量
+    constexpr size_t MAX_STEAL_PER_WORKER = 32;    // 单线程最大窃取量
     // 根据负载动态调整参数
     size_t dynamic_steal_limit = std::min(
         MAX_STEAL_PER_WORKER,
-        static_cast<size_t>(std::max<int64_t>(pending_tasks_.load(), 0)) /
-        (contexts_copy.size() * 2)
+        static_cast<size_t>(std::max<int64_t>(pending_tasks_.load(), 0)) / (contexts_copy.size() * 2)
     );
     // 随机选择起始窃取位置
     static thread_local std::mt19937_64 rng(std::random_device{}());
@@ -361,31 +361,12 @@ size_t BusinessThreadPool::try_steal(std::vector<std::unique_ptr<TaskWrapper>>& 
             continue;
         }
 
-        // 单任务窃取模式
-        std::unique_ptr<TaskWrapper> stolen_task;
-        size_t local_stolen = 0;
-        while (local_stolen < dynamic_steal_limit) {
-            // 尝试窃取单个任务
-            if (!ctx->local_queue.try_dequeue(stolen_task)) {
-                break;
-            }
-
-            // 安全处理窃取的任务
-            if (stolen_task) {
-                batch.push_back(std::move(stolen_task));
-                ++local_stolen;
-                ++stolen;
-            }
-
-            // 达到单线程窃取上限
-            if (local_stolen >= dynamic_steal_limit) {
-                break;
-            }
-        }
+        // 批量任务窃取模式
+        stolen = ctx->local_queue.try_dequeue_bulk(std::back_inserter(batch), dynamic_steal_limit);
 
         // 更新目标线程的窃取统计
-        if (local_stolen > 0) {
-            ctx->total_steals.fetch_add(local_stolen, std::memory_order_relaxed);
+        if (stolen > 0) {
+            ctx->total_steals.fetch_add(stolen, std::memory_order_relaxed);
         }
 
         // 提前退出条件
@@ -439,8 +420,19 @@ void BusinessThreadPool::execute_task(std::unique_ptr<TaskWrapper>& task) {
     if (!task_pool_.enqueue(std::move(task))) {
         slog->warn("Failed to recycle task wrapper");
     }
-    if(pending_tasks_.load() > 0)
-        pending_tasks_.fetch_sub(1, std::memory_order_relaxed);
+
+    // 安全递减计数器
+    int64_t current = pending_tasks_.load(std::memory_order_relaxed);
+    do {
+        if (current <= 0) {
+            slog->warn("Pending tasks counter is already 0, skip decrement");
+            break;
+        }
+    } while (!pending_tasks_.compare_exchange_weak(
+        current,
+        current - 1,
+        std::memory_order_release
+    ));
 }
 
 void BusinessThreadPool::handle_idle(size_t processed, int& empty_cycles) {

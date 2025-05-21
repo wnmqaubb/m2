@@ -176,7 +176,7 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
         share_data = param;
 		setlocale(LC_CTYPE, "");
 		g_client_rev_version = std::make_shared<int>(REV_VERSION);
-		g_game_io = std::make_shared<asio::io_service>();
+		g_game_io = std::make_shared<asio::io_service>(); 
 		g_thread_group = std::make_shared<asio::detail::thread_group>();
         client = std::make_shared<CClientImpl>(std::move(ProtocolCFGLoader::load((char*)param->cfg, param->cfg_size)));
     VMP_VIRTUALIZATION_END();
