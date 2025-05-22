@@ -32,6 +32,7 @@
     <ClCompile Include="..\3rdparty\wmic\dnscache.cpp">
       <Filter>3rdparty</Filter>
     </ClCompile>
+    <ClCompile Include="..\NewClient\pch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameFunction.h" />
@@ -46,6 +47,7 @@
     <ClInclude Include="..\3rdparty\wmic\dnscache.h">
       <Filter>3rdparty</Filter>
     </ClInclude>
+    <ClInclude Include="..\NewClient\pch.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />

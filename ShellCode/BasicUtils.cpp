@@ -1,4 +1,4 @@
-#include "NewClient/pch.h"
+#include "pch.h"
 #include <Lightbone/utils.h>
 #include <Lightbone/windows_internal.h>
 #include <fstream>

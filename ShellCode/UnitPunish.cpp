@@ -1,4 +1,4 @@
-﻿#include "NewClient/pch.h"
+﻿#include "pch.h"
 #include "TaskBasic.h"
 
 void __declspec(noinline) UnitPunishKick(std::error_code ec)
