@@ -256,7 +256,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AntiCheatServer.cpp" />
-    <ClCompile Include="BusinessThreadPool.cpp" />
+    <ClCompile Include="BS_thread_pool.hpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="ObserverServer.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -280,7 +283,6 @@
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="ProxyTunnel.h" />
     <ClInclude Include="SubServicePackage.h" />
-    <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="VmpSerialValidate.h" />
   </ItemGroup>
   <ItemGroup>

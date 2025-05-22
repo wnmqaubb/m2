@@ -425,7 +425,7 @@ public:
 #endif
     PROTOCOL_EXPORT virtual bool decode(
         std::string_view sv,
-        msgpack::object_handle& oh,  // 输出反序列化对象
+        msgpack::v1::object_handle& oh,  // 输出反序列化对象
         std::error_code& ec          // 错误码传递
     )
     #if defined(PROTOCOL_IMPL)

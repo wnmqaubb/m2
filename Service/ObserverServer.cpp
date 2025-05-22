@@ -27,6 +27,7 @@
 #include "ThreadPool.h"
 //slog->info(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
 // 转发到logic_server
+
 bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
     if (!session || session->is_stopped()) {
         slog->warn("Enqueue task for stopped session");
@@ -46,15 +47,38 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
         }
         // weak_ptr 仍然有效，可以继续使用 session
         auto local_session = weak_session.lock();
-        // 将任务放入队列
-        Task task(package_id, std::move(local_session), package, std::move(raw_msg));
-        post([this, task = std::move(task)]() mutable {
-            // 通过ASIO2 post确保线程安全
-            if (!pool.enqueue(std::move(task))) {
-                slog->warn("Failed to enqueue task, queue may be full");
-                return true;
+        //auto func = [this, session = session->weak_from_this(),
+        //    pkg_id = package_id, pkg = std::move(package),
+        //    raw_msg = std::move(raw_msg)]() {
+        //    if (auto s = session.lock()) {
+        //        // 使用移动语义传递msgpack对象
+        //        /*process_task(pkg_id, s, std::move(pkg),
+        //                     std::move(const_cast<msgpack::v1::object_handle&>(raw_msg)));*/
+        //    }
+        //};
+        // 1. 使用 shared_ptr 包装所有不可复制对象
+        auto pkg = std::move(package);
+        auto raw_msg_local = std::move(raw_msg);
+        // 提交任务到 BS::thread_pool
+        get_global_thread_pool().submit_task([
+            this,session = session->weak_from_this(),
+            pkg_id = package_id, pkg = std::move(pkg),
+            raw_msg = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg_local))]() mutable {
+
+            if (auto s = session.lock()) {
+                // 使用移动语义传递msgpack对象
+                process_task(pkg_id, s, std::move(pkg), std::move(*raw_msg));
             }
         });
+        // 将任务放入队列
+        //Task task(package_id, std::move(local_session), package, std::move(raw_msg));
+        //post([this, task = std::move(task)]() mutable {
+        //    // 通过ASIO2 post确保线程安全
+        //    if (!pool.enqueue(std::move(task))) {
+        //        slog->warn("Failed to enqueue task, queue may be full");
+        //        return true;
+        //    }
+        //});
         // 检查内存使用情况
         //pool.check_memory_usage();
 
@@ -69,16 +93,12 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
     }
 }
 
-void CObserverServer::process_task(Task&& task)
+void CObserverServer::process_task(unsigned int package_id, tcp_session_shared_ptr_t session, const RawProtocolImpl&& package, msgpack::v1::object_handle&& raw_msg)
 {
-    // 基本参数检查
-    if (!task.raw_msg || task.raw_msg->get().is_nil()) {
-        slog->warn("Null msgpack handle detected");
+    if (raw_msg.get().is_nil()) {
+        slog->warn("Invalid msgpack handle detected");
         return;
     }
-
-    auto& [package_id, session, package, raw_msg] = task;
-
     // ========== 关键修改 1：统一会话有效性检查 ==========
     tcp_session_shared_ptr_t local_session;
 
@@ -92,14 +112,14 @@ void CObserverServer::process_task(Task&& task)
 
     if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
     {
-        auto msg = raw_msg->get().as<ProtocolC2SHandShake>();
+        auto msg = raw_msg.get().as<ProtocolC2SHandShake>();
         on_recv_handshake(local_session, package, msg);
         return;
     }
 
     if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
     {
-        auto msg = raw_msg->get().as<ProtocolC2SHeartBeat>();
+        auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
 
         ProtocolS2CHeartBeat resp;
         resp.tick = msg.tick;
@@ -141,7 +161,7 @@ void CObserverServer::process_task(Task&& task)
         // 减少包处理数量,临时用,待登录器更新后移除
         if (SPKG_ID_C2S_UPDATE_USER_NAME == package_id) {
             user_data = get_user_data_(local_session);
-            auto& req = raw_msg->get().as<ProtocolC2SUpdateUsername>();
+            auto& req = raw_msg.get().as<ProtocolC2SUpdateUsername>();
             auto username = user_data->get_field("usrname");
             std::wstring username_str = username.has_value() ? username.value() : L"";
             //slog->warn("Update username: {}=={}", username_str, Utils::String::w2c(req.username));
@@ -174,7 +194,10 @@ void CObserverServer::process_task(Task&& task)
         // 执行任务
         //try {
             // 调用 dispatch
-            ob_pkg_mgr_.dispatch(package_id, local_session, package, *raw_msg);
+            // 1. 复制必要数据（避免移动后失效）
+            unsigned int local_pkg_id = package_id;
+            RawProtocolImpl local_pkg = std::move(package); // ✅ 明确转移所有权
+            ob_pkg_mgr_.dispatch(local_pkg_id, local_session, local_pkg, std::move(raw_msg));
         /*}
         catch (const std::exception& e) {
             slog->error("Package dispatch failed: {}", e.what());

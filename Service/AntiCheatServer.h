@@ -3,6 +3,7 @@
 #include "NetUtils.h"
 //#include "concurrentqueue/concurrentqueue.h"
 #include <ThreadPool.h>
+#include <BS_thread_pool.hpp>
 #define CHECK_SESSION(s) \
     if(!s || s->is_stopped()) { \
         log(LOG_TYPE_DEBUG, "会话已失效 %p", s.get()); \
@@ -27,123 +28,9 @@ void SafeThread(F&& f)
         slog->error("SafeThread: thread exception");
     }
 }
+inline BS::thread_pool<BS::tp::none>& get_global_thread_pool();
 class CAntiCheatServer : public asio2::tcp_server
 {
-public:
-    // 分层时间轮结构（15s/8min/4h三级检测）
-//    struct alignas(64) HierarchicalTimeWheel {
-//        static constexpr size_t L1_SLOTS = 512;   // 15秒级（30ms/槽）
-//        static constexpr size_t L2_SLOTS = 512;   // 8分钟级（~1s/槽）
-//        static constexpr size_t L3_SLOTS = 512;   // 4小时级（~30s/槽）
-//        static constexpr size_t LEVEL_1_INTERVAL_MS = 15000;  // 15秒间隔
-//        static constexpr size_t MAX_EXPIRE_BATCH_SIZE = 1000; // 最大批量清理数量
-//        
-//        // 使用原子标记位数组（按CPU缓存行对齐）
-//        struct alignas(64) SlotBucket {
-//            std::atomic<uint64_t> active_mask{0};
-//            std::array<std::chrono::steady_clock::time_point, 64> timestamps;
-//        };
-//        
-//        std::array<SlotBucket, (L1_SLOTS + L2_SLOTS + L3_SLOTS) / 64> buckets;
-//        std::atomic<uint32_t> current_epoch{0};
-//
-//        // 带层级参数的无锁更新时间戳
-//        void update_timestamp(size_t level, size_t slot, size_t timestamp, size_t interval_ms) noexcept {
-//            const auto now = std::chrono::steady_clock::time_point(std::chrono::milliseconds(timestamp));
-//            const size_t bucket_idx = (level == 0) ? slot / 64 : 
-//                                     (level == 1) ? (L1_SLOTS / 64) + slot / 64 : 
-//                                     (L1_SLOTS + L2_SLOTS) / 64 + slot / 64;
-//            auto& bucket = buckets[bucket_idx];
-//            const size_t bit_pos = slot % 64;
-//            
-//            // 使用CAS循环确保原子更新
-//            uint64_t old_mask = bucket.active_mask.load(std::memory_order_relaxed);
-//            while (!bucket.active_mask.compare_exchange_weak(old_mask, old_mask | (1ULL << bit_pos),
-//                std::memory_order_release, std::memory_order_relaxed)) {}
-//            
-//            bucket.timestamps[bit_pos] = now;
-//        }
-//        
-//        // 带参数的批量检测过期槽位
-//        template<typename F>
-//        void detect_expired_slots(size_t cutoff_time, F&& callback, size_t interval_ms, size_t batch_size) {
-//            const auto threshold = std::chrono::milliseconds(cutoff_time);
-//            const uint32_t epoch = current_epoch.fetch_add(1, std::memory_order_relaxed);
-//            for (auto& bucket : buckets) {
-//                const uint64_t mask = bucket.active_mask.exchange(0, std::memory_order_acquire);
-//                if (mask == 0) continue;
-//                
-//                const auto now = std::chrono::steady_clock::now();
-//                for (size_t i = 0; i < 64; ++i) {
-//                    if (mask & (1ULL << i)) {
-//                        if (now - bucket.timestamps[i] > threshold) {
-//                            callback(i); // 传递slot索引而不是时间戳
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        template<typename F>
-//        void batch_clear_slots(const std::vector<size_t>& slots, F&& callback) noexcept {
-//            for (auto slot : slots) {
-//                callback(slot);
-//            }
-//        }
-//
-//        // 优化后的检测方法：返回过期槽列表
-//        std::vector<size_t> collect_expired_slots(size_t cutoff_time) noexcept {
-//            std::vector<size_t> expired_slots;
-//            const auto threshold = std::chrono::milliseconds(cutoff_time);
-//            const auto now = std::chrono::steady_clock::now();
-//
-//            for (size_t bucket_idx = 0; bucket_idx < buckets.size(); ++bucket_idx) {
-//                auto& bucket = buckets[bucket_idx];
-//                const uint64_t mask = bucket.active_mask.exchange(0, std::memory_order_acquire);
-//                if (mask == 0) continue;
-//
-//                for (size_t i = 0; i < 64; ++i) {
-//                    if ((mask & (1ULL << i))) {
-//                        if (now - bucket.timestamps[i] > threshold) {
-//                            expired_slots.emplace_back(bucket_idx * 64 + i);
-//                        }
-//                    }
-//                }
-//            }
-//            return expired_slots;
-//        }
-//    };
-//    void start_expiration_handler() {
-//        expiration_handler_thread_ = std::thread([this]() {
-//            while (running_.load(std::memory_order_relaxed)) {
-//                std::vector<size_t> slots;
-//                slots.reserve(1024);
-//                expired_slots_queue_.try_dequeue_bulk(
-//                    std::back_inserter(slots),
-//                    HierarchicalTimeWheel::MAX_EXPIRE_BATCH_SIZE
-//                );
-//
-//                if (!slots.empty()) {
-//                    time_wheels_[0].batch_clear_slots(slots, [this](auto slot_idx) {
-//                        // 实际清理逻辑，保持轻量
-//                        session_last_active_times_.erase(slot_idx);
-//                    });
-//                }
-//                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-//            }
-//        });
-//    }
-//private:    
-//    // 声明分层时间轮成员变量
-//    std::array<HierarchicalTimeWheel, 3> time_wheels_; // 三级时间轮
-//    std::atomic<uint32_t> current_wheel_index_{0};
-//    std::atomic<bool> running_{ false };
-//    std::thread expiration_handler_thread_;
-//    // 过期会话处理队列（每个分片独立）
-//    moodycamel::ConcurrentQueue<std::size_t> expired_sessions_queue_;
-//    std::atomic<bool> session_cleaner_running_{ false };
-//    std::thread session_cleaner_thread_;
-//    std::array<std::atomic<uint32_t>, 12> shard_clean_counters_{};
-
 public:
     using self = CAntiCheatServer;
     using tcp_session_t = session_type;
@@ -243,7 +130,7 @@ public:
     virtual void log(int type, LPCSTR format, ...);
     virtual void user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...);
     void punish_log(LPCTSTR format, ...);
-    virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::object_handle&& raw_msg) { return false; };
+    virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) { return false; };
 
     template <typename T>
     void send(tcp_session_shared_ptr_t& session, T* package, std::size_t session_id = 0)
@@ -289,54 +176,7 @@ public:
     inline const std::string& get_auth_ticket() { return auth_ticket_; }
     inline void auth_success() { is_auth_success_ = true; }
     inline void auth_fail() { is_auth_success_ = false; }
-    std::string CAntiCheatServer::get_remote_ip(tcp_session_shared_ptr_t session);
 protected:
-    // 分片数=CPU核心数×2的动态分片
-    // phmap::parallel_flat_hash_map<
-    //     std::size_t, // Key
-    //     std::chrono::steady_clock::time_point, // Value
-    //     phmap::Hash<std::size_t>, // Hash
-    //     phmap::EqualTo<std::size_t>, // Eq
-    //     std::allocator<std::pair<const std::size_t, std::chrono::steady_clock::time_point>>, // Alloc
-    //     12, // 动态分片数 = CPU核心数×2 ,最大12
-    //     std::mutex // 互斥类型
-    // > session_last_active_times_;
-    // // 新增过期槽处理队列
-    // moodycamel::ConcurrentQueue<size_t> expired_slots_queue_;
-    // // 分层时间轮成员变量
-    // // 更新后的分片访问包装器（使用phmap线程安全遍历）
-    // class SubmapAccessor {
-    // public:
-    //     explicit SubmapAccessor(decltype(session_last_active_times_)& map) : map_(map) {}
-        
-    //     template <typename F>
-    //     void for_each(F&& f) {
-    //         map_.with_submaps([&](auto& submap) {
-    //             for (auto& kv : submap) {
-    //                 f(kv);
-    //             }
-    //             return true;
-    //         });
-    //     }
-    // private:
-    //     decltype(session_last_active_times_)& map_;
-    // };
-
-
-    // 批量发送队列（每会话独立）
-    // struct alignas(64) SessionSendQueue {
-    //     moodycamel::ConcurrentQueue<std::string> packets; // 还原为原始队列类型
-    //     std::atomic<uint32_t> batch_counter{0};
-    //     std::atomic_flag sending = ATOMIC_FLAG_INIT;
-    //     static constexpr uint32_t BATCH_SIZE = 32;
-    //     static constexpr uint32_t MAX_PACKET_SIZE = 4096;
-    // };
-    // phmap::parallel_node_hash_map<std::size_t,
-    //                             std::unique_ptr<SessionSendQueue>,
-    //                             phmap::Hash<std::size_t>,
-    //                             phmap::EqualTo<std::size_t>,
-    //                             phmap::priv::Allocator<std::pair<const std::size_t, std::unique_ptr<SessionSendQueue>>>> batch_send_queue_;
-
     // 统一使用steady_clock类型
     std::chrono::steady_clock::duration auth_check_timer_ = std::chrono::minutes(5);
     std::chrono::steady_clock::duration uuid_check_duration_ = std::chrono::seconds(30);
@@ -355,7 +195,7 @@ protected:
     std::string auth_ticket_;
     std::string auth_url_;
     std::atomic<bool> auth_lock_{true}; // 启动时锁定
-    BusinessThreadPool pool;
+    //BusinessThreadPool pool;
     std::atomic<bool> is_shutdown{ false };
     std::shared_mutex mutex_;
 

@@ -5,6 +5,8 @@
 #include "ThreadPool.h"
 
 #define CONFIG_APP_NAME "及时雨"
+#define _DEBUG
+
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr
@@ -153,7 +155,7 @@ public:
 	inline std::shared_ptr<CSessionMgr> usr_sessions_mgr() { return usr_sessions_mgr_; }
 	inline int get_policy_detect_interval() { return policy_detect_interval_; }
 	inline void set_policy_detect_interval(int interval) { policy_detect_interval_ = interval; }
-    void process_task(Task&& task);
+    void process_task(unsigned int package_id, tcp_session_shared_ptr_t session, const RawProtocolImpl&& package, msgpack::v1::object_handle&& raw_msg);
 private:
 	void OnlineCheck();
 protected:

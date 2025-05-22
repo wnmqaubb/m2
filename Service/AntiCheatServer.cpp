@@ -40,7 +40,13 @@ static phmap::parallel_flat_hash_map<std::string, uint32_t> ddos_black_map; // �
 static std::shared_mutex ddos_black_list_mutex;  // 改用标准库的共享锁
 static std::shared_mutex ddos_black_map_mutex;
 #endif
-CAntiCheatServer::CAntiCheatServer() : super(), pool(std::max<size_t>(4, std::thread::hardware_concurrency()/* 2*/))
+
+inline BS::thread_pool<BS::tp::none>& get_global_thread_pool() {
+    static BS::thread_pool pool(std::max(4U, std::thread::hardware_concurrency() * 2)); // 非模板类，无需参数
+    return pool;
+}
+
+CAntiCheatServer::CAntiCheatServer() : super()
 {
     bind_init(&CAntiCheatServer::on_init, this);
     bind_start(&CAntiCheatServer::on_start, this);
@@ -73,23 +79,6 @@ CAntiCheatServer::~CAntiCheatServer()
 
 bool CAntiCheatServer::start(const std::string& listen_addr, int port)
 {
-    // auto now = std::chrono::steady_clock::now();
-    // constexpr size_t SHARD_COUNT = 8;  // 8线程并行
-    // std::vector<std::thread> workers;
-
-    // for (size_t t = 0; t < SHARD_COUNT; ++t) {
-    //     workers.emplace_back([this, now, t, SHARD_COUNT] {
-    //         for (size_t slot = t; slot < 512; slot += SHARD_COUNT) {
-    //             const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    //             time_wheels_[0].update_timestamp(0, slot, timestamp, HierarchicalTimeWheel::LEVEL_1_INTERVAL_MS);
-    //         }
-    //     });
-    // }
-    // for (auto& w : workers) w.join();
-
-    // current_wheel_index_.store(0, std::memory_order_release);
-
-
     enable_proxy_tunnel(false);
     if (super::start(listen_addr, port, RawProtocolImpl()))
     {
@@ -111,46 +100,8 @@ void CAntiCheatServer::on_init()
 
 void CAntiCheatServer::on_start()
 {
-    //running_.store(true, std::memory_order_release);
-    //start_expiration_handler();
     log(LOG_TYPE_EVENT, TEXT("开始监听:%s:%u "), Utils::c2w(listen_address()).c_str(), listen_port());
     notify_mgr_.dispatch(SERVER_START_NOTIFY_ID);
-    // session_cleaner_running_.store(true);
-    // session_cleaner_thread_ = std::thread([this] {
-    //     constexpr size_t BATCH_SIZE = 1024;
-    //     std::vector<std::size_t> session_ids;
-    //     session_ids.reserve(BATCH_SIZE);
-
-    //     while (session_cleaner_running_.load()) {
-    //         size_t count = expired_sessions_queue_.try_dequeue_bulk(
-    //             std::back_inserter(session_ids),
-    //             BATCH_SIZE
-    //         );
-
-    //         if (count > 0) {
-    //             // 使用OpenMP并行清理（需开启编译选项）
-    //             // 使用phmap分片锁进行安全删除
-    //             phmap::parallel_flat_hash_map<std::size_t, 
-    //                 std::chrono::steady_clock::time_point>::iterator it;
-                    
-    //             #pragma omp parallel for private(it)
-    //             for (int i = 0; i < static_cast<int>(count); ++i) {
-    //                 const auto session_id = session_ids[i];
-    //                 // 在对应分片上加锁操作
-    //                 session_last_active_times_.with_submap_m(
-    //                     session_id % 12,  // 修正分片索引计算
-    //                     [session_id](auto& submap) {
-    //                         submap.erase(session_id);
-    //                         return true;
-    //                     }
-    //                 );
-    //             }
-    //         }
-
-    //         session_ids.clear();
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    //     }
-    // });
 }
 
 void CAntiCheatServer::on_accept(tcp_session_shared_ptr_t& session)
@@ -296,9 +247,9 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session, std::string_vi
     try {
         CHECK_SESSION(session);
         //auto session = std::move(session1);
-
+        // 提交任务到线程池
         RawProtocolImpl package;
-        msgpack::object_handle raw_msg;     // 反序列化结果
+        msgpack::v1::object_handle raw_msg;     // 反序列化结果
         std::error_code ec;            // 错误码
 
         // 合并步骤：协议解析+反序列化
@@ -306,50 +257,57 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t session, std::string_vi
             log(LOG_TYPE_DEBUG, "协议解析失败: %s", ec.message().c_str());
             return;
         }
-        // 直接使用反序列化结果
-        const auto& root = raw_msg.get();
-        const auto package_id = root.via.array.ptr[0].as<unsigned int>();
-        if (!session || session->is_stopped()) {
-            return;
-        }
-        auto user_data = get_user_data_(session);
-        if (user_data->get_handshake() == false)
-        {
-            if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
+        // 2. 使用 shared_ptr 包装不可复制的 raw_msg
+        auto raw_msg_ptr = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg));
+        get_global_thread_pool().submit_task(
+            [this, session1 = session->weak_from_this(),
+            package = std::move(package), raw_msg_ptr, remote_address, remote_port]() {
+            // 直接使用反序列化结果
+            const auto& root = raw_msg_ptr->get();
+            const auto package_id = root.via.array.ptr[0].as<unsigned int>();
+            auto& session = session1.lock();
+            if (!session || session->is_stopped()) {
+                return;
+            }
+            auto user_data = get_user_data_(session);
+            if (user_data->get_handshake() == false)
             {
-                if (!on_recv(package_id, session, package, std::move(raw_msg)))
+                if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
                 {
-                    log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
+                    if (!on_recv(package_id, session, package, std::move(*raw_msg_ptr)))
+                    {
+                        log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
+                    }
+                    return;
                 }
-                return;
-            }
-            else
-            {
-                //log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"), Utils::c2w(remote_address).c_str(), remote_port);
-                return;
-            }
-         }
-
-         if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
-         {
-             if (!on_recv(package_id, session, package, std::move(raw_msg)))
-             {
-                 log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
+                else
+                {
+                    //log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"), Utils::c2w(remote_address).c_str(), remote_port);
+                    return;
+                }
              }
-             return;
-         }
-#ifdef G_SERVICE    
-        // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
-        if (OBPKG_ID_C2S_AUTH == package_id)
-        {
-            CObserverServer::instance().obpkg_id_c2s_auth(session, package, std::move(raw_msg));
-            return;
-        }
-#endif
-        if (!on_recv(package_id, session, package, std::move(raw_msg)))
-        {
-            log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
-        }
+
+             if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
+             {
+                 if (!on_recv(package_id, session, package, std::move(*raw_msg_ptr)))
+                 {
+                     log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
+                 }
+                 return;
+             }
+    #ifdef G_SERVICE    
+            // service只注册了OBPKG_ID_C2S_AUTH一个事件,所以避免不需要的调用dispatch,避免锁竞争
+            if (OBPKG_ID_C2S_AUTH == package_id)
+            {
+                CObserverServer::instance().obpkg_id_c2s_auth(session, package, std::move(*raw_msg_ptr));
+                return;
+            }
+    #endif
+            if (!on_recv(package_id, session, package, std::move(*raw_msg_ptr)))
+            {
+                log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"), Utils::c2w(remote_address).c_str(), remote_port, package_id);
+            }
+        });
         return;
     }
     catch (const std::exception& e) {

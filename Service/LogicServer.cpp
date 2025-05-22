@@ -55,7 +55,6 @@ using namespace std::literals;
 #else
 #define LOG(x)
 #endif
-//#define _DEBUG
 std::shared_ptr<spdlog::logger> slog;
 std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> clog;
 // 全局声明线程池和日志器
@@ -221,14 +220,27 @@ bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& se
         return false;
     }
     try {
+        auto pkg = std::move(package);
+        auto raw_msg_local = std::move(raw_msg);
+        // 提交任务到 BS::thread_pool
+        get_global_thread_pool().submit_task([
+            this, session = session->weak_from_this(),
+            pkg_id = package_id, pkg = std::move(pkg),
+            raw_msg = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg_local))]() mutable {
+
+            if (auto s = session.lock()) {
+                // 使用移动语义传递msgpack对象
+                process_task(pkg_id, s, std::move(pkg), std::move(*raw_msg));
+            }
+        });
         //slog->info("CLogicServer::on_recv: {}", package_id);
         //package_mgr_.dispatch(package_id, session, package, raw_msg);
         // 将任务放入队列
-        Task task(package_id, session, package, std::move(raw_msg));
+        /*Task task(package_id, session, package, std::move(raw_msg));
         if (!pool.enqueue(std::move(task))) {
             slog->warn("Failed to enqueue task, queue may be full");
             return false;
-        }
+        }*/
         // 检查内存使用情况
         //pool.check_memory_usage();
 
@@ -248,39 +260,49 @@ bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& se
 
 }
 
-void CLogicServer::process_task(Task&& task)
+void CLogicServer::process_task(unsigned int package_id, tcp_session_shared_ptr_t session, const RawProtocolImpl&& package, msgpack::v1::object_handle&& raw_msg)
 {
-    if (!task.raw_msg || task.raw_msg->get().is_nil()) {
+    if (raw_msg.get().is_nil()) {
         slog->warn("Invalid msgpack handle detected");
         return;
     }
 
     // 执行任务
     try {
-        auto& [package_id, session, package, raw_msg] = task;
+        tcp_session_shared_ptr_t local_session;
+        // 使用 weak_ptr 检测会话有效性
+        std::weak_ptr<asio2::tcp_session> weak_session = session;
+        local_session = weak_session.lock();
+        if (!local_session) {
+            slog->warn("Session expired in task processing");
+            return;
+        }
 
         if (package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
         {
-            auto msg = raw_msg->get().as<ProtocolC2SHandShake>();
-            on_recv_handshake(session, package, msg);
+            auto msg = raw_msg.get().as<ProtocolC2SHandShake>();
+            on_recv_handshake(local_session, package, msg);
             return;
         }
 
         if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
         {
-            auto msg = raw_msg->get().as<ProtocolC2SHeartBeat>();
+            auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
 
             ProtocolS2CHeartBeat resp;
             resp.tick = msg.tick;
-            async_send(session, &resp);
-            auto userdata = get_user_data_(session);
+            async_send(local_session, &resp);
+            auto userdata = get_user_data_(local_session);
             userdata->update_heartbeat_time();
             //user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
             //on_recv_heartbeat(session, package, msg);
             return;
         }
 
-        package_mgr_.dispatch(package_id, session, package, *raw_msg);
+        // 1. 复制必要数据（避免移动后失效）
+        unsigned int local_pkg_id = package_id;
+        RawProtocolImpl local_pkg = std::move(package); // ✅ 明确转移所有权
+        package_mgr_.dispatch(local_pkg_id, local_session, local_pkg, std::move(raw_msg));
     }
     catch (const std::exception& e) {
         slog->error("Package dispatch failed: {}", e.what());

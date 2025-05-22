@@ -12,7 +12,7 @@
 //#include <ConcurrentQueue/BlockingConcurrentQueue.h>
 //#include <folly/ProducerConsumerQueue.h>
 //#include <readerwriterqueue/readerwriterqueue.h>
-//#define _DEBUG
+#define _DEBUG
 class CAntiCheatServer;
 class CObserverServer : public CAntiCheatServer {
     using super = CAntiCheatServer;
@@ -32,7 +32,7 @@ public:
     void stop() { logic_client_->stop(); super::stop(); }
 
     std::wstring& get_vmp_expire() { return vmp_expire_; }
-    void process_task(Task&& task);
+    void process_task(unsigned int package_id, tcp_session_shared_ptr_t session, const RawProtocolImpl&& package, msgpack::v1::object_handle&& raw_msg);
 
     void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
 
