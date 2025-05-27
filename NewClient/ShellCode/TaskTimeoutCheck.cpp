@@ -1,4 +1,4 @@
-﻿#include "../pch.h"
+﻿#include "pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include "Service/SubServicePackage.h"

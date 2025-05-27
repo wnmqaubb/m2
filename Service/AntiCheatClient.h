@@ -29,7 +29,12 @@ public:
 		ip_ = ip;
 		port_ = port;
         notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-        super::start(ip, port, RawProtocolImpl());        
+        if (super::start(ip, port, RawProtocolImpl())) {
+            OutputDebugStringA("连接服务器成功");
+        }
+        else {
+            OutputDebugStringA("连接服务器失败");
+        }
 	}
 	virtual void async_start(const std::string& ip, unsigned short port)
 	{
@@ -62,6 +67,7 @@ public:
         }
         else
         {
+            OutputDebugStringA(asio2::get_last_error().message().c_str());
             notify_mgr_.dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
         }
     }

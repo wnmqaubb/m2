@@ -1,4 +1,4 @@
-﻿#include "../pch.h"
+﻿#include "pch.h"
 #include <Lightbone/utils.h>
 #include <Lightbone/pattern.hpp>
 #include "Service/AntiCheatClient.h"
@@ -566,27 +566,46 @@ private:
 	uint32_t param;
 };
 
-void async_execute_javascript(const std::string& sv, uint32_t script_id)
-{
+//void async_execute_javascript(const std::string& sv, uint32_t script_id)
+//{
+//    if (sv.empty()) return;
+//    client_->post([sv = sv, script_id]() {
+//        try 
+//        {
+//             g_context->eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
+//         }
+//        catch (qjs::exception)
+//        {
+//             report_js_context_exception(script_id);
+//         }
+//        catch (CSehException seh_exception)
+//        {
+//            report(689999, false, std::to_string(script_id) + ":seh error " + std::to_string(seh_exception.m_exception_code));
+//        }
+//        catch (...)
+//        {
+//            report(689999, false, std::to_string(script_id) + ":unknown error");
+//            }
+//        });
+//}
+void async_execute_javascript(const std::string& sv, uint32_t script_id) {
     if (sv.empty()) return;
-    client_->post([sv = sv, script_id]() {
-        try 
-        {
-             g_context->eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
-         }
-        catch (qjs::exception)
-        {
-             report_js_context_exception(script_id);
-         }
+    // 使用专用线程池执行 JS，而非 client_->post
+    std::thread([sv, script_id]() {
+        try {
+            g_context->eval(Utils::String::to_utf8(sv), "<eval>", JS_EVAL_TYPE_MODULE);
+        }
+        catch (qjs::exception) {
+            report_js_context_exception(script_id);
+        }
         catch (CSehException seh_exception)
         {
             report(689999, false, std::to_string(script_id) + ":seh error " + std::to_string(seh_exception.m_exception_code));
         }
-        catch (...)
-        {
+        catch (...) {
             report(689999, false, std::to_string(script_id) + ":unknown error");
-            }
-        });
+        }
+    }).detach(); // 分离线程避免阻塞
 }
 static uint32_t read_dword(uint32_t addr)
 {

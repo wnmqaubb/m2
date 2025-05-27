@@ -12,15 +12,13 @@
 #include <asio2\asio2.hpp>
 #include <asio2\util\uuid.hpp>
 #include <msgpack.hpp>
-//#include <asio/detail/thread_group.hpp>
-
 #include "Lightbone/utils.h"
 #include "Lightbone/api_resolver.h"
 #include "Lightbone/pointer.hpp"
 #include "Lightbone/lighthook.h"
 #include "Lightbone/xorstr.hpp"
 #include "qjs.h"
-#define LOG_SHOW
+//#define LOG_SHOW
 #ifdef LOG_SHOW
 #define LOG(x,...) LOG_EVENT(x, __VA_ARGS__)
 #else 

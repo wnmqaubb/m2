@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "dnscache.h"
 #include <windows.h>
 #include <memory>

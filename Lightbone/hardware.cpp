@@ -1,19 +1,23 @@
 #include "pch.h"
-#include "utils.h"
-#include <WinNT.h>
-#include <WinBase.h>
 #include "api_resolver.h"
-#include <stddef.h>
-#include <Nb30.h>
-#include <intrin.h>
-#include <array>
 #include "singleton.hpp"
-#include <setupapi.h>
+#include "utils.h"
+#include <array>
 #include <devguid.h>
+#include <Winsock2.h>
+#include <intrin.h>
+#include <ws2def.h>
+#include <IPHlpApi.h>
+#include <Nb30.h>
 #include <regex>
-#include <tchar.h>
+#include <setupapi.h>
 #include <sstream>
+#include <stddef.h>
+#include <tchar.h>
+#include <WinBase.h>
+#include <WinNT.h>
 
+#pragma comment(lib,"Iphlpapi.lib")
 #pragma comment(lib,"setupapi.lib")
 #pragma comment(lib,"netapi32.lib")  
 #define NAME_SIZE 128
@@ -49,68 +53,48 @@ namespace Utils {
             return c2w(vendor_serialnumber);
 		}
 
-		std::wstring get_mac_address() {
-            char mac[100] = { 0 };
-            NCB ncb;
-            typedef struct _ASTAT_ {
-                ADAPTER_STATUS   adapt;
-                NAME_BUFFER   NameBuff[30];
-            }ASTAT, *PASTAT;
-
-            ASTAT Adapter;
-
-            typedef struct _LANA_ENUM {
-                UCHAR   length;
-                UCHAR   lana[MAX_LANA];
-            }LANA_ENUM;
-
-            LANA_ENUM lana_enum;
-            UCHAR uRetCode;
-            memset(&ncb, 0, sizeof(ncb));
-            memset(&lana_enum, 0, sizeof(lana_enum));
-            ncb.ncb_command = NCBENUM;
-            ncb.ncb_buffer = (unsigned char *)&lana_enum;
-            ncb.ncb_length = sizeof(LANA_ENUM);
-            uRetCode = Netbios(&ncb);
-
-            if (uRetCode != NRC_GOODRET)
-                return L"";
-
-            for (int lana = 0; lana < lana_enum.length; lana++) {
-                ncb.ncb_command = NCBRESET;
-                ncb.ncb_lana_num = lana_enum.lana[lana];
-                uRetCode = Netbios(&ncb);
-                if (uRetCode == NRC_GOODRET)
-                    break;
+        std::wstring get_mac_address() {
+            std::string mac;
+            ULONG outBufLen = 0;
+            DWORD dwRetVal = 0;
+            
+            // 使用GetAdaptersAddresses替代旧的API
+            PIP_ADAPTER_ADDRESSES pAddresses = nullptr;
+            PIP_ADAPTER_ADDRESSES pCurrAddresses = nullptr;
+            
+            // 第一次调用获取所需缓冲区大小
+            dwRetVal = GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, nullptr, &outBufLen);
+            if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
+                pAddresses = (PIP_ADAPTER_ADDRESSES)malloc(outBufLen);
+                if (pAddresses == nullptr) {
+                    return c2w(mac);
+                }
+                
+                // 第二次调用获取实际数据
+                dwRetVal = GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, pAddresses, &outBufLen);
+                if (dwRetVal == ERROR_SUCCESS) {
+                    pCurrAddresses = pAddresses;
+                    while (pCurrAddresses) {
+                        if (pCurrAddresses->PhysicalAddressLength > 0) {
+                            char buffer[18] = {0};
+                            sprintf_s(buffer, sizeof(buffer), "%02X:%02X:%02X:%02X:%02X:%02X",
+                                    pCurrAddresses->PhysicalAddress[0],
+                                    pCurrAddresses->PhysicalAddress[1],
+                                    pCurrAddresses->PhysicalAddress[2],
+                                    pCurrAddresses->PhysicalAddress[3],
+                                    pCurrAddresses->PhysicalAddress[4],
+                                    pCurrAddresses->PhysicalAddress[5]);
+                            mac = buffer;
+                            break;
+                        }
+                        pCurrAddresses = pCurrAddresses->Next;
+                    }
+                }
+                free(pAddresses);
             }
+            return c2w(mac);
+        }
 
-            if (uRetCode != NRC_GOODRET)
-                return L"";
-
-            memset(&ncb, 0, sizeof(ncb));
-            ncb.ncb_command = NCBASTAT;
-            ncb.ncb_lana_num = lana_enum.lana[0];
-
-            UCHAR ncb_callname[NCBNAMSZ];
-
-            strcpy_s((char*)ncb.ncb_callname, sizeof(ncb_callname), "*");
-            ncb.ncb_buffer = (unsigned char *)&Adapter;
-            ncb.ncb_length = sizeof(Adapter);
-            uRetCode = Netbios(&ncb);
-
-            if (uRetCode != NRC_GOODRET)
-                return L"";
-
-            sprintf_s(mac, 100, "%02X-%02X-%02X-%02X-%02X-%02X",
-                Adapter.adapt.adapter_address[0],
-                Adapter.adapt.adapter_address[1],
-                Adapter.adapt.adapter_address[2],
-                Adapter.adapt.adapter_address[3],
-                Adapter.adapt.adapter_address[4],
-                Adapter.adapt.adapter_address[5]);
-
-            return c2w(std::string(mac));
-		}
 
 		std::wstring get_volume_serial_number() {
             DWORD  VolumeSerialNumber;

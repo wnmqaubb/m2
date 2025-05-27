@@ -43,7 +43,7 @@
     <CharacterSet>Unicode</CharacterSet>
     <DisableAdvancedSupport>true</DisableAdvancedSupport>
     <SupportWinXP>true</SupportWinXP>
-    <SupportLTL>true</SupportLTL>
+    <SupportLTL>msvcrt</SupportLTL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>

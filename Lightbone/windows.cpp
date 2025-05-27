@@ -7,8 +7,12 @@
 #include <wincrypt.h>
 #include <optional>
 #include <mscat.h>
-#pragma comment(lib, "crypt32.lib")
+#include <Uxtheme.h>
+#include <Psapi.h>
 #pragma comment(lib, "Wintrust.lib")
+#pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "crypt32.lib")
+#pragma comment(lib, "Uxtheme.lib")
 
 using namespace Utils;
 using namespace Utils::String;
@@ -30,10 +34,13 @@ CWindows::CWindows()
 {
     system_version_ = get_system_version_();
     initialize_access();
-
-    LoadLibraryW(L"advapi32.dll");
-    LoadLibraryW(L"crypt32.dll");
-    LoadLibraryW(L"Wintrust.dll");
+    if(!GetModuleHandleW(L"Wintrust.dll")) LoadLibraryW(L"Wintrust.dll");
+    if(!GetModuleHandleW(L"advapi32.dll")) LoadLibraryW(L"advapi32.dll");
+    if(!GetModuleHandleW(L"crypt32.dll")) LoadLibraryW(L"crypt32.dll");
+    // 禁用XP的主题样式以获得更好兼容性
+    if (system_version_ <= WINDOWS_XP) {
+        SetThemeAppProperties(STAP_ALLOW_NONCLIENT | STAP_ALLOW_CONTROLS);
+    }
 }
 
 CWindows::~CWindows()
@@ -76,6 +83,13 @@ void CWindows::initialize_access()
         ThreadQueryAccess = THREAD_QUERY_LIMITED_INFORMATION;
         ThreadSetAccess = THREAD_SET_LIMITED_INFORMATION;
         ThreadAllAccess = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0xfff;
+    } 
+    else if (system_version_ >= WINDOWS_XP) {  // XP专用设置
+        ProcessQueryAccess = PROCESS_QUERY_INFORMATION | PROCESS_VM_READ;
+        ProcessAllAccess = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0xFFF;
+        ThreadQueryAccess = THREAD_QUERY_INFORMATION;
+        ThreadSetAccess = THREAD_SET_INFORMATION;
+        ThreadAllAccess = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x3FF;
     }
     else
     {
@@ -200,6 +214,10 @@ NTSTATUS CWindows::read_virtual_memory<uint64_t>(
     uint64_t buffer_size,
     uint64_t* bytes_of_read)
 {
+    // XP需要更严格的内存对齐检查
+    if (system_version_ <= WINDOWS_XP && (base_address % 4 != 0)) {
+        return STATUS_DATATYPE_MISALIGNMENT;
+    }
     auto NtWow64ReadVirtualMemory64 = IMPORT(L"ntdll.dll", NtWow64ReadVirtualMemory64);
     return NtWow64ReadVirtualMemory64(handle, (PVOID64)base_address, buffer, buffer_size, bytes_of_read);
 }
@@ -427,7 +445,12 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
     auto OpenThread = IMPORT(L"kernel32.dll", OpenThread);
     ProcessMap process_map;
     power();
-    uint32_t system_information_class = SystemExtendedProcessInformation;
+    // XP使用旧版API获取进程信息
+    uint32_t system_information_class = SystemProcessInformation;
+    // XP需要不同的系统信息类
+    if (system_version_ >= WINDOWS_VISTA) {
+        system_information_class = SystemExtendedProcessInformation;
+    }
     NTSTATUS status;
     static PVOID processes = NULL;
     static ULONG64 lastProcessesTickCount = 0;
@@ -441,7 +464,6 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
             delete[] processes;
             processes = NULL;
         }
-
         if (!NT_SUCCESS(get_processes(&processes, system_information_class)))
         {
             return process_map;
@@ -468,16 +490,19 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
                 break;
         }
         // 排除有签名的进程
-        if (exclude_signed && verify_signature(process.pid)) {
-            if (info->NextEntryOffset)
-            {
-                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
-                continue;
-            }
-            else
-                break;
+        //if (system_version_ >= WINDOWS_VISTA && exclude_signed && verify_signature(process.pid)) {
+        //    if (info->NextEntryOffset)
+        //    {
+        //        info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+        //        continue;
+        //    }
+        //    else
+        //        break;
+        //}
+        // 获取进程名（XP兼容方式）
+        if (info->ImageName.Buffer) {
+            process.name = std::wstring(info->ImageName.Buffer, info->ImageName.Length / sizeof(WCHAR));
         }
-        process.name = info->ImageName.Buffer ? info->ImageName.Buffer : L"";
         process.parent_pid = reinterpret_cast<uint32_t>(info->InheritedFromUniqueProcessId);
         process.modules = enum_modules(process.pid, process.is_64bits);
         if (!NT_SUCCESS(get_last_status()))
@@ -495,21 +520,23 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
                 auto& thd = info->Threads[i].ThreadInfo;
 
                 thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-                if (process.is_64bits && process.no_access == false)
-                {
-                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-                    uint64_t start_address = 0;
-                    ULONG return_length = 0;
-                    status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-                    CloseHandle(thread_handle);
-                    if (NT_SUCCESS(status))
+                if (system_version_ >= WINDOWS_VISTA) {
+                    if (process.is_64bits && process.no_access == false)
                     {
-                        thread.start_address = start_address;
+                        HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                        uint64_t start_address = 0;
+                        ULONG return_length = 0;
+                        status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                        CloseHandle(thread_handle);
+                        if (NT_SUCCESS(status))
+                        {
+                            thread.start_address = start_address;
+                        }
                     }
-                }
-                else
-                {
-                    thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
+                    else
+                    {
+                        thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
+                    }
                 }
 
 
@@ -525,18 +552,20 @@ CWindows::ProcessMap CWindows::enum_process(std::function<bool(ProcessInfo& proc
                 SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
 
                 thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-                if (thread.tid > 0)
-                {
-                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-                    uint32_t start_address = 0;
-                    ULONG return_length = 0;
-                    if (thread_handle != NULL)
+                if (system_version_ >= WINDOWS_VISTA) {
+                    if (thread.tid > 0)
                     {
-                        status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-                        CloseHandle(thread_handle);
-                        if (NT_SUCCESS(status))
+                        HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                        uint32_t start_address = 0;
+                        ULONG return_length = 0;
+                        if (thread_handle != NULL)
                         {
-                            thread.start_address = start_address;
+                            status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                            CloseHandle(thread_handle);
+                            if (NT_SUCCESS(status))
+                            {
+                                thread.start_address = start_address;
+                            }
                         }
                     }
                 }
@@ -574,7 +603,12 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
     auto GetFileSizeEx = IMPORT(L"kernel32.dll", GetFileSizeEx);
     ProcessMap process_map;
     power();
-    uint32_t system_information_class = SystemExtendedProcessInformation;
+    // XP使用旧版API获取进程信息
+    uint32_t system_information_class = SystemProcessInformation;
+    // 根据系统版本选择信息类
+    if (system_version_ >= WINDOWS_VISTA) {
+        system_information_class = SystemExtendedProcessInformation;
+    }
     NTSTATUS status;
     static PVOID processes = NULL;
     static ULONG64 lastProcessesTickCount = 0;
@@ -615,15 +649,15 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
                 break;
         }
         // 排除有签名的进程
-        if (exclude_signed && verify_signature(process.pid)) {
-            if (info->NextEntryOffset)
-            {
-                info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
-                continue;
-            }
-            else
-                break;
-        }
+        //if (system_version_ >= WINDOWS_VISTA && exclude_signed && verify_signature(process.pid)) {
+        //    if (info->NextEntryOffset)
+        //    {
+        //        info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>((uint8_t*)info + info->NextEntryOffset);
+        //        continue;
+        //    }
+        //    else
+        //        break;
+        //}
         process.name = info->ImageName.Buffer ? info->ImageName.Buffer : L"";
         process.parent_pid = reinterpret_cast<uint32_t>(info->InheritedFromUniqueProcessId);
         process.modules = enum_modules(process.pid, process.is_64bits);
@@ -642,21 +676,24 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
                 auto& thd = info->Threads[i].ThreadInfo;
 
                 thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-                if (process.is_64bits && process.no_access == false)
-                {
-                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-                    uint64_t start_address = 0;
-                    ULONG return_length = 0;
-                    status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-                    CloseHandle(thread_handle);
-                    if (NT_SUCCESS(status))
+                
+                if (system_version_ >= WINDOWS_VISTA) {
+                    if (process.is_64bits && process.no_access == false)
                     {
-                        thread.start_address = start_address;
+                        HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                        uint64_t start_address = 0;
+                        ULONG return_length = 0;
+                        status = NtWow64QueryInformationThread64(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                        CloseHandle(thread_handle);
+                        if (NT_SUCCESS(status))
+                        {
+                            thread.start_address = start_address;
+                        }
                     }
-                }
-                else
-                {
-                    thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
+                    else
+                    {
+                        thread.start_address = reinterpret_cast<uintptr_t>(info->Threads[i].Win32StartAddress);
+                    }
                 }
 
 
@@ -672,18 +709,21 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
                 SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
 
                 thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-                if (thread.tid > 0)
-                {
-                    HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
-                    uint32_t start_address = 0;
-                    ULONG return_length = 0;
-                    if (thread_handle != NULL)
+                
+                if (system_version_ >= WINDOWS_VISTA) {
+                    if (thread.tid > 0)
                     {
-                        status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
-                        CloseHandle(thread_handle);
-                        if (NT_SUCCESS(status))
+                        HANDLE thread_handle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, thread.tid);
+                        uint32_t start_address = 0;
+                        ULONG return_length = 0;
+                        if (thread_handle != NULL)
                         {
-                            thread.start_address = start_address;
+                            status = NtQueryInformationThread(thread_handle, ThreadQuerySetWin32StartAddress, &start_address, sizeof(start_address), &return_length);
+                            CloseHandle(thread_handle);
+                            if (NT_SUCCESS(status))
+                            {
+                                thread.start_address = start_address;
+                            }
                         }
                     }
                 }
@@ -793,6 +833,9 @@ bool CWindows::power()
     auto LookupPrivilegeValueW = IMPORT(L"advapi32.dll", LookupPrivilegeValueW);
     auto AdjustTokenPrivileges = IMPORT(L"advapi32.dll", AdjustTokenPrivileges);
 
+    if (!GetCurrentProcess || !OpenProcessToken || !LookupPrivilegeValueW || !AdjustTokenPrivileges) {
+        return false;
+    }
     TOKEN_PRIVILEGES tp;
     HANDLE hToken;
     LUID luid;
@@ -941,9 +984,9 @@ CWindows::WindowsList CWindows::enum_windows(bool exclude_system_process, bool e
         }
 
         // 签名验证过滤
-        if (exclude_signed && verify_signature(process_id)) {
-            continue;
-        }
+        //if (system_version_ >= WINDOWS_VISTA && exclude_signed && verify_signature(process_id)) {
+        //    continue;
+        //}
 
         // 构建窗口信息
         result.emplace_back(WindowInfo{
@@ -1620,6 +1663,12 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const
     auto CertFreeCertificateContext = IMPORT(L"Crypt32.dll", CertFreeCertificateContext);
     auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
     auto Wow64DisableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64DisableWow64FsRedirection);
+
+    if (!CryptQueryObject || !CryptMsgGetParam || !CertFindCertificateInStore || !CertCloseStore || !CertGetCertificateChain 
+        || !CertGetNameStringA || !CertFreeCertificateChain || !CertFreeCertificateContext || !Wow64EnableWow64FsRedirection
+        || !Wow64DisableWow64FsRedirection) {
+        return std::nullopt;
+    }
     HCERTSTORE hStore = nullptr;
     HCRYPTMSG hMsg = nullptr;
     PCCERT_CONTEXT pCertContext = nullptr;
@@ -1638,11 +1687,6 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const
                           CERT_QUERY_FORMAT_FLAG_BINARY, 0, &dwEncoding,
                           &dwContentType, &dwFormatType, &hStore, &hMsg, nullptr)) {
         Wow64EnableWow64FsRedirection(true);
-        /*DWORD dwError = GetLastError();
-        LPVOID lpMsgBuf;
-        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                      NULL, dwError, 0, (LPSTR)&lpMsgBuf, 0, NULL);
-        printf("Error %d: %s", dwError, (char*)lpMsgBuf);*/
         return std::nullopt;
     }
 
@@ -1663,29 +1707,30 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const
         return std::nullopt;
     }
 
-    SignatureInfo info{};
     char buffer[256]{};
-    CERT_CHAIN_PARA ChainPara = { sizeof(ChainPara) };
+    CERT_CHAIN_PARA ChainPara = { sizeof(ChainPara) }; 
     PCCERT_CHAIN_CONTEXT pChainContext = nullptr;
     CertGetCertificateChain(nullptr, pCertContext, nullptr, hStore, &ChainPara,
                             CERT_CHAIN_REVOCATION_CHECK_CHAIN, nullptr, &pChainContext);
 
-    if (pChainContext && pChainContext->TrustStatus.dwErrorStatus == CERT_TRUST_NO_ERROR) {
-        CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, buffer, sizeof(buffer));
-        info.issuer = buffer;
-        CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_NAME_ISSUER_FLAG,
-                           nullptr, buffer, sizeof(buffer));
-        info.subject = buffer;
+    SignatureInfo info{};
+    if (pChainContext) {
+        if (pChainContext->TrustStatus.dwErrorStatus == CERT_TRUST_NO_ERROR) {
+            char buffer[256]{};
+            CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, buffer, sizeof(buffer));
+            info.issuer = buffer;
+            CertGetNameStringA(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_NAME_ISSUER_FLAG,
+                               nullptr, buffer, sizeof(buffer));
+            info.subject = buffer;
+            info.timestamp = pCertContext->pCertInfo->NotBefore;  // 确保证书有效
+        }
+        CertFreeCertificateChain(pChainContext);  // 先释放链
     }
-    if (pChainContext) CertFreeCertificateChain(pChainContext);
 
-    // 获取证书有效期
-    info.timestamp = pCertContext->pCertInfo->NotBefore;
-
-    CertFreeCertificateContext(pCertContext);
-    CertCloseStore(hStore, 0);
+    if (pCertContext) CertFreeCertificateContext(pCertContext);  // 再释放证书
+    if (hStore) CertCloseStore(hStore, 0);  // 最后关闭存储
     Wow64EnableWow64FsRedirection(true);
-    return info;
+    return pChainContext ? std::optional(info) : std::nullopt;
 }
 
 std::optional<CWindows::SignatureInfo> CWindows::verify_catalog_signature(const std::wstring& path) {
@@ -1700,6 +1745,13 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_catalog_signature(const 
     auto CryptCATAdminEnumCatalogFromHash = IMPORT(L"Wintrust.dll", CryptCATAdminEnumCatalogFromHash);
     auto CryptCATCatalogInfoFromContext = IMPORT(L"Wintrust.dll", CryptCATCatalogInfoFromContext);
     auto CryptCATAdminReleaseCatalogContext = IMPORT(L"Wintrust.dll", CryptCATAdminReleaseCatalogContext);
+
+    if (!CreateFileW || !CloseHandle || !Wow64EnableWow64FsRedirection || !Wow64DisableWow64FsRedirection ||
+        !CryptCATAdminAcquireContext || !CryptCATAdminCalcHashFromFileHandle || !CryptCATAdminReleaseContext ||
+        !CryptCATAdminEnumCatalogFromHash || !CryptCATCatalogInfoFromContext || !CryptCATAdminReleaseCatalogContext) {
+            return std::nullopt;
+    }
+
     PVOID oldValue = nullptr;
     Wow64DisableWow64FsRedirection(&oldValue);
     std::wstring real_path = path;
@@ -1777,27 +1829,38 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_signature(const std::wst
     if (path.empty()) return std::nullopt;
     auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
     power();
-    auto embeddedInfo = verify_embedded_signature(path);
-    if (embeddedInfo) {
-        Wow64EnableWow64FsRedirection(true);
-        return embeddedInfo;
-    }
+    std::optional<CWindows::SignatureInfo> embeddedInfo;
+    try {
+        embeddedInfo = verify_embedded_signature(path);
+        if (embeddedInfo) {
+            Wow64EnableWow64FsRedirection(true);
+            return embeddedInfo;
+        }
 
-    auto catalogInfo = verify_catalog_signature(path);
-    Wow64EnableWow64FsRedirection(true);
-    return catalogInfo ? catalogInfo : std::nullopt;
+        embeddedInfo = verify_catalog_signature(path);
+        Wow64EnableWow64FsRedirection(true);
+        return embeddedInfo ? embeddedInfo : std::nullopt;
+    }
+    catch (const std::exception& e)
+    {
+        return std::nullopt;
+    }
 }
 
 std::wstring CWindows::get_process_path_(DWORD pid) {
     auto OpenProcess = IMPORT(L"kernel32.dll", OpenProcess);
-    auto QueryFullProcessImageNameW = IMPORT(L"kernel32.dll", QueryFullProcessImageNameW);
+    auto GetModuleFileNameExW = IMPORT(L"psapi.dll", GetModuleFileNameExW); // XP 兼容
     auto CloseHandle = IMPORT(L"kernel32.dll", CloseHandle);
-    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+
+    if(!OpenProcess || !GetModuleFileNameExW || !CloseHandle) return L"";
+    HANDLE hProcess = OpenProcess(ProcessQueryAccess, FALSE, pid);
     if (!hProcess) return L"";
 
     wchar_t path[MAX_PATH]{};
-    DWORD size = MAX_PATH;
-    QueryFullProcessImageNameW(hProcess, 0, path, &size);
+    if (GetModuleFileNameExW(hProcess, NULL, path, MAX_PATH) == 0) {
+        CloseHandle(hProcess);
+        return L"";
+    }
     CloseHandle(hProcess);
     return path;
 }

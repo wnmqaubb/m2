@@ -139,7 +139,7 @@
     <PlatformToolset>v141_xp</PlatformToolset>
     <DisableAdvancedSupport>true</DisableAdvancedSupport>
     <SupportWinXP>true</SupportWinXP>
-    <SupportLTL>true</SupportLTL>
+    <SupportLTL>msvcrt</SupportLTL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>

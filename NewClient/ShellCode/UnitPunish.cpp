@@ -1,4 +1,4 @@
-﻿#include "../pch.h"
+﻿#include "pch.h"
 #include "TaskBasic.h"
 
 extern HWND g_main_window_hwnd;

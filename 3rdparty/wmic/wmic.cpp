@@ -1,4 +1,5 @@
-﻿#include "WMIC.h"
+﻿#include "pch.h"
+#include "WMIC.h"
 // windows
 #include <Wbemidl.h>
 #include <Windows.h>

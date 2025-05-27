@@ -5,11 +5,13 @@
 #include <unordered_map>
 #include <algorithm>
 #include <filesystem>
+#include <cassert>
 
 #define RUNGATE_API void __stdcall
 
 using namespace lfengine;
 using namespace lfengine::rungate;
+namespace fs = std::filesystem;
 TInitRecord g_InitRecord;
 #pragma comment(lib, "user32.lib")
 
@@ -19,6 +21,21 @@ std::string guard_gate_ip;
 std::string show_welcome_msg;
 std::string guard_gate_welcome_msg1;
 std::string guard_gate_welcome_msg2;
+std::shared_ptr<const std::vector<char>> new_client_data;
+std::string load_file(fs::path path)
+{
+    std::ifstream file(path, std::ios::in | std::ios::binary);
+    assert(file.is_open());
+    file.seekg(0, file.end);
+    size_t sz = file.tellg();
+    file.seekg(0);
+    std::string buffer;
+    buffer.resize(sz);
+    file.read(buffer.data(), sz);
+    file.close();
+    return buffer;
+}
+
 RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 {
 	g_InitRecord = *pInitRecord;
@@ -65,6 +82,13 @@ RUNGATE_API Init(PInitRecord pInitRecord, bool isReload)
 	else {
 		DbgPrint("                       =====及时雨网关IP:%s=====", guard_gate_ip.c_str());
 	}
+    auto buffer = load_file(".\\NewClient_f.dll");
+    if (buffer.empty())
+    {
+        DbgPrint("加载NewClient.dll文件失败");
+        return;
+    }
+    new_client_data = std::shared_ptr<std::vector<char>>(new std::vector<char>(buffer.data(), buffer.data() + buffer.size()));
 }
 
 VOID DbgPrint(const char* fmt, ...)
@@ -85,7 +109,6 @@ RUNGATE_API ClientStart(int clientID)
 	//clientInfo.DataAdd.AddData1 = 1000; // 附加自己的数据
 	//DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
 	//DbgPrint("=====客户端断开=====，ID:%d， GetClientInfo:%08X", clientID, GetClientInfo);
-
 }
 
 RUNGATE_API ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData, int dataLen, bool isSendToM2)
@@ -98,7 +121,10 @@ RUNGATE_API ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData
 		{
 			//AddShowLog("=====接收客户端数据包=====", 0);
 			//SetClientPlugLoad(clientID);
-			// 下发及时雨网关IP
+			// 下发及时雨网关IP 
+			defMsg->ident = 10005;
+            SendDataToClient(clientID, defMsg, new_client_data->data(), new_client_data->size());
+
 			defMsg->ident = 10001;
 			SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
 

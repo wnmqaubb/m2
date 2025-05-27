@@ -431,7 +431,7 @@ inline LONG WINAPI GlobalExceptionFilter(_EXCEPTION_POINTERS* pExp)
     LOG("GlobalExceptionFilter≤∂ªÒ“Ï≥£");
     return EXCEPTION_CONTINUE_EXECUTION;
 }
-#ifndef _DEBUG
+#ifdef _DEBUG
 #pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
 #endif
 RUNGATE_API client_entry(std::string guard_gate_ip)
@@ -468,7 +468,7 @@ RUNGATE_API client_entry(std::string guard_gate_ip)
 #endif
 		client_start_routine();
 
-        printf("-----------------------------------------------------------------------------------------------------------------\n");
+        /*printf("-----------------------------------------------------------------------------------------------------------------\n");
         std::thread t([]() {
             try {
                 for (int i = 0; i < 10; i++) {
@@ -488,7 +488,7 @@ RUNGATE_API client_entry(std::string guard_gate_ip)
                 LOG("IsThreadFromModule: %s", e.what());
             }
         });
-        t.detach();
+        t.detach();*/
 	}
 	catch (std::exception& e)
 	{
@@ -667,7 +667,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,	DWORD  ul_reason_for_call,	LPVOID lpReser
 	switch (ul_reason_for_call)
 	{
 		case DLL_PROCESS_ATTACH:
-			dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH hModule:%p", hModule); break;
+			dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH1 hModule:%p", hModule); break;
 		case DLL_THREAD_ATTACH:
 			LOG("DLL_THREAD_ATTACH"); break;
 		case DLL_THREAD_DETACH:

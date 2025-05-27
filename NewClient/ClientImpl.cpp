@@ -17,73 +17,73 @@ CClientImpl::CClientImpl() : super()
 	{
 		fs::create_directory(cache_dir_, ec);
 	}
-	//notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
-	//	LOG("失去连接");
-	//	});
-	//notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
-	//	auto ec = asio2::get_last_error();
-	//	LOG("连接失败: %s ", ec.message().c_str());
-	//	});
-	//notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
-	//	LOG("握手");
-	//	ProtocolC2SHandShake handshake;
-	//	memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
-	//	handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
-	//	handshake.is_64bit_system = std::any_cast<bool>(user_data().get_field(is_64bits_field_id));
-	//	handshake.cpuid = std::any_cast<std::wstring>(user_data().get_field(cpuid_field_id));
-	//	handshake.mac = std::any_cast<std::wstring>(user_data().get_field(mac_field_id));
-	//	handshake.volume_serial_number = std::any_cast<std::wstring>(user_data().get_field(vol_field_id));
-	//	handshake.rev_version = std::any_cast<int>(user_data().get_field(rev_version_field_id));
-	//	handshake.commited_hash = std::any_cast<std::string>(user_data().get_field(commited_hash_field_id));
-	//	handshake.pid = GetCurrentProcessId();
-	//	this->save_uuid(handshake);
-	//	send(&handshake);
-	//	g_timer->start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
- //           __try {
-	//		    ProtocolC2SHeartBeat heartbeat;
-	//		    heartbeat.tick = time(0);
-	//		    send(&heartbeat);
-	//		    LOG("发送心跳");
- //           }
- //           __except (EXCEPTION_EXECUTE_HANDLER) {
- //               LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
- //           }
-	//	});
-	//	post([this]() {
-	//		if (!is_loaded_plugin())
-	//		{
-	//			LoadPlugin();
-	//		}
-	//		}, std::chrono::milliseconds(2000));
-	//	// 发送用户名 防止断开后重连时网关用户名为空
-	//	notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
-	//	});
+	notify_mgr().register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
+		LOG("失去连接");
+	});
+	notify_mgr().register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
+		auto ec = asio2::get_last_error();
+		LOG("连接失败: %s ", ec.message().c_str());
+	});
+	notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
+		LOG("握手");
+		ProtocolC2SHandShake handshake;
+		memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
+		handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
+		handshake.is_64bit_system = std::any_cast<bool>(user_data().get_field(is_64bits_field_id));
+		handshake.cpuid = std::any_cast<std::wstring>(user_data().get_field(cpuid_field_id));
+		handshake.mac = std::any_cast<std::wstring>(user_data().get_field(mac_field_id));
+		handshake.volume_serial_number = std::any_cast<std::wstring>(user_data().get_field(vol_field_id));
+		handshake.rev_version = std::any_cast<int>(user_data().get_field(rev_version_field_id));
+		handshake.commited_hash = std::any_cast<std::string>(user_data().get_field(commited_hash_field_id));
+		handshake.pid = GetCurrentProcessId();
+		this->save_uuid(handshake);
+		send(&handshake);
+		g_timer->start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
+            __try {
+			    ProtocolC2SHeartBeat heartbeat;
+			    heartbeat.tick = time(0);
+			    send(&heartbeat);
+			    LOG("发送心跳");
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
+            }
+		});
+		post([this]() {
+			if (!is_loaded_plugin())
+			{
+				LoadPlugin();
+			}
+			}, std::chrono::milliseconds(2000));
+		// 发送用户名 防止断开后重连时网关用户名为空
+		notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
+	});
 
-	//notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
-	//	LOG("接收心跳");
-	//	});
+	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
+		LOG("接收心跳");
+	});
 
-	//notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
-	//	LOG("客户端初始化成功");
-	//	user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
-	//	user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
-	//	user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
-	//	user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
-	//	user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
-	//	user_data().set_field(rev_version_field_id, (int)REV_VERSION);
-	//	user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
-	//	this->load_uuid();
-	//	});
-	//package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-	//	//switch (msg.get().as<ProtocolS2CPunish>().type)
-	//	//{
-	//	//	case PunishType::ENM_PUNISH_TYPE_KICK:
-	//	//		Utils::CWindows::instance().exit_process();
-	//	//		break;
-	//	//	default:
-	//	//		break;
-	//	//}
-	//	});
+	notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
+		LOG("客户端初始化成功");
+		user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
+		user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
+		user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
+		user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
+		user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
+		user_data().set_field(rev_version_field_id, (int)REV_VERSION);
+		user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
+		this->load_uuid();
+	});
+	package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
+		//switch (msg.get().as<ProtocolS2CPunish>().type)
+		//{
+		//	case PunishType::ENM_PUNISH_TYPE_KICK:
+		//		Utils::CWindows::instance().exit_process();
+		//		break;
+		//	default:
+		//		break;
+		//}
+	});
 }
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)

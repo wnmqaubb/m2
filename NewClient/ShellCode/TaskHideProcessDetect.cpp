@@ -1,4 +1,4 @@
-﻿#include "../pch.h"
+﻿#include "pch.h"
 #include <Lightbone/utils.h>
 #include "Service/AntiCheatClient.h"
 #include "ClientImpl.h"
@@ -43,12 +43,14 @@ const unsigned int DEFINE_TIMER_ID(kHideProcessTimerId);
 void InitHideProcessDetect()
 {
 	LOG(__FUNCTION__);
-	g_timer->start_timer(kHideProcessTimerId, std::chrono::seconds(15), []() {
-        __try {
-            HideProcess();
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
-        }
+    g_timer->start_timer(kHideProcessTimerId, std::chrono::seconds(15), []() {
+        client_->post([]() {
+            __try {
+                HideProcess();
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                LOG("线程异常: %s|%s|%d|0x%X", __FILE__, __FUNCTION__, __LINE__, GetExceptionCode());
+            }
+        });
     });
 }

@@ -1,4 +1,4 @@
-﻿#include "../pch.h"
+﻿#include "pch.h"
 #if 0
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")

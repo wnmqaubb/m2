@@ -52,6 +52,7 @@ public:
     afx_msg void OnProcessNameBan();
 	afx_msg void OnGetGameUserFile();
 	afx_msg void OnProcessPathBan();
+    void OnGetGameUserFileSign();
 };
 
 #ifndef _DEBUG  // GateView.cpp 中的调试版本

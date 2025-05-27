@@ -150,6 +150,7 @@
 #define ID_COPY_THREAD_ENTRY            32833
 #define ID_COPY_FILE_NAME               32834
 #define ID_COPY_MODULE_PATH             32835
+#define ID_GET_GAMEUSER_FILE_SIGN       32836
 #define ID_INDICATOR_SERVER_STAUS       59143
 #define ID_INDICATOR_USERS_COUNT        59144
 

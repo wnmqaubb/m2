@@ -1,5 +1,4 @@
 LIBRARY
 EXPORTS
-Init
-DoUnInit
-HookRecv
+    InitEx
+    UnInitEx

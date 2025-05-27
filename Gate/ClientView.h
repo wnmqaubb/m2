@@ -6,7 +6,6 @@
 #include "MainBar.h"
 #include "Service/SubServicePackage.h"
 #include "BaseDoc.h"
-#include <../VC-LTL/VC/14.16.27023/include/map>
 #include "CmdView.h"
 
 class CClientView : public CDockablePane
