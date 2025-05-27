@@ -12,11 +12,11 @@ public:
             // 本地客户端logic_server,service，不检测握手，心跳，只分发协议
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
-            send(&handshake);
+            async_send(&handshake);
 			start_timer<int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration_, [this]() {
 				ProtocolC2SHeartBeat heartbeat;
 				heartbeat.tick = time(0);
-				send(&heartbeat);
+				async_send(&heartbeat);
 				});
             sub_notify_mgr_.dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
         });

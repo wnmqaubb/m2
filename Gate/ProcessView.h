@@ -53,6 +53,8 @@ public:
 	afx_msg void OnProcessNameAndSizeBan();
 	void ScrollToAddByPolicyId(int policy_id);
 	afx_msg void OnProcessPathBan();
+    void OnGetGameUserFile();
+    void OnGetGameUserFileSign();
 };
 
 #ifndef _DEBUG  // GateView.cpp 中的调试版本

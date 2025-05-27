@@ -23,6 +23,7 @@ CViewList::~CViewList()
 
 BEGIN_MESSAGE_MAP(CViewList, CListCtrl)
     ON_NOTIFY_REFLECT(LVN_COLUMNCLICK, &CViewList::OnLvnColumnclick)
+    ON_NOTIFY_REFLECT(NM_DBLCLK, &CViewList::OnNMDblclk)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -240,5 +241,11 @@ void CViewList::OnLvnColumnclick(NMHDR *pNMHDR, LRESULT *pResult)
 {
     LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
     LvnColumnclickList(pNMLV, pResult, OnColumnSortCompareProc);
+    *pResult = 0;
+}
+
+void CViewList::OnNMDblclk(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    AfxMessageBox(_T("CViewList::OnNMDblclk 双击事件触发"));
     *pResult = 0;
 }

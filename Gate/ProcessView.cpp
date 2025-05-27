@@ -30,6 +30,8 @@ BEGIN_MESSAGE_MAP(CProcessView, CView)
     ON_COMMAND(ID_PROCESS_NAME, &CProcessView::OnProcessNameBan)
     ON_COMMAND(ID_PROCESS_NAME_AND_SIZE, &CProcessView::OnProcessNameAndSizeBan)
     ON_COMMAND(ID_PROCESS_PATH, &CProcessView::OnProcessPathBan)
+    ON_COMMAND(ID_GET_GAMEUSER_FILE, &CProcessView::OnGetGameUserFile)
+    ON_COMMAND(ID_GET_GAMEUSER_FILE_SIGN, &CProcessView::OnGetGameUserFileSign)
 END_MESSAGE_MAP()
 
 // CProcessView 构造/析构
@@ -126,16 +128,16 @@ int CProcessView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 void CProcessView::FillViewList()
 {
-    m_ViewList.SetColumnByIntSort({ 0, 1, 2 });
+    m_ViewList.SetColumnByIntSort({ 0, 1, 2, 5 });
     auto& processes = GetDocument()->GetProcesses();
     m_ViewList.SetRedraw(FALSE);
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     int colIndex = 0;
     m_ViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
-    m_ViewList.InsertColumn(colIndex++, TEXT("PID"), LVCFMT_LEFT, 40);
-    m_ViewList.InsertColumn(colIndex++, TEXT("父PID"), LVCFMT_LEFT, 45);
-    m_ViewList.InsertColumn(colIndex++, TEXT("进程名称"), LVCFMT_LEFT, 150);
-    m_ViewList.InsertColumn(colIndex++, TEXT("进程路径"), LVCFMT_LEFT, 530);
+    m_ViewList.InsertColumn(colIndex++, TEXT("PID"), LVCFMT_LEFT, 50);
+    m_ViewList.InsertColumn(colIndex++, TEXT("父PID"), LVCFMT_LEFT, 50);
+    m_ViewList.InsertColumn(colIndex++, TEXT("进程名称"), LVCFMT_LEFT, 170);
+    m_ViewList.InsertColumn(colIndex++, TEXT("进程路径"), LVCFMT_LEFT, 700);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程大小"), LVCFMT_LEFT, 70);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程位数"), LVCFMT_LEFT, 70);
     m_ViewList.DeleteAllItems();
@@ -339,3 +341,54 @@ void CProcessView::OnProcessPathBan()
         ScrollToAddByPolicyId(uiLastPolicyId);
     }
 }
+
+void CProcessView::OnGetGameUserFile()
+{
+    // download -p "C:\\cv_debug.log" -o "D:\\自用管理员后台\\封装\\gamer_files\\cv_debug.log"
+    auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
+    CString process_path;
+    if (selectedRow != -1)
+    {
+        process_path = m_ViewList.GetItemText(selectedRow, 4);
+        std::filesystem::path output(theApp.m_ExeDir);
+        output /= "gamer_files";
+        if (!std::filesystem::exists(output))
+        {
+            std::filesystem::create_directory(output);
+        }
+        std::string process_path_str = CT2A(process_path);
+        std::filesystem::path file_name(process_path_str);
+        output /= file_name.filename();
+
+        CString cmd;
+        cmd.Format(TEXT("download -p \"%s\" -o \"%s\""), process_path, CA2T(output.string().c_str()));
+        //theApp.GetMainFrame()->GetClientView().OnCmdView();
+        cmd.Replace(_T("\\"), _T("\\\\"));
+        theApp.GetMainFrame()->CopyToClipboard(cmd);
+    }
+    else
+    {
+        return;
+    }
+}
+
+void CProcessView::OnGetGameUserFileSign()
+{
+    // powershell -Command "Get-AuthenticodeSignature -FilePath 'C:\Users\A.exe' | Format-List" -Property SignerCertificate, Status
+    auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
+    CString process_path;
+    if (selectedRow != -1)
+    {
+        process_path = m_ViewList.GetItemText(selectedRow, 4);
+        CString cmd;
+        cmd.Format(TEXT("powershell -Command \"Get-AuthenticodeSignature -FilePath '%s' | Format-List\" -Property Status"), process_path);
+        //theApp.GetMainFrame()->GetClientView().OnCmdView();
+        cmd.Replace(_T("\\"), _T("\\\\"));
+        theApp.GetMainFrame()->CopyToClipboard(cmd);
+    }
+    else
+    {
+        return;
+    }
+}
+

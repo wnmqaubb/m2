@@ -10,6 +10,7 @@
 #endif
 
 #include "cmdline.h"
+#include <ShlObj.h>
 
 // CProcessView
 
@@ -27,6 +28,7 @@ BEGIN_MESSAGE_MAP(CCmdView, CView)
     ON_WM_RBUTTONUP()
     ON_WM_CREATE()
     ON_WM_SIZE()
+    ON_COMMAND(ID_EDIT_PASTE, OnDelayedPaste)
 END_MESSAGE_MAP()
 
 
@@ -64,12 +66,15 @@ void CCmdView::OnRButtonUp(UINT /* nFlags */, CPoint point)
     OnContextMenu(this, point);
 }
 
+void CCmdView::OnDelayedPaste()
+{
+    if (m_CmdEdit.GetSafeHwnd()) {
+        m_CmdEdit.Paste();
+    }
+}
+
 void CCmdView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
 {
-    /*CMenu menu;
-    menu.LoadMenu(IDR_MAINFRAME);
-    CMenu* pSumMenu = menu.GetSubMenu(2);
-    theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);*/
     CMenu menu;
 	menu.LoadMenu(IDR_MENU_OUTPUT);
 	CMenu* pSumMenu = menu.GetSubMenu(0);
@@ -237,6 +242,7 @@ void CCmdView::OnCmdEditReturn()
         std::error_code ec;
         const std::string path = a.get<std::string>("path");
         const std::string output_path = a.get<std::string>("output");
+        const std::string temp_path = output_path + ".tmp";  // 添加临时文件后缀
         const size_t szSliceSize = a.exist("size") ? a.get<size_t>("size") : 0x10000;
 
         RmcProtocolS2CUploadFile req;
@@ -250,6 +256,7 @@ void CCmdView::OnCmdEditReturn()
                 szSliceSize,
                 uiTaskHash,
                 targetFile = output_path,
+                tempFile = temp_path,  // 使用临时文件名
                 srcFile = req.path,
                 m_Client = GetDocument()->m_Client
             ](const RmcProtocolC2SUploadFile& resp) {
@@ -260,25 +267,22 @@ void CCmdView::OnCmdEditReturn()
             }
             if (resp.status == 0)
             {
-                std::ofstream file(targetFile, std::ios::out | std::ios::binary);
-                if (!file.is_open())
-                {
-                    LogPrint(ObserverClientLog, TEXT("本地文件占用"), resp.total_size, resp.total_size);
+                // 删除可能已存在的临时文件
+                std::remove(tempFile.c_str());
+                if(resp.total_size > 1024 * 1024 * 200) { // 200M限制
+                    LogPrint(ObserverClientLog, TEXT("文件大小超过限制: %d"), resp.total_size);
                     return;
                 }
-                char temp[0x1000] = {};
-                for (int i = 0; i < resp.total_size; i += sizeof(temp))
+                LogPrint(ObserverClientLog, TEXT("文件%s大小%d"), Utils::c2w(resp.path).c_str(), resp.total_size);
+                std::ofstream file(tempFile, std::ios::out | std::ios::binary);
+                if (!file.is_open())
                 {
-                    if (i == resp.total_size / sizeof(temp))
-                    {
-                        file.write(temp, resp.total_size % sizeof(temp));
-                    }
-                    else
-                    {
-                        file.write(temp, sizeof(temp));
-                    }
+                    LogPrint(ObserverClientLog, TEXT("无法创建临时文件"));
+                    return;
                 }
+
                 file.close();
+                // 发送第一个分片请求
                 RmcProtocolS2CUploadFile req;
                 req.status = 1;
                 req.path = resp.path;
@@ -288,28 +292,75 @@ void CCmdView::OnCmdEditReturn()
             }
             if (resp.status == 1)
             {
-                std::ofstream file(targetFile, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+                if(resp.piece.empty() || resp.pos >= resp.total_size) {
+                    LogPrint(ObserverClientLog, TEXT("无效分片数据"));
+                    return;
+                }
+                std::ofstream file(tempFile, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
                 if (!file.is_open())
                 {
-                    LogPrint(ObserverClientLog, TEXT("本地文件占用"), resp.total_size, resp.total_size);
+                    LogPrint(ObserverClientLog, TEXT("无法打开临时文件"));
                 }
 
                 file.seekp(resp.pos);
                 file.write((char*)resp.piece.data(), resp.piece.size());
+                file.flush();  // 确保数据写入磁盘
 
                 if (resp.pos + resp.piece.size() < resp.total_size)
                 {
+                    // 请求下一个分片
                     RmcProtocolS2CUploadFile req;
                     req.status = 1;
                     req.path = resp.path;
                     req.pos = file.tellp();
                     req.piece_size = szSliceSize;
-                    LogPrint(ObserverClientLog, TEXT("%x/%x"), resp.pos, resp.total_size);
+                    LogPrint(ObserverClientLog, TEXT("下载进度%x/%x"), resp.pos, resp.total_size);
                     m_Client->send(session_id, &req);
                 }
                 else
                 {
-                    LogPrint(ObserverClientLog, TEXT("%x/%x"), resp.total_size, resp.total_size);
+                    // 下载完成，重命名文件
+                    // 获取实际写入位置
+                    const auto final_pos = file.tellp();
+                    file.close();  // 必须先关闭文件才能重命名
+                    // 验证文件大小
+                    std::ifstream fin(tempFile, std::ios::ate | std::ios::binary);
+                    const auto actual_size = fin.tellg();
+                    fin.close();
+                    if(actual_size != resp.total_size) {
+                        LogPrint(ObserverClientLog, TEXT("文件大小不匹配，删除临时文件"));
+                        std::remove(tempFile.c_str());
+                        fin.close();
+                        return;
+                    }
+
+                    // 删除目标文件(如果存在)
+                    for(int i = 0; i < 3; ++i) {  // 重试机制
+                        if(std::remove(targetFile.c_str()) == 0 || errno == ENOENT) {
+                            break;
+                        }
+                        Sleep(10);  // 短暂等待后重试
+                    }
+    
+                    // 执行重命名
+                    bool rename_success = false;
+                    for(int i = 0; i < 3; ++i) {  // 重试机制
+                        if(std::rename(tempFile.c_str(), targetFile.c_str()) == 0) {
+                            rename_success = true;
+                            break;
+                        }
+                        Sleep(10);  // 短暂等待后重试
+                    }
+                    
+                    if(!rename_success) {
+                        LogPrint(ObserverClientLog, TEXT("文件重命名失败(错误:%d)"), errno);
+                        std::remove(tempFile.c_str());
+                    } else {
+                        // 强制刷新资源管理器
+                        SHChangeNotify(SHCNE_DELETE, SHCNF_PATH | SHCNF_FLUSH, tempFile.c_str(), NULL);
+                        SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATH | SHCNF_FLUSH, targetFile.c_str(), NULL);
+                        LogPrint(ObserverClientLog, TEXT("下载成功: %x字节"), resp.total_size);
+                    }
                     theApp.m_WorkIo.post([uiTaskHash]() {
                         evtUploadTasks.remove_handler(uiTaskHash);
                     });
@@ -329,6 +380,13 @@ void CCmdView::OnInitialUpdate()
     CView::OnInitialUpdate();
 }
 
+void CCmdView::OnPaste()
+{
+    if (!m_CmdEdit.GetSafeHwnd() || !::IsWindowVisible(m_CmdEdit)) return;
+
+    // 延迟粘贴操作
+    PostMessage(WM_COMMAND, ID_EDIT_PASTE);
+}
 
 void CCmdView::OnSize(UINT nType, int cx, int cy)
 {

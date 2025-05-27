@@ -78,7 +78,7 @@ int CProcessChildFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 BOOL CProcessChildFrame::CreateDockingWindows()
 {
-    if (!m_wndProcessSubViewWnd.Create(_T("属性"), this, CRect(0, 0, 400, 200), TRUE, ID_VIEW_OUTPUTWND, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_RIGHT | CBRS_FLOAT_MULTI,
+    if (!m_wndProcessSubViewWnd.Create(_T("属性"), this, CRect(0, 0, 800, 200), TRUE, ID_VIEW_OUTPUTWND, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_RIGHT | CBRS_FLOAT_MULTI,
         AFX_CBRS_REGULAR_TABS,
         AFX_CBRS_RESIZE))
     {

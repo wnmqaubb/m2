@@ -41,12 +41,10 @@ public:
     void async_send(T* req)
     {
         std::shared_lock<std::shared_mutex> lck(mtx_);
-        slog->debug(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
         for (auto[address, client] : group_)
         {
             client->async_send(std::move(req));
         }
-        slog->debug(" {}:{}:{}", __FUNCTION__, __FILE__, __LINE__);
     }
 
 };

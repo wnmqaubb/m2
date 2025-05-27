@@ -138,9 +138,12 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	FillClientView();
 #ifdef GATE_ADMIN
     FillServiceView();
+    m_ViewList.OnDoubleClick = [this]() {
+        OnQueryProcess();
+    };
 #else
     SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
-#endif    
+#endif   
 	return 0;
 }
 
@@ -424,7 +427,7 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
 
 void CClientView::FillClientView()
 {
-    m_ViewList.SetColumnByIntSort({ 0, 1 });
+    m_ViewList.SetColumnByIntSort({ 0, 1, 8, 10 });
     m_ViewList.SetColumnBySearch({ 2, 3 });
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     int colIndex = 0;

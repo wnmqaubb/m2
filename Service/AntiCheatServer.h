@@ -79,15 +79,8 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            this->post([session, package]() {
-                session->send(package.release()); // 在IO线程安全发送数据
-            });            
-            /*auto data_size = session->send(package.release());
-            if (data_size < 1){
-                if (auto error = asio2::get_last_error()) {
-                    slog->error("AntiCheatServer::send data size < 1, error: {}", error.message());
-                }
-            }*/
+            session->send(package.release()); // 在IO线程安全发送数据
+
         }
     }
 
@@ -110,9 +103,8 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            this->post([session, package]() {
-                session->async_send(package.release()); // 在IO线程安全发送数据
-            });
+            session->async_send(package.release()); // 在IO线程安全发送数据
+
         }
     }
 

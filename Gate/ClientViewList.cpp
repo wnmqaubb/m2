@@ -5,6 +5,7 @@
 #include "ClientViewList.h"
 BEGIN_MESSAGE_MAP(CClientViewList, CViewList)
     ON_NOTIFY_REFLECT(NM_CUSTOMDRAW, &CClientViewList::OnNMCustomdraw)
+    ON_NOTIFY_REFLECT(NM_DBLCLK, &CClientViewList::OnNMDblclk)
 END_MESSAGE_MAP()
 
 
@@ -47,4 +48,23 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult |= CDRF_NOTIFYPOSTPAINT;
     *pResult |= CDRF_NOTIFYITEMDRAW;
     *pResult |= CDRF_NOTIFYSUBITEMDRAW;
+}
+
+void CClientViewList::OnNMDblclk(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+
+    // 获取双击的行和列
+    int nItem = pNMItemActivate->iItem;
+    int nSubItem = pNMItemActivate->iSubItem;
+
+    if (nItem >= 0) // 确保双击的是有效行
+    {
+        if (!OnDoubleClick) {
+            return;
+        }
+        if (OnDoubleClick) OnDoubleClick(); // 调用父窗口方法
+    }
+
+    *pResult = 0;
 }

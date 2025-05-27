@@ -105,37 +105,61 @@ public:
 	CLogicServer();
 	void clear_txt(const std::string& file_name);
 	void write_txt(const std::string& file_name, const std::string& str, bool is_from_add_list = false);
-	virtual void send(tcp_session_shared_ptr_t& session, std::size_t session_id, const RawProtocolImpl& package)
-	{
-		ProtocolLS2LCSend resp;
-		resp.package = package;
-		resp.package.head.session_id = session_id;
-		super::send(session, &resp);
-	}
+    virtual void send(tcp_session_shared_ptr_t& session, std::size_t session_id, const RawProtocolImpl& package)
+    {
+        ProtocolLS2LCSend resp;
+        resp.package = package;
+        resp.package.head.session_id = session_id;
+        super::send(session, &resp);
+    }
 
-	virtual void send(tcp_session_shared_ptr_t& session, std::size_t session_id, msgpack::sbuffer& buffer)
-	{
-		RawProtocolImpl package;
-		package.encode(buffer.data(), buffer.size());
-		send(session, session_id, package);
-	}
+    virtual void send(tcp_session_shared_ptr_t& session, std::size_t session_id, msgpack::sbuffer& buffer)
+    {
+        RawProtocolImpl package;
+        package.encode(buffer.data(), buffer.size());
+        send(session, session_id, package);
+    }
 
-	template <typename T>
-	void send(tcp_session_shared_ptr_t& session, std::size_t session_id, T* package)
-	{
-		if (!package)
-			__debugbreak();
-		msgpack::sbuffer buffer;
-		msgpack::pack(buffer, *package);
-		send(session, session_id, buffer);
-	}
+    template <typename T>
+    void send(tcp_session_shared_ptr_t& session, std::size_t session_id, T* package)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        send(session, session_id, buffer);
+    }
+    virtual void async_send(tcp_session_shared_ptr_t& session, std::size_t session_id, const RawProtocolImpl& package)
+    {
+        ProtocolLS2LCSend resp;
+        resp.package = package;
+        resp.package.head.session_id = session_id;
+        super::async_send(session, &resp);
+    }
+
+    virtual void async_send(tcp_session_shared_ptr_t& session, std::size_t session_id, msgpack::sbuffer& buffer)
+    {
+        RawProtocolImpl package;
+        package.encode(buffer.data(), buffer.size());
+        async_send(session, session_id, package);
+    }
+
+    template <typename T>
+    void async_send(tcp_session_shared_ptr_t& session, std::size_t session_id, T* package)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        async_send(session, session_id, buffer);
+    }
 	virtual void set_field(tcp_session_shared_ptr_t& session, std::size_t session_id, const std::string& key, const std::wstring& val)
 	{
 		ProtocolLS2LCSetField req;
 		req.session_id = session_id;
 		req.key = key;
 		req.val = val;
-		super::send(session, &req);
+		super::async_send(session, &req);
 	}
 	virtual void write_img(std::size_t session_id, std::vector<uint8_t>& data);
 	/**

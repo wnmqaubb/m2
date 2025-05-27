@@ -44,11 +44,11 @@ public:
                 Utils::c2w(get_port()).c_str());
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
-            super::send(&handshake);
+            super::async_send(&handshake);
             start_timer<int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration_, [this]() {
                 ProtocolC2SHeartBeat heartbeat;
                 heartbeat.tick = time(0);
-                super::send(&heartbeat);
+                super::async_send(&heartbeat);
             });
         });
         // 获取到期时间
@@ -61,7 +61,7 @@ public:
     {
         ProtocolOBC2OBSAuth auth;
         auth.key = auth_key_;
-        super::send(&auth);
+        super::async_send(&auth);
     }
 
     virtual void send(std::size_t session_id, RawProtocolImpl& package)

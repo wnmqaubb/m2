@@ -22,6 +22,7 @@ public:
 protected:
     void LvnColumnclickList(LPNMLISTVIEW pNMLV, LRESULT *pResult, PFNLVCOMPARE pfnCompare);
 
+    afx_msg virtual void OnNMDblclk(NMHDR* pNMHDR, LRESULT* pResult);
     void CopyText(CString & source);
     /**
      * columnsByNumberSort 此数组中的列索引按数字排序,其它按字母排序

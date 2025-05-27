@@ -142,6 +142,12 @@
 #define ID_INDICATOR_USERS_COUNT        32822
 #define ID_32828                        32828
 #define ID_PROCESS_NAME_AND_SIZE        32829
+#define ID_COPY_MODULE_NAME             32830
+#define ID_COPY_THREAD_ENTRY            32831
+#define ID_COPY_FILE_NAME               32832
+#define ID_COPY_MODULE_PATH             32833
+#define ID_GET_GAMEUSER_FILE            32834
+#define ID_GET_GAMEUSER_FILE_SIGN       32835
 
 // Next default values for new objects
 // 

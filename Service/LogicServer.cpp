@@ -161,7 +161,7 @@ void init_logger()
         if (!obs_sessions_mgr()->exist(ob_session_id)) return; \
         ProtocolOBS2OBCSend req; \
         req.package = package; \
-        this->send(session, ob_session_id, &req); \
+        this->async_send(session, ob_session_id, &req); \
     }); \
 }
 
@@ -179,7 +179,7 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
         user_data->policy_recv_timeout_timer_ = std::make_shared<asio::steady_timer>(io().context());
     }
 #endif
-    send(session, session_id, &policy_mgr_->get_policy());
+    async_send(session, session_id, &policy_mgr_->get_policy());
     user_data->last_send_policy_time = std::chrono::system_clock::now();
     user_data->add_send_policy_count();
 #ifdef ENABLE_POLICY_TIMEOUT_CHECK
@@ -209,6 +209,7 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
 #endif
     VMProtectEnd();
 }
+
 bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, msgpack::v1::object_handle&& raw_msg) {
     if (!session || session->is_stopped()) {
         slog->warn("Enqueue task for stopped session");
@@ -220,32 +221,20 @@ bool CLogicServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t& se
         return false;
     }
     try {
-        auto pkg = std::move(package);
-        auto raw_msg_local = std::move(raw_msg);
+        //auto pkg = std::move(package);
+        //auto raw_msg_local = std::move(raw_msg);
         // 提交任务到 BS::thread_pool
-        get_global_thread_pool().submit_task([
-            this, session = session->weak_from_this(),
-            pkg_id = package_id, pkg = std::move(pkg),
-            raw_msg = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg_local))]() mutable {
+        //get_global_thread_pool().detach_task([
+        //session->post([
+        //    this, session = session->weak_from_this(),
+        //    pkg_id = package_id, pkg = std::move(pkg),
+        //    raw_msg = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg_local))]() mutable {
 
-            if (auto s = session.lock()) {
+
                 // 使用移动语义传递msgpack对象
-                process_task(pkg_id, s, std::move(pkg), std::move(*raw_msg));
-            }
-        });
-        //slog->info("CLogicServer::on_recv: {}", package_id);
-        //package_mgr_.dispatch(package_id, session, package, raw_msg);
-        // 将任务放入队列
-        /*Task task(package_id, session, package, std::move(raw_msg));
-        if (!pool.enqueue(std::move(task))) {
-            slog->warn("Failed to enqueue task, queue may be full");
-            return false;
-        }*/
-        // 检查内存使用情况
-        //pool.check_memory_usage();
+                process_task(package_id, session, std::move(package), std::move(raw_msg));
 
-        // 记录状态
-        //pool.log_pool_stats();
+        //});
 
         return true;
     }
@@ -291,7 +280,7 @@ void CLogicServer::process_task(unsigned int package_id, tcp_session_shared_ptr_
 
             ProtocolS2CHeartBeat resp;
             resp.tick = msg.tick;
-            async_send(local_session, &resp);
+            super::async_send(local_session, &resp);
             auto userdata = get_user_data_(local_session);
             userdata->update_heartbeat_time();
             //user_notify_mgr_.dispatch(CLIENT_HEARTBEAT_NOTIFY_ID, session);
@@ -301,8 +290,8 @@ void CLogicServer::process_task(unsigned int package_id, tcp_session_shared_ptr_
 
         // 1. 复制必要数据（避免移动后失效）
         unsigned int local_pkg_id = package_id;
-        RawProtocolImpl local_pkg = std::move(package); // ✅ 明确转移所有权
-        package_mgr_.dispatch(local_pkg_id, local_session, local_pkg, std::move(raw_msg));
+        //RawProtocolImpl local_pkg = std::move(package); // ✅ 明确转移所有权
+        package_mgr_.dispatch(package_id, local_session, package, std::move(raw_msg));
     }
     catch (const std::exception& e) {
         slog->error("Package dispatch failed: {}", e.what());
@@ -499,7 +488,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
                     {
                         user_data->has_been_check_pkg(true);
                         /*ProtocolS2CQueryProcess req;
-                        send(session, package.head.session_id, &req);
+                        async_send(session, package.head.session_id, &req);
                         slog->debug("下发查看进程：{}", user_data->session_id);
                         user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("下发查看进程:%d"), user_data->session_id);
                     }*/
@@ -517,7 +506,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
     ob_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto plugin_hash_set = plugin_mgr_->get_plugin_hash_set();
         ProtocolS2CQueryPlugin resp(plugin_hash_set);
-        send(session, package.head.session_id, &resp);
+        async_send(session, package.head.session_id, &resp);
     });
 
     // 请求下载插件 客户端 --> service --> logicserver
@@ -528,7 +517,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
         {
             auto user_data = usr_sessions_mgr()->get_user_data(package.head.session_id);
             if (user_data && !user_data->is_loaded_plugin())
-            send(session, package.head.session_id, plugin_mgr_->get_plugin(req.plugin_hash));
+            async_send(session, package.head.session_id, plugin_mgr_->get_plugin(req.plugin_hash));
         }
     });
     ob_pkg_mgr_.register_handler(SPKG_ID_S2C_LOADED_PLUGIN, [this](tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
@@ -650,7 +639,7 @@ CLogicServer::CLogicServer():policy_detect_interval_(3)
                 foreach_session([this, &board_cast](tcp_session_shared_ptr_t& session) {
                     for (auto session_id : obs_sessions_mgr()->sessions())
                     {
-                        send(session, session_id, &board_cast);
+                        async_send(session, session_id, &board_cast);
                     }
                 });
             }
@@ -831,7 +820,7 @@ void CLogicServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, const 
     foreach_session([this, &log](tcp_session_shared_ptr_t& session) {
         for (auto session_id : obs_sessions_mgr()->sessions())
         {
-            send(session, session_id, &log);
+            async_send(session, session_id, &log);
         }
     });
 }
@@ -888,7 +877,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, std::size_t session
             foreach_session([this, &resp](tcp_session_shared_ptr_t& session) {
                 for (auto session_id : obs_sessions_mgr()->sessions())
                 {
-                    send(session, session_id, &resp);
+                    async_send(session, session_id, &resp);
                 }
             });
 
@@ -941,7 +930,7 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, std::size_t session
                 {
                     ProtocolS2CPunish resp;
                     resp.type = PunishType::ENM_PUNISH_TYPE_KICK;
-                    send(session, session_id, &resp);
+                    async_send(session, session_id, &resp);
                     // 踢人后关闭socket连接，防止下次心跳检测到后又重新上线
                     // 在这里不能调用close_socket,会导致service死锁
                     //close_socket(session, user_data->session_id);
@@ -1044,7 +1033,7 @@ void CLogicServer::close_socket(tcp_session_shared_ptr_t& session, std::size_t s
     VMProtectBeginVirtualization(__FUNCTION__);
     ProtocolLS2LCKick req;
     req.session_id = session_id;
-    super::send(session, &req);
+    super::async_send(session, &req);
     VMProtectEnd();
 }
 std::string CLogicServer::trim_user_name(const std::string& username_)

@@ -74,7 +74,7 @@ BOOL CGateFApp::InitInstance()
         STARTUPINFOA si = {};
         HANDLE pHandles[2] = {};
         si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
+        si.wShowWindow = SW_SHOW;
         PROCESS_INFORMATION pi = {};
         const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
 

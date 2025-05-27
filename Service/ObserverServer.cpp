@@ -47,43 +47,21 @@ bool CObserverServer::on_recv(unsigned int package_id, tcp_session_shared_ptr_t&
         }
         // weak_ptr 仍然有效，可以继续使用 session
         auto local_session = weak_session.lock();
-        //auto func = [this, session = session->weak_from_this(),
-        //    pkg_id = package_id, pkg = std::move(package),
-        //    raw_msg = std::move(raw_msg)]() {
-        //    if (auto s = session.lock()) {
-        //        // 使用移动语义传递msgpack对象
-        //        /*process_task(pkg_id, s, std::move(pkg),
-        //                     std::move(const_cast<msgpack::v1::object_handle&>(raw_msg)));*/
-        //    }
-        //};
         // 1. 使用 shared_ptr 包装所有不可复制对象
-        auto pkg = std::move(package);
-        auto raw_msg_local = std::move(raw_msg);
+        //auto pkg = std::move(package);
+        //auto raw_msg_local = std::move(raw_msg);
         // 提交任务到 BS::thread_pool
-        get_global_thread_pool().submit_task([
-            this,session = session->weak_from_this(),
-            pkg_id = package_id, pkg = std::move(pkg),
-            raw_msg = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg_local))]() mutable {
+        //get_global_thread_pool().detach_task([
+        //local_session->post([
+            //this,session = session->weak_from_this(),
+            //pkg_id = package_id, pkg = std::move(pkg),
+            //raw_msg = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg_local))]() mutable {
 
-            if (auto s = session.lock()) {
+            if (local_session) {
                 // 使用移动语义传递msgpack对象
-                process_task(pkg_id, s, std::move(pkg), std::move(*raw_msg));
+                process_task(package_id, local_session, std::move(package), std::move(raw_msg));
             }
-        });
-        // 将任务放入队列
-        //Task task(package_id, std::move(local_session), package, std::move(raw_msg));
-        //post([this, task = std::move(task)]() mutable {
-        //    // 通过ASIO2 post确保线程安全
-        //    if (!pool.enqueue(std::move(task))) {
-        //        slog->warn("Failed to enqueue task, queue may be full");
-        //        return true;
-        //    }
         //});
-        // 检查内存使用情况
-        //pool.check_memory_usage();
-
-        // 记录状态
-        //pool.log_pool_stats();
 
         return true;
     }
@@ -133,18 +111,6 @@ void CObserverServer::process_task(unsigned int package_id, tcp_session_shared_p
             userdata = get_user_data_(local_session);
         }
 
-        // 方法 2：安全获取函数
-        /*auto safe_get_user_data = [](tcp_session_shared_ptr_t s) -> AntiCheatUserData* {
-            if (!s || s->is_stopped()) return nullptr;
-            try {
-                return get_user_data_(s);
-            }
-            catch (...) {
-                return nullptr;
-            }
-        };
-
-        if (auto userdata = safe_get_user_data(local_session)) {*/
         if (userdata) {
             userdata->update_heartbeat_time();
         }
@@ -210,43 +176,14 @@ void CObserverServer::process_task(unsigned int package_id, tcp_session_shared_p
         ProtocolLC2LSSend req;
         req.package = package;
         req.package.head.session_id = local_session->hash_key();
-        logic_client_->send(&req, package.head.session_id);
+        logic_client_->async_send(&req, package.head.session_id);
         return;
     }
     return;
 }
 // 优化后的心跳处理(分批+无锁)
 void CObserverServer::batch_heartbeat(const std::vector<tcp_session_shared_ptr_t>& sessions) {
-    // constexpr size_t BATCH_SIZE = 512;
-    // auto now = std::chrono::steady_clock::now();
-    
-    // // 分批处理减少锁持有时间
-    // for (size_t i = 0; i < sessions.size(); i += BATCH_SIZE) {
-    //     auto end = std::min(i + BATCH_SIZE, sessions.size());
-    //     std::shared_lock<std::shared_mutex> lock(session_times_mtx_);
-        
-    //     // 使用预分配内存避免重复分配
-    //     thread_local static phmap::flat_hash_map<std::size_t, std::chrono::steady_clock::time_point> local_cache;
-    //     local_cache.reserve(BATCH_SIZE);
-        
-    //     for (size_t j = i; j < end; ++j) {
-    //         auto& session = sessions[j];
-    //         local_cache[session->hash_key()] = now;
-    //         if (auto user_data = get_user_data_(session)) {
-    //             user_data->update_heartbeat_time();
-    //         }
-    //     }
-        
-    //     // 批量更新到主存储
-    //     {
-    //         std::unique_lock<std::shared_mutex> unique_lock(session_times_mtx_);
-    //         // 手动合并map内容,因为merge不支持不同类型map的合并
-    //         for (const auto& [session_id, time] : local_cache) {
-    //             session_last_active_times_[session_id] = time;
-    //         }
-    //     }
-    //     local_cache.clear();
-    // }
+
 }
 CObserverServer::CObserverServer()
 {
@@ -265,7 +202,7 @@ CObserverServer::CObserverServer()
                 {
                     ProtocolLC2LSAddObsSession req;
                     req.session_id = session->hash_key();
-                    logic_client_->send(&req);
+                    logic_client_->async_send(&req);
                 }
                 else
                 {
@@ -282,47 +219,50 @@ CObserverServer::CObserverServer()
                     _userdata.has_handshake = user_data->get_handshake();
                     _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
                     _userdata.json = user_data->data;
-                    logic_client_->send(&req);
+                    logic_client_->async_send(&req);
                 }
             }
         });
     });
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SEND, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto resp = msg.get().as<ProtocolLS2LCSend>();
-        auto session_id = resp.package.head.session_id;
-        auto session = find_session(session_id);
+        auto session = find_session(resp.package.head.session_id);
         if (!session)
         {
-            slog->error("Session not found: {}", session_id);
+            slog->error("LSPKG_ID_S2C_SEND Session not found");
             return;
         }
-        send(session, resp.package);
+        async_send(session, resp.package);
     });
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto param = msg.get().as<ProtocolLS2LCSetField>();
         auto session = find_session(param.session_id);
-        if (session)
+        if (!session)
         {
-            get_user_data_(session)->set_field(param.key, param.val);
-            // 发给管理员网关
-            if (get_user_data_(session)->get_field<bool>("is_observer_client"))
-            {
-                ProtocolOBS2OBCSetField req;
-                req.session_id = param.session_id;
-                req.key = param.key;
-                req.val = param.val;
-                send(session, &req);
-            }
+            slog->error("LSPKG_ID_S2C_SET_FIELD Session not found");
+            return;
+        }
+        get_user_data_(session)->set_field(param.key, param.val);
+        // 发给管理员网关
+        if (get_user_data_(session)->get_field<bool>("is_observer_client"))
+        {
+            ProtocolOBS2OBCSetField req;
+            req.session_id = param.session_id;
+            req.key = param.key;
+            req.val = param.val;
+            async_send(session, &req);
         }
     });
     // 踢人 CLogicServer::close_socket
     logic_client_->package_mgr().register_handler(LSPKG_ID_S2C_KICK, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
         auto param = msg.get().as<ProtocolLS2LCKick>();
         auto session = find_session(param.session_id);
-        if (session)
+        if (!session)
         {
-            session->stop();
+            slog->error("LSPKG_ID_S2C_KICK Session not found");
+            return;
         }
+        session->stop();
     });
     notify_mgr_.register_handler(SERVER_START_NOTIFY_ID, [this]() {
         for (int i = 0; i < 10; i++) {
@@ -339,7 +279,13 @@ CObserverServer::CObserverServer()
     // Gate to Service
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_SEND, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto req = raw_msg.get().as<ProtocolOBC2OBSSend>();
-        /*async_*/send(find_session(req.package.head.session_id), req.package, session->hash_key());
+        auto session1 = find_session(req.package.head.session_id);
+        if (!session1)
+        {
+            slog->error("OBPKG_ID_C2S_SEND Session not found");
+            return;
+        }
+        async_send(session1, req.package, session->hash_key());
     });
     // 踢人 
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_KICK, [this](tcp_session_shared_ptr_t&, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
@@ -377,12 +323,12 @@ CObserverServer::CObserverServer()
         }
 
         // 发送响应
-        send(session, &resp);
+        async_send(session, &resp);
     });
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_UPDATE_LOGIC, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto buf = raw_msg.get().as<ProtocolOBC2OBSUpdateLogic>().data;
         ProtocolLC2LSClose req;
-        logic_client_->send(&req);
+        logic_client_->async_send(&req);
         while (logic_client_->is_started())
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -437,7 +383,7 @@ CObserverServer::CObserverServer()
             _userdata.has_handshake = handshake;
             _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
             _userdata.json = user_data->data;
-            logic_client_->send(&req);
+            logic_client_->async_send(&req);
         }
 
     });
@@ -456,7 +402,7 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
     ProtocolOBS2OBCQueryVmpExpire resp;
     resp.vmp_expire = get_vmp_expire();
     slog->warn("vmp_expire: {}", Utils::w2c(resp.vmp_expire));
-    send(session, &resp);
+    async_send(session, &resp);
     ProtocolLC2LSAddObsSession req;
     req.session_id = session->hash_key();
     logic_client_->async_send(&req);
@@ -478,7 +424,7 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
         ProtocolOBS2OBCQueryVmpExpire resp;
         resp.vmp_expire = get_vmp_expire();
         slog->warn("vmp_expire: {}", Utils::w2c(resp.vmp_expire));
-        send(session, &resp);
+        async_send(session, &resp);
         ProtocolLC2LSAddObsSession req;
         req.session_id = session->hash_key();
         logic_client_->async_send(&req);
@@ -488,7 +434,7 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
         // 发送有效期日期
         session->start_timer("query_vmp_expire", 2000, [this, resp, weak_session = std::weak_ptr(session)]() {
             if (auto session = weak_session.lock()) {
-                send(session, &resp);
+                async_send(session, &resp);
             }
         });
         if (auth_lock_.load()) {
@@ -502,7 +448,7 @@ void CObserverServer::obpkg_id_c2s_auth(tcp_session_shared_ptr_t& session, const
                    session->remote_address(), session->remote_port(), session->hash_key());
         ProtocolOBS2OBCAuth auth;
         auth.status = false;
-        send(session, &auth);
+        async_send(session, &auth);
     }
     std::wstring username = TEXT("(NULL)");
     get_user_data_(session)->set_field("usrname", username);
@@ -539,13 +485,13 @@ void CObserverServer::on_post_disconnect(tcp_session_shared_ptr_t& session)
         //slog->info("移除观察者session session_id: {}", session->hash_key());
         ProtocolLC2LSRemoveObsSession req;
         req.session_id = session->hash_key();
-        logic_client_->send(&req);
+        logic_client_->async_send(&req);
     }
 
     //slog->info("移除用户session session_id: {}", session->hash_key());
     ProtocolLC2LSRemoveUsrSession req;
     req.data.session_id = session->hash_key();
-    logic_client_->send(&req);
+    logic_client_->async_send(&req);
 }
 
 void CObserverServer::connect_to_logic_server(const std::string& ip, unsigned short port)
@@ -573,7 +519,7 @@ void CObserverServer::log_cb(const wchar_t* msg, bool silence, bool gm_show, con
     foreach_session([this, &log](tcp_session_shared_ptr_t& session) {
         if (get_user_data_(session)->get_field<bool>("is_observer_client").value_or(false))//admin网关
         {
-            send(session, &log);
+            async_send(session, &log);
         }
     });
 }

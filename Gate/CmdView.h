@@ -36,6 +36,7 @@ protected:
     // 生成的消息映射函数
 protected:
     afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
+    void OnDelayedPaste();
     afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
     DECLARE_MESSAGE_MAP()
 public:
@@ -43,6 +44,7 @@ public:
     afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
     afx_msg void OnCmdEditReturn();
     virtual void OnInitialUpdate();
+    void OnPaste();
     afx_msg void OnSize(UINT nType, int cx, int cy);
     void Echo(LPCTSTR text);
 };

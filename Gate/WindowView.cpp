@@ -125,6 +125,7 @@ int CWindowView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 void CWindowView::FillViewList()
 {
+    m_ViewList.SetColumnByIntSort({ 0, 1, 4, 5 });
     auto& windows = GetDocument()->GetWindows();
     m_ViewList.SetRedraw(FALSE);
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
