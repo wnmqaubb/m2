@@ -5,7 +5,7 @@
 #include "ThreadPool.h"
 
 #define CONFIG_APP_NAME "及时雨"
-#define _DEBUG
+//#define _DEBUG
 
 extern std::filesystem::path g_cur_dir;
 

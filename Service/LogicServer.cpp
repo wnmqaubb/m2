@@ -290,8 +290,9 @@ void CLogicServer::process_task(unsigned int package_id, tcp_session_shared_ptr_
 
         // 1. 复制必要数据（避免移动后失效）
         unsigned int local_pkg_id = package_id;
-        //RawProtocolImpl local_pkg = std::move(package); // ✅ 明确转移所有权
-        package_mgr_.dispatch(package_id, local_session, package, std::move(raw_msg));
+        RawProtocolImpl local_pkg = std::move(package); // ✅ 明确转移所有权
+        auto raw_msg_ptr = std::make_shared<msgpack::v1::object_handle>(std::move(raw_msg));
+        package_mgr_.dispatch(local_pkg_id, local_session, local_pkg, std::move(*raw_msg_ptr));
     }
     catch (const std::exception& e) {
         slog->error("Package dispatch failed: {}", e.what());
