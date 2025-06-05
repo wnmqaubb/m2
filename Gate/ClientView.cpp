@@ -12,6 +12,13 @@
 #include "ConfigSettingChildFrm.h"
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
+#include <Lightbone/xorstr.hpp>
+#include <asio2/base/error.hpp>
+#include <asio2/http/request.hpp>
+#include <asio2/bho/beast/http/field.hpp>
+#include <asio2/bho/beast/http/verb.hpp>
+#include <asio2/http/detail/http_util.hpp>
+#include <asio2/http/http_client.hpp>
 //////////////////////////////////////////////////////////////////////
 // 构造/析构
 //////////////////////////////////////////////////////////////////////
@@ -26,6 +33,11 @@ CClientView::CClientView() noexcept
 
 CClientView::~CClientView()
 {
+#ifdef GATE_ADMIN
+    KillTimer(theApp.TIMER_ID_SYNC_LICENSE);
+#else
+    KillTimer(theApp.TIMER_ID_RELOAD_GAMER_LIST);
+#endif   
 }
 
 
@@ -52,6 +64,7 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
     ON_COMMAND(ID_JS_QUERY_DEVICE_ID, &CClientView::OnJsQueryDeviceId)
     ON_COMMAND(ID_JS_EXECUTE, &CClientView::OnJsExecute)
     ON_BN_CLICKED(IDC_REFRESH_LICENSE_BUTTON, &CClientView::OnBnClickedRefreshLicenseButton)
+    ON_BN_CLICKED(IDC_BUTTON_SYNC_LICENSE, &CClientView::OnBnClickedSyncLicenseButton)
     ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
 #endif
     ON_COMMAND(ID_EXIT_GAME, &CClientView::OnExitGame)
@@ -141,8 +154,9 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     m_ViewList.OnDoubleClick = [this]() {
         OnQueryProcess();
     };
+    SetTimer(theApp.TIMER_ID_SYNC_LICENSE, 1000 * 60 * 60 * 1, NULL);
 #else
-    SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
+    SetTimer(theApp.TIMER_ID_RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
 #endif   
 	return 0;
 }
@@ -762,12 +776,44 @@ void CClientView::OnMacWhiteAdd()
     }
 }
 
+void CClientView::OnTimer(UINT_PTR nIDEvent)
+{
+    switch (nIDEvent)
+    {
+    #ifdef GATE_ADMIN
+        case theApp.TIMER_ID_SYNC_LICENSE:
+        {
+            OnBnClickedSyncLicenseButton();
+            break;
+        }
+    #else
+        case theApp.TIMER_ID_RELOAD_GAMER_LIST:
+        {
+            OnRefreshUsers();
+            break;
+        }
+    #endif
+    }
+
+    CDockablePane::OnTimer(nIDEvent);
+}
+
+void CClientView::OnBnClickedLogButton()
+{
+    COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
+
+    outputdlg.CenterWindow();
+    outputdlg.ShowWindow(SW_SHOW);
+}
+
+#ifdef GATE_ADMIN
 void CClientView::OnJsQueryDeviceId()
 {
     ProtocolS2CScript msg;
     msg.code = "import * as api from 'api'; api.report(0, false, api.get_machine_id().toString(16))";
     SendCurrentSelectedUserCommand(&msg);
 }
+
 void CClientView::OnJsExecute()
 {
     CString gReadFilePathName;
@@ -795,6 +841,7 @@ void CClientView::OnJsExecute()
         }
     }
 }
+
 void CClientView::OnCmdView()
 {
     theApp.GetDocTemplateMgr().Find("Cmd")->CloseAllDocuments(TRUE);
@@ -924,34 +971,82 @@ void CClientView::OnServiceUploadPlugin()
     }
 }
 
-void CClientView::OnTimer(UINT_PTR nIDEvent)
-{
-    switch (nIDEvent)
-    {
-        case RELOAD_GAMER_LIST:
-        {
-            OnRefreshUsers();
-            break;
-        }
-    }
-
-    CDockablePane::OnTimer(nIDEvent);
-}
-
-void CClientView::OnBnClickedLogButton()
-{
-    COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
-
-    outputdlg.CenterWindow();
-    outputdlg.ShowWindow(SW_SHOW);
-}
-
 void CClientView::OnBnClickedRefreshLicenseButton()
 {
     theApp.ConnectionLicenses();
     OnRefreshServices();
 }
 
+void CClientView::OnBnClickedSyncLicenseButton()
+{
+    auto license_info = http_get_license_info();
+    if (license_info.empty() || !license_info._Starts_with("[{")) {
+        AfxMessageBox(TEXT("获取license信息失败"));
+        return;
+    }
+    std::filesystem::path license_path = theApp.m_ExeDir;
+    license_path = license_path / "license.txt";
+    // 将license信息写入文件
+    std::ofstream output(license_path, std::ios::out | std::ios::binary);
+    if  (!output.is_open())
+    {
+        AfxMessageBox(TEXT("license.txt文件打开失败"));
+        return;
+    }
+    output.write(license_info.c_str(), license_info.size());
+    output.close();
+
+    OnBnClickedRefreshLicenseButton();
+}
+
+std::string CClientView::http_get_license_info() {
+    VMP_VIRTUALIZATION_BEGIN(__FUNCTION__)
+    // http://121.43.101.216:13568/fetch_all_serials_ip_packer.php
+    try
+    {
+        asio2::http_client client;
+        const std::string host = xorstr("121.43.101.216");
+        const int port = 13568;
+        // 登录请求
+        http::web_request login_req;
+        login_req.method(http::verb::post);
+        login_req.target(xorstr("/login.php"));
+        login_req.set(http::field::user_agent, "Chrome");
+        login_req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        login_req.set(http::field::cookie, "lang=zh; PHPSESSID=ti0mvftdvlcfhv4bmc23i0mu83");
+        login_req.body() = xorstr("login=4451151&password=4451152");
+
+        // 发送登录请求
+        auto login_rep = client.execute(host, port, login_req, std::chrono::seconds(5));
+
+        if (auto error = asio2::get_last_error()) {
+            return error.message().c_str();
+        }
+
+        // 查询
+        http::web_request req;
+        req.method(http::verb::get);
+        req.target(xorstr("/fetch_all_serials_ip_packer.php"));
+        req.set(http::field::user_agent, "Chrome");
+        req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        req.set(http::field::cookie, "lang=zh; PHPSESSID=ti0mvftdvlcfhv4bmc23i0mu83");
+        req.prepare_payload();
+        auto rep = client.execute(host, port, req, std::chrono::seconds(5));
+
+        if (auto error = asio2::get_last_error()) {
+            return error.message().c_str();
+        }
+        else {
+            return rep.body().c_str();
+        }
+    }
+    catch (...)
+    {
+        return "";
+    }
+    return "";
+    VMP_VIRTUALIZATION_END();
+}
 
 void CClientView::OnServiceAddList()
 {
@@ -1030,7 +1125,6 @@ void CClientView::OnServiceS2CPlugin()
     }
 }
 
-
 template<typename T>
 void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
 {
@@ -1056,3 +1150,4 @@ void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
 		}
 	}
 }
+#endif

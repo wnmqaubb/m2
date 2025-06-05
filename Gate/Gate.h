@@ -58,6 +58,12 @@ public:
     std::string ReadAuthKey();
     void ConnectionLicenses();
     virtual CDocTemplateMgr& GetDocTemplateMgr() { return m_DocTemplatesMgr; }
+    typedef enum _SETTIMEOUT_ID
+    {
+        TIMER_ID_RELOAD_GAMER_LIST = 1,
+        TIMER_ID_SYNC_LICENSE,
+        TIMER_ID_POLL_WORK_ID,
+    }SETTIMEOUT_ID;
 protected:
     CDocTemplateMgr m_DocTemplatesMgr;
 // 重写
@@ -87,8 +93,7 @@ public:
 	afx_msg void OnServiceStop();
     afx_msg void OnAppExit();
     afx_msg void OnServiceSettings();
-    afx_msg void OnConfig();
-    
+    afx_msg void OnConfig();    
 };
 
 template <typename... Args>

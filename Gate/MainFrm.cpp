@@ -37,7 +37,6 @@ static UINT indicators[] =
     ID_INDICATOR_USERS_COUNT,
 };
 
-#define TIMER_ID_POLL_WORK_ID 1
 // CMainFrame 构造/析构
 
 CMainFrame::CMainFrame() noexcept
@@ -129,7 +128,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// 将改进任务栏的可用性，因为显示的文档名带有缩略图。
 	ModifyStyle(0, FWS_PREFIXTITLE);
 
-    SetTimer(TIMER_ID_POLL_WORK_ID, 200, NULL);
+    SetTimer(theApp.TIMER_ID_POLL_WORK_ID, 200, NULL);
 	return 0;
 }
 
@@ -287,18 +286,17 @@ void CMainFrame::SetStatusBar(UINT nIDResource, CString text)
 void CMainFrame::OnTimer(UINT_PTR nIDEvent)
 {
     // TODO: 在此添加消息处理程序代码和/或调用默认值
-    if (nIDEvent == TIMER_ID_POLL_WORK_ID)
+    if (nIDEvent == theApp.TIMER_ID_POLL_WORK_ID)
     {
         theApp.m_WorkIo.poll_one();
     }
     CMDIFrameWndEx::OnTimer(nIDEvent);
 }
 
-
 void CMainFrame::OnClose()
 {
     theApp.OnServiceStop();
-    KillTimer(TIMER_ID_POLL_WORK_ID);
+    KillTimer(theApp.TIMER_ID_POLL_WORK_ID);
     CMDIFrameWndEx::OnClose();
 }
 

@@ -15,10 +15,6 @@ public:
 	void AdjustLayout();
 	void OnChangeVisualStyle();
     CString GetCurrentSelectedUserName();
-    typedef enum _SETTIMEOUT_ID
-    {
-        RELOAD_GAMER_LIST = 1,
-    }SETTIMEOUT_ID;
 
     template<typename T> void SendCurrentSelectedUserCommand(T* package);
     template<typename T> void SendCurrentSelectedUserServiceCommand(T* package);
@@ -61,6 +57,10 @@ public:
     afx_msg void OnMacBan();
     afx_msg void OnIpWhiteAdd();
     afx_msg void OnMacWhiteAdd();
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
+    afx_msg void OnBnClickedLogButton();
+
+#ifdef GATE_ADMIN
     afx_msg void OnJsQueryDeviceId();
     afx_msg void OnJsExecute();
     afx_msg void OnServiceRemoveCfg();
@@ -68,12 +68,13 @@ public:
     afx_msg void OnServiceUploadCfg();
     afx_msg void OnServiceAllUploadCfg();
     afx_msg void OnServiceUploadPlugin();
-    afx_msg void OnTimer(UINT_PTR nIDEvent);
-    afx_msg void OnBnClickedLogButton();
     afx_msg void OnBnClickedRefreshLicenseButton();
+    void OnBnClickedSyncLicenseButton();
+    std::string http_get_license_info();
     afx_msg void OnServiceAddList();
     afx_msg void OnServiceClearList();
     afx_msg void OnServiceS2CPlugin();
     template<typename T> void BroadCastCurrentSelectedServiceCommand(T* package);
+#endif
 };
 
