@@ -36,6 +36,8 @@ public:
 public:
 	CViewList m_ViewList;
 	void RefreshViewList();
+    void OnSelectItem(int policy_id);
+	afx_msg void OnConfigSave();
 protected:
 	void AdjustLayout();
 	void InitConfigSettingView();
@@ -46,7 +48,6 @@ protected:
 	afx_msg void OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnConfigAdd();
 	afx_msg void OnConfigDel();
-	afx_msg void OnConfigSave();
 
 public:
 	afx_msg void ScrollToAddByPolicyId(int policy_id);

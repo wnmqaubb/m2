@@ -209,6 +209,7 @@ void CPropEditFormView::OnBnClickedButtonPolicyCommit()
             Policy.comment = temp.GetBuffer();
             pSettingDoc->GetPolicy().policies[uiPolicyId] = Policy;
             pSettingDoc->GetView<CConfigSettingView>()->RefreshViewList();
+            pSettingDoc->GetView<CConfigSettingView>()->OnConfigSave();
             pSettingDoc->SetTitle(pSettingDoc->GetTitle() + TEXT("*"));
         }
     }
