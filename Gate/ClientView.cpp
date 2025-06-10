@@ -24,6 +24,9 @@
 //////////////////////////////////////////////////////////////////////
 
 #define LOGIC_SERVER_KICK_LIST_FILE ".\\恶性开挂人员名单.txt"
+// 在视图类cpp文件顶部添加
+std::mutex CClientView::g_dataMutex;
+std::vector<std::unique_ptr<UserData>> CClientView::g_allUserData;
 
 CClientView::CClientView() noexcept
 {
@@ -37,7 +40,7 @@ CClientView::~CClientView()
     KillTimer(theApp.TIMER_ID_SYNC_LICENSE);
 #else
     KillTimer(theApp.TIMER_ID_RELOAD_GAMER_LIST);
-#endif   
+#endif
 }
 
 
@@ -81,6 +84,7 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
     ON_BN_CLICKED(IDC_LOG_BUTTON, &CClientView::OnBnClickedLogButton)
     ON_COMMAND(ID_SERVICE_ADD_LIST, &CClientView::OnServiceAddList)
     ON_COMMAND(ID_SERVICE_CLEAR_LIST, &CClientView::OnServiceClearList)
+    ON_MESSAGE(WM_UPDATE_USER_LIST, OnUpdateUserList)
 END_MESSAGE_MAP()
 
 
@@ -99,7 +103,6 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	
 	CRect rectDummy;
 	rectDummy.SetRectEmpty();
-
 #ifdef GATE_ADMIN
     // 创建选项卡窗口: 
     if (!m_wndTabs.Create(CMFCTabCtrl::STYLE_3D, rectDummy, this, 1))
@@ -117,13 +120,13 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
         TRACE0("未能创建列表视图\n");
         return -1;
     }
-    if (!m_ViewList.Create(dwViewStyle, rectDummy, &m_wndTabs, 2))
+    if (!m_ViewList.Create(dwViewStyle | LVS_OWNERDATA, rectDummy, &m_wndTabs, IDC_LIST_USERS))
     {
         TRACE0("未能创建列表视图\n");
         return -1;
     }
 #else
-    if (!m_ViewList.Create(dwViewStyle, rectDummy, this, 2))
+    if (!m_ViewList.Create(dwViewStyle | LVS_OWNERDATA, rectDummy, this, 2))
     {
         TRACE0("未能创建列表视图\n");
         return -1;
@@ -398,52 +401,11 @@ void CClientView::OnQueryWindows()
     SendCurrentSelectedUserCommand(&msg);
 }
 
-
-inline CString GetSystemDesc(int SysVer, bool is64bits)
-{
-    CString result;
-    switch (SysVer)
-    {
-    case WINDOWS_ANCIENT:
-        result = "Ancient";
-        break;
-    case WINDOWS_XP:
-        result = "WinXp";
-        break;
-    case WINDOWS_SERVER_2003:
-        result = "Win2003";
-        break;
-    case WINDOWS_VISTA:
-        result = "Vista";
-        break;
-    case WINDOWS_7:
-        result = "Win7";
-        break;
-    case WINDOWS_8:
-        result = "Win8";
-        break;
-    case WINDOWS_8_1:
-        result = "Win8.1";
-        break;
-    case WINDOWS_10:
-        result = "Win10";
-        break;
-    case WINDOWS_NEW:
-        result = "New";
-        break;
-    default:
-        result = "Unknown";
-        break;
-    }
-    result.Append(is64bits ? _T("(x64)") : _T("(x86)"));
-    return result;
-}
-
 void CClientView::FillClientView()
 {
     m_ViewList.SetColumnByIntSort({ 0, 1, 8, 10 });
     m_ViewList.SetColumnBySearch({ 2, 3 });
-    m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
+    m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
     int colIndex = 0;
     m_ViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
     m_ViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
@@ -478,7 +440,7 @@ void CClientView::FillServiceView()
 {
     m_ServiceViewList.SetColumnByIntSort({ 0, 1 });
     m_ServiceViewList.SetColumnBySearch({ 2, 3 });
-    m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
+    m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
     int colIndex = 0;
     m_ServiceViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
     m_ServiceViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
@@ -490,82 +452,257 @@ void CClientView::FillServiceView()
     m_ServiceViewList.DeleteAllItems();
 }
 
+//void CClientView::OnRefreshUsers()
+//{
+//    static size_t szUserCount = 0;
+//    theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
+//    {
+//        auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryUsers>();
+//        theApp.m_WorkIo.post([this, msg, client]() {
+//            client->set_user_count(0);
+//            client->session_ids().clear();
+//            for (auto& user_data : msg.data)
+//            {
+//                auto json_data = user_data.second.json;
+//                if (json_data.find("is_observer_client") != json_data.end())
+//                {
+//                    bool is_observer_client = json_data["is_observer_client"];
+//                    if (is_observer_client)
+//                    {
+//                        continue;
+//                    }
+//                }
+//                client->set_user_count(client->get_user_count() + 1);
+//                client->session_ids().emplace(user_data.second.session_id);
+//                szUserCount++;
+//                int rowNum = m_ViewList.GetItemCount();
+//                int colIndex = 0;
+//
+//                CString temp;
+//                temp.Format(_T("%d"), rowNum + 1);
+//                m_ViewList.InsertItem(rowNum, _T(""));
+//                //////
+//                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+//                temp.Format(_T("%u"), user_data.second.session_id); 
+//                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+//                std::wstring username = json_data.find("usrname") == json_data.end() ? TEXT("(NULL)") : json_data["usrname"];
+//                m_ViewList.SetItemText(rowNum, colIndex++, username.c_str());
+//                std::string ip = json_data["ip"];
+//                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(ip.c_str()));
+//                
+//                std::wstring cpuid = json_data["cpuid"];
+//                std::wstring mac = json_data["mac"];
+//                std::wstring vol = json_data["vol"];
+//                std::string ver = json_data["commit_ver"];
+//                temp.Format(_T("%s|%s|%s"), cpuid.c_str(), mac.c_str(), vol.c_str());
+//                int sysver = json_data["sysver"];
+//                int is_64bits = json_data["64bits"];
+//                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+//                m_ViewList.SetItemText(rowNum, colIndex++, GetSystemDesc(sysver, is_64bits));
+//                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(ver.c_str()));
+//                asio2::uuid uuid;
+//                memcpy(uuid.data, user_data.second.uuid, sizeof(uuid.data));
+//                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(uuid.str().c_str()));
+//                unsigned int pid = json_data["pid"];
+//                temp.Format(TEXT("%d"), pid);
+//                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+//                time_t tm = json_data["logintime"];
+//                CTime t(tm);
+//                m_ViewList.SetItemText(rowNum, colIndex++, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
+//                CTime tCur(time(0));
+//                auto tDelta = tCur - t;
+//                long long mins = tDelta.GetTotalMinutes();
+//                temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
+//                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+//                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
+//                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
+//                int miss_count = json_data.find("miss_count") == json_data.end() ? 0 : json_data["miss_count"];
+//                float miss_rate = mins == 0 ? 0 : ((float)miss_count / (float)mins);
+//                temp.Format(TEXT("%f"), miss_rate);
+//                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+//            }
+//            theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
+//        });
+//    });
+//    m_ViewList.DeleteAllItems();
+//    szUserCount = 0;
+//    ProtocolOBC2OBSQueryUsers req;
+//    theApp.m_ObServerClientGroup.send(&req);
+//}
+
 void CClientView::OnRefreshUsers()
 {
-    static size_t szUserCount = 0;
-    theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS, [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
+    // 显示加载状态
+    theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, L"加载中...");
+
+    // 清空旧数据
     {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        g_allUserData.clear();
+    }
+
+    // 检查控件是否有效
+    if (::IsWindow(m_ViewList.GetSafeHwnd()))
+    {
+        m_ViewList.SetItemCountEx(0, LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
+    }
+
+    // 注册数据处理器
+    theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS,
+        [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto msg = raw_msg.get().as<ProtocolOBS2OBCQueryUsers>();
+
+        // 在后台线程处理数据
         theApp.m_WorkIo.post([this, msg, client]() {
+            // 1. 收集所有数据
+            std::vector<std::unique_ptr<UserData>> tempData;
+            tempData.reserve(msg.data.size()); // 预分配空间
+
             client->set_user_count(0);
-            client->session_ids().clear();
             for (auto& user_data : msg.data)
             {
                 auto json_data = user_data.second.json;
-                if (json_data.find("is_observer_client") != json_data.end())
+                if (json_data.find("is_observer_client") != json_data.end() &&
+                    json_data["is_observer_client"])
                 {
-                    bool is_observer_client = json_data["is_observer_client"];
-                    if (is_observer_client)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
+
                 client->set_user_count(client->get_user_count() + 1);
                 client->session_ids().emplace(user_data.second.session_id);
-                szUserCount++;
-                int rowNum = m_ViewList.GetItemCount();
-                int colIndex = 0;
+                auto ud = std::make_unique<UserData>();
+                ud->session_id = user_data.second.session_id;
 
-                CString temp;
-                temp.Format(_T("%d"), rowNum + 1);
-                m_ViewList.InsertItem(rowNum, _T(""));
-                //////
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
-                temp.Format(_T("%u"), user_data.second.session_id); 
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
-                std::wstring username = json_data.find("usrname") == json_data.end() ? TEXT("(NULL)") : json_data["usrname"];
-                m_ViewList.SetItemText(rowNum, colIndex++, username.c_str());
-                std::string ip = json_data["ip"];
-                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(ip.c_str()));
-                
-                std::wstring cpuid = json_data["cpuid"];
-                std::wstring mac = json_data["mac"];
-                std::wstring vol = json_data["vol"];
-                std::string ver = json_data["commit_ver"];
-                temp.Format(_T("%s|%s|%s"), cpuid.c_str(), mac.c_str(), vol.c_str());
-                int sysver = json_data["sysver"];
-                int is_64bits = json_data["64bits"];
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
-                m_ViewList.SetItemText(rowNum, colIndex++, GetSystemDesc(sysver, is_64bits));
-                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(ver.c_str()));
-                asio2::uuid uuid;
-                memcpy(uuid.data, user_data.second.uuid, sizeof(uuid.data));
-                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(uuid.str().c_str()));
-                unsigned int pid = json_data["pid"];
-                temp.Format(TEXT("%d"), pid);
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
-                time_t tm = json_data["logintime"];
-                CTime t(tm);
-                m_ViewList.SetItemText(rowNum, colIndex++, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
-                CTime tCur(time(0));
-                auto tDelta = tCur - t;
-                long long mins = tDelta.GetTotalMinutes();
-                temp.Format(TEXT("%d"), tDelta.GetTotalMinutes());
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
-                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-                m_ViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_port().c_str()));
-                int miss_count = json_data.find("miss_count") == json_data.end() ? 0 : json_data["miss_count"];
-                float miss_rate = mins == 0 ? 0 : ((float)miss_count / (float)mins);
-                temp.Format(TEXT("%f"), miss_rate);
-                m_ViewList.SetItemText(rowNum, colIndex++, temp);
+                if (json_data.find("usrname") != json_data.end()) {
+                    ud->username = json_data["usrname"].get<std::wstring>();
+                }
+                else {
+                    ud->username = L"(NULL)";
+                }
+
+                // 其他字段也做类似处理
+                ud->ip = json_data["ip"].get<std::string>();
+                ud->cpuid = json_data["cpuid"].get<std::wstring>();
+                ud->mac = json_data["mac"].get<std::wstring>();
+                ud->vol = json_data["vol"].get<std::wstring>();
+                ud->sysver = json_data["sysver"].get<int>();
+                ud->is_64bits = json_data["64bits"].get<int>();
+                ud->commit_ver = json_data["commit_ver"].get<std::string>();
+
+                memcpy(ud->uuid.data, user_data.second.uuid, sizeof(ud->uuid.data));
+
+                ud->pid = json_data["pid"].get<unsigned int>();
+                ud->logintime = json_data["logintime"].get<time_t>();
+
+                if (json_data.find("miss_count") != json_data.end()) {
+                    ud->miss_count = json_data["miss_count"].get<int>();
+                }
+                else {
+                    ud->miss_count = 0;
+                }
+
+                ud->client_address = client->get_address();
+                ud->client_port = client->get_port();
+                tempData.push_back(std::move(ud));
             }
-            theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
+
+            // 2. 追加到总数据
+            {
+                std::lock_guard<std::mutex> lock(g_dataMutex);
+                for (auto& ud : tempData) {
+                    g_allUserData.push_back(std::move(ud));
+                }
+            }
+            // 3. 通知UI线程更新
+            PostMessage(WM_UPDATE_USER_LIST, 0, 0);
         });
     });
-    m_ViewList.DeleteAllItems();
-    szUserCount = 0;
+    // 发送查询请求
     ProtocolOBC2OBSQueryUsers req;
     theApp.m_ObServerClientGroup.send(&req);
+}
+
+// 处理WM_UPDATE_USER_LIST消息
+LRESULT CClientView::OnUpdateUserList(WPARAM wParam, LPARAM lParam)
+{
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastUpdateTime).count();
+
+    // 限制更新频率（最多每秒60次）
+    if (elapsed < 16) {  // ~60 FPS
+        return 0;
+    }
+
+    m_lastUpdateTime = now;
+    // 获取当前数据总数
+    size_t itemCount = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        itemCount = g_allUserData.size();
+    }
+    // 虚拟列表模式
+    m_ViewList.SetItemCountEx(itemCount, LVSICF_NOSCROLL);
+
+    theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(itemCount).c_str());
+    // 如果有数据但当前没有选中项，默认选中第一项
+    if (!g_allUserData.empty() && m_ViewList.GetSelectedCount() == 0)
+    {
+        m_ViewList.SetItemState(0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+    }
+
+    // 重置垂直滚动条位置到顶部
+    m_ViewList.Scroll(CSize(0, 0));
+
+    return 0;
+}
+
+// 虚拟列表获取数据
+void CClientView::OnGetDispInfo(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    LV_DISPINFO* pDispInfo = (LV_DISPINFO*)pNMHDR;
+
+    if (pDispInfo->item.iItem >= static_cast<int>(g_allUserData.size()))
+    {
+        *pResult = 0;
+        return;
+    }
+
+    const UserData& ud = *g_allUserData[pDispInfo->item.iItem];
+
+    if (pDispInfo->item.mask & LVIF_TEXT)
+    {
+        CString temp;
+        switch (pDispInfo->item.iSubItem)
+        {
+            case 0: temp.Format(_T("%d"), pDispInfo->item.iItem + 1); break;
+            case 1: temp.Format(_T("%u"), ud.session_id); break;
+            case 2: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, ud.username.c_str()); return;
+            case 3: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.ip.c_str())); return;
+            case 4: temp.Format(_T("%s|%s|%s"), ud.cpuid.c_str(), ud.mac.c_str(), ud.vol.c_str()); break;
+            case 5: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, GetSystemDesc(ud.sysver, ud.is_64bits)); return;
+            case 6: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.commit_ver.c_str())); return;
+            case 7: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.get_uuid_str().c_str())); return;
+            case 8: temp.Format(TEXT("%d"), ud.pid); break;
+            case 9:
+            {
+                CTime t(ud.logintime);
+                _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
+                return;
+            }
+            case 10: temp.Format(TEXT("%d"), (CTime(time(0)) - CTime(ud.logintime)).GetTotalMinutes()); break;
+            case 11: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.client_address.c_str())); return;
+            case 12: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.client_port.c_str())); return;
+            case 13:
+            {
+                long long mins = (CTime(time(0)) - CTime(ud.logintime)).GetTotalMinutes();
+                float miss_rate = mins == 0 ? 0 : ((float)ud.miss_count / (float)mins);
+                temp.Format(TEXT("%f"), miss_rate);
+                break;
+            }
+        }
+        _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, temp);
+    }
+    *pResult = 0;
 }
 
 void CClientView::OnRefreshServices()

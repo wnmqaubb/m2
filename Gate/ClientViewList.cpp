@@ -6,6 +6,7 @@
 BEGIN_MESSAGE_MAP(CClientViewList, CViewList)
     ON_NOTIFY_REFLECT(NM_CUSTOMDRAW, &CClientViewList::OnNMCustomdraw)
     ON_NOTIFY_REFLECT(NM_DBLCLK, &CClientViewList::OnNMDblclk)
+    ON_NOTIFY_REFLECT(LVN_GETDISPINFO, &CClientViewList::OnGetDispInfo)
 END_MESSAGE_MAP()
 
 
@@ -66,5 +67,53 @@ void CClientViewList::OnNMDblclk(NMHDR* pNMHDR, LRESULT* pResult)
         if (OnDoubleClick) OnDoubleClick(); // 调用父窗口方法
     }
 
+    *pResult = 0;
+}
+
+void CClientViewList::OnGetDispInfo(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    LV_DISPINFO* pDispInfo = (LV_DISPINFO*)pNMHDR;
+
+    if (pDispInfo->item.iItem >= static_cast<int>(CClientView::g_allUserData.size()))
+    {
+        *pResult = 0;
+        return;
+    }
+
+    const UserData& ud = *CClientView::g_allUserData[pDispInfo->item.iItem];
+
+    if (pDispInfo->item.mask & LVIF_TEXT)
+    {
+        CString temp;
+        switch (pDispInfo->item.iSubItem)
+        {
+            case 0: temp.Format(_T("%d"), pDispInfo->item.iItem + 1); break;
+            case 1: temp.Format(_T("%u"), ud.session_id); break;
+            case 2: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, ud.username.c_str()); return;
+            case 3: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.ip.c_str())); return;
+            case 4: temp.Format(_T("%s|%s|%s"), ud.cpuid.c_str(), ud.mac.c_str(), ud.vol.c_str()); break;
+            case 5: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, GetSystemDesc(ud.sysver, ud.is_64bits)); return;
+            case 6: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.commit_ver.c_str())); return;
+            case 7: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.get_uuid_str().c_str())); return;
+            case 8: temp.Format(TEXT("%d"), ud.pid); break;
+            case 9:
+            {
+                CTime t(ud.logintime);
+                _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, t.Format(TEXT("%Y-%m-%d %H:%M:%S")));
+                return;
+            }
+            case 10: temp.Format(TEXT("%d"), (CTime(time(0)) - CTime(ud.logintime)).GetTotalMinutes()); break;
+            case 11: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.client_address.c_str())); return;
+            case 12: _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, CA2T(ud.client_port.c_str())); return;
+            case 13:
+            {
+                long long mins = (CTime(time(0)) - CTime(ud.logintime)).GetTotalMinutes();
+                float miss_rate = mins == 0 ? 0 : ((float)ud.miss_count / (float)mins);
+                temp.Format(TEXT("%f"), miss_rate);
+                break;
+            }
+        }
+        _tcscpy_s(pDispInfo->item.pszText, pDispInfo->item.cchTextMax, temp);
+    }
     *pResult = 0;
 }

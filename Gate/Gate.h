@@ -213,3 +213,43 @@ static PolicyType ConvertToPolicyType(CString policyname)
         return (PolicyType)0;
     }
 }
+
+inline CString GetSystemDesc(int SysVer, bool is64bits)
+{
+    CString result;
+    switch (SysVer)
+    {
+        case WINDOWS_ANCIENT:
+            result = "Ancient";
+            break;
+        case WINDOWS_XP:
+            result = "WinXp";
+            break;
+        case WINDOWS_SERVER_2003:
+            result = "Win2003";
+            break;
+        case WINDOWS_VISTA:
+            result = "Vista";
+            break;
+        case WINDOWS_7:
+            result = "Win7";
+            break;
+        case WINDOWS_8:
+            result = "Win8";
+            break;
+        case WINDOWS_8_1:
+            result = "Win8.1";
+            break;
+        case WINDOWS_10:
+            result = "Win10";
+            break;
+        case WINDOWS_NEW:
+            result = "New";
+            break;
+        default:
+            result = "Unknown";
+            break;
+    }
+    result.Append(is64bits ? _T("(x64)") : _T("(x86)"));
+    return result;
+}

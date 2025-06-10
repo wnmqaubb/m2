@@ -19,6 +19,10 @@ public:
         {
             cb(client);
         }
+    }    
+    size_t cobserver_client_size()
+    {
+        return group_.size();
     }
 private:
     std::shared_mutex mtx_;

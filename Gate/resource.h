@@ -149,7 +149,10 @@
 #define ID_COPY_MODULE_PATH             32833
 #define ID_GET_GAMEUSER_FILE            32834
 #define ID_GET_GAMEUSER_FILE_SIGN       32835
+#define IDC_LIST_USERS                  32836
 
+
+#define WM_UPDATE_USER_LIST (WM_USER + 100)  // 自定义消息ID
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

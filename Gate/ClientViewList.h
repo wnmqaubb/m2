@@ -1,6 +1,7 @@
 #pragma once
 #include "ViewList.h"
 #include <functional>
+
 class CClientViewList :
     public CViewList
 {
@@ -14,5 +15,6 @@ public:
     ~CClientViewList();
     afx_msg void OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult);
     std::function<void()> OnDoubleClick; // »Øµ÷º¯Êý
+    afx_msg void OnGetDispInfo(NMHDR* pNMHDR, LRESULT* pResult);
 };
 
