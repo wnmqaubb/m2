@@ -60,6 +60,7 @@ CpackertoolDlg::CpackertoolDlg(CWnd* pParent /*=nullptr*/)
     , m_snhash(_T(""))
     , m_ip(_T(""))
     , m_login_stauts(_T(""))
+    , m_packed_file_name(_T(""))
 {
     m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -73,6 +74,7 @@ void CpackertoolDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Text(pDX, IDC_EDIT1, m_snhash);
     DDX_Text(pDX, IDC_EDIT3, m_ip);
     DDX_Text(pDX, IDC_EDIT4, m_login_stauts);
+    DDX_Text(pDX, IDC_EDIT5, m_packed_file_name);
 }
 
 BEGIN_MESSAGE_MAP(CpackertoolDlg, CDialogEx)
@@ -132,8 +134,15 @@ BOOL CpackertoolDlg::OnInitDialog()
     std::string snhash = IniTool::read_ini<std::string>(".\\config.ini", "LF", "sn", "");
     if (!snhash.empty()) {
         m_snhash = CA2T(snhash.c_str());
-        UpdateData(FALSE);
     }
+    std::string packed_file_name = IniTool::read_ini<std::string>(".\\config.ini", "LF", "packed_fname", "");
+    if (packed_file_name.empty()) {
+        m_packed_file_name = L"[云]";
+    }
+    else {
+        m_packed_file_name = CA2T(packed_file_name.c_str());
+    }
+    UpdateData(FALSE);
     m_progress_ctrl.SetRange(0, 100);
     m_progress_ctrl.SetPos(0);
     m_progress_ctrl.ShowWindow(SW_SHOW);
@@ -288,7 +297,7 @@ void CpackertoolDlg::OnDropFiles(HDROP hDropInfo) {
     GetDlgItem(IDC_EDIT_FILE_PATH)->SetWindowText(fileList);
 }
 
-void CpackertoolDlg::PackFileThread(const std::filesystem::path& pack_exe_path) {    
+void CpackertoolDlg::PackFileThread(const std::filesystem::path& pack_exe_path, const CString& packed_file_name) {
     VMP_VIRTUALIZATION_BEGIN(__FUNCTION__)
     UPDATE_PROGRESS(); // 步骤1: 开始打包
     CString cmd, cmd2, cmd3;
@@ -311,8 +320,8 @@ void CpackertoolDlg::PackFileThread(const std::filesystem::path& pack_exe_path) 
     //std::system(T2A(cmd));
     exec_cmd(cmd);
     // vmp
-    std::wstring new_path_vmp = new_path;
-    new_path_vmp.insert(new_path.rfind(TEXT(".")), TEXT("[V]"));
+    std::wstring new_path_vmp = pack_exe_path.wstring();
+    new_path_vmp.insert(new_path_vmp.rfind(TEXT(".")), packed_file_name.GetString());
 #ifdef _DEBUG
     cmd2.Format(TEXT("\"VMProtect_Con.exe\" \"%s\" \"%s\" -pf \"1.vmp\""),
 #else    
@@ -333,6 +342,9 @@ void CpackertoolDlg::PackFileThread(const std::filesystem::path& pack_exe_path) 
 
     ////std::system(T2A(cmd3));
     //exec_cmd(cmd3);
+
+    // 删除临时文件
+    std::filesystem::remove(new_path);
 
     UPDATE_PROGRESS();
     
@@ -355,6 +367,14 @@ void CpackertoolDlg::OnBnClickedButtonPack() {
         AfxMessageBox(_T("请先拖入要封装的登录器"));
         return;
     }
+
+    UpdateData(TRUE);
+    if (m_packed_file_name.IsEmpty()) {
+        m_packed_file_name = L"[云]";
+    }
+    std::string packed_file_name = CT2A(m_packed_file_name);
+    IniTool::write_ini<std::string>(".\\config.ini", "LF", "packed_fname", packed_file_name.c_str());
+    UpdateData(false);
 
     m_result_edit.SetWindowText(TEXT(""));
     // 获取 %Temp% 环境变量的值 
@@ -404,7 +424,7 @@ void CpackertoolDlg::OnBnClickedButtonPack() {
         for (auto& file : pThis->m_draggedFiles)
         {
             std::filesystem::path path(file.GetString());
-            pThis->PackFileThread(path);
+            pThis->PackFileThread(path, pThis->m_packed_file_name);
         }
 
         // 验证最终进度

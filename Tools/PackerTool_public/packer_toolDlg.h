@@ -46,7 +46,7 @@ private:
     volatile LONG m_completedTasks; // 使用原子操作
     volatile LONG m_totalTasks;
 
-    void PackFileThread(const std::filesystem::path& pack_exe_path);  // 线程打包函数
+    void PackFileThread(const std::filesystem::path& pack_exe_path, const CString& packed_file_name);  // 线程打包函数
 
     CString packer_tool_validate(const std::string& snhash);
 
@@ -68,4 +68,5 @@ private:
 public:
     CString m_login_stauts;
     afx_msg void OnTimer(UINT_PTR nIDEvent);
+    CString m_packed_file_name;
 };
