@@ -1,8 +1,11 @@
 ﻿#pragma once
 #include "afxdialogex.h"
+#include <vector>
+#include "GateF.h"
 
 
 // CAntiCheatDlg 对话框
+class CGateFDlg;
 
 class CAntiCheatDlg : public CDialogEx
 {
@@ -19,6 +22,9 @@ public:
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
+    afx_msg void OnSize(UINT nType, int cx, int cy);
+    CSize m_originalSize; // 添加这行
+    std::vector<ControlLayoutInfo> m_layoutInfos;
 	DECLARE_MESSAGE_MAP()
 public:
 	CListBox* m_current_list;

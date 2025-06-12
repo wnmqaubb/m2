@@ -17,7 +17,6 @@
 #include <asio\detail\thread_group.hpp>
 #include <json\json.hpp>
 #include <iostream>
-#include <afxext.h>
 #include <afxcontrolbars.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>

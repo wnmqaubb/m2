@@ -1,32 +1,21 @@
-﻿
-// GateF.cpp: 定义应用程序的类行为。
-//
-
-#include "pch.h"
+﻿#include "pch.h"
 #include "GateF.h"
 #include "GateFDlg.h"
 #include "asio2/util/base64.hpp"
 #include "asio2/util/sha1.hpp"
 #include "vmprotect/VMProtectSDK.h"
-
+#include "CGamesDlg.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
-#pragma data_seg("sing")
 unsigned int giInstancePid = 0;
-#pragma data_seg()
-#pragma comment(linker,"/section:sing,RWS")
-
 // CGateFApp
 
 BEGIN_MESSAGE_MAP(CGateFApp, CWinAppEx)
 	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
 END_MESSAGE_MAP()
 
-
 // CGateFApp 构造
-std::shared_ptr<spdlog::logger> slog;
 CGateFApp::CGateFApp()
 {
     slog = spdlog::basic_logger_mt("GateF_logger", "gatef_log.txt");
@@ -65,6 +54,16 @@ const WORD _wVerMinor = 0;
 
 BOOL CGateFApp::InitInstance()
 {
+    // 启用视觉样式（必须在创建任何窗口前调用）
+    INITCOMMONCONTROLSEX icc;
+    icc.dwSize = sizeof(icc);
+    icc.dwICC = ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES;
+    InitCommonControlsEx(&icc);
+
+    // 显式请求使用 ComCtl32.dll 版本 6
+#pragma comment(lib, "comctl32.lib")
+    ::SetThemeAppProperties(STAP_ALLOW_NONCLIENT | STAP_ALLOW_CONTROLS);
+
     CString strCmdLine = AfxGetApp()->m_lpCmdLine;
     if (strCmdLine == TEXT("/StartService"))
     {
@@ -102,7 +101,7 @@ BOOL CGateFApp::InitInstance()
         }
         pHandles[0] = pi.hProcess;
 
-        //si.wShowWindow = SW_HIDE;
+        //si.wShowWindow = SW_HIDE; 
         path = path.parent_path() / "g_LogicServer.exe";
         std::string strLogicServerCmdline = path.string() + strCmdLine;
         res = CreateProcessA(NULL,
@@ -219,7 +218,7 @@ BOOL CGateFApp::InitInstance()
     CGateFDlg dlg;
     m_pMainWnd = &dlg;
 
-    OnServiceStart();
+    //OnServiceStart();
     INT_PTR nResponse = dlg.DoModal();
     if (nResponse == IDOK)
     {

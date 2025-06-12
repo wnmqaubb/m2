@@ -53,11 +53,42 @@ BEGIN_MESSAGE_MAP(CPoliceDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_POLICY_COMMIT, &CPoliceDlg::OnConfigSave)
 	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CPoliceDlg::OnBnClickedRefreshPolicy)
 	ON_NOTIFY(UDN_DELTAPOS, IDC_SPIN_POLICY_DETECT_INTERVAL, &CPoliceDlg::OnDeltaposSpin1)
+    ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 BOOL CPoliceDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+
+    // 获取初始窗口大小
+    CRect rect;
+    GetClientRect(&rect);
+    m_originalSize = rect.Size();
+
+    // 初始化布局信息
+    CWnd* pChild = GetWindow(GW_CHILD);
+    while (pChild)
+    {
+        ControlLayoutInfo info;
+        pChild->GetWindowRect(&info.originalRect);
+        ScreenToClient(&info.originalRect);
+        info.nID = pChild->GetDlgCtrlID();
+
+        // 设置锚定方式
+        if (info.nID == IDC_LIST_POLICES) {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::TOP | AnchorStyle::RIGHT | AnchorStyle::BOTTOM;
+        }
+        else if (info.nID == IDC_STATIC_POLICY_INTERVAL1 || info.nID == IDC_EDIT_POLICY_DETECT_INTERVAL || info.nID == IDC_SPIN_POLICY_DETECT_INTERVAL || info.nID == IDC_BUTTON_POLICY_COMMIT || info.nID == IDC_BUTTON_REFRESH) {
+            info.anchor = AnchorStyle::TOP | AnchorStyle::RIGHT;
+        }
+        else {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::TOP;
+        }
+
+        m_layoutInfos.push_back(info);
+        pChild = pChild->GetNextWindow();
+    }
+
 	InitConfigSettingView();
 	// 填充策略类型下拉框
 	m_combo_policy_type.Create(WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, CRect(0, 0, 0, 0), this, IDC_LIST_COMBOBOX_POLICY);
@@ -104,9 +135,9 @@ void CPoliceDlg::InitConfigSettingView()
 	m_list_polices.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
 	m_list_polices.InsertColumn(colIndex++, TEXT("策略ID"), LVCFMT_LEFT, 50);
 	m_list_polices.InsertColumn(colIndex++, TEXT("策略类型"), LVCFMT_LEFT, 80);
-	m_list_polices.InsertColumn(colIndex++, TEXT("处理类型"), LVCFMT_LEFT, 110);
 	m_list_polices.InsertColumn(colIndex++, TEXT("配置"), LVCFMT_LEFT, 470);
 	m_list_polices.InsertColumn(colIndex++, TEXT("备注"), LVCFMT_LEFT, 150);
+	m_list_polices.InsertColumn(colIndex++, TEXT("处理类型"), LVCFMT_LEFT, 110);
 	m_list_polices.InsertColumn(colIndex++, TEXT("是否管理员创建"), LVCFMT_LEFT, 0);
 	m_list_polices.SetRedraw(TRUE);
 }
@@ -139,9 +170,9 @@ void CPoliceDlg::RefreshViewList()
 		temp.Format(format_d, uiPolicyId);
 		m_list_polices.SetItemText(rowNum, colIndex++, temp);
 		m_list_polices.SetItemText(rowNum, colIndex++, ConvertToString((PolicyType)Policy.policy_type));
-		m_list_polices.SetItemText(rowNum, colIndex++, ConvertToString((PunishType)Policy.punish_type));
 		m_list_polices.SetItemText(rowNum, colIndex++, Policy.config.c_str());
 		m_list_polices.SetItemText(rowNum, colIndex++, Policy.comment.c_str());
+		m_list_polices.SetItemText(rowNum, colIndex++, ConvertToString((PunishType)Policy.punish_type));
 		temp.Format(format_d, Policy.create_by_admin);
 		m_list_polices.SetItemText(rowNum, colIndex++, temp);
 		rowNum++;
@@ -155,14 +186,6 @@ void CPoliceDlg::OnInitialUpdate()
 	//GetDocument()->SetView(this);
 	RefreshViewList();
 }
-
-
-void CPoliceDlg::OnSize(UINT nType, int cx, int cy)
-{
-	CPoliceDlg::OnSize(nType, cx, cy);
-	AdjustLayout();
-}
-
 
 void CPoliceDlg::AdjustLayout()
 {
@@ -251,10 +274,10 @@ void CPoliceDlg::OnConfigSave()
 		uint32_t uiPolicyId = _ttoi(cstrPolicyId);
 		CString policy_type_str = m_list_polices.GetItemText(i, 2);
 		PolicyType policy_type = ConvertToPolicyType(policy_type_str);
-		CString punish_type_str = m_list_polices.GetItemText(i, 3);
+		CString config_str = m_list_polices.GetItemText(i, 3);
+		CString comment_str = m_list_polices.GetItemText(i, 4);
+		CString punish_type_str = m_list_polices.GetItemText(i, 5);
 		PunishType punish_type = ConvertToPunishType(punish_type_str);
-		CString config_str = m_list_polices.GetItemText(i, 4);
-		CString comment_str = m_list_polices.GetItemText(i, 5);
 		CString create_by_admin_str = m_list_polices.GetItemText(i, 6);
 		bool create_by_admin = _ttoi(create_by_admin_str);
 		ProtocolPolicy policy;
@@ -325,8 +348,8 @@ void CPoliceDlg::EditCell(int nRow, int nCol)
 
 	switch (nCol) {
 		case 1: // 文本框 
+		case 3: // 文本框
 		case 4: // 文本框
-		case 5: // 文本框
 			if (m_editCtrl.m_hWnd) {
 				m_editCtrl.DestroyWindow();
 			}
@@ -378,7 +401,7 @@ void CPoliceDlg::EditCell(int nRow, int nCol)
 			m_combo_policy_type.SetFocus();
 			m_combo_policy_type.BringWindowToTop();
 			break;
-		case 3: // 处罚类型下拉框			
+		case 5: // 处罚类型下拉框			
 			m_combo_punish_type.MoveWindow(rect);
 			OnCbnDropdownComboPunishType(m_list_polices.GetItemText(nRow, 2));
 			index = m_combo_punish_type.FindString(-1, m_list_polices.GetItemText(nRow, nCol));
@@ -544,4 +567,81 @@ void CPoliceDlg::OnDeltaposSpin1(NMHDR* pNMHDR, LRESULT* pResult)
 	IniTool::write_ini<int>(".\\jishiyu.ini", "Gate", "Policy_Detect_Interval", m_policy_detect_interval);
 	UpdateData(FALSE);  // 将改变后的变量值更新显示到文本框中
 	*pResult = 0;
+}
+
+
+void CPoliceDlg::OnSize(UINT nType, int cx, int cy)
+{
+    CDialogEx::OnSize(nType, cx, cy);
+
+    if (nType == SIZE_MINIMIZED || cx <= 0 || cy <= 0)
+        return;
+
+    // 计算大小变化量
+    int deltaX = cx - m_originalSize.cx;
+    int deltaY = cy - m_originalSize.cy;
+
+    // 使用延迟窗口定位以获得更好的性能
+    HDWP hdwp = BeginDeferWindowPos((int)m_layoutInfos.size());
+
+    for (auto& info : m_layoutInfos)  // 修改为auto&以便更新原始位置
+    {
+        CWnd* pWnd = GetDlgItem(info.nID);
+        if (!pWnd || !pWnd->GetSafeHwnd())
+            continue;
+
+        CRect newRect = info.originalRect;
+
+        // 根据锚定方式调整位置和大小
+        if ((info.anchor & AnchorStyle::RIGHT) != 0)
+        {
+            if ((info.anchor & AnchorStyle::LEFT) != 0)
+            {
+                // 左右都锚定，调整宽度
+                newRect.right += deltaX;
+            }
+            else
+            {
+                // 只锚定右边，移动位置
+                newRect.left += deltaX;
+                newRect.right += deltaX;
+            }
+        }
+
+        if ((info.anchor & AnchorStyle::BOTTOM) != 0)
+        {
+            if ((info.anchor & AnchorStyle::TOP) != 0)
+            {
+                // 上下都锚定，调整高度
+                newRect.bottom += deltaY;
+            }
+            else
+            {
+                // 只锚定下边，移动位置
+                newRect.top += deltaY;
+                newRect.bottom += deltaY;
+            }
+        }
+
+        hdwp = DeferWindowPos(hdwp, pWnd->m_hWnd, NULL,
+                              newRect.left, newRect.top,
+                              newRect.Width(), newRect.Height(),
+                              SWP_NOZORDER);
+
+        // 更新控件的原始位置信息
+        info.originalRect = newRect;  // 添加这行以更新控件位置
+    }
+
+    if (hdwp)
+        EndDeferWindowPos(hdwp);
+
+    // 确保列表控件重绘
+    if (m_list_polices.GetSafeHwnd())
+    {
+        m_list_polices.Invalidate();
+        m_list_polices.UpdateWindow();
+    }
+
+    // 更新原始大小为当前大小
+    m_originalSize = CSize(cx, cy);
 }

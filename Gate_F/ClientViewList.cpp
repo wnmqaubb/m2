@@ -1,6 +1,8 @@
 ﻿
 #include "pch.h"
 #include "GateF.h"
+#include "GateFDlg.h"
+#include "CGamesDlg.h"
 #include "framework.h"
 #include "ClientViewList.h"
 

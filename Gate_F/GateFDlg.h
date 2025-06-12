@@ -3,15 +3,19 @@
 //
 
 #pragma once
-#include "CGamesDlg.h"
 #include <memory>
 #include "CPoliceDlg.h"
 #include "CAntiCheatDlg.h"
 #include "CLogDlg.h"
 #include "CProcessInfoDlg.h"
+#include <atltypes.h>
 
 class CGateFDlgAutoProxy;
-
+class CGamesDlg;
+class CAntiCheatDlg;
+class CPoliceDlg;
+class CProcessInfoDlg;
+class CLogDlg;
 
 // CGateFDlg 对话框
 class CGateFDlg : public CDialogEx
@@ -81,6 +85,7 @@ public:
 	void SetPaneBackgroundColor(UINT nIDResource, COLORREF color);
 	void OnServiceCommand(UINT id);
 	HANDLE find_process(const std::string& processName);
+    void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	afx_msg void OnTcnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult);
 	void InitStatusBar();
 	void SetStatusBar(UINT nIDResource, CString text);
@@ -93,4 +98,5 @@ public:
 	std::unique_ptr<CLogDlg> m_logs_dlg; 
 	CStatusBar m_wndStatusBar;
 
+    afx_msg void OnSize(UINT nType, int cx, int cy);
 };

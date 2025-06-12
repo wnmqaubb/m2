@@ -104,15 +104,15 @@ int main(int argc, char** argv)
     //if (tc.Check()) {
     //    std::cout << "时间偏差过大，请检查时间设置！" << std::endl;
     //}
-    try {
-        throw std::system_error(ERROR_ACCESS_DENIED, std::system_category(), "Access denied");
-    }
-    //catch (const std::exception& e) {
-    //    std::cout << "异常：" << e.what() << std::endl;
+    //try {
+    //    throw std::system_error(ERROR_ACCESS_DENIED, std::system_category(), "Access denied");
     //}
-    catch (...) {
-        std::cout << "未知异常" << std::endl;
-    }
+    ////catch (const std::exception& e) {
+    ////    std::cout << "异常：" << e.what() << std::endl;
+    ////}
+    //catch (...) {
+    //    std::cout << "未知异常" << std::endl;
+    //}
     //decode_plugin("D:\\work\\mir\\竞品\\裁决网关\\plugin\\TaskBasic.dll");
     //decode_plugin("D:\\work\\Repos\\yk\\build\\bin\\Release\\Win32\\plugin\\TaskBasic.dll");
     //decode_plugin("D:\\work\\temp\\2\\cache\\2A6E4A2B");
@@ -138,20 +138,20 @@ int main(int argc, char** argv)
 	//	std::this_thread::sleep_for(std::chrono::seconds(1));
 	//}
 
- //   auto hmodule = LoadLibraryA("NewClient.dll");
-	//client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
-	//share_data_ptr_t param = new share_data_t();
-	//param->stage = 1;
-	//ProtocolCFGLoader cfg;
-	////cfg.set_field(ip_field_id, kDefaultLocalhost);
-	//cfg.set_field(ip_field_id, "140.210.20.215");
-	////cfg.set_field(ip_field_id, "43.241.17.76");
-	//cfg.set_field(port_field_id, kDefaultServicePort);
-	//cfg.set_field(test_mode_field_id, false);
-	//auto cfg_bin = cfg.dump();
-	//param->cfg_size = cfg_bin.size();
-	//memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
-	//entry(param);
+    auto hmodule = LoadLibraryA("NewClient.dll");
+	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+	share_data_ptr_t param = new share_data_t();
+	param->stage = 1;
+	ProtocolCFGLoader cfg;
+	//cfg.set_field(ip_field_id, kDefaultLocalhost);
+	cfg.set_field(ip_field_id, "103.60.166.81");
+	//cfg.set_field(ip_field_id, "43.241.17.76");
+	cfg.set_field(port_field_id, kDefaultServicePort);
+	cfg.set_field(test_mode_field_id, false);
+	auto cfg_bin = cfg.dump();
+	param->cfg_size = cfg_bin.size();
+	memcpy(param->cfg, cfg_bin.data(), std::min(cfg_bin.size(), sizeof(param->cfg)));
+	entry(param);
 
 	/*std::wstring volume_serial_number = std::any_cast<std::wstring>(Utils::HardwareInfo::get_volume_serial_number());
 	unsigned int volume_serial_number_hash_val = ApiResolver::hash(volume_serial_number.c_str(), volume_serial_number.size());

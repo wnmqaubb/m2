@@ -1,10 +1,22 @@
 ﻿#pragma once
-#include "afxdialogex.h"
-#include "ClientViewList.h"
+#include <afx.h>
+#include <afxdialogex.h>
+#include <afxstr.h>
+#include <afxwin.h>
+#include <algorithm>
+#include <atltime.h>
+#include <atltypes.h>
+#include <json/json.hpp>
+#include <memory>
+#include <ObserverClientImpl.h>
+#include <vector>
+#include <Windows.h>
+#include <ClientViewList.h>
+#include "GateF.h"
 
 
 // GamesDlg 对话框
-
+class CGateFDlg;
 class CGamesDlg : public CDialogEx
 {
 	DECLARE_DYNAMIC(CGamesDlg)
@@ -34,6 +46,10 @@ protected:
 	DECLARE_MESSAGE_MAP()
 	void OnRoleNameWhiteAdd();
 	void OnWhiteOrBlackAdd(const CString& list_name, CListBox* m_current_list);
+    afx_msg void OnSize(UINT nType, int cx, int cy);
+    CSize m_originalSize; // 添加这行
+    std::vector<ControlLayoutInfo> m_layoutInfos;
+    virtual BOOL OnInitDialog();
 public:
 	afx_msg void OnQueryProcess();
 	template<typename T> void SendCurrentSelectedUserCommand(T* package);

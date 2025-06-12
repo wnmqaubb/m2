@@ -5,6 +5,7 @@
 #include "framework.h"
 #include "GateF.h"
 #include "GateFDlg.h"
+#include "CGamesDlg.h"
 #include "DlgProxy.h"
 #include "afxdialogex.h"
 #include "CGamesDlg.h"
@@ -48,6 +49,8 @@ BEGIN_MESSAGE_MAP(CGateFDlg, CDialogEx)
     ON_WM_TIMER()
     ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CGateFDlg::OnTcnSelchangeTabMain)
     ON_COMMAND_RANGE(ID_INDICATOR_SERVER_STAUS, ID_INDICATOR_USERS_COUNT, NULL)
+    ON_WM_SIZE()
+    ON_WM_GETMINMAXINFO()
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -62,6 +65,7 @@ static UINT indicators[] =
 BOOL CGateFDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
+    //EnableDynamicLayout();
 
     // 设置此对话框的图标。  当应用程序主窗口不是对话框时，框架将自动
     //  执行此操作
@@ -239,6 +243,7 @@ void CGateFDlg::ShowAllDlgInTab()
     m_games_dlg->Create(IDD_DIALOG_GAMES, &m_tab_main);
     m_games_dlg->MoveWindow(m_tab_main_rect);
     m_games_dlg->ShowWindow(SW_SHOW);
+    //m_games_dlg->EnableDynamicLayout();
 
     m_anticheat_dlg = std::make_unique<CAntiCheatDlg>();
     m_anticheat_dlg->Create(IDD_DIALOG_ANTICHEAT, &m_tab_main);
@@ -601,4 +606,57 @@ HANDLE CGateFDlg::find_process(const std::string& processName)
         }
     }
     return nullptr;
+}
+
+void CGateFDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
+{
+    // 允许窗口自由缩放（移除默认的最小/最大限制）
+    lpMMI->ptMinTrackSize.x = 977;  // 最小宽度
+    lpMMI->ptMinTrackSize.y = 655;  // 最小高度
+    CDialogEx::OnGetMinMaxInfo(lpMMI);
+}
+
+void CGateFDlg::OnSize(UINT nType, int cx, int cy)
+{
+    CDialogEx::OnSize(nType, cx, cy);
+
+    if (nType == SIZE_MINIMIZED || cx <= 0 || cy <= 0)
+        return;
+
+    // 调整状态栏位置
+    if (m_wndStatusBar.GetSafeHwnd())
+    {
+        CRect rect;
+        GetClientRect(rect);
+        m_wndStatusBar.SetWindowPos(NULL, 0, rect.bottom - 20, rect.right, 20, SWP_NOZORDER);
+    }
+
+    // 调整标签控件大小
+    if (m_tab_main.GetSafeHwnd())
+    {
+        CRect tabRect;
+        GetClientRect(tabRect);
+        tabRect.bottom -= 20; // 为状态栏留出空间
+        m_tab_main.MoveWindow(tabRect);
+
+        // 重新计算客户区域
+        m_tab_main_rect = tabRect;
+        m_tab_main.AdjustRect(FALSE, &m_tab_main_rect);
+        m_tab_main_rect.DeflateRect(0, 0, 0, 0); // 调整客户区
+
+        // 调整所有子对话框大小
+        if (m_games_dlg && m_games_dlg->GetSafeHwnd())
+        {
+            m_games_dlg->MoveWindow(m_tab_main_rect);
+            m_games_dlg->Invalidate();  // 强制重绘
+        }
+        if (m_anticheat_dlg && m_anticheat_dlg->GetSafeHwnd())
+            m_anticheat_dlg->MoveWindow(m_tab_main_rect);
+        if (m_polices_dlg && m_polices_dlg->GetSafeHwnd())
+            m_polices_dlg->MoveWindow(m_tab_main_rect);
+        if (m_process_info_dlg && m_process_info_dlg->GetSafeHwnd())
+            m_process_info_dlg->MoveWindow(m_tab_main_rect);
+        if (m_logs_dlg && m_logs_dlg->GetSafeHwnd())
+            m_logs_dlg->MoveWindow(m_tab_main_rect);
+    }
 }

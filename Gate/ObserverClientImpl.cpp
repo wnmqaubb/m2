@@ -1,6 +1,9 @@
 ﻿#include "pch.h"
 #ifdef GATEF
+    #include <afxwin.h>
     #include "GateF.h"
+    #include "GateFDlg.h"
+    #include "CGamesDlg.h"
 #else
     #include "Gate.h"
 #endif

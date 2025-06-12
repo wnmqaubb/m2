@@ -1,8 +1,4 @@
-﻿
-// GateF.h: PROJECT_NAME 应用程序的主头文件
-//
-
-#pragma once
+﻿#pragma once
 
 #ifndef __AFXWIN_H__
 	#error "在包含此文件之前包含 'pch.h' 以生成 PCH"
@@ -11,12 +7,33 @@
 #include "resource.h"		// 主符号
 #include "../Gate/ObserverClientGroupImpl.h"
 #include "../Service/SubServicePackage.h"
-#include "GateFDlg.h"
+#include <memory>
 
 
-// CGateFApp:
-// 有关此类的实现，请参阅 GateF.cpp
-//
+inline std::shared_ptr<spdlog::logger> slog;
+// 使用枚举类代替普通枚举
+enum class AnchorStyle : unsigned int {
+    LEFT = 0x01,
+    TOP = 0x02,
+    RIGHT = 0x04,
+    BOTTOM = 0x08
+};
+
+// 重载|运算符用于组合锚定方式
+constexpr AnchorStyle operator|(AnchorStyle a, AnchorStyle b) {
+    return static_cast<AnchorStyle>(static_cast<unsigned int>(a) | static_cast<unsigned int>(b));
+}
+
+// 重载&运算符用于检查锚定方式
+constexpr unsigned int operator&(AnchorStyle a, AnchorStyle b) {
+    return static_cast<unsigned int>(a) & static_cast<unsigned int>(b);
+}
+
+struct ControlLayoutInfo {
+    CRect originalRect;
+    UINT nID;
+    AnchorStyle anchor;
+};
 typedef enum _SETTIMEOUT_ID
 {
 	TIMER_ID_RELOAD_GAMER_LIST = 1,
@@ -27,6 +44,8 @@ typedef enum _SETTIMEOUT_ID
 }SETTIMEOUT_ID;
 #define GATE_ADMIN_POLICY_ID 689000
 #define GATE_POLICY_ID 688000
+class CGateFDlg;
+class CGamesDlg;
 
 class CGateFApp : public CWinAppEx
 {

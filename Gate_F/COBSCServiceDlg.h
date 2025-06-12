@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include "afxdialogex.h"
+#include <vector>
+#include "GateF.h"
 
 
 // COBSCService 对话框
@@ -11,6 +13,9 @@ class COBSCServiceDlg : public CDialogEx
 public:
 	COBSCServiceDlg(CWnd* pParent = nullptr);   // 标准构造函数
 	virtual ~COBSCServiceDlg();
+    afx_msg void OnSize(UINT nType, int cx, int cy);
+    CSize m_originalSize; // 添加这行
+    std::vector<ControlLayoutInfo> m_layoutInfos;
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME

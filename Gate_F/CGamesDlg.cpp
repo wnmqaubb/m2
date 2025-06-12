@@ -1,10 +1,9 @@
-﻿﻿// GamesDlg.cpp: 实现文件
-//
-
-#include "pch.h"
-#include "GateF.h"
+﻿#include "pch.h"
 #include "afxdialogex.h"
 #include "CGamesDlg.h"
+#include "GateFDlg.h"
+#include "GateF.h"
+#include <memory>
 
 // GamesDlg 对话框
 IMPLEMENT_DYNAMIC(CGamesDlg, CDialogEx)
@@ -12,8 +11,29 @@ IMPLEMENT_DYNAMIC(CGamesDlg, CDialogEx)
 // 使用静态原子计数，线程安全
 static std::atomic<size_t> szUserCount{ 0 }; 
 extern std::shared_ptr<spdlog::logger> slog;
+
+BEGIN_MESSAGE_MAP(CGamesDlg, CDialogEx)
+    ON_WM_CONTEXTMENU()
+    ON_COMMAND(IDC_BUTTON_SEARCH, &CGamesDlg::OnBnClickedOnlineGamerSearch)
+    ON_COMMAND(ID_EXIT_GAME, &CGamesDlg::OnExitGame)
+    ON_COMMAND(ID_IP_BAN, &CGamesDlg::OnIpBan)
+    ON_COMMAND(ID_MAC_BAN, &CGamesDlg::OnMacBan)
+    ON_COMMAND(ID_ROLENAME_BAN, &CGamesDlg::OnRoleNameBan)
+    ON_COMMAND(ID_IP_WHITE_ADD, &CGamesDlg::OnIpWhiteAdd)
+    ON_COMMAND(ID_MAC_WHITE_ADD, &CGamesDlg::OnMacWhiteAdd)
+    ON_COMMAND(ID_ROLENAME_WHITE_ADD, &CGamesDlg::OnRoleNameWhiteAdd)
+    ON_BN_CLICKED(ID_REFRESH_USERS, &CGamesDlg::OnRefreshUsers)
+    ON_COMMAND(ID_PROCESS_VIEW, &CGamesDlg::OnQueryProcess)
+    ON_COMMAND(IDC_PROCESS_BUTTON, &CGamesDlg::OnQueryProcess)
+    ON_COMMAND(ID_SCREENSHOT_VIEW, &CGamesDlg::OnQueryScreenShot)
+    ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CGamesDlg::OnQueryScreenShot)
+    ON_WM_SIZE()
+    ON_WM_CTLCOLOR()
+END_MESSAGE_MAP()
+
 CGamesDlg::CGamesDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_DIALOG_GAMES, pParent)
+    , m_originalSize(0, 0)  // 初始化原始大小为0
 {
     theApp.m_ObServerClientGroup.register_package_handler(OBPKG_ID_S2C_QUERY_USERS,
         [this](std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
@@ -83,24 +103,6 @@ void CGamesDlg::OnCommand(UINT nID)
 {
 
 }
-
-BEGIN_MESSAGE_MAP(CGamesDlg, CDialogEx)
-	ON_WM_CONTEXTMENU()
-	ON_COMMAND(IDC_BUTTON_SEARCH, &CGamesDlg::OnBnClickedOnlineGamerSearch)
-	ON_COMMAND(ID_EXIT_GAME, &CGamesDlg::OnExitGame)
-	ON_COMMAND(ID_IP_BAN, &CGamesDlg::OnIpBan)
-	ON_COMMAND(ID_MAC_BAN, &CGamesDlg::OnMacBan)
-	ON_COMMAND(ID_ROLENAME_BAN, &CGamesDlg::OnRoleNameBan)
-	ON_COMMAND(ID_IP_WHITE_ADD, &CGamesDlg::OnIpWhiteAdd)
-	ON_COMMAND(ID_MAC_WHITE_ADD, &CGamesDlg::OnMacWhiteAdd)
-	ON_COMMAND(ID_ROLENAME_WHITE_ADD, &CGamesDlg::OnRoleNameWhiteAdd)
-	ON_BN_CLICKED(ID_REFRESH_USERS, &CGamesDlg::OnRefreshUsers)
-	ON_COMMAND(ID_PROCESS_VIEW, &CGamesDlg::OnQueryProcess)
-	ON_COMMAND(IDC_PROCESS_BUTTON, &CGamesDlg::OnQueryProcess)
-	ON_COMMAND(ID_SCREENSHOT_VIEW, &CGamesDlg::OnQueryScreenShot)
-	ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CGamesDlg::OnQueryScreenShot)
-	ON_WM_CTLCOLOR()
-END_MESSAGE_MAP()
 
 // GamesDlg 消息处理程序
 
@@ -473,4 +475,117 @@ HBRUSH CGamesDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 		pDC->SetTextColor(RGB(0x95, 0x3C, 0x97));
 	}
 	return hbr;
+}
+
+void CGamesDlg::OnSize(UINT nType, int cx, int cy)
+{
+    CDialogEx::OnSize(nType, cx, cy);
+
+    if (nType == SIZE_MINIMIZED || cx <= 0 || cy <= 0)
+        return;
+
+    // 计算大小变化量
+    int deltaX = cx - m_originalSize.cx;
+    int deltaY = cy - m_originalSize.cy;
+
+    // 使用延迟窗口定位以获得更好的性能
+    HDWP hdwp = BeginDeferWindowPos((int)m_layoutInfos.size());
+
+    for (auto& info : m_layoutInfos)  // 修改为auto&以便更新原始位置
+    {
+        CWnd* pWnd = GetDlgItem(info.nID);
+        if (!pWnd || !pWnd->GetSafeHwnd())
+            continue;
+
+        CRect newRect = info.originalRect;
+
+        // 根据锚定方式调整位置和大小
+        if ((info.anchor & AnchorStyle::RIGHT) != 0)
+        {
+            if ((info.anchor & AnchorStyle::LEFT) != 0)
+            {
+                // 左右都锚定，调整宽度
+                newRect.right += deltaX;
+            }
+            else
+            {
+                // 只锚定右边，移动位置
+                newRect.left += deltaX;
+                newRect.right += deltaX;
+            }
+        }
+
+        if ((info.anchor & AnchorStyle::BOTTOM) != 0)
+        {
+            if ((info.anchor & AnchorStyle::TOP) != 0)
+            {
+                // 上下都锚定，调整高度
+                newRect.bottom += deltaY;
+            }
+            else
+            {
+                // 只锚定下边，移动位置
+                newRect.top += deltaY;
+                newRect.bottom += deltaY;
+            }
+        }
+
+        hdwp = DeferWindowPos(hdwp, pWnd->m_hWnd, NULL,
+                              newRect.left, newRect.top,
+                              newRect.Width(), newRect.Height(),
+                              SWP_NOZORDER);
+
+        // 更新控件的原始位置信息
+        info.originalRect = newRect;  // 添加这行以更新控件位置
+    }
+
+    if (hdwp)
+        EndDeferWindowPos(hdwp);
+
+    // 确保列表控件重绘
+    if (m_list_games.GetSafeHwnd())
+    {
+        m_list_games.Invalidate();
+        m_list_games.UpdateWindow();
+    }
+
+    // 更新原始大小为当前大小
+    m_originalSize = CSize(cx, cy);
+}
+
+BOOL CGamesDlg::OnInitDialog()
+{
+    CDialogEx::OnInitDialog();
+
+    // 获取初始窗口大小
+    CRect rect;
+    GetClientRect(&rect);
+    m_originalSize = rect.Size();
+
+    // 初始化布局信息
+    CWnd* pChild = GetWindow(GW_CHILD);
+    while (pChild)
+    {
+        ControlLayoutInfo info;
+        pChild->GetWindowRect(&info.originalRect);
+        ScreenToClient(&info.originalRect);
+        info.nID = pChild->GetDlgCtrlID();
+
+        // 设置锚定方式
+        if (info.nID == IDC_LIST_GAMES) {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::TOP | AnchorStyle::RIGHT | AnchorStyle::BOTTOM;
+        }
+        else if (info.nID == IDC_BUTTON_SEARCH || info.nID == IDC_EDIT_SEARCH) {
+            info.anchor = AnchorStyle::TOP | AnchorStyle::RIGHT;
+        }
+        else {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::TOP;
+        }
+
+        m_layoutInfos.push_back(info);
+        pChild = pChild->GetNextWindow();
+    }
+
+    // 不再在此处设置列宽（已在FillClientView中设置）
+    return TRUE;
 }

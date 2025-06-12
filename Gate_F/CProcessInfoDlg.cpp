@@ -3,6 +3,8 @@
 
 #include "pch.h"
 #include "GateF.h"
+#include "GateFDlg.h"
+#include "CPoliceDlg.h"
 #include "afxdialogex.h"
 #include "CProcessInfoDlg.h"
 
@@ -53,6 +55,35 @@ END_MESSAGE_MAP()
 BOOL CProcessInfoDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+
+    // 获取初始窗口大小
+    CRect rect;
+    GetClientRect(&rect);
+    m_originalSize = rect.Size();
+
+    // 初始化布局信息
+    CWnd* pChild = GetWindow(GW_CHILD);
+    while (pChild)
+    {
+        ControlLayoutInfo info;
+        pChild->GetWindowRect(&info.originalRect);
+        ScreenToClient(&info.originalRect);
+        info.nID = pChild->GetDlgCtrlID();
+
+        // 设置锚定方式
+        if (info.nID == IDC_LIST_PROCESSINFO) {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::TOP | AnchorStyle::RIGHT | AnchorStyle::BOTTOM;
+        }
+        else if(info.nID == IDC_TAB1 || info.nID == IDC_LIST_MODULEINFO || info.nID == IDC_LIST_THREADINFO || info.nID == IDC_LIST_DIRECTORYINFO) {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::RIGHT | AnchorStyle::BOTTOM;
+        }
+        else {
+            info.anchor = AnchorStyle::LEFT | AnchorStyle::TOP;
+        }
+
+        m_layoutInfos.push_back(info);
+        pChild = pChild->GetNextWindow();
+    }
 
 	FillViewList();
 
@@ -215,21 +246,6 @@ void CProcessInfoDlg::FillViewListData() {
 		rowNum++;
 	}
 	m_list_process_info.SetRedraw(TRUE);
-}
-
-void CProcessInfoDlg::OnSize(UINT nType, int cx, int cy)
-{
-	CDialogEx::OnSize(nType, cx, cy);
-
-	if (GetSafeHwnd() == nullptr)
-	{
-		return;
-	}
-
-	/*CRect rectClient;
-	GetClientRect(rectClient);
-
-	m_list_process_info.SetWindowPos(nullptr, rectClient.left, rectClient.top, rectClient.Width(), rectClient.Height(), SWP_NOACTIVATE | SWP_NOZORDER);*/
 }
 
 void CProcessInfoDlg::OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult)
@@ -535,4 +551,73 @@ void CProcessInfoDlg::OnCopyModulePath()
 	}
 	cell_value.Replace(_T("\\"), _T("\\\\"));
 	theApp.GetMainFrame()->CopyToClipboard(cell_value);
+}
+
+void CProcessInfoDlg::OnSize(UINT nType, int cx, int cy)
+{
+    CDialogEx::OnSize(nType, cx, cy);
+
+    if (nType == SIZE_MINIMIZED || cx <= 0 || cy <= 0)
+        return;
+
+    // 计算大小变化量
+    int deltaX = cx - m_originalSize.cx;
+    int deltaY = cy - m_originalSize.cy;
+
+    // 使用延迟窗口定位以获得更好的性能
+    HDWP hdwp = BeginDeferWindowPos((int)m_layoutInfos.size());
+
+    for (auto& info : m_layoutInfos)  // 修改为auto&以便更新原始位置
+    {
+        CWnd* pWnd = GetDlgItem(info.nID);
+        if (!pWnd || !pWnd->GetSafeHwnd())
+            continue;
+
+        CRect newRect = info.originalRect;
+
+        // 根据锚定方式调整位置和大小
+        if ((info.anchor & AnchorStyle::RIGHT) != 0)
+        {
+            if ((info.anchor & AnchorStyle::LEFT) != 0)
+            {
+                // 左右都锚定，调整宽度
+                newRect.right += deltaX;
+            }
+            else
+            {
+                // 只锚定右边，移动位置
+                newRect.left += deltaX;
+                newRect.right += deltaX;
+            }
+        }
+
+        if ((info.anchor & AnchorStyle::BOTTOM) != 0)
+        {
+            if ((info.anchor & AnchorStyle::TOP) != 0)
+            {
+                // 上下都锚定，调整高度
+                newRect.bottom += deltaY;
+            }
+            else
+            {
+                // 只锚定下边，移动位置
+                newRect.top += deltaY;
+                newRect.bottom += deltaY;
+            }
+        }
+
+        hdwp = DeferWindowPos(hdwp, pWnd->m_hWnd, NULL,
+                              newRect.left, newRect.top,
+                              newRect.Width(), newRect.Height(),
+                              SWP_NOZORDER);
+
+        // 更新控件的原始位置信息
+        info.originalRect = newRect;  // 添加这行以更新控件位置
+    }
+
+    if (hdwp)
+        EndDeferWindowPos(hdwp);
+
+    // 更新原始大小为当前大小
+    m_originalSize = CSize(cx, cy);
 }

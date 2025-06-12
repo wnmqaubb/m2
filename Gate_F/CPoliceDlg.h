@@ -1,8 +1,11 @@
 ﻿#pragma once
 #include "afxdialogex.h"
+#include <vector>
+#include "GateF.h"
 
 
 // CPoliceDlg 对话框
+class CGateFDlg;
 
 class CPoliceDlg : public CDialogEx
 {
@@ -30,6 +33,8 @@ protected:
 	afx_msg void OnConfigAdd();
 	afx_msg void OnConfigDel();
 	afx_msg void OnConfigSave();
+    CSize m_originalSize; // 添加这行
+    std::vector<ControlLayoutInfo> m_layoutInfos;
 	DECLARE_MESSAGE_MAP()
 private:
 	int m_nCurSelRow, m_nCurSelCol;

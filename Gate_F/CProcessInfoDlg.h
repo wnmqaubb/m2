@@ -1,8 +1,11 @@
 ﻿#pragma once
 #include "afxdialogex.h"
+#include <vector>
+#include "GateF.h"
 
 
 // CProcessInfoDlg 对话框
+class CGateFDlg;
 
 class CProcessInfoDlg : public CDialogEx
 {
@@ -19,6 +22,8 @@ public:
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
+    CSize m_originalSize; // 添加这行
+    std::vector<ControlLayoutInfo> m_layoutInfos;
 
 	DECLARE_MESSAGE_MAP()
 public:
