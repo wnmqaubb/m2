@@ -178,12 +178,31 @@ void __stdcall client_entry(share_data_ptr_t param) noexcept
 		g_client_rev_version = std::make_shared<int>(REV_VERSION);
 		g_game_io = std::make_shared<asio::io_service>(); 
 		g_thread_group = std::make_shared<asio::detail::thread_group>();
-        client = std::make_shared<CClientImpl>(std::move(ProtocolCFGLoader::load((char*)param->cfg, param->cfg_size)));
+        g_thread_group->create_thread([]() { // 按值捕获param避免失效
+            try {
+                // 仅短暂延迟确保主线程初始化完成
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+
+                // 确保配置数据有效
+                if (!share_data || !share_data->cfg || share_data->cfg_size == 0) {
+                    throw std::runtime_error("Invalid configuration data");
+                }
+
+                auto config = ProtocolCFGLoader::load(
+                    reinterpret_cast<char*>(share_data->cfg),
+                    share_data->cfg_size
+                );
+
+                client = std::make_shared<CClientImpl>(std::move(config));
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                client->client_start_routine(); // 确保在此线程内调用
+            }
+            catch (const std::exception& e) {
+                // 记录错误日志
+                OutputDebugStringA(("Client init failed: " + std::string(e.what())).c_str());
+            }
+        });
     VMP_VIRTUALIZATION_END();
-        if (client->cfg()->get_field<bool>(test_mode_field_id))
-        {
-            ::MessageBoxA(NULL, "test mode", "test", MB_OK);
-        }
     }
 }
 

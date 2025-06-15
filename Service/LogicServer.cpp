@@ -63,6 +63,7 @@ void init_logger();
 
 int main(int argc, char** argv)
 {
+    SetUnhandledExceptionFilter(GlobalExceptionFilter);
     // 在 main 函数或初始化代码中注册 SEH 过滤器
     _se_translator_function old_seh = _set_se_translator([](unsigned code, EXCEPTION_POINTERS*) {
         throw std::runtime_error("SEH Exception: code=" + std::to_string(code));

@@ -26,7 +26,7 @@ CClientImpl::CClientImpl(std::unique_ptr<ProtocolCFGLoader> cfg) : super()
     init();
     /*v1:: 有几个win7旗舰版sp1的反馈登录后报错,调试定位是这个线程里client_start_routine();c00005异常*/
     /*v2:: 不用等待用户登录,直接初始化和开始连接*/
-    client_start_routine();
+    //client_start_routine();
 }
 
 void CClientImpl::client_start_routine()
@@ -51,24 +51,25 @@ void CClientImpl::client_start_routine()
     ip = t_cfg->get_field<std::string>(ip_field_id);
     auto port = t_cfg->get_field<unsigned int>(port_field_id);
     //有几个win7旗舰版sp1的反馈登录后报错, 调试定位是这个线程里client_start_routine(); c00005异常
-    if (Utils::CWindows::instance().get_system_version() <= WINDOWS_7) {
-        // 使用 std::async 启动异步任务
-        //std::async(std::launch::async, [this, ip, port]() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            this->start(ip, port);
-        //});
-    }
-    else {
-        std::thread([this, ip, port]() mutable {
-            try {
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                start(ip, port);
-            }
-            catch (const std::exception& e) {
-                OutputDebugStringA(e.what());
-            }
-        }).detach();
-    }
+    //if (Utils::CWindows::instance().get_system_version() <= WINDOWS_7) {
+    //    // 使用 std::async 启动异步任务
+    //    //std::async(std::launch::async, [this, ip, port]() {
+    //        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    //        this->start(ip, port);
+    //    //});
+    //}
+    //else {
+    //    std::thread([this, ip, port]() mutable {
+    //        try {
+    //            std::this_thread::sleep_for(std::chrono::seconds(2));
+    //            start(ip, port);
+    //        }
+    //        catch (const std::exception& e) {
+    //            OutputDebugStringA(e.what());
+    //        }
+    //    }).detach();
+    //}
+    start(ip, port);
 }
 
 void CClientImpl::init()
