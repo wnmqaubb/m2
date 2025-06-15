@@ -73,7 +73,7 @@ BOOL CGateFApp::InitInstance()
         STARTUPINFOA si = {};
         HANDLE pHandles[2] = {};
         si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_SHOW;
+        si.wShowWindow = SW_HIDE;
         PROCESS_INFORMATION pi = {};
         const std::string strCmdLine = " " + std::to_string(giInstancePid) + " 6";
 
@@ -218,7 +218,7 @@ BOOL CGateFApp::InitInstance()
     CGateFDlg dlg;
     m_pMainWnd = &dlg;
 
-    //OnServiceStart();
+    OnServiceStart();
     INT_PTR nResponse = dlg.DoModal();
     if (nResponse == IDOK)
     {
