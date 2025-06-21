@@ -13,6 +13,9 @@
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
 #include "ClientViewList.h"
+#include <Lightbone/xorstr.hpp>
+#include <asio2/http/request.hpp>
+#include <asio2/http/http_client.hpp>
 //////////////////////////////////////////////////////////////////////
 // 构造/析构
 //////////////////////////////////////////////////////////////////////
@@ -27,6 +30,11 @@ CClientView::CClientView() noexcept
 
 CClientView::~CClientView()
 {
+#ifdef GATE_ADMIN
+    KillTimer(TIMER_ID_SYNC_LICENSE);
+#else
+    KillTimer(TIMER_ID_RELOAD_GAMER_LIST);
+#endif   
 }
 
 
@@ -37,8 +45,6 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
 	ON_WM_PAINT()
     ON_WM_SETFOCUS()
     ON_COMMAND(ID_PROCESS_VIEW, &CClientView::OnQueryProcess)
-    ON_COMMAND(ID_WINDOWS_VIEW, &CClientView::OnQueryWindows)
-    ON_COMMAND(ID_DRIVER_VIEW, &CClientView::OnQueryDrivers)
     ON_COMMAND(ID_REFRESH_USERS, &CClientView::OnRefreshUsers)
     ON_COMMAND(ID_SCREENSHOT_VIEW, &CClientView::OnQueryScreenShot)
     //ON_COMMAND(ID_SHELLCODE_VIEW, &CClientView::OnQueryShellCode)
@@ -47,28 +53,31 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
 	ON_COMMAND(IDC_REFRESH_USERS_BUTTON, &CClientView::OnRefreshUsers)
 	ON_COMMAND(IDC_PROCESS_BUTTON, &CClientView::OnQueryProcess)
 #if defined(GATE_ADMIN)
+    ON_COMMAND(ID_WINDOWS_VIEW, &CClientView::OnQueryWindows)
+    ON_COMMAND(ID_DRIVER_VIEW, &CClientView::OnQueryDrivers)
     ON_COMMAND(ID_SERVICE_REFRESH, &CClientView::OnRefreshServices)
     ON_COMMAND(ID_CMD_VIEW, &CClientView::OnCmdView)
     ON_COMMAND(ID_SERVICE_UPDATE_LOGIC, &CClientView::OnUpdateLogic)
     ON_COMMAND(ID_JS_QUERY_DEVICE_ID, &CClientView::OnJsQueryDeviceId)
     ON_COMMAND(ID_JS_EXECUTE, &CClientView::OnJsExecute)
     ON_BN_CLICKED(IDC_REFRESH_LICENSE_BUTTON, &CClientView::OnBnClickedRefreshLicenseButton)
+    ON_BN_CLICKED(IDC_BUTTON_SYNC_LICENSE, &CClientView::OnBnClickedSyncLicenseButton)
     //ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
+    ON_COMMAND(ID_SERVICE_REMOVE_CFG, &CClientView::OnServiceRemoveCfg)
+    ON_COMMAND(ID_SERVICE_REMOVE_PLUGIN, &CClientView::OnServiceRemovePlugin)
+    ON_COMMAND(ID_SERVICE_UPLOAD_CFG, &CClientView::OnServiceUploadCfg)
+    ON_COMMAND(ID_SERVICE_ALL_UPLOAD_CFG, &CClientView::OnServiceAllUploadCfg)
+    ON_COMMAND(ID_SERVICE_UPLOAD_PLUGIN, &CClientView::OnServiceUploadPlugin)
+    ON_COMMAND(ID_SERVICE_ADD_LIST, &CClientView::OnServiceAddList)
+    ON_COMMAND(ID_SERVICE_CLEAR_LIST, &CClientView::OnServiceClearList)
 #endif
     ON_COMMAND(ID_EXIT_GAME, &CClientView::OnExitGame)
     ON_COMMAND(ID_IP_BAN, &CClientView::OnIpBan)
     ON_COMMAND(ID_MAC_BAN, &CClientView::OnMacBan)
     ON_COMMAND(ID_IP_WHITE_ADD, &CClientView::OnIpWhiteAdd)
     ON_COMMAND(ID_MAC_WHITE_ADD, &CClientView::OnMacWhiteAdd)
-    ON_COMMAND(ID_SERVICE_REMOVE_CFG, &CClientView::OnServiceRemoveCfg)
-    ON_COMMAND(ID_SERVICE_REMOVE_PLUGIN, &CClientView::OnServiceRemovePlugin)
-    ON_COMMAND(ID_SERVICE_UPLOAD_CFG, &CClientView::OnServiceUploadCfg)
-    ON_COMMAND(ID_SERVICE_ALL_UPLOAD_CFG, &CClientView::OnServiceAllUploadCfg)
-    ON_COMMAND(ID_SERVICE_UPLOAD_PLUGIN, &CClientView::OnServiceUploadPlugin)
     ON_WM_TIMER()
     ON_BN_CLICKED(IDC_LOG_BUTTON, &CClientView::OnBnClickedLogButton)
-    ON_COMMAND(ID_SERVICE_ADD_LIST, &CClientView::OnServiceAddList)
-    ON_COMMAND(ID_SERVICE_CLEAR_LIST, &CClientView::OnServiceClearList)
 END_MESSAGE_MAP()
 
 
@@ -137,6 +146,7 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	FillClientView();
 #ifdef GATE_ADMIN
     FillServiceView();
+    SetTimer(TIMER_ID_SYNC_LICENSE, 1000 * 60 * 60 * 1, NULL);
 #else
     SetTimer(TIMER_ID_RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
 #endif    
@@ -358,29 +368,11 @@ void CClientView::OnQueryProcess()
     SendCurrentSelectedUserCommand(&msg);
 }
 
-void CClientView::OnQueryDrivers()
-{
-    ProtocolS2CQueryDriverInfo msg;
-    SendCurrentSelectedUserCommand(&msg);
-}
-
-//void CClientView::OnQueryShellCode()
-//{
-//    ProtocolS2CCheckPlugin msg;
-//    SendCurrentSelectedUserCommand(&msg);
-//}
 void CClientView::OnQueryScreenShot()
 {
     ProtocolS2CQueryScreenShot msg;
     SendCurrentSelectedUserCommand(&msg);
 }
-
-void CClientView::OnQueryWindows()
-{
-    ProtocolS2CQueryWindows msg;
-    SendCurrentSelectedUserCommand(&msg);
-}
-
 
 inline CString GetSystemDesc(int SysVer, bool is64bits)
 {
@@ -456,22 +448,6 @@ void CClientView::FillClientView()
     m_ViewList.InsertColumn(colIndex++, TEXT("client_plug_ver"), LVCFMT_LEFT, 120);
 #endif
     m_ViewList.DeleteAllItems();
-}
-
-void CClientView::FillServiceView()
-{
-    m_ServiceViewList.SetColumnByIntSort({ 0, 1 });
-    m_ServiceViewList.SetColumnBySearch({ 2, 3 });
-    m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
-    int colIndex = 0;
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("IP"), LVCFMT_LEFT, 250);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("是否在线"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("在线人数"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("Logic版本"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.DeleteAllItems();
 }
 
 void CClientView::OnRefreshUsers()
@@ -556,36 +532,6 @@ void CClientView::OnRefreshUsers()
     szUserCount = 0;
     ProtocolOBC2OBSQueryUsers req;
     theApp.m_ObServerClientGroup.send(&req);
-}
-
-void CClientView::OnRefreshServices()
-{
-    m_ServiceViewList.DeleteAllItems();
-    theApp.m_ObServerClientGroup.foreach([this](std::shared_ptr<CObserverClientImpl> client) {
-        int rowNum = m_ServiceViewList.GetItemCount();
-        int colIndex = 0;
-
-        CString temp;
-        temp.Format(_T("%d"), rowNum + 1);
-        m_ServiceViewList.InsertItem(rowNum, _T(""));
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-        temp.Format(TEXT("%d"), client->get_port());
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth()&&client->is_started() ? TEXT("是"): TEXT("否"));
-        temp.Format(TEXT("%d"), client->get_user_count());
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        std::wstring wstrLogicVersion;
-        try {
-            wstrLogicVersion = std::any_cast<std::wstring>(client->user_data().get_field(NetUtils::hash(TEXT("logic_ver"))));
-        }
-        catch (...)
-        {
-            wstrLogicVersion = TEXT("无");
-        }
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, wstrLogicVersion.c_str());
-    });
 }
 
 void CClientView::OnBnClickedOnlineGamerSearch()
@@ -807,6 +753,101 @@ void CClientView::OnMacWhiteAdd()
     }
 }
 
+void CClientView::OnTimer(UINT_PTR nIDEvent)
+{
+    switch (nIDEvent)
+    {
+    #ifdef GATE_ADMIN
+        case TIMER_ID_SYNC_LICENSE:
+        {
+            OnBnClickedSyncLicenseButton();
+            break;
+        }
+    #else
+        case TIMER_ID_RELOAD_GAMER_LIST:
+        {
+            OnRefreshUsers();
+            break;
+        }
+    #endif
+    }
+
+    CDockablePane::OnTimer(nIDEvent);
+}
+
+void CClientView::OnBnClickedLogButton()
+{
+    COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
+
+    outputdlg.CenterWindow();
+    outputdlg.ShowWindow(SW_SHOW);
+}
+
+#ifdef GATE_ADMIN
+void CClientView::OnQueryDrivers()
+{
+    ProtocolS2CQueryDriverInfo msg;
+    SendCurrentSelectedUserCommand(&msg);
+}
+
+//void CClientView::OnQueryShellCode()
+//{
+//    ProtocolS2CCheckPlugin msg;
+//    SendCurrentSelectedUserCommand(&msg);
+//}
+
+void CClientView::OnQueryWindows()
+{
+    ProtocolS2CQueryWindows msg;
+    SendCurrentSelectedUserCommand(&msg);
+}
+
+void CClientView::FillServiceView()
+{
+    m_ServiceViewList.SetColumnByIntSort({ 0, 1 });
+    m_ServiceViewList.SetColumnBySearch({ 2, 3 });
+    m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
+    int colIndex = 0;
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("IP"), LVCFMT_LEFT, 250);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("是否在线"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("在线人数"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("Logic版本"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.DeleteAllItems();
+}
+
+void CClientView::OnRefreshServices()
+{
+    m_ServiceViewList.DeleteAllItems();
+    theApp.m_ObServerClientGroup.foreach([this](std::shared_ptr<CObserverClientImpl> client) {
+        int rowNum = m_ServiceViewList.GetItemCount();
+        int colIndex = 0;
+
+        CString temp;
+        temp.Format(_T("%d"), rowNum + 1);
+        m_ServiceViewList.InsertItem(rowNum, _T(""));
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
+        temp.Format(TEXT("%d"), client->get_port());
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth() && client->is_started() ? TEXT("是") : TEXT("否"));
+        temp.Format(TEXT("%d"), client->get_user_count());
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        std::wstring wstrLogicVersion;
+        try {
+            wstrLogicVersion = std::any_cast<std::wstring>(client->user_data().get_field(NetUtils::hash(TEXT("logic_ver"))));
+        }
+        catch (...)
+        {
+            wstrLogicVersion = TEXT("无");
+        }
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, wstrLogicVersion.c_str());
+    });
+}
+
 void CClientView::OnJsQueryDeviceId()
 {
     ProtocolS2CScript msg;
@@ -969,28 +1010,6 @@ void CClientView::OnServiceUploadPlugin()
     }
 }
 
-void CClientView::OnTimer(UINT_PTR nIDEvent)
-{
-    switch (nIDEvent)
-    {
-        case TIMER_ID_RELOAD_GAMER_LIST:
-        {
-            OnRefreshUsers();
-            break;
-        }
-    }
-
-    CDockablePane::OnTimer(nIDEvent);
-}
-
-void CClientView::OnBnClickedLogButton()
-{
-    COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
-
-    outputdlg.CenterWindow();
-    outputdlg.ShowWindow(SW_SHOW);
-}
-
 void CClientView::OnBnClickedRefreshLicenseButton()
 {
     theApp.ConnectionLicenses();
@@ -1019,62 +1038,76 @@ void CClientView::OnServiceClearList()
     SendCurrentSelectedServiceCommand(&req);
 }
 
+void CClientView::OnBnClickedSyncLicenseButton()
+{
+    auto license_info = http_get_license_info();
+    if (license_info.empty() || !license_info._Starts_with("[{")) {
+        AfxMessageBox(TEXT("获取license信息失败"));
+        return;
+    }
+    std::filesystem::path license_path = theApp.m_ExeDir;
+    license_path = license_path / "license.txt";
+    // 将license信息写入文件
+    std::ofstream output(license_path, std::ios::out | std::ios::binary);
+    if (!output.is_open())
+    {
+        AfxMessageBox(TEXT("license.txt文件打开失败"));
+        return;
+    }
+    output.write(license_info.c_str(), license_info.size());
+    output.close();
 
-//void CClientView::OnServiceS2CPlugin()
-//{
-//
-//	CString gReadFilePathName;
-//	CFileDialog fileDlg(true, _T("dll"), _T("*.dll"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("dll Files (*.dll)|*.dll"), NULL);
-//	if (fileDlg.DoModal() != IDOK)    //弹出对话框  
-//	{
-//        return;
-//	}
-//	
-//	std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-//	if (file.is_open() == false)
-//	{
-//        return;
-//		
-//	}
-//
-//	std::stringstream ss;
-//	ss << file.rdbuf();
-//	std::string buffer = ss.str();
-//
-//    ProtocolS2CDownloadPlugin package;
-//	
-//    if (*(uint16_t*)buffer.data() != 0x5A4D)
-//    {
-//        RawProtocolImpl raw_package;
-//        if (!raw_package.decode(buffer))
-//        {
-//            AfxMessageBox(L"Decode Error");
-//            return;
-//        }
-//
-//        auto raw_msg = msgpack::unpack((char*)raw_package.body.buffer.data(), raw_package.body.buffer.size());
-//        package = raw_msg.get().as<ProtocolS2CDownloadPlugin>();
-//    }
-//    else
-//    {
-//		std::copy(buffer.begin(), buffer.end(), std::back_inserter(package.data));
-//		xor_buffer(package.data.data(), package.data.size(), kProtocolXorKey);
-//		package.is_crypted = 1;
-//		package.plugin_hash = NetUtils::aphash((unsigned char*)buffer.data(), buffer.size());
-//		package.plugin_name = "TaskBasic.dll";
-//    }
-//
-//
-//    if (m_wndTabs.GetActiveTab() == 1) {
-//		//服务列表
-//		BroadCastCurrentSelectedServiceCommand(&package);
-//    }
-//    else {
-//		//用户列表
-//        SendCurrentSelectedUserCommand(&package);
-//    }
-//}
+    OnBnClickedRefreshLicenseButton();
+}
 
+std::string CClientView::http_get_license_info() {
+    VMP_VIRTUALIZATION_BEGIN(__FUNCTION__)
+        // http://121.43.101.216:13568/fetch_all_serials_ip_plugin.php
+        try
+    {
+        asio2::http_client client;
+        const std::string host = xorstr("121.43.101.216");
+        const int port = 13568;
+        // 登录请求
+        http::web_request login_req;
+        login_req.method(http::verb::post);
+        login_req.target(xorstr("/login.php"));
+        login_req.set(http::field::user_agent, "Chrome");
+        login_req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        login_req.set(http::field::cookie, "lang=zh; PHPSESSID=ti0mvftdvlcfhv4bmc23i0mu83");
+        login_req.body() = xorstr("login=4451151&password=4451152");
+
+        // 发送登录请求
+        auto login_rep = client.execute(host, port, login_req, std::chrono::seconds(5));
+
+        if (auto error = asio2::get_last_error()) {
+            return error.message().c_str();
+        }
+
+        // 查询
+        http::web_request req;
+        req.method(http::verb::get);
+        req.target(xorstr("/fetch_all_serials_ip_plugin.php"));
+        req.set(http::field::user_agent, "Chrome");
+        req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        req.set(http::field::cookie, "lang=zh; PHPSESSID=ti0mvftdvlcfhv4bmc23i0mu83");
+        req.prepare_payload();
+        auto rep = client.execute(host, port, req, std::chrono::seconds(5));
+
+        if (auto error = asio2::get_last_error()) {
+            return error.message().c_str();
+        }
+        else {
+            return rep.body().c_str();
+        }
+    }
+    catch (...)
+    {
+        return "";
+    }
+    return "";
+    VMP_VIRTUALIZATION_END();
+}
 
 template<typename T>
 void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
@@ -1100,3 +1133,4 @@ void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
 		}
 	}
 }
+#endif

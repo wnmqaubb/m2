@@ -271,6 +271,8 @@
     </Image>
     <Image Include="res\guard.ico" />
     <Image Include="res\config.ico" />
+    <Image Include="res\blue.ico" />
+    <Image Include="res\red.ico" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="资源文件">

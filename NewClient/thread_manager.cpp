@@ -1,7 +1,22 @@
 #include "pch.h"
+#include "../lf_rungate_server_plug/lf_plug_sdk.h"
 #include "ClientImpl.h"
 #include "version.build"
-#include "../lf_rungate_server_plug/lf_plug_sdk.h"
+#include <asio/detail/thread_group.hpp>
+#include <asio/executor_work_guard.hpp>
+#include <asio/io_service.hpp>
+#include <asio2/base/timer.hpp>
+#include <clocale>
+#include <exception>
+#include <Lightbone/utils.h>
+#include <memory>
+#include <Service/NetUtils.h>
+#include <Service/SubServicePackage.h>
+#include <string>
+#include <thread_manager.h>
+#include <WinDef.h>
+#include <Windows.h>
+#include <WinError.h>
 
 using namespace lfengine::client;
 
@@ -13,115 +28,97 @@ std::shared_ptr<int> g_client_rev_version;
 std::shared_ptr<CClientImpl> client_;
 std::shared_ptr<asio2::timer> g_timer;
 HWND g_main_window_hwnd;
-const UINT WM_UNLOAD_COMPLETE = RegisterWindowMessageW(L"WM_UNLOAD_COMPLETE_7A3F1B");
 static std::wstring MUTEX_NAME;
 HANDLE hMutex;
-static unsigned __stdcall WorkerThreadProc(void* param);
-class AntiCheatSystem {
-public:
-    AntiCheatSystem() : 
-        m_running(false) {}
 
-    ~AntiCheatSystem() {
-    }
+AntiCheatSystem::AntiCheatSystem() :
+    m_running(false) {}
 
-    void Init(const PAppFuncDef AppFunc, const char* server_ip) {
-        m_server_ip = server_ip ? server_ip : "";
-        g_client_rev_version = std::make_shared<int>(REV_VERSION);
-        g_AppFunc = std::make_shared<TAppFuncDef>();
-        g_game_io = std::make_shared<asio::io_service>();
-        g_thread_group = std::make_shared<asio::detail::thread_group>();
-        g_timer = std::make_shared<asio2::timer>();
-        client_entry();
-        m_running = true;
-        return;
-    }
-
-    void UnInit() {
-        m_running = false;
-
-        // 清理资源
-        client_->stop();
-        if (g_thread_group) {
-            g_thread_group->join();
-            g_thread_group.reset();
-        }
-        if (g_game_io) {
-            g_game_io->stop();
-            g_game_io.reset();
-        }
-    }
-
-    void client_entry()
-    {
-        // 在 main 函数或初始化代码中注册 SEH 过滤器
-        /*SetUnhandledExceptionFilter(GlobalExceptionFilter);
-        _se_translator_function old_seh = _set_se_translator([](unsigned code, EXCEPTION_POINTERS*) {
-            throw std::runtime_error("SEH Exception: code=" + std::to_string(code));
-        });*/
-    #if 0
-        g_client_rev_version = std::make_shared<int>(REV_VERSION);
-        g_AppFunc = std::make_shared<TAppFuncDef>();
-        g_game_io = std::make_shared<asio::io_service>();
-        g_thread_group = std::make_shared<asio::detail::thread_group>();
-        g_timer = std::make_shared<asio2::timer>();
-        //dll_base = std::make_shared<HINSTANCE>(nullptr);
-        //*dll_base = GetModuleHandle(nullptr);
-        //dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
-    #endif
-        VMP_VIRTUALIZATION_BEGIN();
-        try
-        {
-            setlocale(LC_CTYPE, "");
-            ProtocolCFGLoader cfg;
-            cfg.set_field<std::string>(ip_field_id, m_server_ip.empty() ? "127.0.0.1" : m_server_ip);
-            cfg.set_field<int>(port_field_id, 23268);
-            client_ = std::make_shared<CClientImpl>();
-            client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
-            client_->cfg()->set_field<bool>(test_mode_field_id, false);
-            client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
-        #ifdef _DEBUG
-            client_->cfg()->set_field<bool>(test_mode_field_id, true);
-            client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
-        #endif
-            LOG("client_start_routine ");
-            //WndProcHook::install_hook();
-            {
-                auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
-                auto port = client_->cfg()->get_field<int>(port_field_id);
-                LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
-                client_->async_start(ip, port);
-                LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
-                g_thread_group->create_threads([this]() {
-                    // 禁用DLL_THREAD_ATTACH/DETACH通知
-                    DisableThreadLibraryCalls((HMODULE)*dll_base);
-                    auto work_guard = asio::make_work_guard(*g_game_io);
-                    g_game_io->run();
-                    LOG("ASIO线程安全退出"); // 确保线程退出时无模块代码
-                }, 2);
-            }
-        }
-        catch (std::exception& e)
-        {
-            LOG("client_start_routine 异常: %s ", e.what());
-        }
-        VMP_VIRTUALIZATION_END();
-    }
-private:
-    std::atomic_bool m_running;
-    std::string m_server_ip;      // 缓存IP地址
-};
-
-static unsigned __stdcall WorkerThreadProc(void* param) {
-    AntiCheatSystem* self = static_cast<AntiCheatSystem*>(param);
-    self->client_entry();
-    return 0;
+AntiCheatSystem::~AntiCheatSystem() {
 }
 
-// 导出函数
-extern "C" {
-    __declspec(dllexport) void __stdcall InitEx(const PAppFuncDef AppFunc, const char* server_ip, const wchar_t* mutex_anti_cheat_module_name);
-    __declspec(dllexport) void __stdcall UnInitEx();
+void AntiCheatSystem::Init(const PAppFuncDef AppFunc, const char* server_ip) {
+    m_server_ip = server_ip ? server_ip : "";
+    g_client_rev_version = std::make_shared<int>(REV_VERSION);
+    g_AppFunc = std::make_shared<TAppFuncDef>();
+    g_game_io = std::make_shared<asio::io_service>();
+    g_thread_group = std::make_shared<asio::detail::thread_group>();
+    g_timer = std::make_shared<asio2::timer>();
+    client_entry();
+    m_running = true;
+    return;
+}
+
+void AntiCheatSystem::UnInit() {
+    m_running = false;
+
+    // 清理资源
+    client_->stop();
+    if (g_thread_group) {
+        g_thread_group->join();
+        g_thread_group.reset();
+    }
+    if (g_game_io) {
+        g_game_io->stop();
+        g_game_io.reset();
+    }
+}
+
+void AntiCheatSystem::client_entry()
+{
+    // 在 main 函数或初始化代码中注册 SEH 过滤器
+    /*SetUnhandledExceptionFilter(GlobalExceptionFilter);
+    _se_translator_function old_seh = _set_se_translator([](unsigned code, EXCEPTION_POINTERS*) {
+        throw std::runtime_error("SEH Exception: code=" + std::to_string(code));
+    });*/
+#if 0
+    g_client_rev_version = std::make_shared<int>(REV_VERSION);
+    g_AppFunc = std::make_shared<TAppFuncDef>();
+    g_game_io = std::make_shared<asio::io_service>();
+    g_thread_group = std::make_shared<asio::detail::thread_group>();
+    g_timer = std::make_shared<asio2::timer>();
+    //dll_base = std::make_shared<HINSTANCE>(nullptr);
+    //*dll_base = GetModuleHandle(nullptr);
+    //dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+#endif
+    VMP_VIRTUALIZATION_BEGIN();
+    try
+    {
+        setlocale(LC_CTYPE, "");
+        ProtocolCFGLoader cfg;
+        cfg.set_field<std::string>(ip_field_id, m_server_ip.empty() ? "127.0.0.1" : m_server_ip);
+        cfg.set_field<int>(port_field_id, 23268);
+        client_ = std::make_shared<CClientImpl>();
+        client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
+        client_->cfg()->set_field<bool>(test_mode_field_id, false);
+        client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+    #ifdef _DEBUG
+        client_->cfg()->set_field<bool>(test_mode_field_id, true);
+        client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+    #endif
+        LOG("client_start_routine ");
+        //WndProcHook::install_hook();
+        {
+            auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
+            auto port = client_->cfg()->get_field<int>(port_field_id);
+            LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+            client_->async_start(ip, port);
+            LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+            g_thread_group->create_threads([this]() {
+                // 禁用DLL_THREAD_ATTACH/DETACH通知
+                if(dll_base)
+                    DisableThreadLibraryCalls((HMODULE)*dll_base);
+                auto work_guard = asio::make_work_guard(*g_game_io);
+                g_game_io->run();
+                LOG("ASIO线程安全退出"); // 确保线程退出时无模块代码
+            }, 2);
+        }
+    }
+    catch (std::exception& e)
+    {
+        LOG("client_start_routine 异常: %s ", e.what());
+    }
+    VMP_VIRTUALIZATION_END();
 }
 
 // 全局单例

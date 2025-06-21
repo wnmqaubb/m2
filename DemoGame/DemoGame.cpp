@@ -20,8 +20,9 @@
 #include <iphlpapi.h>
 #include <DbgHelp.h>
 #include <Psapi.h>
+#include <Uxtheme.h>
 //#include "NewClient/loader.h"
-#pragma comment(lib, "iphlpapi.lib")
+#pragma comment(lib, "iphlpapi.lib") 
 
 extern void __stdcall client_entry(std::string guard_gate_ip) noexcept;
 extern void __stdcall DoUnInit();
@@ -36,10 +37,44 @@ extern void enable_seh_on_shellcode();
 extern std::shared_ptr<asio::io_service> g_game_io;
 void init_client_entry();
 void test_task_basic_dll(fs::path path);
-bool IsThreadFromModule(DWORD tid);
+bool IsThreadFromModule(DWORD tid); 
+typedef void(__stdcall* InitExFunc)(const void* AppFunc, const char* server_ip);
+// 原DLL的初始化函数指针
+InitExFunc pfnAntiCheatInit = nullptr;
+void GetWindowFontInfo(HWND hWnd) {
+    // 获取当前字体句柄
+    HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+
+    if (hFont == NULL) {
+        printf("Window uses system default font\n");
+        return;
+    }
+
+    // 获取字体详细信息
+    LOGFONT lf;
+    if (GetObject(hFont, sizeof(LOGFONT), &lf)) {
+        printf("Font Face: %s\n", lf.lfFaceName);
+        printf("Height: %d (pixels)\n", abs(lf.lfHeight));
+        printf("Weight: %d (400=normal, 700=bold)\n", lf.lfWeight);
+        printf("Italic: %s\n", lf.lfItalic ? "Yes" : "No");
+        printf("CharSet: %d\n", lf.lfCharSet);
+    }
+    else {
+        printf("Failed to get font info\n");
+    }
+}
+
 int main(int argc, char** argv)
-{	
-	init_client_entry();
+{
+
+    HWND hNotepad = (HWND)201570;
+    if (hNotepad) {
+        GetWindowFontInfo(hNotepad);
+    }
+    else {
+        printf("Notepad not found\n");
+    }
+	//init_client_entry();
 	//wchar_t* user_profile = nullptr;
 	//size_t len = 0;
 	//FileChangeNotifier notifier;
@@ -152,17 +187,49 @@ bool IsThreadFromModule(DWORD tid) {
     }
     return false;
 }
+bool ProcessMainWindow() {
+    std::vector<Utils::CWindows::WindowInfo> windows;
+    //auto pid = Utils::CWindows::instance().get_current_process_id();
+    //printf("pid: %d\n", pid);
+    if (!Utils::CWindows::instance().get_process_main_thread_hwnd(Utils::CWindows::instance().get_current_process_id(), windows)) {
+        return false;
+    }
+    printf("windows.size(): %d\n", windows.size());
+    // 使用范围for循环和auto引用避免拷贝
+    for (auto& window : windows) {
+        // 转换类名为小写进行统一比较
+        printf("transform1");
+        std::transform(window.class_name.begin(), window.class_name.end(),
+                       window.class_name.begin(), ::towlower);
+        printf("transform2");
+
+        if (window.class_name == L"tfrmmain") {
+            // 直接存储HWND无需智能指针，除非需要共享所有权
+            return true;
+        }
+        printf("transform3");
+    }
+    GetDesktopWindow();
+        printf("transform4");
+    return false;
+}
 void init_client_entry() {
-	auto hmodule = LoadLibraryA("NewClient_f.dll");
+    printf("init_client_entry==============\n");
+    ProcessMainWindow();
+    //MessageBoxA(nullptr, "init_client_entry", "init_client_entry", MB_OK);
+	auto hmodule = LoadLibraryA(".\\NewClient_f.dll");
     printf("hmodule: %p\n", hmodule);
-	client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
-    printf("client_entry: %p\n", entry);
-	uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
-    printf("uninit: %p\n", uninit);
-	entry("140.210.20.215");
+    //pfnAntiCheatInit = (InitExFunc)GetProcAddress(g_hAntiCheat, "InitEx");
+    //client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
+    InitExFunc pfnAntiCheatInit = (InitExFunc)ApiResolver::get_proc_address(hmodule, CT_HASH("InitEx"));
+    //printf("client_entry: %p\n", entry);
+    printf("client_entry: %p\n", pfnAntiCheatInit);
+	//uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
+    //printf("uninit: %p\n", uninit);
+    pfnAntiCheatInit(nullptr ,"140.210.20.215");
 	//entry("");
-	Sleep(5000);
-	uninit();
+	//Sleep(5000);
+	//uninit();
 	/*if (FreeLibrary(hmodule))
 		std::cout << "FreeLibrary ok!\n";*/
 }

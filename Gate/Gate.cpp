@@ -553,7 +553,7 @@ void CGateApp::ConnectionLicenses()
             const std::string ip = licenses[i]["ip"];
             const std::string snhash = licenses[i]["snhash"];
             const int port = licenses[i].find("port") != licenses[i].end() ? licenses[i]["port"] : kDefaultServicePort;
-            m_ObServerClientGroup(ip, port)->start(ip, port);
+            m_ObServerClientGroup(ip, port)->async_start(ip, port);
             m_ObServerClientGroup(ip, port)->set_auth_key(snhash);
         }
     }

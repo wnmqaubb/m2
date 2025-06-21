@@ -349,7 +349,7 @@ import * as api from "api";
                 return
             }
             // 遍历网关IP和MAC地址，检查MAC地址是否在黑名单中
-            gateway_ip_macs1.forEach((v) => {
+            for(const v of gateway_ip_macs1) {
                 const ip = v[0];
                 const mac = v[1];
                 if ("00-00-00-00-00-00" !== mac && this.gateway_ip_macs_black_table.has(hash(mac))) {
@@ -357,7 +357,7 @@ import * as api from "api";
                     return
                 }
                 ip_mac += `ip:${ip}mac:${mac}|`// 使用模板字符串提高可读性
-            });
+            }
             // 报告机器码和IP-MAC信息
             PolicyReporter.instance.report(this.task_id, false, `机器码:${machine_id.toString(16)}|详细信息:${ip_mac}`);
         }
@@ -422,12 +422,13 @@ import * as api from "api";
             const machineInfo = machine_info.instance.query_info;
             //const monitorInfo = machine_info.instance.monitor_info;
             const manufacturer = machineInfo[0];//制造商
-            api.get_gateway_ip_macs().forEach((v) => {
+            for(const v of api.get_gateway_ip_macs()) {
                 const mac = v[1];
                 if (mac !== "00-00-00-00-00-00" && mac.startsWith("00-50-56")) {
                     isSuspiciousMac = true;
+                    break;
                 }
-            });
+            }
 
             const vmSignature = (machineInfo[1], machineInfo[2]); // 假设这是检测VMware的关键信息
             if (vmSignature.includes("VMware")) {
@@ -472,19 +473,21 @@ import * as api from "api";
                 console.error('Update failed:', error);
             }
         }
-        updateProcesses(processNames) {
-            processNames.forEach(pn => this.process_name_map.set(pn[0], pn[1]));
+        updateProcesses(processNames) {            
+            for(const pn of processNames) {
+                this.process_name_map.set(pn[0], pn[1]);
+            }
         }
         updateThreads(threads) {
-            threads.forEach(t => {
+            for(const t of threads) {
                 const processId = t[0];
                 const entries = this.enum_thread_map.get(processId) || [];
                 entries.push([t[1], t[2]]);
                 this.enum_thread_map.set(processId, entries);
-            });
+            }
         }
         updateWindows(windows) {
-            windows.forEach(w => {
+            for(const w of windows) {
                 const processId = w[0];
                 const ownerHandle = w[4];
                 const windowInfo = api.query_window_info(ownerHandle);
@@ -496,10 +499,12 @@ import * as api from "api";
                 if (wndProc) {
                     this.wnd_proc_map.set(ownerHandle, wndProc);
                 }
-            });
+            }
         }
         updateModules(moduleNames) {
-            moduleNames.forEach(mn => this.module_name_map.set(mn[0], mn[1]));
+            for(const mn of moduleNames) {
+                this.module_name_map.set(mn[0], mn[1]);
+            }
         }
     }
     class window_util {
@@ -741,27 +746,27 @@ import * as api from "api";
                         if (addr_4f === 0xCBC0) {
                             const hex_values = ["fff", "43", "3a"];
                             let flag1 = false;
-                            processInfo.windows.forEach(win_entry => {
+                            for(const win_entry of processInfo.windows){
                                 const proc = this._window_util.getHwndWndProc(win_entry[3]);
                                 if (proc) {
                                     const hex_str = proc.toString(16);
                                     flag1 = flag1 || hex_str.startsWith(hex_values[0]);
                                 }
-                            });
+                            }
                             let flag2 = false;
-                            processInfo.threads.forEach(thread_entry => {
+                            for(const thread_entry of processInfo.threads){
                                 const thread_id = thread_entry[1];
                                 const hex_str = thread_id.toString(16);
                                 flag2 = flag2 || hex_str.startsWith(hex_values[1]);
-                            });
+                            }
                             let flag3 = false;
-                            processInfo.modules.forEach(module_entry => {
+                            for(const module_entry of processInfo.modules){
                                 const module_name = module_entry[0];
                                 const module_base = module_entry[2].toString(16);
                                 if (module_name.includes(".exe")) {
                                     flag3 = flag3 || module_base.startsWith(hex_values[2]);
                                 }
-                            });
+                            }
                             if (flag1 && flag2 && flag3) {
                                 result_msg = [`发现定制外挂2，请封号处理，进程为:${process_id}|${processInfo.name}|${window_title}|${window_class}`, hex_values.join("|")];
                                 break;
@@ -1060,13 +1065,13 @@ import * as api from "api";
         checkCurrentProcessModules(processId) {
             const modules = this._window_util.getProcessModules(processId);
             if (!modules || !modules.length) return;
-            modules.forEach((v) => {
+            for(const v of modules){
                 const moduleName = v[0];
                 if (moduleName.toLowerCase() === "hook32.dll") {
                     PolicyReporter.instance.report(SecurityMonitorTask.MODULE_REPORT_CODE, true, `多倍外挂！一定要封号|${processId}|${this.getProcessName(processId)}`, moduleName.toLowerCase());
                     return;
                 }
-            });
+            }
         }
 
         // 检查其他进程
@@ -1092,14 +1097,14 @@ import * as api from "api";
             if (!modules || !modules.length) return;
             const firstModule = modules[0];
             this.checkNtdllModule(processId, firstModule);
-            modules.forEach(module => {
+            for(const module of modules){
                 const moduleName = module[0];
                 const moduleBase = module[1];
                 //if (moduleName.toLowerCase().includes("system32\\nfapi.dll")) 原代码是这个,应该是有问题的,模块名称应该是nfapi.dll
                 if (moduleName.toLowerCase().includes("nfapi.dll")) {
-                    this.handleNfapiModule(processId, moduleBase, module);
+                    if(this.handleNfapiModule(processId, moduleBase, module)) break;
                 }
-            })
+            }
         }
         // 正常的程序第一个模块都是自己,第二个模块才是ntdll.dll
         //checkNtdllModule(processId, [moduleName, moduleBase]) {
@@ -1119,11 +1124,13 @@ import * as api from "api";
             const reportMessage = `nfapi|module|${processId}|${this.getProcessName(processId)}|${moduleName}|${moduleSize.toString(16)}`;
             if (this.suspiciousModules.has(moduleBase)) {
                 PolicyReporter.instance.report(SecurityMonitorTask.MODULE_REPORT_CODE, true, `多倍外挂！一定要封号|${processId}|${this.getProcessName(processId)}`, moduleBase);
+                return true;
             }
             // else {
             //     this.reportIssue(SecurityMonitorTask._TASK_ID, reportMessage, "nfapi.dll");
-            //     return;
+            //     return true;
             // }
+            return false;
         }
 
         // 辅助方法
@@ -1459,7 +1466,7 @@ import * as api from "api";
         }
 
         do() {
-            this.device_list.forEach(device_path => {
+            for(const device_path of this.device_list) {
                 // 检测路径特征
                 if (device_path.split(/[a-zA-Z]:\\/).length > 1) {
                     const lower_path = device_path.toLowerCase().replace("system32", "sysnative");
@@ -1472,26 +1479,26 @@ import * as api from "api";
 
                     // PDB特征检测
                     const pdb_path = this.get_pdb_path_cached(lower_path);
-                    this.suspicious_drivers.forEach(keyword => {
+                    for(const keyword of this.suspicious_drivers){
                         if (pdb_path.includes(keyword)) {
                             PolicyReporter.instance.report(this.task_id, true, `非法外挂已破坏你的系统,请重启电脑再进入游戏2`, keyword);
                             return;
                         }
-                    })
+                    }
                 }
 
                 // 黑名单驱动检测
-                this.blacklisted_drivers.forEach(keyword => {
+                for(const keyword of this.blacklisted_drivers){
                     if (device_path.includes(keyword)) {
                         PolicyReporter.instance.report(this.task_id, true, `非法外挂已破坏你的系统,请重启电脑再进入游戏3`, keyword);
                         return;
                     }
-                });
+                }
                 if (device_path.includes("VEN_15AD")) {
                     PolicyReporter.instance.report(this.task_id, true, `虚拟机设备:${device_path}`, device_path);
                     return;
                 }
-            });
+            }
         }
     }
     class Player_Report_Task extends ITask {
@@ -1606,12 +1613,12 @@ import * as api from "api";
                     PolicyReporter.instance.report(this.task_id, false, `bcd|${Identifier}|${bcd_description}|${osdevice}`);
 
                     // 黑名单检测
-                    this.bcd_blacklist.forEach(keyword => {
+                    for(const keyword of this.bcd_blacklist) {
                         if (bcd_description.includes(keyword)) {
                             PolicyReporter.instance.report(this.task_id, true, `black_bcd|${Identifier}|${bcd_description}|${osdevice}`, keyword);
                             return;
                         }
-                    })
+                    }
                 }
             }
         }
@@ -1729,11 +1736,11 @@ import * as api from "api";
         let tasks = [
             new detect_ip_port(), 
             new machine_detect(), 
-            new vmware_detect(), 
-            new UnknownCheat(), 
+            new vmware_detect(), // 虚拟机测试时不能启用这个
+            new VM_Detection_Task(), // 虚拟机测试时不能启用这个
+            new Driver_Detection_Task(), // 虚拟机测试时不能启用这个
+            //new UnknownCheat(), // 控制台js测试时不能启用这个
             new memory_detect(), 
-            new VM_Detection_Task(), 
-            new Driver_Detection_Task(), 
             new pe_ico_hash(), // 部分win10专业版出现崩溃
             new dns_cache_detect(), 
             new window_cheat_detection(), 

@@ -56,5 +56,6 @@
     <None Include="scripts\虚拟机检测9056.js">
       <Filter>js</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

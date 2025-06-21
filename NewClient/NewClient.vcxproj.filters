@@ -10,6 +10,7 @@
     <ClInclude Include="ShellCode\TaskBasic.h" />
     <ClInclude Include="..\3rdparty\wmic\dnscache.h" />
     <ClInclude Include="..\3rdparty\wmic\wmic.h" />
+    <ClInclude Include="thread_manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />

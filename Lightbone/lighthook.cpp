@@ -607,14 +607,18 @@ LightHook::HookMgr::HookBank LightHook::HookMgr::get_hooks() const
 
 void LightHook::HookMgr::restore()
 {
+#ifndef _DEBUG
     __try {
+#endif
         for (HookBank::iterator itor = hookbank_.begin(); itor != hookbank_.end(); itor++)
         {
             delete* itor;
         }
         hookbank_.clear();
+#ifndef _DEBUG
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         OutputDebugStringA("LightHook::HookMgr::restore() exception");
     }
+#endif
 }

@@ -1,6 +1,6 @@
 LIBRARY
 EXPORTS
-Init=?Init@@YGXPAUTInitRecord@rungate@lfengine@@_N@Z
+Init=?Init@@YGXPAUTInitRecord@rungate@lfengine@@H@Z
 Uninit
 ClientStart
 ClientRecvPacket

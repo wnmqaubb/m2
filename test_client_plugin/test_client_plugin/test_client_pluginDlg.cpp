@@ -8,13 +8,14 @@
 #include "test_client_pluginDlg.h"
 #include "afxdialogex.h"
 #include "../../Lightbone/api_resolver.h"
-#include <../../14.16.27023/include/string>
-#include "../../../VC-LTL/VC/14.16.27023/include/thread"
 #include <winbase.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include <string>
+#include <chrono>
+#include <spdlog/details/os-inl.h>
 
 
 // CtestclientpluginDlg 对话框
@@ -43,6 +44,7 @@ BEGIN_MESSAGE_MAP(CtestclientpluginDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_BN_CLICKED(IDC_BUTTON3, &CtestclientpluginDlg::OnBnClickedButton3)
 	ON_BN_CLICKED(IDC_BUTTON4, &CtestclientpluginDlg::OnBnClickedButton4)
+    ON_BN_CLICKED(IDC_BUTTON5, &CtestclientpluginDlg::OnBnClickedButton5)
 END_MESSAGE_MAP()
 
 
@@ -184,3 +186,16 @@ void CtestclientpluginDlg::OnTimer(UINT_PTR nIDEvent)
 	CDialogEx::OnTimer(nIDEvent);
 }
 
+
+typedef void*(__stdcall* GetIRunGatePlugInterface)();
+typedef void (*ShowWindowFunc)();
+GetIRunGatePlugInterface test_f = nullptr;
+void CtestclientpluginDlg::OnBnClickedButton5()
+{
+    HINSTANCE hDll = LoadLibrary(L"RunGateSpeedManage1.dll");
+    if (hDll) {
+        ShowWindowFunc func = (ShowWindowFunc)GetProcAddress(hDll, "ShowSettingsDialog");
+        if (func) func();
+        FreeLibrary(hDll);
+    }
+}

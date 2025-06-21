@@ -45,7 +45,7 @@ static UINT indicators[] =
 CMainFrame::CMainFrame() noexcept
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-#if defined(VERSION_RED) || defined(VERSION_VIP) 
+#ifdef VERSION_RED
 	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
 #endif
 }

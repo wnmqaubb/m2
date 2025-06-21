@@ -8,13 +8,17 @@
 #include "Gate/cmdline.h"
 #include "PEScan.h"
 #include <Lightbone/api_resolver.h>
-
+#include <NewClient/thread_manager.h>
+#include <Psapi.h>
+#pragma comment(lib, "Psapi.lib")
 void async_execute_javascript(const std::string& sv, uint32_t script_id);
 
-extern void __stdcall client_entry(std::string guard_gate_ip) noexcept;
-extern void __stdcall DoUnInit();
-using client_entry_t = decltype(&client_entry);
-using uninit_t = decltype(&DoUnInit);
+//extern void __stdcall InitExFunc(std::string guard_gate_ip) noexcept;
+//typedef void(__stdcall* InitExFunc)(const void* AppFunc, const char* server_ip, const wchar_t* mutex_anti_cheat_module_name);
+//extern void __stdcall DoUnInit();
+//using client_entry_t = decltype(&InitEx);
+//using uninit_t = decltype(&DoUnInit);
+//client_entry_t pfnAntiCheatInit = nullptr;
 
 void hook_calc_pe_ico_hash()
 {
@@ -39,12 +43,12 @@ void dump_all_scripts()
 
 void test_connect()
 {
-    client_entry("127.0.0.1");
+    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
 }
 //
 void test_javascript()
 {
-    client_entry("127.0.0.1");
+    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
 }
 
 std::vector<std::string> split(const std::string &str, const std::string &pattern)
@@ -70,26 +74,29 @@ std::vector<std::string> split(const std::string &str, const std::string &patter
 
 void InitUnitTest()
 {
-	client_entry("127.0.0.1");
+    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
     //hook_calc_pe_ico_hash();
 }
 
 void init_client_entry_dll() {
-    auto hmodule = LoadLibraryA("NewClient_f.dll");
-    client_entry_t entry = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("client_entry"));
-    uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
-    //entry("43.139.236.115");
-    entry("");
-    /*Sleep(30000);
-    uninit();
-    if (FreeLibrary(hmodule))
-        std::cout << "FreeLibrary ok!\n";*/
+    //auto hmodule = LoadLibraryA("NewClient_f.dll");
+    //client_entry_t pfnAntiCheatInit = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("InitEx"));
+    ////uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
+    ////entry("43.139.236.115");
+    //if  (!pfnAntiCheatInit)
+    //    std::cout << "pfnAntiCheatInit is null\n";
+    //else
+    //    pfnAntiCheatInit(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
+    ///*Sleep(30000);
+    //uninit();
+    //if (FreeLibrary(hmodule))
+    //    std::cout << "FreeLibrary ok!\n";*/
 }
 
 int main(int argc, char** argv)
 {
     setlocale(LC_CTYPE, "");
-
+    //init_client_entry_dll();
     InitUnitTest();
    
     InitJavaScript();

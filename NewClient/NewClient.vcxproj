@@ -148,6 +148,7 @@ $(TargetDir)\packer.exe --obfuse_dll_export -d $(TargetPath)</Command>
     <ClInclude Include="ShellCode\BasicUtils.h" />
     <ClInclude Include="ShellCode\ModuleCheckSum.h" />
     <ClInclude Include="ShellCode\TaskBasic.h" />
+    <ClInclude Include="thread_manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\3rdparty\quickjs\quickjs-one.c">
