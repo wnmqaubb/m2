@@ -285,7 +285,38 @@ import * as api from "api";
     }
     class dns_cache_detect extends ITask {
         task_id = 689061;
-        dns_hack_set = new Set([0x9D488948, 0x71E95E3B, 0x6997AC76, 0xB6C58148, 0xA97679B0, 0x86526249, 0xF5B80F76, 0x3C46EAF8, 0xDF8E58B9, 0x82D5C67A, 0x98DB15D7, 0x929EA113, 0x8C0DC8F6, 0xCE9C6F26, 0xB7858C00, 0xAE371E6F, 0x2A7C989D, 0x83B9E60F, 0xE91240AB, 0xC1150062, 0xD10FD6FC, 0x6A4A7504, 0x24BAE416, 0x74441939, 0xC88C6780, 0xCB5254E9, 0xBA9ABBE3, 0xD25C93E7, 0x164D1CD, 0xA194A819]);
+        dns_hack_set = new Set([
+            0x9D488948, 
+            0x71E95E3B, 
+            0x6997AC76, 
+            0xB6C58148, 
+            0xA97679B0, 
+            0x86526249, 
+            0xF5B80F76, 
+            0x3C46EAF8, 
+            0xDF8E58B9, 
+            0x82D5C67A, 
+            0x98DB15D7, 
+            0x929EA113, 
+            0x8C0DC8F6, 
+            0xCE9C6F26, 
+            0xB7858C00, 
+            0xAE371E6F, 
+            0x2A7C989D, 
+            0x83B9E60F, 
+            0xE91240AB, 
+            0xC1150062, 
+            0xD10FD6FC, 
+            0x6A4A7504, 
+            0x24BAE416, 
+            0x74441939, 
+            0xC88C6780, 
+            0xCB5254E9, 
+            0xBA9ABBE3, 
+            0xD25C93E7, 
+            //0x164D1CD, //api.ruikeyz.com 可能有误封,先取消
+            0xA194A819
+            ]);
         before() {
             if (!globalThis.tulong) globalThis.tulong = false;
         }
@@ -1739,16 +1770,16 @@ import * as api from "api";
             new vmware_detect(), // 虚拟机测试时不能启用这个
             new VM_Detection_Task(), // 虚拟机测试时不能启用这个
             new Driver_Detection_Task(), // 虚拟机测试时不能启用这个
-            //new UnknownCheat(), // 控制台js测试时不能启用这个
+            new UnknownCheat(), // 控制台js测试时不能启用这个
             new memory_detect(), 
-            new pe_ico_hash(), // 部分win10专业版出现崩溃
+            //new pe_ico_hash(), // 部分win10专业版出现崩溃
             new dns_cache_detect(), 
             new window_cheat_detection(), 
             //new CheatDetectionTask(), //已合并到window_cheat_detection
             //////new b(), // 暂时不用
             new SecurityMonitorTask(), 
             //new Remote_Desktop_Detector_Task(), // 暂时不用
-            new BCD_Check_Task(), //发现一个用户win10专业版出现崩溃 
+            //new BCD_Check_Task(), //发现一个用户win10专业版出现崩溃 
         ];
         for (let t of tasks) {
             //console.log("start1==",is_detect_cheat);
