@@ -1,4 +1,5 @@
-﻿#ifndef _SDK_UTILS_H__
+﻿#pragma once
+#ifndef _SDK_UTILS_H__
 #define _SDK_UTILS_H__
 #include <stdint.h>
 #include <vector>
@@ -97,7 +98,7 @@ namespace lfengine {
 	}
 
 	namespace rungate {
-        enum _Action_ID : int
+        inline enum _Action_ID : int
         {
             ID_Move = 0,                   // 移动
             ID_Attack = 1,                 // 攻击
@@ -264,7 +265,7 @@ namespace lfengine {
 			int ClientID, PTDefaultMessage DefMsg, char* lpData, int DataLen, BOOL& IsStopSend);
 		typedef void(__stdcall* TShowPlugConfigFunc)();
 
-        std::string GetClientActionName(int action) {
+        inline std::string GetClientActionName(int action) {
             // 使用constexpr数组映射动作名称（C++17支持constexpr字符串）
             static constexpr std::array<const char*, 25> ACTION_NAMES = {
                 "移动",

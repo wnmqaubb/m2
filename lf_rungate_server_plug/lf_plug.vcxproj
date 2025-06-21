@@ -122,7 +122,13 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
       <ImageHasSafeExceptionHandlers />
+      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con.exe "$(TargetPath)" "$(TargetDir)$(TargetName).vmp.dll" -pf $(SolutionDir)$(ProjectName).vmp
+del /f /q "$(TargetPath)"
+ren "$(TargetDir)$(TargetName).vmp.dll" "$(TargetFileName)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -165,12 +171,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="FileWatcher.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="lf_plug_sdk.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FileWatcher.cpp" />
     <ClCompile Include="rungate_plug.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

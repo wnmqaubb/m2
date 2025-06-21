@@ -27,12 +27,18 @@
     <ClInclude Include="lf_plug_sdk.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FileWatcher.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="rungate_plug.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FileWatcher.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

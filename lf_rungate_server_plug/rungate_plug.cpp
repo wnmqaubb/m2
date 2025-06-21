@@ -1,128 +1,29 @@
 #include "pch.h"
-#include "lf_plug_sdk.h"
 #include <string>
-#include <fstream>
 #include <unordered_map>
-#include <algorithm>
 #include <filesystem>
-#include <cassert>
-
-#define RUNGATE_API void __stdcall
+#include "lf_plug_sdk.h"
+#include "FileWatcher.h"
 
 using namespace lfengine;
 using namespace lfengine::rungate;
-namespace fs = std::filesystem;
-TInitRecord g_InitRecord;
-#pragma comment(lib, "user32.lib")
 
-std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key);
-VOID DbgPrint(const char* fmt, ...);
+#define RUNGATE_API void __stdcall
+
+#pragma comment(lib, "user32.lib")
+TInitRecord g_InitRecord;
 std::string guard_gate_ip;
 std::string show_welcome_msg;
 std::string guard_gate_welcome_msg1;
 std::string guard_gate_welcome_msg2;
+const char* new_client_filename = ".\\NewClient_f.dll";
 std::shared_ptr<const std::vector<char>> new_client_data;
-std::string load_file(fs::path path)
-{
-    std::ifstream file(path, std::ios::in | std::ios::binary);
-    assert(file.is_open());
-    file.seekg(0, file.end);
-    size_t sz = file.tellg();
-    file.seekg(0);
-    std::string buffer;
-    buffer.resize(sz);
-    file.read(buffer.data(), sz);
-    file.close();
-    return buffer;
-}
-void PrintFunctionBytes(void* funcPtr, size_t bytesToRead = 32) {
-    // 检查内存可读性
-    MEMORY_BASIC_INFORMATION mbi;
-    //if (!VirtualQuery(funcPtr, &mbi, sizeof(mbi)) ||
-    //    !(mbi.Protect & (PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE))) {
-    //    DbgPrint("错误：无法读取内存");
-    //    return;
-    //}
-
-    // 安全读取字节码
-    std::vector<uint8_t> buffer(bytesToRead);
-        memcpy(buffer.data(), funcPtr, bytesToRead);
-
-        //DbgPrint("%p 的字节码：", funcPtr);
-        //for (size_t i = 0; i < buffer.size(); ++i) {
-        //    DbgPrint("%02X ", buffer[i]);
-        //    if ((i + 1) % 8 == 0) DbgPrint("");
-        //}
-    // 将读取的字节写入二进制文件
-    std::ofstream ofs("bytes.bin", std::ios::binary);
-    ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-    ofs.close();
-}
-
-BOOL WriteStructToFile(const TRunGatePlugClientInfo& data, const char* filename) {
-    // 1. 打开文件（二进制模式）
-    std::ofstream ofs(filename, std::ios::binary);
-    if (!ofs) {
-        DbgPrint("无法打开文件: %s", filename);
-        return false;
-    }
-
-    // 2. 直接写入结构体原始字节
-    ofs.write(reinterpret_cast<const char*>(&data), sizeof(TRunGatePlugClientInfo));
-
-    // 3. 检查写入是否完整
-    const bool success = ofs.good();
-    ofs.close();
-
-    if (success) {
-        DbgPrint("成功写入 %zu 字节到 %s", sizeof(TRunGatePlugClientInfo), filename);
-    }
-    else {
-        DbgPrint("文件写入失败");
-    }
-
-    return success;
-}
-
-void PrintClientInfo(const TRunGatePlugClientInfo& info) {
-
-    DbgPrint("RecogId: 0x%016I64x MoveSpeed: %d AttackSpeed: %d SpellSpeed: %d", info.RecogId, info.MoveSpeed, info.AttackSpeed, info.SpellSpeed);  // Windows专用I64
-
-    // 安全处理字符串（确保null终止）
-    //char account[sizeof(info.Account) + 1] = { 0 };
-    //char chrName[sizeof(info.ChrName) + 1] = { 0 };
-    //char ipAddr[sizeof(info.IpAddr) + 1] = { 0 };
-    //char macID[sizeof(info.MacID) + 1] = { 0 };
-
-    //memcpy(account, info.Account, sizeof(info.Account));
-    //memcpy(chrName, info.ChrName, sizeof(info.ChrName));
-    //memcpy(ipAddr, info.IpAddr, sizeof(info.IpAddr));
-    //memcpy(macID, info.MacID, sizeof(info.MacID));
-
-    //DbgPrint("  Account: \"%s\"", account);
-    //DbgPrint("  ChrName: \"%s\"", chrName);
-    //DbgPrint("  IPValue: %d (0x%08x)", info.IPValue, info.IPValue);
-    //DbgPrint("  IpAddr: \"%s\"", ipAddr);
-    //DbgPrint("  Port: %d", info.Port);
-    //DbgPrint("  MacID: \"%s\"", macID);
-
-    // 布尔值打印
-    DbgPrint("  IsActive: %d IsLoginNotice: %d IsPlayGame: %d", info.IsActive, info.IsLoginNotice, info.IsPlayGame);
-    // 指针和长度
-    DbgPrint("  DataAdd: 0x%p DataLen: %u", info.DataAdd, info.DataLen);  // Windows下指针用%p
-
-    // 保留字段（十六进制打印）
-    DbgPrint("  Reseved2: [");
-    for (int i = 0; i < 5; ++i) {
-        if (i > 0) DbgPrint(", ");
-        DbgPrint("0x%08X", info.Reseved2[i]);  // 32位十六进制
-    }
-    DbgPrint("]");
-}
+std::shared_ptr<FileWatcher> watcher;
 
 RUNGATE_API Init(PInitRecord pInitRecord, BOOL isReload)
 {
-    PrintFunctionBytes(pInitRecord, 300);
+    VMP_VIRTUALIZATION_BEGIN()
+    //Utils::PrintFunctionBytes(pInitRecord, 300);
 	g_InitRecord = *pInitRecord;
     AddShowLog = g_InitRecord.AddShowLog;
     EncodeBuffer = g_InitRecord.EncodeBuffer;
@@ -160,39 +61,43 @@ RUNGATE_API Init(PInitRecord pInitRecord, BOOL isReload)
 	char m_ExeDir[MAX_PATH];
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
-	guard_gate_ip = read_config_txt(ini_path, "GuardGate", "GateIP");
-	show_welcome_msg = read_config_txt(ini_path, "GuardGate", "ShowWelcomeMsg");
-	guard_gate_welcome_msg1 = read_config_txt(ini_path, "GuardGate", "WelcomeMsg1");
-	guard_gate_welcome_msg2 = read_config_txt(ini_path, "GuardGate", "WelcomeMsg2");
+	guard_gate_ip = Utils::read_config_txt(ini_path, "GuardGate", "GateIP");
+	show_welcome_msg = Utils::read_config_txt(ini_path, "GuardGate", "ShowWelcomeMsg");
+	guard_gate_welcome_msg1 = Utils::read_config_txt(ini_path, "GuardGate", "WelcomeMsg1");
+	guard_gate_welcome_msg2 = Utils::read_config_txt(ini_path, "GuardGate", "WelcomeMsg2");
 	if (guard_gate_ip.empty()) {
 		AddShowLog("请在Config.ini配置及时雨网关IP [GuardGate]-->GateIP", 0);
 	}
 	else {
-		DbgPrint("                       =====及时雨网关IP:%s=====", guard_gate_ip.c_str());
+		Utils::DbgPrint("                       =====及时雨网关IP:%s=====", guard_gate_ip.c_str());
 	}
-    auto buffer = load_file(".\\NewClient_f.dll");
+    auto buffer = Utils::load_file(new_client_filename);
     if (buffer.empty())
     {
-        DbgPrint("加载NewClient.dll文件失败");
+        Utils::DbgPrint("加载NewClient.dll文件失败");
         return;
     }
     new_client_data = std::shared_ptr<std::vector<char>>(new std::vector<char>(buffer.data(), buffer.data() + buffer.size()));
 
-    DbgPrint("0x%p", pInitRecord);
-    //DbgPrint("GetActionInfo=====  %p %x", g_InitRecord.GetActionInfo, *g_InitRecord.GetActionInfo);
-    //DbgPrint("GetActionInfo=====  %p %x", g_InitRecord.CheckIsSpellSwitch, *g_InitRecord.CheckIsSpellSwitch);
+    //Utils::DbgPrint("0x%p", pInitRecord);
+    //Utils::DbgPrint("GetActionInfo=====  %p %x", g_InitRecord.GetActionInfo, *g_InitRecord.GetActionInfo);
+    //Utils::DbgPrint("GetActionInfo=====  %p %x", g_InitRecord.CheckIsSpellSwitch, *g_InitRecord.CheckIsSpellSwitch);
     //PrintFunctionBytes(pInitRecord->LockClient);
     //PrintFunctionBytes(pInitRecord->GetActionInfo);
-}
+    watcher = std::make_shared<FileWatcher>(new_client_filename, []() {
+        auto buffer = Utils::load_file(new_client_filename);
+        if (buffer.empty())
+        {
+            Utils::DbgPrint("加载NewClient.dll文件失败");
+            return;
+        }
+        new_client_data = std::shared_ptr<std::vector<char>>(new std::vector<char>(buffer.data(), buffer.data() + buffer.size()));
+        Utils::DbgPrint("NewClient_f.dll文件已重新加载");
+    }, std::chrono::seconds(5)); // 每5秒检查一次
 
-VOID DbgPrint(const char* fmt, ...)
-{
-	char    buf[1024];
-	va_list args;
-	va_start(args, fmt);
-	vsprintf_s(buf, fmt, args);
-	va_end(args);
-	AddShowLog(buf, 0);
+    // 启动监视器
+    watcher->start();
+    VMP_VIRTUALIZATION_END()
 }
 
 // 客户端开始游戏,此时还不能发包到客户端,发了客户端无法收到
@@ -201,8 +106,8 @@ RUNGATE_API ClientStart(int clientID)
 	TRunGatePlugClientInfo clientInfo{};
 	GetClientInfo(clientID, &clientInfo);
 	//clientInfo.DataAdd.AddData1 = 1000; // 附加自己的数据
-	//DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
-	//DbgPrint("=====客户端断开=====，ID:%d， GetClientInfo:%08X", clientID, GetClientInfo);
+	//Utils::DbgPrint("=====客户端开始=====，ID:%d，用户:%s ip:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.IpAddr, clientInfo.Port);
+	//Utils::DbgPrint("=====客户端断开=====，ID:%d， GetClientInfo:%08X", clientID, GetClientInfo);
 }
 
 /*
@@ -218,12 +123,13 @@ RUNGATE_API ClientStart(int clientID)
 */
 int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpData, int dataLen, BOOL& IsHookPacked)
 {
+    VMP_VIRTUALIZATION_BEGIN()
     int result = 0;
     BOOL is_print = false;
     DWORD real_time = 0, limite_time = 0;
     int action_mode = 0;
     uint32_t ident = defMsg->ident;
-	//DbgPrint("C==ident:%u，clientID:%d IsHookPacked:%d", ident, clientID, IsHookPacked);
+	//Utils::DbgPrint("C==ident:%u，clientID:%d IsHookPacked:%d", ident, clientID, IsHookPacked);
     // 打印所有收到的包,调试用
     TRunGatePlugClientInfo clientInfo{};
 
@@ -295,10 +201,10 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
             //case CM_103HIT:
             //case CM_113HIT:
             //case CM_115HIT:
-            //    DbgPrint("ClientRecvPacket===== >>>> 物理攻击技能组 %u", ident);
-            //    DbgPrint("GetActionInfo=====  %p", GetActionInfo);
+            //    Utils::DbgPrint("ClientRecvPacket===== >>>> 物理攻击技能组 %u", ident);
+            //    Utils::DbgPrint("GetActionInfo=====  %p", GetActionInfo);
             //    is_print = GetActionInfo(clientID, &real_time, &limite_time, &action_mode);
-            //    DbgPrint("GetActionInfo=====  %d %d %d %d", is_print, &real_time, &limite_time, &action_mode);
+            //    Utils::DbgPrint("GetActionInfo=====  %d %d %d %d", is_print, &real_time, &limite_time, &action_mode);
             //    break;
 
             //    // 自定义技能范围判断
@@ -338,16 +244,17 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
 	}
 	catch (...)
 	{
-		DbgPrint("ClientRecvPacket =====异常");
+		Utils::DbgPrint("ClientRecvPacket =====异常");
 	}
     return result;
+    VMP_VIRTUALIZATION_END()
 }
 
 RUNGATE_API ClientEnd(int clientID)
 {
 	//TRunGatePlugClientInfo clientInfo{};
 	//GetClientInfo(clientID, &clientInfo);
-	//DbgPrint("=====客户端断开=====，ID:%d， 用户:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.Port);
+	//Utils::DbgPrint("=====客户端断开=====，ID:%d， 用户:%s Port:%d", clientID, clientInfo.ChrName, clientInfo.Port);
 	//AddShowLog("=====客户端断开=====", 0);
 
 }
@@ -355,56 +262,20 @@ RUNGATE_API ClientEnd(int clientID)
 typedef void (*ShowWindowFunc)();
 RUNGATE_API ShowConfigForm()
 {
-	//AddShowLog("=====显示网关高级设置=====", 0);
+    VMP_VIRTUALIZATION_BEGIN()
+    //AddShowLog("=====显示网关高级设置=====", 0);
     HINSTANCE hDll = LoadLibrary(L"RunGateSpeedManage1.dll");
     if (hDll) {
         ShowWindowFunc func = (ShowWindowFunc)GetProcAddress(hDll, "ShowSettingsDialog");
         if (func) func();
         FreeLibrary(hDll);
     }
+    VMP_VIRTUALIZATION_END()
 }
 RUNGATE_API Uninit()
 {
-	//AddShowLog("=====卸载网关插件完成=====", 0);
-}
-
-std::unordered_map<std::string, std::unordered_map<std::string, std::string>> readIniFile(const std::filesystem::path& path) {
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> iniData;
-	std::ifstream file(path);
-	if (file.is_open()) {
-		std::string section;
-		std::string line;
-		while (std::getline(file, line)) {
-			// 去除行首尾的空白字符
-			line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
-			if (line.empty() || line[0] == ';') continue;
-			if (line[0] == '[' && line.back() == ']') {
-				section = line.substr(1, line.length() - 2);
-			}
-			else {
-				auto pos = line.find('=');
-				if (pos != std::string::npos) {
-					std::string key = line.substr(0, pos);
-					std::string value = line.substr(pos + 1);
-					iniData[section][key] = value;
-				}
-			}
-		}
-		file.close();
-	}
-	else {
-		AddShowLog("=====无法打开Config.ini文件=====", 0);
-	}
-	return iniData;
-}
-
-std::string read_config_txt(const std::filesystem::path& path, const std::string& section, const std::string& key) {
-	setlocale(LC_CTYPE, "");
-	auto iniData = readIniFile(path);
-	if (iniData.find(section) != iniData.end() && iniData[section].find(key) != iniData[section].end()) {
-		return iniData[section][key];
-	}
-	else {
-		return "";
-	}
+    VMP_VIRTUALIZATION_BEGIN()
+    //AddShowLog("=====卸载网关插件完成=====", 0);
+    watcher->stop();
+    VMP_VIRTUALIZATION_END()
 }
