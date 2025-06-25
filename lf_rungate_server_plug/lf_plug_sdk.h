@@ -9,7 +9,7 @@
 #include <intsafe.h>
 #include <utility>
 #include <array>
-#define NEW_M2_SUPPORT
+//#define NEW_M2_SUPPORT
 namespace sdk::utils {
 	template<class F>
 	struct safe_api_warpper;
@@ -242,11 +242,11 @@ namespace lfengine {
 			TRunGatePlugLockClientFunc    LockClient; // 发送数据到M2Server
 			TRunGatePlugSetClientPlugLoad SetClientPlugLoad; // 通知客端反外挂模块加载成功
             //* 得到当前的动作信息 2024-06-16
-            TRungatePlugGetActionInfo     GetActionInfo;  // ++++++++++++++++++++++++++++++ 2024-06-16
+            //TRungatePlugGetActionInfo     GetActionInfo;  // ++++++++++++++++++++++++++++++ 2024-06-16
             // 检查是否为技能开关 
             // if DefMsg.Ident = CM_SPELL then MagicID := DefMsg.Tag, CM_SPELL为判断魔法间隔；
             // if CheckIsSpellSwitch(MagicID) then 开关技能请求不算到魔法中，不计算魔法间隔
-            TRungatePlugCheckIsSpellSwitch CheckIsSpellSwitch;       // ++++++++++++++++++++++++++++++ 2024-06-15
+            //TRungatePlugCheckIsSpellSwitch CheckIsSpellSwitch;       // ++++++++++++++++++++++++++++++ 2024-06-15
             void* Reseved2[30] = { 0 };                   // ++++++++++++++++++++++++++++++ 2024-06-15
 		};
 

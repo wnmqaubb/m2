@@ -33,31 +33,9 @@ RUNGATE_API Init(PInitRecord pInitRecord, BOOL isReload)
     SetClientPlugLoad = g_InitRecord.SetClientPlugLoad;
     SendDataToClient = g_InitRecord.SendDataToClient;
     LockClient = g_InitRecord.LockClient;
-    GetActionInfo = g_InitRecord.GetActionInfo;
-    CheckIsSpellSwitch = g_InitRecord.CheckIsSpellSwitch;
+    //GetActionInfo = g_InitRecord.GetActionInfo;
+    //CheckIsSpellSwitch = g_InitRecord.CheckIsSpellSwitch;
     //g_InitRecord.Reseved2 = pInitRecord->Reseved2;
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                          ====加载及时雨网关插件完成====", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                QQ交流:331101339", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                           ※※※  优雅永不过时  ※※※", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                           ※※※  沉静游戏模式  ※※※", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                           ※※※  最舒适的使用  ※※※", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                           ※※※  最高效的运行  ※※※", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                       ", 0);
-	AddShowLog("                                                                                          ", 0);
 	char m_ExeDir[MAX_PATH];
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
@@ -97,6 +75,28 @@ RUNGATE_API Init(PInitRecord pInitRecord, BOOL isReload)
 
     // 启动监视器
     watcher->start();
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                          ====加载及时雨网关插件完成====", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                QQ交流:331101339", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                           ※※※  优雅永不过时  ※※※", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                           ※※※  沉静游戏模式  ※※※", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                           ※※※  最舒适的使用  ※※※", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                           ※※※  最高效的运行  ※※※", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                       ", 0);
+    AddShowLog("                                                                                          ", 0);
     VMP_VIRTUALIZATION_END()
 }
 
@@ -128,8 +128,7 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
     BOOL is_print = false;
     DWORD real_time = 0, limite_time = 0;
     int action_mode = 0;
-    uint32_t ident = defMsg->ident;
-	//Utils::DbgPrint("C==ident:%u，clientID:%d IsHookPacked:%d", ident, clientID, IsHookPacked);
+	//Utils::DbgPrint("==ident:%u，clientID:%d IsHookPacked:%d", defMsg->ident, clientID, IsHookPacked);
     // 打印所有收到的包,调试用
     TRunGatePlugClientInfo clientInfo{};
 
@@ -137,38 +136,37 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
     //std::vector<uint8_t> debugBuffer(DEBUG_SIZE, 0xCC);
     GetClientInfo(clientID, &clientInfo);
 
-    //PrintFunctionBytes(&clientInfo,200);
-    //PrintClientInfo(clientInfo);
-    //WriteStructToFile(clientInfo, "clientInfo.bin");
-    //PrintFunctionBytes(clientInfo.DataAdd, clientInfo.DataLen);
 	try
 	{
-        switch (ident)
+        switch (defMsg->ident)
         {
             case 10000:
 		    {
                 IsHookPacked = true;
                 SetClientPlugLoad(clientID);
-			    //AddShowLog("=====接收客户端数据包=====", 0);
-			    //SetClientPlugLoad(clientID);
+			    //Utils::DbgPrint("=====接收客户端数据包=====");
 			    // 下发及时雨网关IP 
-			    ident = 10005;
+                if (new_client_data->empty()) {
+                    Utils::DbgPrint("NewClient_f.dll文件读取失败,请检查文件是否存在并重新加载插件");
+                    return result;
+                }
+                defMsg->ident = 10005;
                 SendDataToClient(clientID, defMsg, new_client_data->data(), new_client_data->size());
 
-			    ident = 10001;
+                defMsg->ident = 10001;
 			    SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
 
 
 			    if (show_welcome_msg == "1") {
-				    if (!guard_gate_welcome_msg1.empty ()) {
+				    if (!guard_gate_welcome_msg1.empty()) {
 					    // 下发及时雨网关欢迎信息1
-					    ident = 10002;
+                        defMsg->ident = 10002;
 					    SendDataToClient(clientID, defMsg, guard_gate_welcome_msg1.c_str(), guard_gate_welcome_msg1.length());
 				    }
 
 				    if (!guard_gate_welcome_msg2.empty()) {
 					    // 下发及时雨网关欢迎信息1
-					    ident = 10003;
+                        defMsg->ident = 10003;
 					    SendDataToClient(clientID, defMsg, guard_gate_welcome_msg2.c_str(), guard_gate_welcome_msg2.length());
 				    }
 			    }
@@ -201,7 +199,7 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
             //case CM_103HIT:
             //case CM_113HIT:
             //case CM_115HIT:
-            //    Utils::DbgPrint("ClientRecvPacket===== >>>> 物理攻击技能组 %u", ident);
+            //    Utils::DbgPrint("ClientRecvPacket===== >>>> 物理攻击技能组 %u", defMsg->ident);
             //    Utils::DbgPrint("GetActionInfo=====  %p", GetActionInfo);
             //    is_print = GetActionInfo(clientID, &real_time, &limite_time, &action_mode);
             //    Utils::DbgPrint("GetActionInfo=====  %d %d %d %d", is_print, &real_time, &limite_time, &action_mode);
@@ -209,13 +207,13 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
 
             //    // 自定义技能范围判断
             //default:
-            //    if (ident >= CM_CUSTOM_HIT001 &&
-            //        ident <= (CM_CUSTOM_HIT001 + CUSTOM_MAGIC_COUNT - 1)) {
+            //    if (defMsg->ident >= CM_CUSTOM_HIT001 &&
+            //        defMsg->ident <= (CM_CUSTOM_HIT001 + CUSTOM_MAGIC_COUNT - 1)) {
             //        is_print = GetActionInfo(clientID, &real_time, &limite_time, &action_mode);
             //        break;
             //    }
 
-            //    switch (ident) {
+            //    switch (defMsg->ident) {
             //        // 魔法技能
             //        case CM_SPELL:
             //            if (!CheckIsSpellSwitch(defMsg->tag)) {
