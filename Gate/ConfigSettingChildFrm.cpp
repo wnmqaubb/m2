@@ -12,6 +12,7 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include "ConfigSettingSubView.h"
 
 // CChildFrame
 
@@ -95,5 +96,4 @@ BOOL CConfigSettingChildFrame::CreateDockingWindows()
 void CConfigSettingChildFrame::OnClose()
 {
     ((CConfigSettingDoc*)theApp.m_ConfigDoc)->DoFileSave();
-    CMDIChildWndEx::OnClose();
 }

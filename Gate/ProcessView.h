@@ -50,6 +50,7 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	
     afx_msg void OnProcessNameBan();
+    void ScrollToAddByPolicyId(int policy_id);
 	afx_msg void OnGetGameUserFile();
 	afx_msg void OnProcessPathBan();
     void OnGetGameUserFileSign();

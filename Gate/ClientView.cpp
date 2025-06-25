@@ -552,14 +552,20 @@ void CClientView::OnExitGame()
     SendCurrentSelectedUserCommand(&req);
 }
 
-uint32_t CClientView::next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies) {
-    uint32_t policy_id = GATE_POLICY_ID + 1;
-    
+uint32_t CClientView::next_policy_id(std::map<uint32_t, ProtocolPolicy>& policies) {
+    uint32_t policy_id;
+#ifdef GATE_ADMIN
+        policy_id = GATE_ADMIN_POLICY_ID + 1;
+#else
+        policy_id = GATE_POLICY_ID + 1;
+#endif
     while(policies.find(policy_id) != policies.end()) {
         policy_id++;
+    #ifndef GATE_ADMIN
 		if (policy_id >= GATE_ADMIN_POLICY_ID) {
 			break;
 		}
+    #endif
     }
     return policy_id;
 }
@@ -584,7 +590,7 @@ void CClientView::OnIpBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
+        unsigned int uiLastPolicyId = next_policy_id(Policies);
         // 防止重复添加策略
         for (auto [uiPolicyId, Policy] : Policies)
         {
@@ -631,7 +637,7 @@ void CClientView::OnMacBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
+		unsigned int uiLastPolicyId = next_policy_id(Policies);
 		// 防止重复添加策略
 		for (auto [uiPolicyId, Policy] : Policies)
 		{
@@ -679,7 +685,7 @@ void CClientView::OnIpWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
+		unsigned int uiLastPolicyId = next_policy_id(Policies);
 		// 防止重复添加策略
 		for (auto [uiPolicyId, Policy] : Policies)
 		{
@@ -727,7 +733,7 @@ void CClientView::OnMacWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-		unsigned int uiLastPolicyId = next_gm_policy_id(Policies);
+		unsigned int uiLastPolicyId = next_policy_id(Policies);
 		// 防止重复添加策略
 		for (auto [uiPolicyId, Policy] : Policies)
 		{

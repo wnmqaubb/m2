@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ViewList.h"
+#include "ConfigSettingChildFrm.h"
 
 
 class CConfigSettingView : public CView
@@ -45,9 +46,10 @@ protected:
     afx_msg void OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult);
     afx_msg void OnConfigAdd();
     afx_msg void OnConfigDel();
-    afx_msg void OnConfigSave();
     
 public:
+    afx_msg void OnConfigSave();
+    void ScrollToAddByPolicyId(int policy_id);
     afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 
     virtual void OnInitialUpdate();

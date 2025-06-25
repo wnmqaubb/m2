@@ -141,6 +141,26 @@ void CConfigSettingView::InitConfigSettingView()
 
 void CConfigSettingView::RefreshViewList()
 {
+    // 1. 保存当前状态
+    int nSelectedItem = m_ViewList.GetNextItem(-1, LVNI_SELECTED);
+    int nTopIndex = m_ViewList.GetTopIndex();
+    int nSelectedID = -1;
+
+    // 获取当前选中项的唯一ID
+    CPoint scrollPos;
+    SCROLLINFO si;
+    si.cbSize = sizeof(SCROLLINFO);
+    si.fMask = SIF_POS;
+    if (m_ViewList.GetScrollInfo(SB_VERT, &si))
+    {
+        scrollPos.y = si.nPos;
+    }
+
+    if (nSelectedItem != -1)
+    {
+        nSelectedID = (int)m_ViewList.GetItemData(nSelectedItem);
+    }
+
     m_ViewList.SetRedraw(FALSE);
     auto& m_Policys = GetDocument()->GetPolicy();
     int colIndex = 0;
@@ -175,9 +195,58 @@ void CConfigSettingView::RefreshViewList()
         m_ViewList.SetItemText(rowNum, colIndex++, Policy.comment.c_str());
         temp.Format(format_d, Policy.create_by_admin);
         m_ViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ViewList.SetItemData(rowNum, uiPolicyId);
         rowNum++;
     }
-    m_ViewList.SetRedraw(TRUE);
+    // 4. 恢复选中状态
+    int nNewIndex = -1;
+    int nItemCount = m_ViewList.GetItemCount();
+
+    if (nSelectedID != -1)
+    {
+        // 查找原选中项是否还存在
+        for (int i = 0; i < nItemCount; i++)
+        {
+            if ((int)m_ViewList.GetItemData(i) == nSelectedID)
+            {
+                nNewIndex = i;
+                break;
+            }
+        }
+    }
+
+    // 如果原选中项不存在，选择下一行
+    if (nNewIndex == -1 && nSelectedItem != -1 && nItemCount > 0)
+    {
+        // 原选中项被删除，尝试选择下一行
+        nNewIndex = std::min(nSelectedItem, nItemCount - 1);
+    }
+
+    // 5. 设置选中状态和滚动位置
+    if (nNewIndex != -1)
+    {
+        // 设置选中状态
+        m_ViewList.SetItemState(nNewIndex, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+
+        // 确保选中项可见
+        m_ViewList.EnsureVisible(nNewIndex, FALSE);
+        m_ViewList.SetFocus();
+
+        // 恢复滚动位置
+        if (nTopIndex > 0)
+        {
+            // 计算新的顶部索引
+            int nNewTopIndex = std::min(nTopIndex, std::max(0, m_ViewList.GetItemCount() - m_ViewList.GetCountPerPage()));
+
+            // 使用Scroll方法恢复位置
+            CRect itemRect;
+            m_ViewList.GetItemRect(nNewTopIndex, &itemRect, LVIR_BOUNDS);
+            m_ViewList.Scroll(CSize(0, itemRect.top + 1 - scrollPos.y));
+        }
+    }
+
+    m_ViewList.SetRedraw(TRUE); // 允许重绘
+    m_ViewList.RedrawWindow();  // 强制重绘
 }
 
 void CConfigSettingView::OnInitialUpdate()
@@ -287,4 +356,19 @@ void CConfigSettingView::OnConfigDel()
 void CConfigSettingView::OnConfigSave()
 {
     GetDocument()->DoFileSave();
+}
+
+void CConfigSettingView::ScrollToAddByPolicyId(int policy_id)
+{
+    for (int i = 0; i < m_ViewList.GetItemCount(); i++)
+    {
+        CString cstrPolicyId = m_ViewList.GetItemText(i, 1);
+        uint32_t uiPolicyId = atoi(CT2A(cstrPolicyId.GetBuffer()));
+        if (uiPolicyId == policy_id)
+        {
+            m_ViewList.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            m_ViewList.EnsureVisible(i, FALSE);
+            return;
+        }
+    }
 }

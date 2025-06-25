@@ -158,10 +158,30 @@ BOOL CGateApp::InitInstance()
     });
     m_ObServerClientGroup.create_threads();
 #else
+
     ConnectionLicenses();
     
     m_ObServerClientGroup.create_threads(std::thread::hardware_concurrency() * 2);
 #endif;
+    // 初始化 richedit2 库
+    if (!AfxInitRichEdit2()) {
+        AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
+        return FALSE;
+    }
+
+    // 初始化 OLE 库
+    if (!AfxOleInit())
+    {
+        AfxMessageBox(IDP_OLE_INIT_FAILED);
+        return FALSE;
+    }
+
+    // 加载 richedit2 库
+    HINSTANCE hriched = LoadLibrary(L"RICHED20.DLL");
+    if (hriched == NULL) {
+        AfxMessageBox(L"无法加载 richedit2 库。可能是由于系统不支持该 DLL 版本。");
+        return FALSE;
+    }
     
 	// 如果一个运行在 Windows XP 上的应用程序清单指定要
 	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
@@ -176,13 +196,6 @@ BOOL CGateApp::InitInstance()
 	CWinAppEx::InitInstance();
 
 	m_bSaveState = FALSE;
-
-	// 初始化 OLE 库
-	if (!AfxOleInit())
-	{
-		AfxMessageBox(IDP_OLE_INIT_FAILED);
-		return FALSE;
-	}
 
 	AfxEnableControlContainer();
 
@@ -263,6 +276,12 @@ BOOL CGateApp::InitInstance()
 
     m_wndConfig.Create(IDD_CONFIG_DIALOG);
     OnServiceStart();
+    // 释放加载的库
+    if (hriched != NULL)
+    {
+        FreeLibrary(hriched);
+    }
+
 	return TRUE;
 }
 

@@ -80,6 +80,7 @@
 #define IDC_REFRESH_LICENSE_BUTTON      1013
 #define IDC_PROCESS_BUTTON              1014
 #define IDC_CHECK_EXIT                  1015
+#define IDC_RICHEDIT21                  1015
 #define IDC_EDIT_EXIT                   1016
 #define IDC_CHECK_SPEED_WALK            1017
 #define IDC_EDIT_SPEED_WALK             1018
@@ -158,7 +159,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        345
 #define _APS_NEXT_COMMAND_VALUE         32832
-#define _APS_NEXT_CONTROL_VALUE         1015
+#define _APS_NEXT_CONTROL_VALUE         1016
 #define _APS_NEXT_SYMED_VALUE           313
 #endif
 #endif

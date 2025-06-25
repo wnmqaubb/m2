@@ -18,6 +18,8 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include <ConfigSettingDoc.h>
+#include <ConfigSettingView.h>
 
 
 // CProcessView
@@ -52,7 +54,7 @@ BOOL CProcessView::PreCreateWindow(CREATESTRUCT& cs)
 {
 	// TODO: 在此处通过修改
 	//  CREATESTRUCT cs 来修改窗口类或样式
-    
+
 	return CView::PreCreateWindow(cs);
 }
 
@@ -241,12 +243,8 @@ void CProcessView::OnProcessNameBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+        unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_policy_id(Policies);
+
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -258,7 +256,17 @@ void CProcessView::OnProcessNameBan()
         str = Cfg->dump();
         output.write(str.data(), str.size());
         output.close();
-        theApp.OnServiceSettings();
+        theApp.OnServiceSettings();        
+        ScrollToAddByPolicyId(uiLastPolicyId);
+
+    }
+}
+
+void CProcessView::ScrollToAddByPolicyId(int policy_id) {
+    auto pSettingDoc = ((CConfigSettingDoc*)theApp.m_ConfigDoc);
+    if (pSettingDoc->GetView<CConfigSettingView>())
+    {
+        pSettingDoc->GetView<CConfigSettingView>()->ScrollToAddByPolicyId(policy_id);
     }
 }
 
@@ -282,12 +290,7 @@ void CProcessView::OnProcessPathBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+        unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -300,7 +303,8 @@ void CProcessView::OnProcessPathBan()
         output.write(str.data(), str.size());
         output.close();
         theApp.OnServiceSettings();
-	}
+        ScrollToAddByPolicyId(uiLastPolicyId);
+    }
 
 }
 

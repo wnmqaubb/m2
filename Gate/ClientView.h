@@ -40,11 +40,11 @@ protected:
     afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
 	afx_msg void OnPaint();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
-    uint32_t next_gm_policy_id(std::map<uint32_t, ProtocolPolicy>& policies);
 
 	DECLARE_MESSAGE_MAP()
 public:
 
+    uint32_t next_policy_id(std::map<uint32_t, ProtocolPolicy>& policies);
     afx_msg void OnQueryProcess();
     afx_msg void OnRefreshUsers();
     afx_msg void OnQueryScreenShot();

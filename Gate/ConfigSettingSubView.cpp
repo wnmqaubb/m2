@@ -1,13 +1,9 @@
-
-#include "pch.h"
+﻿#include "pch.h"
 #include "framework.h"
-
 #include "Gate.h"
 #include "ConfigSettingSubView.h"
 #include "Resource.h"
 #include "MainFrm.h"
-
-#include "ConfigSettingDoc.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -20,7 +16,6 @@ static char THIS_FILE[] = __FILE__;
 
 CConfigSettingSubViewWnd::CConfigSettingSubViewWnd() noexcept
 {
-    m_PropEditForm = (CPropEditFormView*)(RUNTIME_CLASS(CPropEditFormView)->CreateObject());
 }
 
 CConfigSettingSubViewWnd::~CConfigSettingSubViewWnd()
@@ -40,35 +35,38 @@ int CConfigSettingSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
     CRect rectDummy;
     rectDummy.SetRectEmpty();
 
+    // 确保 RichEdit 已初始化
+    if (!AfxInitRichEdit2()) {
+        AfxMessageBox(L"RichEdit 初始化失败");
+        return -1;
+    }
 
-    // �����������: 
-    const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE;
-    
-    m_PropEditForm->Create(NULL, NULL, dwViewStyle, rectDummy, this, NULL, NULL);
+    // 创建视图
+    if (!m_PropEditForm.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, rectDummy, this, 0, NULL))
+    {
+        TRACE("视图创建失败! 错误: %d\n", GetLastError());
+        return -1;
+    }
 
     UpdateFonts();
 
-    InitPropsWindowView();
     return 0;
 }
 
 void CConfigSettingSubViewWnd::OnSize(UINT nType, int cx, int cy)
 {
     CDockablePane::OnSize(nType, cx, cy);
-    if (GetSafeHwnd() == nullptr)
-    {
+    if (GetSafeHwnd() == nullptr) {
         return;
     }
 
     CRect rectClient;
     GetClientRect(rectClient);
-    m_PropEditForm->SetWindowPos(nullptr, rectClient.left, rectClient.top, rectClient.Width(), rectClient.Height(), SWP_NOACTIVATE | SWP_NOZORDER);
-}
 
-
-void CConfigSettingSubViewWnd::InitPropsWindowView()
-{
-   
+    // 确保窗口已创建
+    if (m_PropEditForm.GetSafeHwnd()) {
+        m_PropEditForm.SetWindowPos(nullptr, rectClient.left, rectClient.top, rectClient.Width(), rectClient.Height(), SWP_NOACTIVATE | SWP_NOZORDER);
+    }
 }
 
 void CConfigSettingSubViewWnd::FillProp(CDocument* pDoc, ProtocolPolicy& Policy)
@@ -77,14 +75,14 @@ void CConfigSettingSubViewWnd::FillProp(CDocument* pDoc, ProtocolPolicy& Policy)
     CString temp;
     temp.Format(TEXT("%d"), Policy.policy_id);
 #ifndef GATE_ADMIN
-    m_PropEditForm->m_PolicyIdEdit.SetReadOnly(Policy.create_by_admin);
+    m_PropEditForm.m_PolicyIdEdit.SetReadOnly(Policy.create_by_admin);
 #endif
-    m_PropEditForm->m_PolicyIdEdit.SetWindowText(temp);
-    m_PropEditForm->m_PolicyTypeComboBox.SetCurSel(Policy.policy_type);
-    m_PropEditForm->m_PunishTypeComboBox.SetCurSel(Policy.punish_type);
-    m_PropEditForm->m_PolicyConfigEdit.SetWindowText(Policy.config.c_str());
-    m_PropEditForm->m_PolicyCommentEdit.SetWindowText(Policy.comment.c_str());
-    m_PropEditForm->m_CreateByAdmin = Policy.create_by_admin;
+    m_PropEditForm.m_PolicyIdEdit.SetWindowText(temp);
+    m_PropEditForm.m_PolicyTypeComboBox.SetCurSel(Policy.policy_type);
+    m_PropEditForm.m_PunishTypeComboBox.SetCurSel(Policy.punish_type);
+    m_PropEditForm.m_PolicyConfigEdit.SetWindowText(Policy.config.c_str());
+    m_PropEditForm.m_PolicyCommentEdit.SetWindowText(Policy.comment.c_str());
+    m_PropEditForm.m_CreateByAdmin = Policy.create_by_admin;
 }
 
 void CConfigSettingSubViewWnd::AdjustHorzScroll(CListBox& wndListBox)

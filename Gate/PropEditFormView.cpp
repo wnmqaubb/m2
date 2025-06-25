@@ -13,8 +13,7 @@
 
 IMPLEMENT_DYNCREATE(CPropEditFormView, CFormView)
 
-CPropEditFormView::CPropEditFormView()
-	: CFormView(IDD_PROP_EDIT_VIEW)
+CPropEditFormView::CPropEditFormView(): CFormView(IDD_PROP_EDIT_VIEW)
 {
 }
 
@@ -128,8 +127,8 @@ void CPropEditFormView::OnCbnDropdownComboPolicyType()
 
 void CPropEditFormView::OnInitialUpdate()
 {
-    CFormView::OnInitialUpdate();
-    m_PolicyConfigEdit.SetLimitText(1 * 1024 * 1024); // 设置为1MB
+    CFormView::OnInitialUpdate(); 
+    m_PolicyConfigEdit.SendMessage(EM_EXLIMITTEXT, 0, 0x4FFFF);
     int nIndex = 0;
     for (int index = ENM_POLICY_TYPE_MODULE_NAME; index < ENM_POLICY_TYPE_MAX; index++)
     {
@@ -207,6 +206,7 @@ void CPropEditFormView::OnBnClickedButtonPolicyCommit()
             Policy.comment = temp.GetBuffer();
             pSettingDoc->GetPolicy().policies[uiPolicyId] = Policy;
             pSettingDoc->GetView<CConfigSettingView>()->RefreshViewList();
+            pSettingDoc->GetView<CConfigSettingView>()->OnConfigSave();
             pSettingDoc->SetTitle(pSettingDoc->GetTitle() + TEXT("*"));
         }
     }

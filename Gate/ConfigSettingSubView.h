@@ -1,32 +1,24 @@
-#pragma once
+Ôªø#pragma once
 
 /////////////////////////////////////////////////////////////////////////////
 #include "PropEditFormView.h"
 
-// COutputList ¥∞ø⁄
+// COutputList Á™óÂè£
 class CConfigSettingSubViewWnd : public CDockablePane
 {
-    // ππ‘Ï
+    // ÊûÑÈÄ†
 public:
     CConfigSettingSubViewWnd() noexcept;
+    virtual ~CConfigSettingSubViewWnd();
 
     void UpdateFonts(); 
-    void InitPropsWindowView();
     void FillProp(CDocument* pDoc, ProtocolPolicy& Policy);
     CDocument* GetDocument() { return m_pDoc; }
-    // Ãÿ–‘
+    // ÁâπÊÄß
 protected:
-    CMFCTabCtrl	m_wndTabs;
-    CPropEditFormView* m_PropEditForm;
-    CDocument* m_pDoc = nullptr;
-protected:
-    
+    CPropEditFormView m_PropEditForm;
+    CDocument* m_pDoc = nullptr;    
     void AdjustHorzScroll(CListBox& wndListBox);
-
-    //  µœ÷
-public:
-    virtual ~CConfigSettingSubViewWnd();
-protected:
     afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
     afx_msg void OnSize(UINT nType, int cx, int cy);
 
