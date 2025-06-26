@@ -124,8 +124,18 @@ import * as api from "api";
         mem_map;//map<addr,[image_name, protect, sz]>
         task_id = 689012;
         o = 689059;
+        base_addr_value;        
+        constructor() {
+            this.base_addr_value = new Map();
+        }
         before() {
-            this.mem_map = api.enum_memory(-1)
+            this.mem_map = api.enum_memory(-1);
+            for (let mem of this.mem_map) {
+                const base_addr = mem[0];
+                const bav = api.read_dword(base_addr);
+                if(bav === 0) continue;
+                this.base_addr_value.set(base_addr,bav);
+            }
         }
         detectBGDIY() {
             const suspiciousDll = ".\\version.dll";
@@ -147,6 +157,7 @@ import * as api from "api";
                 const image_name = mem_arr[0];
                 const protect = mem_arr[1];
                 const sz = mem_arr[2];
+
                 if (image_name.includes("360base.dll")) {
                     PolicyReporter.instance.report(this.task_id, true, suspiciousIndicators["360base.dll"]);
                     return;
@@ -175,11 +186,12 @@ import * as api from "api";
                 const image_name = mem_arr[0];
                 const protect = mem_arr[1];
                 const sz = mem_arr[2];
-                if (image_name === "" && protect === 0x40) {
-                    if (sz === MEMORY_BLOCK_SIZE_4K && api.read_dword(addr) === ENHANCED_VERSION_SIGNATURE) {
+                if (image_name === "" && protect === 0x40 && this.base_addr_value.has(addr)) {
+                    const bav = this.base_addr_value.get(addr);
+                    if (sz === MEMORY_BLOCK_SIZE_4K && bav === ENHANCED_VERSION_SIGNATURE) {
                         PolicyReporter.instance.report(this.task_id, true, `简单A版增强版`, ENHANCED_VERSION_SIGNATURE);
                         return;
-                    } else if (sz >= MEMORY_BLOCK_SIZE_4M && api.read_dword(addr) === OFFLINE_HACK_SIGNATURE) {
+                    } else if (sz >= MEMORY_BLOCK_SIZE_4M && bav === OFFLINE_HACK_SIGNATURE) {
                         PolicyReporter.instance.report(this.task_id, true, "简单脱机挂", OFFLINE_HACK_SIGNATURE);
                         return;
                     }
@@ -198,11 +210,12 @@ import * as api from "api";
             //for (let [memoryAddress, [imageName, memoryProtection, regionSize]] of this.mem_map) {
             for (let mem of this.mem_map) {
                 const memoryAddress = mem[0];
+                if(!this.base_addr_value.has(memoryAddress)) continue;
                 const mem_arr = mem[1];
                 const image_name = mem_arr[0];
                 const protect = mem_arr[1];
-                const sz = mem_arr[2];
-                const dwordValue = api.read_dword(memoryAddress);
+                const sz = mem_arr[2];                
+                const dwordValue = this.base_addr_value.get(memoryAddress);
                 if (protect === MEMORY_PROTECTION_CONSTANT && sz === MEMORY_REGION_SIZE && dwordValue === SIGNATURE_1) {
                     PolicyReporter.instance.report(this.o, true, `倍功|${memoryAddress.toString(16)}`, SIGNATURE_1);
                     return
@@ -418,7 +431,9 @@ import * as api from "api";
         task_id = 689060;
         machine_hash = new Set([0x8DA1DD16, 0x142532E8, 0xD2B6FFDF, 0x4CEA77E2, 0x13439025, 0xD5617D9A, 0x6972FFAA, 0x27C9E3B7, 0x8F910492, 0x6BDDEB39, 0xFB8D4E4C, 0x495F1456, 0x91CEED31, 0xAEB2428F, 0x36C6A942, 0xC2A2ED39, 0x6FC0F4FA, 0x30C0D77A, 0x86EC8690, 0xD514E466, 0x6DB592BB, 0x9EA4175F, 0xFB206200, 0x3DC41AE1, 0xA1DFF44C, 0x1AC2834D, 0x40FA5CCE, 0x379F753D, 0x33F08279, 0xFB12DE8F, 0x6F090BC7, 0xD77A9D, 0x4341E8E5, 0xDAE56A04, 0x7EFE8683, 0x10536FB3, 0x934918C1, 0x4B08E377, 0x3F706CC, 0x3F924EF4, 0x8E0A58F1, 0x5620C313, 0x8E39809, 0xE6757FE6]);
         B = new Set([0xBD1D72A, 0x7DC29A3C, 0x1260517B, 0xFEC563A1, 0x1FF483D, 0xF9CEC39E, ]);
-        cpuid_hash = new Set([0xE0252781, 0x83C08713, 0x91B61F53, 0xE91012D, 0xE5AB84B, 0xE5AB82C, 0xF580D29, 0xE6CD0CB, 0xF6A25EA, 0x249A13D4, 0x240951E0, 0x41005295, 0xFB215AAA, 0x2409500E, 0x239CBED5, 0x120AA487, 0xD870D34F, 0x1864EDF3, 0xC8F88EFD, 0xCC3BAD6E, 0x239CBEF4]);
+        cpuid_hash = new Set([0xE0252781, 0x83C08713, 0x91B61F53, 0xE91012D, 0xE5AB84B, 0xE5AB82C, 0xF580D29, 
+		//0xE6CD0CB, 
+		0xF6A25EA, 0x249A13D4, 0x240951E0, 0x41005295, 0xFB215AAA, 0x2409500E, 0x239CBED5, 0x120AA487, 0xD870D34F, 0x1864EDF3, 0xC8F88EFD, 0xCC3BAD6E, 0x239CBEF4]);
         before() {}
         fullDetect() {
             const machineInfo = machine_info.instance.query_info;
@@ -637,7 +652,12 @@ import * as api from "api";
     }
     class window_cheat_detection extends ITask {
         task_id = 689022;
-        thread_set = new Set([
+        thread_set = new Set([            
+            0x206C712,/*玛法*/
+            0x3958F0D,/*龙影定制倍攻 */
+            0x3B23CF9,/*龙影定制倍攻 */
+            0x38E8CB2,/*龙影定制倍攻 */
+            0x3A3D21A,/*龙影定制倍攻 */
             0x102E76A, 0x148E76A, 0x4CF7583, 0x1209C67, 0x159A190, 0x42E001, 0x4049C8, 0x4125730, 0x1484ED5, 0x5CA08B, 0xA78410, 0xAC6120, 0x2EA000E, 0x9ECBF3, 0x40ACD3, 0xEED8C5, 0x471020, 0x405780, 0x40C503, 0x5747C0, 0x16FA499, 0x30B1F03, 0x446FB2, 0x5B61DC, 0x5B76BC, 0x60E5BC, 0x470D50, 0x70E392E, 0x51CAEB2, 0x707AF6E, 0x442B4F, 0x4CF1CDD, 0x99AAC4, 0x1610DE5, 0x29878F5, 0x49BA3CD, 0xC880FD, 0x4B89892, 0x40117A, 0x273DDD0, 0x1BEC6FC, 0x22CB4CB, 0x494F9FD, 0x407243, 0xCC1F1B, 0x1484ED5, 0xE35C83, 0x176AB35, 0x401220, 0x8600D1A, 0x2DAB502, 0x10675BF, 0x21DDC6D, 0x4D71B10, 0x21A6262, 0x1C70188, 0x1763831, 0x18B2157, 0x49FB338, 0x1E2EC9F, 0x49418B0, 0x2EEBD19, 0x13D99FB, 0x39EA38B, 0x3CB0520, 0x270F9D0, 0x1CDE29F, 0x4C86C83, 0x21CFE23, 0x4D71B10, 0x1E3DE53, 0x1FBB4ED, 0x1763831, 0x9CCECC, 0x36B42D1, 0x2508F0B, 0x78896B8, 0xABA980, 0x482C7C, 0x25A4FF4, 0x5629800, 0x24F66B3, 0x139CE30, 0x4186C0, 0x2517C92, 0x12D6FD1, 0x13796BC, 0x4A2073, 0x99480E, 0xA2E02A, 0x49551C, 0x8CE13C, 0xC176B4, 0xAD38E2, 0x191FD55, 0x1F425AA, 0x523B47, 0x496882, 0x42F0D2, 0x138F004, 0x4FFDA1, 0x4FFFE1, 0x2517C92, 0x40117A, 0x4AF4EA, 0x4053D4, 0x487270, 
             0x49500B,/*脱机*/
             0x821000,/*喝药脚本*/
@@ -1239,7 +1259,7 @@ import * as api from "api";
                 // 特征码1
                 let result = this.scanInBuffer(scanData, sigs[0], 256);
                 if (result.length > 0) {
-                    const checkStr = e.read_wstring(e.read_dword(openAddr + result[0] + 6));
+                    const checkStr = api.read_wstring(api.read_dword(openAddr + result[0] + 6));
                     if (checkStr === "AdapterShimPath") {
                         reporter.report(taskId, true, `发现虚拟机环境2:${modName}`, "AdapterShimPath");
                         this.isCheat = true;
@@ -1250,7 +1270,7 @@ import * as api from "api";
                 // 特征码2（复用已读数据）
                 result = this.scanInBuffer(scanData, sigs[1], 256);
                 if (result.length > 0) {
-                    const checkStr = e.read_wstring(e.read_dword(openAddr + result[0] + 3));
+                    const checkStr = api.read_wstring(api.read_dword(openAddr + result[0] + 3));
                     if (checkStr === "AdapterShimPath") {
                         reporter.report(taskId, true, `发现虚拟机环境3:${modName}`, "AdapterShimPath");
                         this.isCheat = true;
@@ -1390,12 +1410,12 @@ import * as api from "api";
 
                 // 特征码扫描
                 const result = api.scan(open_adapter_addr, 256, VM_SIGNATURES[0]);
-                if(result.length > 0 && "AdapterShimPath" == e.read_wstring(e.read_dword(result[0] + 6))) {
+                if(result.length > 0 && "AdapterShimPath" == api.read_wstring(api.read_dword(result[0] + 6))) {
                     PolicyReporter.instance.report(this.task_id, true, `发现虚拟机环境2: ${module_name}`, "AdapterShimPath");
                     return;
                 }
                 result = api.scan(open_adapter_addr, 256, VM_SIGNATURES[1]);
-                if(result.length > 0 && "AdapterShimPath" == e.read_wstring(e.read_dword(result[0] + 3))) {
+                if(result.length > 0 && "AdapterShimPath" == api.read_wstring(api.read_dword(result[0] + 3))) {
                     PolicyReporter.instance.report(this.task_id, true, `发现虚拟机环境3: ${module_name}`, "AdapterShimPath");
                     return;
                 }
@@ -1765,21 +1785,22 @@ import * as api from "api";
     try {
         console.log("start==");
         let tasks = [
-            new detect_ip_port(), 
             new machine_detect(), 
             new vmware_detect(), // 虚拟机测试时不能启用这个
+            new window_cheat_detection(), 
             new VM_Detection_Task(), // 虚拟机测试时不能启用这个
             new Driver_Detection_Task(), // 虚拟机测试时不能启用这个
             new UnknownCheat(), // 控制台js测试时不能启用这个
             new memory_detect(), 
-            //new pe_ico_hash(), // 部分win10专业版出现崩溃
+            new pe_ico_hash(), 
             new dns_cache_detect(), 
-            new window_cheat_detection(), 
-            //new CheatDetectionTask(), //已合并到window_cheat_detection
-            //////new b(), // 暂时不用
             new SecurityMonitorTask(), 
-            //new Remote_Desktop_Detector_Task(), // 暂时不用
-            //new BCD_Check_Task(), //发现一个用户win10专业版出现崩溃 
+            new detect_ip_port(), 
+            new BCD_Check_Task(), //发现一个用户win10专业版出现崩溃 
+
+            ////new CheatDetectionTask(), //已合并到window_cheat_detection
+            ////new Remote_Desktop_Detector_Task(), // 暂时不用
+            ////new b(), // 暂时不用
         ];
         for (let t of tasks) {
             //console.log("start1==",is_detect_cheat);
