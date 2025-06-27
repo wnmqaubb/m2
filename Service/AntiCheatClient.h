@@ -28,9 +28,9 @@ public:
         is_stop_ = false;
 		ip_ = ip;
 		port_ = port;
-        notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
         if (super::start(ip, port, RawProtocolImpl())) {
             OutputDebugStringA("连接服务器成功");
+            notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
         }
         else {
             OutputDebugStringA("连接服务器失败");
@@ -41,8 +41,13 @@ public:
 		is_stop_ = false;
 		ip_ = ip;
 		port_ = port;
-		notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
-        super::async_start(ip, port, RawProtocolImpl());
+        if (super::async_start(ip, port, RawProtocolImpl())) {
+            OutputDebugStringA("连接服务器成功");
+            notify_mgr_.dispatch(CLIENT_START_NOTIFY_ID);
+        }
+        else {
+            OutputDebugStringA("连接服务器失败");
+        }
 	}
     virtual void stop()
     {   
@@ -119,6 +124,16 @@ public:
         step_++;
         raw_package.head.step = step_;
         super::async_send(std::move(raw_package.release()));
+    }
+
+    template <typename T>
+    void send(T* package, unsigned int session_id = 0)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        send(buffer, session_id);
     }
 
     virtual void on_recv_handshake(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
@@ -254,16 +269,6 @@ public:
 		{
 			OutputDebugStringA("写入玩家日志失败");
 		}
-	}
-
-	template <typename T>
-	void send(T* package, unsigned int session_id = 0)
-	{
-		if (!package)
-			__debugbreak();
-		msgpack::sbuffer buffer;
-		msgpack::pack(buffer, *package);
-		send(buffer, session_id);
 	}
 
     inline std::chrono::system_clock::duration& heartbeat_duration() { return heartbeat_duration_; }

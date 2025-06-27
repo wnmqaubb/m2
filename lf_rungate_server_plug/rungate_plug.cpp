@@ -39,16 +39,9 @@ RUNGATE_API Init(PInitRecord pInitRecord, BOOL isReload)
 	char m_ExeDir[MAX_PATH];
 	GetModuleFileNameA(NULL, m_ExeDir, sizeof(m_ExeDir));
 	auto ini_path = std::filesystem::path(m_ExeDir).parent_path() / "Config.ini";
-	guard_gate_ip = Utils::read_config_txt(ini_path, "GuardGate", "GateIP");
 	show_welcome_msg = Utils::read_config_txt(ini_path, "GuardGate", "ShowWelcomeMsg");
 	guard_gate_welcome_msg1 = Utils::read_config_txt(ini_path, "GuardGate", "WelcomeMsg1");
 	guard_gate_welcome_msg2 = Utils::read_config_txt(ini_path, "GuardGate", "WelcomeMsg2");
-	if (guard_gate_ip.empty()) {
-		AddShowLog("请在Config.ini配置及时雨网关IP [GuardGate]-->GateIP", 0);
-	}
-	else {
-		Utils::DbgPrint("                       =====及时雨网关IP:%s=====", guard_gate_ip.c_str());
-	}
     auto buffer = Utils::load_file(new_client_filename);
     if (buffer.empty())
     {
@@ -97,6 +90,13 @@ RUNGATE_API Init(PInitRecord pInitRecord, BOOL isReload)
     AddShowLog("                                                                                       ", 0);
     AddShowLog("                                                                                       ", 0);
     AddShowLog("                                                                                          ", 0);
+    guard_gate_ip = Utils::read_config_txt(ini_path, "GuardGate", "GateIP");
+    if (guard_gate_ip.empty()) {
+        AddShowLog("请在Config.ini配置及时雨网关IP [GuardGate]-->GateIP", 0);
+    }
+    else {
+        Utils::DbgPrint("                       =====及时雨网关IP:%s=====", guard_gate_ip.c_str());
+    }
     VMP_VIRTUALIZATION_END()
 }
 
@@ -145,14 +145,16 @@ int __stdcall ClientRecvPacket(int clientID, PTDefaultMessage defMsg, char* lpDa
                 IsHookPacked = true;
                 SetClientPlugLoad(clientID);
 			    //Utils::DbgPrint("=====接收客户端数据包=====");
-			    // 下发及时雨网关IP 
-                if (new_client_data->empty()) {
-                    Utils::DbgPrint("NewClient_f.dll文件读取失败,请检查文件是否存在并重新加载插件");
-                    return result;
+                if (defMsg->param == 0) {
+                    if (new_client_data->empty()) {
+                        Utils::DbgPrint("NewClient_f.dll文件读取失败,请检查文件是否存在并重新加载插件");
+                        return result;
+                    }
+                    defMsg->ident = 10005;
+                    SendDataToClient(clientID, defMsg, new_client_data->data(), new_client_data->size());
                 }
-                defMsg->ident = 10005;
-                SendDataToClient(clientID, defMsg, new_client_data->data(), new_client_data->size());
 
+			    // 下发及时雨网关IP 
                 defMsg->ident = 10001;
 			    SendDataToClient(clientID, defMsg, guard_gate_ip.c_str(), guard_gate_ip.length());
 

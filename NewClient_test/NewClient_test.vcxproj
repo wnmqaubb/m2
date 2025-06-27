@@ -106,8 +106,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
     <TargetName>$(ProjectName)_f</TargetName>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -205,7 +205,7 @@ $(TargetDir)\packer.exe --generate_reflective_loader --obj $(IntDir)..\..\..\Lig
       </EntryPointSymbol>
     </Link>
     <PostBuildEvent>
-      <Command>$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)$(ProjectName).vmp
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)$(TargetName).vmp
 del /f /s /q $(TargetPath)
 copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)</Command>
     </PostBuildEvent>

@@ -336,94 +336,99 @@ namespace Utils {
             SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
             HANDLE hReadPipe, hWritePipe;
 
-            if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
-                if (oldRedirection) {
-                    auto Wow64RevertWow64FsRedirection = IMPORT(L"kernel32.dll", Wow64RevertWow64FsRedirection);
-                    if (Wow64RevertWow64FsRedirection) Wow64RevertWow64FsRedirection(oldRedirection);
+            try {
+                if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
+                    if (oldRedirection) {
+                        auto Wow64RevertWow64FsRedirection = IMPORT(L"kernel32.dll", Wow64RevertWow64FsRedirection);
+                        if (Wow64RevertWow64FsRedirection) Wow64RevertWow64FsRedirection(oldRedirection);
+                    }
+                    return descriptions;
                 }
-                return descriptions;
-            }
 
-            // 获取标准输入、错误句柄（处理 GUI 程序无控制台的情况）
-            HANDLE hStdIn = GetStdHandle(STD_INPUT_HANDLE);
-            HANDLE hStdErr = GetStdHandle(STD_ERROR_HANDLE);
-            HANDLE hStdInDup = INVALID_HANDLE_VALUE, hStdErrDup = INVALID_HANDLE_VALUE;
+                // 获取标准输入、错误句柄（处理 GUI 程序无控制台的情况）
+                HANDLE hStdIn = GetStdHandle(STD_INPUT_HANDLE);
+                HANDLE hStdErr = GetStdHandle(STD_ERROR_HANDLE);
+                HANDLE hStdInDup = INVALID_HANDLE_VALUE, hStdErrDup = INVALID_HANDLE_VALUE;
 
-            // 仅复制有效句柄
-            if (hStdIn != INVALID_HANDLE_VALUE) {
-                DuplicateHandle(GetCurrentProcess(), hStdIn, GetCurrentProcess(), &hStdInDup, 0, TRUE, DUPLICATE_SAME_ACCESS);
-            }
-            if (hStdErr != INVALID_HANDLE_VALUE) {
-                DuplicateHandle(GetCurrentProcess(), hStdErr, GetCurrentProcess(), &hStdErrDup, 0, TRUE, DUPLICATE_SAME_ACCESS);
-            }
-
-            STARTUPINFO si = { sizeof(STARTUPINFO) };
-            si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-            si.hStdInput = hStdInDup;
-            si.hStdOutput = hWritePipe;
-            si.hStdError = (hStdErrDup != INVALID_HANDLE_VALUE) ? hStdErrDup : hWritePipe; // 若无错误句柄，重定向到输出管道
-            si.wShowWindow = SW_HIDE;
-
-            // 必须使用可修改的缓冲区
-            wchar_t cmdLine[] = L"\"C:\\Windows\\System32\\bcdedit.exe\" /enum"; // 注意添加.exe
-
-            PROCESS_INFORMATION pi = { 0 };
-            BOOL bSuccess = CreateProcessW(
-                nullptr,
-                cmdLine,    // 命令行参数
-                nullptr,
-                nullptr,
-                TRUE,       // 允许句柄继承
-                CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
-                nullptr,
-                nullptr,
-                &si,
-                &pi
-            );
-
-            // 立即关闭父进程不再需要的句柄
-            CloseHandle(hWritePipe);
-            if (hStdInDup != INVALID_HANDLE_VALUE) CloseHandle(hStdInDup);
-            if (hStdErrDup != INVALID_HANDLE_VALUE) CloseHandle(hStdErrDup);
-
-            if (!bSuccess) {
-                // 恢复重定向
-                if (oldRedirection) {
-                    auto Wow64RevertWow64FsRedirection = IMPORT(L"kernel32.dll", Wow64RevertWow64FsRedirection);
-                    if (Wow64RevertWow64FsRedirection) Wow64RevertWow64FsRedirection(oldRedirection);
+                // 仅复制有效句柄
+                if (hStdIn != INVALID_HANDLE_VALUE) {
+                    DuplicateHandle(GetCurrentProcess(), hStdIn, GetCurrentProcess(), &hStdInDup, 0, TRUE, DUPLICATE_SAME_ACCESS);
                 }
-                //DWORD err = GetLastError();
+                if (hStdErr != INVALID_HANDLE_VALUE) {
+                    DuplicateHandle(GetCurrentProcess(), hStdErr, GetCurrentProcess(), &hStdErrDup, 0, TRUE, DUPLICATE_SAME_ACCESS);
+                }
+
+                STARTUPINFO si = { sizeof(STARTUPINFO) };
+                si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+                si.hStdInput = hStdInDup;
+                si.hStdOutput = hWritePipe;
+                si.hStdError = (hStdErrDup != INVALID_HANDLE_VALUE) ? hStdErrDup : hWritePipe; // 若无错误句柄，重定向到输出管道
+                si.wShowWindow = SW_HIDE;
+
+                // 必须使用可修改的缓冲区
+                wchar_t cmdLine[] = L"\"C:\\Windows\\System32\\bcdedit.exe\" /enum"; // 注意添加.exe
+
+                PROCESS_INFORMATION pi = { 0 };
+                BOOL bSuccess = CreateProcessW(
+                    nullptr,
+                    cmdLine,    // 命令行参数
+                    nullptr,
+                    nullptr,
+                    TRUE,       // 允许句柄继承
+                    CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
+                    nullptr,
+                    nullptr,
+                    &si,
+                    &pi
+                );
+
+                // 立即关闭父进程不再需要的句柄
+                CloseHandle(hWritePipe);
+                if (hStdInDup != INVALID_HANDLE_VALUE) CloseHandle(hStdInDup);
+                if (hStdErrDup != INVALID_HANDLE_VALUE) CloseHandle(hStdErrDup);
+
+                if (!bSuccess) {
+                    // 恢复重定向
+                    if (oldRedirection) {
+                        auto Wow64RevertWow64FsRedirection = IMPORT(L"kernel32.dll", Wow64RevertWow64FsRedirection);
+                        if (Wow64RevertWow64FsRedirection) Wow64RevertWow64FsRedirection(oldRedirection);
+                    }
+                    //DWORD err = GetLastError();
                 
+                    CloseHandle(hReadPipe);
+                    return descriptions;
+                }
+
+                WaitForSingleObject(pi.hProcess, INFINITE);
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
+
+
+                // 读取输出
+                char buffer[4096];
+                DWORD bytesRead;
+                std::string output;
+                while (ReadFile(hReadPipe, buffer, sizeof(buffer), &bytesRead, nullptr) && bytesRead > 0) {
+                    output.append(buffer, bytesRead);
+                }
                 CloseHandle(hReadPipe);
-                return descriptions;
+                /*
+                    {current}
+                    Windows 11
+                    partition=C:
+                */
+                descriptions = get_bcdinfo_by_keys(output, { "description", "osdevice", "标识符" });
+
+                // 恢复文件系统重定向
+                if (oldRedirection) {
+                    auto Wow64RevertWow64FsRedirection = IMPORT(L"kernel32.dll", Wow64RevertWow64FsRedirection);
+                    if (Wow64RevertWow64FsRedirection) Wow64RevertWow64FsRedirection(oldRedirection);
+                }
+                return std::move(descriptions);
             }
-
-            WaitForSingleObject(pi.hProcess, INFINITE);
-            CloseHandle(pi.hProcess);
-            CloseHandle(pi.hThread);
-
-
-            // 读取输出
-            char buffer[4096];
-            DWORD bytesRead;
-            std::string output;
-            while (ReadFile(hReadPipe, buffer, sizeof(buffer), &bytesRead, nullptr) && bytesRead > 0) {
-                output.append(buffer, bytesRead);
+            catch (...) {
+                OutputDebugStringA("GetBcdInfo exception");
             }
-            CloseHandle(hReadPipe);
-            /*
-                {current}
-                Windows 11
-                partition=C:
-            */
-            descriptions = get_bcdinfo_by_keys(output, { "description", "osdevice", "标识符" });
-
-            // 恢复文件系统重定向
-            if (oldRedirection) {
-                auto Wow64RevertWow64FsRedirection = IMPORT(L"kernel32.dll", Wow64RevertWow64FsRedirection);
-                if (Wow64RevertWow64FsRedirection) Wow64RevertWow64FsRedirection(oldRedirection);
-            }
-            return std::move(descriptions);
         }
 	}
 }

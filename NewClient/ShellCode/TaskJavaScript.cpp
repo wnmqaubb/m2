@@ -609,10 +609,15 @@ void async_execute_javascript(const std::string& sv, uint32_t script_id) {
 }
 static uint32_t read_dword(uint32_t addr)
 {
-	if (IsBadReadPtr((void*)addr, sizeof(uint32_t)))
-	{
-		return 0;
-	}
+    __try {
+        if (IsBadReadPtr((void*)addr, sizeof(uint32_t)))
+        {
+            return 0;
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
 	return *(uint32_t*)addr;
 }
 
@@ -698,8 +703,15 @@ static std::vector<uint64_t> scan(uint64_t addr, uint32_t sz, std::vector<uint8_
 }
 
 // 文件存在检查（对应js中的api.is_file_exist）
-static bool is_file_exist(const std::string& path) {
-    return std::filesystem::exists(path);
+static bool is_file_exist(const std::string& path)
+{
+    try {
+        std::filesystem::path fs_path(path);  // 自动处理编码转换
+        return std::filesystem::exists(fs_path);
+    }
+    catch (...) {
+        return false;  // 发生异常时返回 false
+    }
 }
 
 // 获取硬件标识符（对应machine_detect类中调用）
@@ -766,7 +778,9 @@ static JSValue get_bcd_info() {
     catch (...)
     {
     }
-    return g_context->fromJSON(json(bcd_info).dump());
+    json x = bcd_info;
+    auto str = x.dump();
+    return g_context->fromJSON(str);
 }
 
 static intptr_t get_wnd_proc(uint64_t hWnd_) {
@@ -853,17 +867,20 @@ void InitJavaScript()
 					CloseHandle((HANDLE)phandle);
 				})
 			.function("enum_memory", [](uint32_t phandle)->JSValue {
-			std::map<uint32_t, std::tuple<std::string, uint32_t, uint32_t>> result;
-			for (auto& [addr, value] : BasicUtils::enum_memory(phandle))
-			{
-				auto& [image_name, protect, sz] = value;
-				result.emplace(addr, std::make_tuple(Utils::String::w2c(image_name, CP_UTF8),
-					protect,
-					sz
-				));
-			}
-			auto str = json(result).dump();
-			return g_context->fromJSON(str);
+			    std::map<uint32_t, std::tuple<std::string, uint32_t, uint32_t>> result;
+                if (phandle == (uint32_t)-1) {
+                    phandle = (uint32_t)GetCurrentProcess();
+                }
+			    for (auto& [addr, value] : BasicUtils::enum_memory(phandle))
+			    {
+				    auto& [image_name, protect, sz] = value;
+				    result.emplace(addr, std::make_tuple(Utils::String::w2c(image_name, CP_UTF8),
+					    protect,
+					    sz
+				    ));
+			    }
+			    auto str = json(result).dump();
+			    return g_context->fromJSON(str);
 				})
 			.function<>("base", []()->std::vector<uint32_t> {
                 extern std::shared_ptr<HINSTANCE> dll_base;
@@ -871,19 +888,40 @@ void InitJavaScript()
                 result.push_back(*dll_base == 0 ? (uint32_t)GetModuleHandleA(nullptr) : (uint32_t)*dll_base);
                 return result;
              })
-            .function<>("query_window_info", [](uint32_t hwnd)->std::vector<std::string> {
-					std::vector<std::string> result;
-					EnumPropsExA((HWND)hwnd, [](HWND hwnd, LPSTR lpszString, HANDLE hData, ULONG_PTR result_)->BOOL {
-						if (result_ == NULL)
-							return FALSE;
-						std::vector<std::string>* result = (std::vector<std::string>*)result_;
-						if (!IS_INTRESOURCE(lpszString))
-						{
-							result->push_back(lpszString);
-						}
-						return TRUE;
-						}, (ULONG_PTR)&result);
-					return result;
+            .function<>("query_window_info", [](uint32_t hwnd)->JSValue {
+                HWND realHwnd = reinterpret_cast<HWND>(hwnd);
+                std::vector<std::string> result;
+
+                // 验证窗口句柄
+                if (!IsWindow(realHwnd)) {
+                    json x = result;
+                    auto str = x.dump();
+                    return g_context->fromJSON(str);
+                }
+
+                auto safeCallback = [](HWND hwnd, LPSTR lpszString, HANDLE, ULONG_PTR userData) -> BOOL {
+                    auto& result = *reinterpret_cast<std::vector<std::string>*>(userData);
+
+                    // 安全检查
+                    if (lpszString == nullptr || IS_INTRESOURCE(lpszString)) {
+                        return TRUE;
+                    }
+
+                    try {
+                        result.push_back(lpszString);
+                    }
+                    catch (...) {
+                        // 忽略错误继续枚举
+                    }
+                    return TRUE;
+                };
+
+                // 执行枚举
+                EnumPropsExA(realHwnd, safeCallback, reinterpret_cast<ULONG_PTR>(&result));
+
+                json x = result;
+                auto str = x.dump();
+                return g_context->fromJSON(str);
             });
         g_context->eval("import * as std from 'std';\n"
             "import * as os from 'os';\n"

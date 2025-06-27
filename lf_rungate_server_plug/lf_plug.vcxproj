@@ -125,7 +125,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con.exe "$(TargetPath)" "$(TargetDir)$(TargetName).vmp.dll" -pf $(SolutionDir)$(ProjectName).vmp
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe "$(TargetPath)" "$(TargetDir)$(TargetName).vmp.dll" -pf $(SolutionDir)$(ProjectName).vmp
 del /f /q "$(TargetPath)"
 ren "$(TargetDir)$(TargetName).vmp.dll" "$(TargetFileName)"</Command>
     </PostBuildEvent>

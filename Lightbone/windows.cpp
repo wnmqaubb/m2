@@ -34,9 +34,9 @@ CWindows::CWindows()
 {
     system_version_ = get_system_version_();
     initialize_access();
-    if(!GetModuleHandleW(L"Wintrust.dll")) LoadLibraryW(L"Wintrust.dll");
-    if(!GetModuleHandleW(L"advapi32.dll")) LoadLibraryW(L"advapi32.dll");
-    if(!GetModuleHandleW(L"crypt32.dll")) LoadLibraryW(L"crypt32.dll");
+    if (!GetModuleHandleW(L"Wintrust.dll")) LoadLibraryW(L"Wintrust.dll");
+    if (!GetModuleHandleW(L"advapi32.dll")) LoadLibraryW(L"advapi32.dll");
+    if (!GetModuleHandleW(L"crypt32.dll")) LoadLibraryW(L"crypt32.dll");
     // 禁用XP的主题样式以获得更好兼容性
     if (system_version_ <= WINDOWS_XP) {
         SetThemeAppProperties(STAP_ALLOW_NONCLIENT | STAP_ALLOW_CONTROLS);
@@ -83,7 +83,7 @@ void CWindows::initialize_access()
         ThreadQueryAccess = THREAD_QUERY_LIMITED_INFORMATION;
         ThreadSetAccess = THREAD_SET_LIMITED_INFORMATION;
         ThreadAllAccess = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0xfff;
-    } 
+    }
     else if (system_version_ >= WINDOWS_XP) {  // XP专用设置
         ProcessQueryAccess = PROCESS_QUERY_INFORMATION | PROCESS_VM_READ;
         ProcessAllAccess = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0xFFF;
@@ -676,7 +676,7 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
                 auto& thd = info->Threads[i].ThreadInfo;
 
                 thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-                
+
                 if (system_version_ >= WINDOWS_VISTA) {
                     if (process.is_64bits && process.no_access == false)
                     {
@@ -709,7 +709,7 @@ CWindows::ProcessMap CWindows::enum_process_with_dir(std::function<bool(ProcessI
                 SYSTEM_THREAD_INFORMATION thd = ((PSYSTEM_THREAD_INFORMATION)(info->Threads))[i];
 
                 thread.tid = reinterpret_cast<uint32_t>(thd.ClientId.UniqueThread);
-                
+
                 if (system_version_ >= WINDOWS_VISTA) {
                     if (thread.tid > 0)
                     {
@@ -942,60 +942,87 @@ CWindows::WindowsList CWindows::enum_windows(bool exclude_system_process, bool e
 
     // 检查缓存有效性（5秒内且参数相同）
     if (exclude_system_process == lastExcludeSystem &&
-        exclude_signed == lastExcludeSigned &&
-        std::chrono::duration_cast<std::chrono::seconds>(now - lastUpdateTime).count() < 5) {
+        //exclude_signed == lastExcludeSigned &&
+        std::chrono::duration_cast<std::chrono::minutes>(now - lastUpdateTime).count() < 3 &&
+        !cachedWindowsList.empty()) {
         return cachedWindowsList;
     }
 
     // 重新枚举窗口
-    WindowsList result;
     std::vector<HWND> hwnds;
     if (auto EnumDesktopWindows = IMPORT(L"user32.dll", EnumDesktopWindows)) {
         EnumDesktopWindows(nullptr, &EnumWindowsProc, reinterpret_cast<LPARAM>(&hwnds));
     }
 
-    wchar_t title[MAX_PATH];
-    wchar_t className[MAX_PATH];
+    WindowsList result;
+    result.reserve(hwnds.size());  // 关键优化：预分配
 
-    auto GetWindowTextW = IMPORT(L"user32.dll", GetWindowTextW);
+    //auto GetWindowTextW = IMPORT(L"user32.dll", GetWindowTextW);
     auto GetClassNameW = IMPORT(L"user32.dll", GetClassNameW);
     auto GetWindowThreadProcessId = IMPORT(L"user32.dll", GetWindowThreadProcessId);
+    try {
+        for (HWND hwnd : hwnds) {
+            // 获取进程信息
+            DWORD process_id = 0;
+            DWORD thread_id = GetWindowThreadProcessId(hwnd, &process_id);
 
-    for (HWND hwnd : hwnds) {
-        // 获取窗口基础信息
-        if (!GetWindowTextW(hwnd, title, MAX_PATH)) title[0] = L'\0';
-        if (!GetClassNameW(hwnd, className, MAX_PATH)) className[0] = L'\0';
+            // 系统进程过滤
+            if (exclude_system_process && is_system_process(process_id)) {
+                continue;
+            }
 
-        // 快速跳过不可见窗口和空窗口
-        if ((title[0] == L'\0' && className[0] == L'\0')
-            //|| !IsWindowVisible(hwnd) ||
-            //IsIconic(hwnd)
-            ) {
-            continue;
+            // 签名验证过滤
+            //if (system_version_ >= WINDOWS_VISTA && exclude_signed && verify_signature(process_id)) {
+            //    continue;
+            //}
+
+            // 获取窗口基础信息
+            wchar_t className[MAX_PATH] = { };
+            if (!GetClassNameW(hwnd, className, MAX_PATH) || className[0] == L'\0'
+                || wcscmp(className, L"TFrmJSYDlg") == 0) continue;
+
+            wchar_t title[MAX_PATH] = { };
+            // 获取窗口基础信息
+            LRESULT gettext_result = SendMessageTimeoutW(
+                hwnd,
+                WM_GETTEXT,
+                MAX_PATH,
+                reinterpret_cast<LPARAM>(title),
+                SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT,
+                30,  // 50ms超时
+                nullptr
+            );
+
+            if (gettext_result == 0) title[0] = L'\0'; // 超时或失败
+
+            // 快速跳过不可见窗口和空窗口
+            if ((title[0] == L'\0')
+                //|| !IsWindowVisible(hwnd) ||
+                //IsIconic(hwnd)
+                ) {
+                continue;
+            }
+
+            // 签名验证过滤
+            //if (system_version_ >= WINDOWS_VISTA && exclude_signed && verify_signature(process_id)) {
+            //    continue;
+            //}
+
+            // 构建窗口信息
+            result.emplace_back(WindowInfo{
+                /*hwnd*/      hwnd,
+                /*caption*/    title,
+                /*class_name*/ className,
+                /*pid*/       process_id,
+                /*tid*/       thread_id
+                                });
         }
-
-        // 获取进程信息
-        DWORD process_id = 0;
-        DWORD thread_id = GetWindowThreadProcessId(hwnd, &process_id);
-
-        // 系统进程过滤
-        if (exclude_system_process && is_system_process(process_id)) {
-            continue;
-        }
-
-        // 签名验证过滤
-        //if (system_version_ >= WINDOWS_VISTA && exclude_signed && verify_signature(process_id)) {
-        //    continue;
-        //}
-
-        // 构建窗口信息
-        result.emplace_back(WindowInfo{
-            /*hwnd*/      hwnd,
-            /*caption*/    title,
-            /*class_name*/ className,
-            /*pid*/       process_id,
-            /*tid*/       thread_id
-                            });
+    }
+    catch (const std::exception& e) {
+        printf("enum_windows 异常：", e.what());
+    }
+    catch (...) {
+        printf("enum_windows 未知异常");
     }
 
     // 更新缓存
@@ -1664,7 +1691,7 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const
     auto Wow64EnableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64EnableWow64FsRedirection);
     auto Wow64DisableWow64FsRedirection = IMPORT(L"Kernel32.dll", Wow64DisableWow64FsRedirection);
 
-    if (!CryptQueryObject || !CryptMsgGetParam || !CertFindCertificateInStore || !CertCloseStore || !CertGetCertificateChain 
+    if (!CryptQueryObject || !CryptMsgGetParam || !CertFindCertificateInStore || !CertCloseStore || !CertGetCertificateChain
         || !CertGetNameStringA || !CertFreeCertificateChain || !CertFreeCertificateContext || !Wow64EnableWow64FsRedirection
         || !Wow64DisableWow64FsRedirection) {
         return std::nullopt;
@@ -1708,7 +1735,7 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_embedded_signature(const
     }
 
     char buffer[256]{};
-    CERT_CHAIN_PARA ChainPara = { sizeof(ChainPara) }; 
+    CERT_CHAIN_PARA ChainPara = { sizeof(ChainPara) };
     PCCERT_CHAIN_CONTEXT pChainContext = nullptr;
     CertGetCertificateChain(nullptr, pCertContext, nullptr, hStore, &ChainPara,
                             CERT_CHAIN_REVOCATION_CHECK_CHAIN, nullptr, &pChainContext);
@@ -1749,7 +1776,7 @@ std::optional<CWindows::SignatureInfo> CWindows::verify_catalog_signature(const 
     if (!CreateFileW || !CloseHandle || !Wow64EnableWow64FsRedirection || !Wow64DisableWow64FsRedirection ||
         !CryptCATAdminAcquireContext || !CryptCATAdminCalcHashFromFileHandle || !CryptCATAdminReleaseContext ||
         !CryptCATAdminEnumCatalogFromHash || !CryptCATCatalogInfoFromContext || !CryptCATAdminReleaseCatalogContext) {
-            return std::nullopt;
+        return std::nullopt;
     }
 
     PVOID oldValue = nullptr;
@@ -1852,7 +1879,7 @@ std::wstring CWindows::get_process_path_(DWORD pid) {
     auto GetModuleFileNameExW = IMPORT(L"psapi.dll", GetModuleFileNameExW); // XP 兼容
     auto CloseHandle = IMPORT(L"kernel32.dll", CloseHandle);
 
-    if(!OpenProcess || !GetModuleFileNameExW || !CloseHandle) return L"";
+    if (!OpenProcess || !GetModuleFileNameExW || !CloseHandle) return L"";
     HANDLE hProcess = OpenProcess(ProcessQueryAccess, FALSE, pid);
     if (!hProcess) return L"";
 

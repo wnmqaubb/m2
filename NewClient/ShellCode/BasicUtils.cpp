@@ -356,10 +356,65 @@ namespace BasicUtils
         auto NtReadVirtualMemory = IMPORT(L"ntdll.dll", NtReadVirtualMemory);
         return NtReadVirtualMemory(handle, (PVOID)base_address, buffer, buffer_size, (SIZE_T*)bytes_of_read);
     }
-        
-    // 计算给定路径的PE文件图标哈希值
+
+    // 声明一个独立的核心处理函数（C 风格，无 C++ 对象）
+    static bool CoreIconProcessing(
+        HBITMAP target_bmp,
+        uint32_t* hash_val,
+        unsigned char** icon_buffer,
+        size_t* buffer_size
+    )
+    {
+        DIBSECTION ds = { 0 };
+        const int dib_size = sizeof(DIBSECTION);
+        bool result = false;
+        *icon_buffer = nullptr;
+        *buffer_size = 0;
+
+        __try {
+            // 获取位图信息
+            if (GetObjectW(target_bmp, dib_size, &ds) != dib_size) {
+                return false;
+            }
+
+            // 验证位图数据
+            if (!ds.dsBm.bmBits || ds.dsBmih.biSizeImage == 0) {
+                return false;
+            }
+
+            // 分配原始内存缓冲区
+            *buffer_size = ds.dsBmih.biSizeImage;
+            *icon_buffer = static_cast<unsigned char*>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *buffer_size));
+
+            if (!*icon_buffer) {
+                return false;
+            }
+
+            // 复制位图数据（可能引发访问冲突）
+            memcpy(*icon_buffer, ds.dsBm.bmBits, *buffer_size);
+
+            // 计算哈希值
+            if (hash_val) {
+                *hash_val = aphash(*icon_buffer, *buffer_size);
+            }
+
+            result = true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            // 发生硬件异常时清理内存
+            if (*icon_buffer) {
+                HeapFree(GetProcessHeap(), 0, *icon_buffer);
+                *icon_buffer = nullptr;
+            }
+            result = false;
+        }
+
+        return result;
+    }
+
     bool calc_pe_ico_hash(std::wstring path, uint32_t* hash_val)
     {
+        // 确保必要的DLL已加载
         if (GetModuleHandleA("Shell32.dll") == NULL)
             LoadLibraryA("Shell32.dll");
         if (GetModuleHandleA("gdi32.dll") == NULL)
@@ -375,65 +430,64 @@ namespace BasicUtils
         if (!ExtractIconW || !GetObjectW || !DeleteObject || !DestroyIcon || !CopyImage || !GetIconInfo)
             return false;
 
-        bool result = false;
         HICON hicon = NULL;
-        ICONINFO icon_info = { 0 }; ;
-        try
-        {
-            HMODULE curr_hmodule = GetModuleHandle(NULL);
-            if (curr_hmodule)
-            {
-                hicon = ExtractIconW(curr_hmodule, path.c_str(), 0);
-                if (hicon)
-                {
-                    if (!GetIconInfo(hicon, &icon_info))
-                    {
-                        DestroyIcon(hicon);
-                        return false;
-                    }
-                    HBITMAP hbitmap;
-                    DIBSECTION ds;
-                    int ds_size = GetObjectW(icon_info.hbmColor, sizeof(ds), &ds);
-                    if (sizeof(ds) != ds_size)
-                    {
-                        hbitmap = (HBITMAP)CopyImage(icon_info.hbmColor, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-                        ds_size = GetObjectW(hbitmap, sizeof(ds), &ds);
-                    }
+        ICONINFO icon_info = { 0 };
+        HBITMAP hbitmap = NULL;
+        unsigned char* raw_icon_buffer = nullptr;
+        size_t buffer_size = 0;
+        bool result = false;
 
-                    std::unique_ptr<unsigned char[]> icon_buffer(new unsigned char[ds.dsBmih.biSizeImage]);
-                    __movsb(icon_buffer.get(), (unsigned char*)ds.dsBm.bmBits, ds.dsBmih.biSizeImage);
+        HMODULE curr_hmodule = GetModuleHandleW(NULL);
+        if (!curr_hmodule)
+            return false;
 
-                    if (hash_val)
-                        *hash_val = aphash(icon_buffer.get(), ds.dsBmih.biSizeImage);
+        hicon = ExtractIconW(curr_hmodule, path.c_str(), 0);
+        if (reinterpret_cast<UINT_PTR>(hicon) <= 1)
+            goto cleanup;
 
-                    DestroyIcon(hicon);
-                    DeleteObject(hbitmap);
-                    DeleteObject(icon_info.hbmColor);
-                    DeleteObject(icon_info.hbmMask);
+        if (!GetIconInfo(hicon, &icon_info)) {
+            goto cleanup;
+        }
 
-                    result = true;
-                }
+        // 确定要处理的位图
+        HBITMAP target_bmp = icon_info.hbmColor ?
+            icon_info.hbmColor : icon_info.hbmMask;
+        if (!target_bmp) {
+            goto cleanup;
+        }
+
+        // 首次尝试获取位图信息
+        DIBSECTION ds = { 0 };
+        const int dib_size = sizeof(DIBSECTION);
+
+        if (GetObjectW(target_bmp, dib_size, &ds) != dib_size) {
+            // 创建DIB副本
+            hbitmap = reinterpret_cast<HBITMAP>(
+                CopyImage(target_bmp, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION));
+            if (!hbitmap) {
+                goto cleanup;
             }
-        }
-        catch (...)
-        {
-            result = false;
+            target_bmp = hbitmap;
         }
 
-        if (hicon)
-        {
-            DestroyIcon(hicon);
+        // 调用核心处理函数（使用SEH保护）
+        result = CoreIconProcessing(target_bmp, hash_val, &raw_icon_buffer, &buffer_size);
+
+    cleanup:
+        // 使用智能指针管理原始缓冲区（仅在成功时转移所有权）
+        std::unique_ptr<unsigned char[]> icon_buffer;
+        if (result && raw_icon_buffer) {
+            icon_buffer.reset(raw_icon_buffer);
+        }
+        else if (raw_icon_buffer) {
+            HeapFree(GetProcessHeap(), 0, raw_icon_buffer);
         }
 
-        if (icon_info.hbmColor)
-        {
-            DeleteObject(icon_info.hbmColor);
-        }
-
-        if (icon_info.hbmMask)
-        {
-            DeleteObject(icon_info.hbmMask);
-        }
+        // 资源清理
+        if (hicon) DestroyIcon(hicon);
+        if (hbitmap) DeleteObject(hbitmap);
+        if (icon_info.hbmColor) DeleteObject(icon_info.hbmColor);
+        if (icon_info.hbmMask) DeleteObject(icon_info.hbmMask);
 
         return result;
     }

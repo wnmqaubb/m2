@@ -3,8 +3,16 @@
 
 std::shared_ptr<bool> is_debug_mode = std::make_shared<bool>(false);
 std::shared_ptr<bool> is_detect_finish = std::make_shared<bool>(true);
-std::shared_ptr<int> reconnect_count = std::make_shared<int>(0); 
-extern HWND g_main_window_hwnd;
+std::shared_ptr<int> reconnect_count = std::make_shared<int>(0);
+
+// 兼容XP的时间常量定义
+#ifdef _WIN32_WINNT_WINXP
+constexpr auto POLICY_TIMEOUT = std::chrono::seconds(10);
+#else
+using namespace std::chrono_literals;
+constexpr auto POLICY_TIMEOUT = 10s;
+#endif
+
 void NotifyHook()
 {
     auto client_connect_success_handler = client_->notify_mgr().get_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
@@ -12,48 +20,6 @@ void NotifyHook()
         client_connect_success_handler();
         client_->notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
     });
-}
-// 将窗口处理逻辑封装到独立函数，隔离SEH
-bool ProcessMainWindow(std::wstring& out_username) {
-    std::vector<Utils::CWindows::WindowInfo> windows;
-    if (!Utils::CWindows::instance().get_process_main_thread_hwnd(
-        Utils::CWindows::instance().get_current_process_id(), windows)) {
-        return false;
-    }
-    try {
-        // 使用范围for循环和auto引用避免拷贝
-        for (auto& window : windows) {
-            // 转换类名为小写进行统一比较
-            std::transform(window.class_name.begin(), window.class_name.end(),
-                           window.class_name.begin(), ::towlower);
-
-            if (window.class_name == L"tfrmmain") {
-                // 直接存储HWND无需智能指针，除非需要共享所有权
-                g_main_window_hwnd = window.hwnd;
-                out_username = window.caption;
-                return true;
-            }
-        }
-
-        // 添加保底逻辑
-        if (!g_main_window_hwnd)
-        {
-            g_main_window_hwnd = GetDesktopWindow();
-            LOG("Using desktop window as fallback");
-        }
-        return false;
-    }
-    catch (...) {
-        return false;
-    }
-}
-
-// 提取重复操作为独立函数
-void UpdateAndSendUsername(const std::wstring& new_name) {
-    ProtocolC2SUpdateUsername req;
-    req.username = new_name;
-    client_->send(&req);
-    client_->cfg()->set_field<std::wstring>(usrname_field_id, new_name);
 }
 
 void LoadPlugin()
@@ -136,45 +102,7 @@ void LoadPlugin()
 #endif
         });
     });	
-  
-    client_->notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, [](){
-        //防止重启服务器的时候过于集中发包
-        client_->post([]() {
-            ProtocolC2SUpdateUsername req;
-            req.username = client_->cfg()->get_field<std::wstring>(usrname_field_id);
-            client_->send(&req);
-         }, std::chrono::seconds(std::rand() % 10 + 1));
-    });
-	LOG(__FUNCTION__); 
-    std::wstring current_username1;
-    ProcessMainWindow(current_username1);
     LOG(__FUNCTION__);
-    g_timer->start_timer<unsigned int>(UPDATE_USERNAME_TIMER_ID, std::chrono::seconds(10), []() {
-        try {
-            // 测试模式处理
-            if (client_->cfg()->get_field<bool>(test_mode_field_id)) {
-                static std::once_flag sent_flag; // 更安全的单次执行控制
-                std::call_once(sent_flag, [] {
-                    constexpr auto TEST_NAME = L"测试-1区 - 测试";
-                    client_->cfg()->set_field<std::wstring>(usrname_field_id, TEST_NAME);
-                    UpdateAndSendUsername(TEST_NAME);
-                });
-                return;
-            }
-
-            // 正常模式处理
-            std::wstring current_username;
-            if (ProcessMainWindow(current_username)) {
-                const auto& saved_name = client_->cfg()->get_field<std::wstring>(usrname_field_id);
-                if (current_username != saved_name) {
-                    UpdateAndSendUsername(current_username);
-                }
-            }
-        }
-        catch (...) {
-            LOG("更新用户名异常: %s|%d", __FUNCTION__, __LINE__);
-        }
-    });
 
     //NotifyHook();
 	InitRmc();
@@ -183,9 +111,11 @@ void LoadPlugin()
     //InitDirectoryChangsDetect();
     if (*is_debug_mode == false)
     {
-		InitHideProcessDetect();
-		//InitSpeedDetect();
-		//InitShowWindowHookDetect();
+        // InitHideProcessDetect停用,因为枚举窗口设置的是3分钟一次,导致与枚举进程的频率不一致,
+        // 如果进程已经退出,但枚举窗口因为还没有刷新会导致检测不准确,产生误报
+		//InitHideProcessDetect();
+		InitSpeedDetect();
+		InitShowWindowHookDetect();
     }   
 
     VMP_VIRTUALIZATION_END();
@@ -209,8 +139,8 @@ void on_recv_punish(const RawProtocolImpl& package, const msgpack::v1::object_ha
             abort();
         }).detach();
         VMP_VIRTUALIZATION_END();
-        if (g_main_window_hwnd != 0) {
-		    MessageBoxA(g_main_window_hwnd, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+        if (auto main_window_hwnd = client_->g_main_window_hwnd.load()) {
+		    MessageBoxA(main_window_hwnd, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
         }
         else {
             MessageBoxA(nullptr, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
@@ -223,237 +153,266 @@ void on_recv_punish(const RawProtocolImpl& package, const msgpack::v1::object_ha
 }
 void on_recv_pkg_policy(const ProtocolS2CPolicy& req)
 {
-	if (!*is_detect_finish)
-	{
-		return;
-	}
-	*is_detect_finish = false;
-	ProtocolC2SPolicy resp;
-    std::vector<ProtocolPolicy> module_polices;
-    std::vector<ProtocolPolicy> process_polices;
-    std::vector<ProtocolPolicy> file_polices;
-    std::vector<ProtocolPolicy> window_polices;
-    std::vector<ProtocolPolicy> thread_polices;
+    // 确保检测状态原子操作
+    static std::atomic<bool> is_detect_finish(true);
 
-    for (auto& [policy_id , policy] : req.policies)
-    {
-        switch (policy.policy_type)
-        {
-        case ENM_POLICY_TYPE_MODULE_NAME:
-        {
-            module_polices.push_back(policy);
-            break;
-        }
-        case ENM_POLICY_TYPE_PROCESS_NAME:
-        {
-            process_polices.push_back(policy);
-            break;
-        }
-        case ENM_POLICY_TYPE_FILE_NAME:
-        {
-            file_polices.push_back(policy);
-            break;
-        }
-        case ENM_POLICY_TYPE_WINDOW_NAME:
-        {
-            window_polices.push_back(policy);
-            break;
-        }
-        case ENM_POLICY_TYPE_THREAD_START:
-        {
-            thread_polices.push_back(policy);
-            break;
-        }
-        case ENM_POLICY_TYPE_SCRIPT:
-		{
-            try {
-                if (policy.config.empty()) break;
-			    LOG("ENM_POLICY_TYPE_SCRIPT---1 policy_id = %d, comment = %s ", policy_id, Utils::String::w2c(policy.comment).c_str());
-                async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
-			    LOG("ENM_POLICY_TYPE_SCRIPT---2 policy_id = %d, comment = %s ", policy_id, Utils::String::w2c(policy.comment).c_str());
-            }
-            catch (...) {
-                LOG("async_execute_javascript error");
-            }
-#if 0
-			std::filesystem::create_directories(".\\temp_scripts");
-			std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
-			script << Utils::String::w2c(policy.config);
-            script.close();
-#endif
-            break;
-        }  
-        default:
-            break;
-        }
+    if (!is_detect_finish.load(std::memory_order_acquire)) {
+        return;
     }
-    try {
-        auto& win = Utils::CWindows::instance();
-        bool find_cheat = false;
-        bool is_cheat = false;
-        do
-        {
-            if (window_polices.size() == 0)
-            {
-                break;
-            }
-            Utils::CWindows::WindowsList windows;
-            try {
-                windows = win.enum_windows();
-            }
-            catch (const std::exception& e) {
-                std::cout << " enum_windows Error :" << e.what() << std::endl;
-                break;
-            }
+    is_detect_finish.store(false, std::memory_order_release);
 
-            for (const auto& window : windows)
-            {
-                std::wstring combine_name = window.caption + L"|" + window.class_name;
-                for (auto& policy : window_polices)
+    g_thread_group->create_thread([req]() {
+        try {
+            // 使用值捕获避免引用失效
+            auto policy_task = std::async(std::launch::async, [req] {
+                // 实际策略执行代码
+	            ProtocolC2SPolicy resp;
+                std::vector<ProtocolPolicy> module_polices;
+                std::vector<ProtocolPolicy> process_polices;
+                std::vector<ProtocolPolicy> file_polices;
+                std::vector<ProtocolPolicy> window_polices;
+                std::vector<ProtocolPolicy> thread_polices;
+
+                for (auto& [policy_id , policy] : req.policies)
                 {
-                    if (combine_name.find(policy.config) != std::wstring::npos)
+                    switch (policy.policy_type)
                     {
-                        resp.results.push_back({ policy.policy_id, combine_name });
-                        is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
-                        if (is_cheat) {
-                            find_cheat = true;
+                    case ENM_POLICY_TYPE_MODULE_NAME:
+                    {
+                        module_polices.push_back(policy);
+                        break;
+                    }
+                    case ENM_POLICY_TYPE_PROCESS_NAME:
+                    {
+                        process_polices.push_back(policy);
+                        break;
+                    }
+                    case ENM_POLICY_TYPE_FILE_NAME:
+                    {
+                        file_polices.push_back(policy);
+                        break;
+                    }
+                    case ENM_POLICY_TYPE_WINDOW_NAME:
+                    {
+                        window_polices.push_back(policy);
+                        break;
+                    }
+                    case ENM_POLICY_TYPE_THREAD_START:
+                    {
+                        thread_polices.push_back(policy);
+                        break;
+                    }
+                    case ENM_POLICY_TYPE_SCRIPT:
+		            {
+                        try {
+                            if (policy.config.empty()) break;
+			                LOG("ENM_POLICY_TYPE_SCRIPT---1 policy_id = %d, comment = %s ", policy_id, Utils::String::w2c(policy.comment).c_str());
+                            async_execute_javascript(Utils::String::w2c(policy.config), policy_id);
+			                LOG("ENM_POLICY_TYPE_SCRIPT---2 policy_id = %d, comment = %s ", policy_id, Utils::String::w2c(policy.comment).c_str());
+                        }
+                        catch (...) {
+                            LOG("async_execute_javascript error");
+                        }
+            #if 0
+			            std::filesystem::create_directories(".\\temp_scripts");
+			            std::ofstream script(".\\temp_scripts\\" + Utils::String::w2c(policy.comment) + ".js", std::ios::out);
+			            script << Utils::String::w2c(policy.config);
+                        script.close();
+            #endif
+                        break;
+                    }  
+                    default:
+                        break;
+                    }
+                }
+
+                auto& win = Utils::CWindows::instance();
+                bool find_cheat = false;
+                bool is_cheat = false;
+                do
+                {
+                    if (window_polices.size() == 0)
+                    {
+                        break;
+                    }
+                    Utils::CWindows::WindowsList windows;
+                    try {
+                        windows = win.enum_windows();
+                    }
+                    catch (const std::exception& e) {
+                        std::cout << " enum_windows Error :" << e.what() << std::endl;
+                        break;
+                    }
+
+                    for (const auto& window : windows)
+                    {
+                        std::wstring combine_name = window.caption + L"|" + window.class_name;
+                        for (auto& policy : window_polices)
+                        {
+                            if (combine_name.find(policy.config) != std::wstring::npos)
+                            {
+                                resp.results.push_back({ policy.policy_id, combine_name });
+                                is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                                if (is_cheat) {
+                                    find_cheat = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (find_cheat) {
                             break;
                         }
                     }
-                }
-                if (find_cheat) {
-                    break;
-                }
-            }
-            if (find_cheat) {
-                break;
-            }
-        } while (0);
-
-        const uint32_t cur_pid = win.get_current_process_id();
-
-        if (resp.results.size() > 0) {
-            client_->send(&resp);
-            if (is_cheat) {
-                *is_detect_finish = true;
-                return;
-            }
-        }
-
-        win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
-
-            if (process.modules.size() == 0)
-            {
-                for (auto& policy : process_polices)
-                {
-                    if (process.name.find(policy.config) == std::wstring::npos)
-                    {
-                        continue;
+                    if (find_cheat) {
+                        break;
                     }
-                    resp.results.push_back({
-                               policy.policy_id,
-                               process.name
-                        });
-                    is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                } while (0);
+
+                const uint32_t cur_pid = win.get_current_process_id();
+
+                if (resp.results.size() > 0) {
+                    client_->send(&resp);
                     if (is_cheat) {
-                        break;
+                        is_detect_finish.store(true, std::memory_order_release);
+                        return;
                     }
                 }
-                return true;
-            }
 
-            if (resp.results.size() > 0 && is_cheat) {
-                return false;
-            }
+                win.enum_process_with_dir([&](Utils::CWindows::ProcessInfo& process)->bool {
 
-            auto process_path = process.modules.front().path;
-            if (process_polices.size() > 0)
-            {
-                for (auto& policy : process_polices)
-                {
-                    if (process_path.find(policy.config) == std::wstring::npos)
+                    if (process.modules.size() == 0)
                     {
-                        continue;
-                    }
-                    resp.results.push_back({
-                               policy.policy_id,
-                               process_path
-                        });
-                    is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
-                    if (is_cheat) {
-                        break;
-                    }
-                }
-            }
-
-            if (resp.results.size() > 0 && is_cheat) {
-                return false;
-            }
-
-            /*if (file_polices.size())
-            {
-                auto walk_path = std::filesystem::path(process_path).parent_path();
-                std::error_code ec;
-                size_t file_count = 0;
-                bool founded = false;
-                for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
-                {
-                    if (file_count > 100) break;
-                    for (auto& policy : file_polices)
-                    {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                        if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+                        for (auto& policy : process_polices)
                         {
-                            continue;
+                            if (process.name.find(policy.config) == std::wstring::npos)
+                            {
+                                continue;
+                            }
+                            resp.results.push_back({
+                                        policy.policy_id,
+                                        process.name
+                                });
+                            is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                            if (is_cheat) {
+                                break;
+                            }
                         }
-                        resp.results.push_back({
-                                policy.policy_id,
-                                file.path().filename().wstring()
-                            });
-                        founded = true;
-                        break;
+                        return true;
                     }
-                    if (founded)
-                        break;
-                    file_count++;
-                }
-            }
 
-            if (resp.results.size() > 0) {
-                return false;
-            }*/
+                    if (resp.results.size() > 0 && is_cheat) {
+                        return false;
+                    }
 
-            /*if (module_polices.size() > 0)
-            {
-                bool founded = false;
-                for (auto& module : process.modules)
-                {
-                    for (auto& policy : module_polices)
+                    auto process_path = process.modules.front().path;
+                    if (process_polices.size() > 0)
                     {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                        if (module.path.find(policy.config) == std::wstring::npos)
+                        for (auto& policy : process_polices)
                         {
-                            continue;
+                            if (process_path.find(policy.config) == std::wstring::npos)
+                            {
+                                continue;
+                            }
+                            resp.results.push_back({
+                                        policy.policy_id,
+                                        process_path
+                                });
+                            is_cheat = (policy.punish_type == PunishType::ENM_PUNISH_TYPE_KICK);
+                            if (is_cheat) {
+                                break;
+                            }
                         }
-                        resp.results.push_back({
-                                policy.policy_id,
-                                module.path
-                            });
-                        founded = true;
-                        break;
                     }
-                    if (founded)
-                        break;
+
+                    if (resp.results.size() > 0 && is_cheat) {
+                        return false;
+                    }
+
+                    /*if (file_polices.size())
+                    {
+                        auto walk_path = std::filesystem::path(process_path).parent_path();
+                        std::error_code ec;
+                        size_t file_count = 0;
+                        bool founded = false;
+                        for (auto& file : std::filesystem::directory_iterator(walk_path, ec))
+                        {
+                            if (file_count > 100) break;
+                            for (auto& policy : file_polices)
+                            {
+                                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                                if (file.path().filename().wstring().find(policy.config) == std::wstring::npos)
+                                {
+                                    continue;
+                                }
+                                resp.results.push_back({
+                                        policy.policy_id,
+                                        file.path().filename().wstring()
+                                    });
+                                founded = true;
+                                break;
+                            }
+                            if (founded)
+                                break;
+                            file_count++;
+                        }
+                    }
+
+                    if (resp.results.size() > 0) {
+                        return false;
+                    }*/
+
+                    /*if (module_polices.size() > 0)
+                    {
+                        bool founded = false;
+                        for (auto& module : process.modules)
+                        {
+                            for (auto& policy : module_polices)
+                            {
+                                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                                if (module.path.find(policy.config) == std::wstring::npos)
+                                {
+                                    continue;
+                                }
+                                resp.results.push_back({
+                                        policy.policy_id,
+                                        module.path
+                                    });
+                                founded = true;
+                                break;
+                            }
+                            if (founded)
+                                break;
+                        }
+			        }*/
+                    return true;
+                    });
+                if (resp.results.size() > 0) {
+                    client_->send(&resp);
                 }
-			}*/
-            return true;
             });
-        if (resp.results.size() > 0) {
-            client_->send(&resp);
+
+            // 兼容XP的超时等待实现
+            auto status = policy_task.wait_for(POLICY_TIMEOUT);
+            if (status != std::future_status::ready) {
+                LOG("策略执行超时");
+
+                // 尝试终止卡住的任务
+                try {
+                    policy_task.get(); // 触发异常
+                }
+                catch (const std::future_error& e) {
+                    LOG("任务终止错误: %s", e.what());
+                }
+            }
         }
-    }
-    catch (...) {
-        *is_detect_finish = true;
-    }
-	*is_detect_finish = true;
+        catch (const std::exception& e) {
+            LOG("策略执行异常: %s", e.what());
+        }
+        catch (...) {
+            LOG("未知策略执行异常");
+        }
+
+        // 确保状态重置
+        is_detect_finish.store(true, std::memory_order_release);
+    });
 }

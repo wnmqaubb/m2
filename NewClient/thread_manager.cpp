@@ -27,7 +27,6 @@ std::shared_ptr<asio::detail::thread_group> g_thread_group;
 std::shared_ptr<int> g_client_rev_version;
 std::shared_ptr<CClientImpl> client_;
 std::shared_ptr<asio2::timer> g_timer;
-HWND g_main_window_hwnd;
 static std::wstring MUTEX_NAME;
 HANDLE hMutex;
 

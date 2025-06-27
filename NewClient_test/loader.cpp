@@ -3,7 +3,7 @@
 #include "Loader.h"
 #include <thread>
 #include <MemoryModule.h>
-//#include "../3rdparty/vmprotect/VMProtectSDK.h"
+#include "../3rdparty/vmprotect/VMProtectSDK.h"
 
 //#define LOG_SHOW
 #ifdef LOG_SHOW
@@ -37,12 +37,22 @@ void log_event(const char* format, ...)
 
 void LOADER_API __stdcall Init(const PAppFuncDef AppFunc)
 {
+    //VMProtectBeginMutation(__FUNCTION__);
     if (AppFunc->AddChatText && AppFunc->SendSocket) {
         LOG("===== Plugin Init OK =====");
         MUTEX_NAME = L"Local\\lf_anti_cheat_module_" + std::to_wstring(GetCurrentProcessId());
         //OutputDebugString(MUTEX_NAME.c_str());
-        lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
-        AppFunc->SendSocket(&initok, 0, 0);
+        // 如果插件已加载,就不再加载
+        auto hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, MUTEX_NAME.c_str());
+        if (hMutex != NULL) {
+            CloseHandle(hMutex);
+            lfengine::TDefaultMessage initok(0, 10000, 1, 0, 0);// 不下发插件
+            AppFunc->SendSocket(&initok, 0, 0);
+        }
+        else {
+            lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
+            AppFunc->SendSocket(&initok, 0, 0);
+        }
     }
     else {
         LOG("Init 异常");
@@ -54,12 +64,13 @@ void LOADER_API __stdcall Init(const PAppFuncDef AppFunc)
     SendSocket = AppFunc->SendSocket;
 
     LOG("lf客户端插件拉起成功 dll_base:%p", dll_base);
+    //VMProtectEnd();
 }
 //LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
 
 void client_entry(const char* server_ip)
 {
-    //VMProtectBeginVirtualization(__FUNCTION__);
+    //VMProtectBeginMutation(__FUNCTION__);
     auto load_new_client = std::thread([server_ip]() {
         LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
         for (int i = 0; i < 20; i++)
@@ -116,7 +127,7 @@ void client_entry(const char* server_ip)
 
 void LOADER_API __stdcall HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
 {
-    //VMProtectBeginVirtualization(__FUNCTION__);
+    //VMProtectBeginMutation(__FUNCTION__);
     switch(defMsg->ident)
     {
         case 10001:

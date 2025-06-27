@@ -1,11 +1,11 @@
 @ECHO OFF
+set "InstallerPath=D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE"
+if not exist "%InstallerPath%\devenv.exe" echo "VS2022 not found"&&exit /B 0
+set "Path=%Path%;%InstallerPath%;D:\tool\52pojie\Tools\Packers\VMProtect_Ultimate_v3.9.4;%ProgramFiles(x86)%\7-Zip"
+
 set ReleaseDir=.\build\bin\Release\Win32
 set ReleaseDir_red=.\build\bin\Release_red\Win32
 set bin_Dir=.\build\bin
-set "InstallerPath=D:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE"
-if not exist "%InstallerPath%\devenv.exe" echo "VS2022 not found"&&exit /B 0
-set "Path=%Path%;%InstallerPath%;D:\tool\52pojie\Tools\Packers\VMProtect Ultimate3.4;%ProgramFiles(x86)%\7-Zip"
-
 echo ***************编译解决方案开始***************
 ::devenv.exe AntiCheat.sln /rebuild "Release|x86"
 echo ***************编译解决方案完成***************

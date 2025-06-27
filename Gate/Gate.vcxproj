@@ -185,6 +185,9 @@
     <PreBuildEvent>
       <Command>taskkill /f /fi "pid gt 0" /im Gate.exe</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨定制\及时雨定制.exe -pf $(SolutionDir)GateRelease_blue.vmp</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_red|Win32'">
     <ClCompile>
@@ -232,6 +235,9 @@
       <Command>taskkill /f /fi "pid gt 0" /im Gate.exe
 ie4uinit.exe -ClearIconCache</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨鸿蒙\及时雨鸿蒙.exe -pf $(SolutionDir)GateRelease_red.vmp</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_blue|Win32'">
     <ClCompile>
@@ -276,6 +282,9 @@ ie4uinit.exe -ClearIconCache</Command>
       <Command>taskkill /f /fi "pid gt 0" /im Gate.exe
 ie4uinit.exe -ClearIconCache</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨定制\及时雨定制.exe -pf $(SolutionDir)GateRelease_blue.vmp</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_blue|x64'">
     <ClCompile>

@@ -1,11 +1,10 @@
 ﻿#include "pch.h"
 #include "TaskBasic.h"
 
-extern HWND g_main_window_hwnd;
 void __declspec(noinline) UnitPunishKick()
 {
-	if (g_main_window_hwnd != 0) {
-		MessageBoxA(g_main_window_hwnd, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+	if (auto main_window_hwnd = client_->g_main_window_hwnd.load()) {
+		MessageBoxA(main_window_hwnd, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
 	}
 	else {
 		MessageBoxA(nullptr, xorstr("请勿开挂进行游戏！否则有封号拉黑风险处罚"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);

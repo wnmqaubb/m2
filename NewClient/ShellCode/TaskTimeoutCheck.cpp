@@ -15,7 +15,6 @@ std::shared_ptr<std::chrono::system_clock::time_point> last_time_out_check_timep
 extern std::shared_ptr<int> reconnect_count;
 extern std::shared_ptr<CClientImpl> client_;
 extern std::shared_ptr<asio2::timer> g_timer;
-extern HWND g_main_window_hwnd;
 
 void __forceinline unmap_ntdll()
 {
@@ -41,8 +40,8 @@ void TimeOutCheckRoutine()
         )
     {
 
-		if (g_main_window_hwnd != 0) {
-			MessageBoxA(g_main_window_hwnd, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
+		if (auto main_window_hwnd = client_->g_main_window_hwnd.load()) {
+			MessageBoxA(main_window_hwnd, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
 		}
 		else {
 			MessageBoxA(nullptr, xorstr("与服务器断开连接"), xorstr("封挂提示"), MB_OK | MB_ICONWARNING);
