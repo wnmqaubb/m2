@@ -20,9 +20,9 @@ echo ***************Shell打包完成***************
 
 
 echo ***************执行网关加壳开始***************
-::VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\及时雨鸿蒙\g_Service.exe -pf ServiceRelease_red.vmp
-::VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\及时雨鸿蒙\g_LogicServer.exe -pf LogicRelease_red.vmp
-VMProtect_Con.exe %ReleaseDir_red%\Gate.exe %bin_Dir%\gm_server\及时雨鸿蒙\及时雨鸿蒙.exe -pf GateRelease_red.vmp
+VMProtect_Con.exe %ReleaseDir%\g_Service.exe %bin_Dir%\gm_server\及时雨鸿蒙\g_Service.exe -pf ServiceRelease_red.vmp
+VMProtect_Con.exe %ReleaseDir%\g_LogicServer.exe %bin_Dir%\gm_server\及时雨鸿蒙\g_LogicServer.exe -pf LogicRelease_red.vmp
+::VMProtect_Con.exe %ReleaseDir_red%\Gate.exe %bin_Dir%\gm_server\及时雨鸿蒙\及时雨鸿蒙.exe -pf GateRelease_red.vmp
 ::VMProtect_Con.exe %ReleaseDir%\AdminGate.exe %bin_Dir%\admin_server\插件版_管理员后台.exe -pf AdminGateRelease_red.vmp
 echo ***************执行网关加壳完成***************
 

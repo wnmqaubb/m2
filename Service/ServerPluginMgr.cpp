@@ -2,163 +2,6 @@
 #include "LogicServer.h"
 #include "ServerPluginMgr.h"
 
-//RawProtocolImpl CServerPluginMgr::get_plugin(unsigned int plugin_hash)
-//{
-//    std::shared_lock<std::shared_mutex> lck(mtx_);
-//    for (auto[file_hash, data] : plugin_cache_)
-//    {
-//        if (data.second.plugin_hash == plugin_hash)
-//        {
-//            return data.first;
-//        }
-//    }
-//    return RawProtocolImpl();
-//}
-//
-//bool CServerPluginMgr::is_plugin_file_hash_exist(unsigned int file_hash)
-//{
-//    std::shared_lock<std::shared_mutex> lck(mtx_);
-//    return plugin_cache_.find(file_hash) != plugin_cache_.end();
-//}
-
-//void CServerPluginMgr::add_plugin(unsigned int file_hash, ProtocolS2CDownloadPlugin& plugin)
-//{
-//    std::unique_lock<std::shared_mutex> lck(mtx_);
-//    if (plugin_cache_.find(file_hash) == plugin_cache_.end())
-//    {
-//        msgpack::sbuffer buffer;
-//        msgpack::pack(buffer, plugin);
-//        RawProtocolImpl raw_package;
-//        raw_package.encode(buffer.data(), buffer.size());
-//        plugin.data.clear();
-//        plugin_cache_.emplace(std::make_pair(file_hash, std::make_pair(raw_package, plugin)));
-//        printf("加载插件:%s\n", plugin.plugin_name.c_str());
-//    }
-//}
-
-//void CServerPluginMgr::remove_plugin(unsigned int file_hash)
-//{
-//    std::unique_lock<std::shared_mutex> lck(mtx_);
-//    if (plugin_cache_.find(file_hash) != plugin_cache_.end())
-//    {
-//        printf("卸载插件:%s\n", plugin_cache_[file_hash].second.plugin_name.c_str());
-//        plugin_cache_.erase(file_hash);
-//    }
-//}
-//
-//void CServerPluginMgr::reload_all_plugin()
-//{
-//    namespace fs = std::filesystem;
-//    std::error_code ec;
-//    fs::path dir = g_cur_dir / "plugin";
-//    if (fs::is_directory(dir, ec))
-//    {
-//        std::map<unsigned int, fs::path> new_plugin_list;
-//        for (auto& file_path : std::filesystem::directory_iterator(dir))
-//        {
-//            if (file_path.path().extension() != ".dll")
-//                continue;
-//            std::ifstream file(file_path, std::ios::in | std::ios::binary);
-//            if (file.is_open())
-//            {
-//                file.seekg(sizeof(RawProtocolHead), file.beg);
-//                unsigned int file_hash = 0;
-//                file.read((char*)&file_hash, sizeof(file_hash));
-//                file.close();
-//                new_plugin_list.emplace(std::make_pair(file_hash, file_path));
-//            }
-//        }
-//
-//        for (auto loaded_plugin_file_hash : get_plugin_file_hash_set())
-//        {
-//            if (new_plugin_list.find(loaded_plugin_file_hash) == new_plugin_list.end())
-//            {
-//                remove_plugin(loaded_plugin_file_hash);
-//            }
-//        }
-//        for (auto[file_hash, plugin_path] : new_plugin_list)
-//        {
-//            if (!is_plugin_file_hash_exist(file_hash))
-//            {
-//                std::ifstream file(plugin_path, std::ios::in | std::ios::binary);
-//                if (file.is_open())
-//                {
-//                    RawProtocolImpl package;
-//                    std::stringstream ss;
-//                    ss << file.rdbuf();
-//                    file.close();
-//                    auto str = ss.str();
-//                    std::string_view sv(str.data(), str.size());
-//                    package.decode(sv);
-//                    try
-//                    {
-//                        auto msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
-//                        add_plugin(file_hash, msg.get().as<ProtocolS2CDownloadPlugin>());
-//                    }
-//                    catch (...)
-//                    {
-//                        fs::remove(plugin_path);
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-//
-//void CServerPluginMgr::create_plugin_file(const std::string& file_name, std::vector<uint8_t>& data)
-//{
-//    std::filesystem::path path = g_cur_dir / "plugin";
-//    std::error_code ec;
-//    if (std::filesystem::is_directory(path, ec) == false)
-//    {
-//        std::filesystem::create_directory(path, ec);
-//    }
-//    path = path / file_name;
-//    if (path.extension() == ".dll")
-//    {
-//        std::ofstream output(path, std::ios::out | std::ios::binary);
-//        output.write((char*)data.data(), data.size());
-//        output.close();
-//    }
-//}
-//
-//void CServerPluginMgr::remove_plugin_file(const std::string& file_name)
-//{
-//    std::filesystem::path path = g_cur_dir / "plugin";
-//    std::error_code ec;
-//    if (std::filesystem::is_directory(path, ec) == false)
-//    {
-//        std::filesystem::create_directory(path, ec);
-//    }
-//    path = path / file_name;
-//    if (path.extension() == ".dll")
-//    {
-//        std::filesystem::remove(path);
-//    }
-//}
-//
-//std::set<unsigned int> CServerPluginMgr::get_plugin_file_hash_set()
-//{
-//    std::shared_lock<std::shared_mutex> lck(mtx_);
-//    std::set<unsigned int> result;
-//    for (auto itor : plugin_cache_)
-//    {
-//        result.emplace(itor.first);
-//    }
-//    return result;
-//}
-
-//ProtocolS2CQueryPlugin CServerPluginMgr::get_plugin_hash_set()
-//{
-//    std::shared_lock<std::shared_mutex> lck(mtx_);
-//    ProtocolS2CQueryPlugin result;
-//    for (auto[file_hash, data] : plugin_cache_)
-//    {
-//        result.plugin_list.push_back(std::make_pair(data.second.plugin_hash, data.second.plugin_name));
-//    }
-//    return result;
-//}
-
 ProtocolS2CPolicy CServerPolicyMgr::get_policy()
 {
     std::shared_lock<std::shared_mutex> lck(mtx_);
@@ -271,24 +114,25 @@ void CServerPolicyMgr::remove_policy(unsigned int file_hash)
 void CServerPolicyMgr::reload_all_policy()
 {
     namespace fs = std::filesystem;
+    static fs::path police_cfg[]{ "config.cfg" ,"jishiyu.cfg" };
     std::error_code ec;
     fs::path dir = g_cur_dir;
     if (fs::is_directory(dir, ec))
     {
         std::map<unsigned int, fs::path> new_policy_list;
-        //for (auto& file_path : std::filesystem::directory_iterator(dir))
+        for (auto& file_path : police_cfg)
         {
             /*if (file_path.path().filename() != "config.cfg")
                 continue;*/
-            auto file_path = g_cur_dir / "config.cfg";
-            std::ifstream file(file_path, std::ios::in | std::ios::binary);
+            auto cfg_file_path = g_cur_dir / file_path;
+            std::ifstream file(cfg_file_path, std::ios::in | std::ios::binary);
             if (file.is_open())
             {
                 file.seekg(sizeof(RawProtocolHead), file.beg);
                 unsigned int file_hash = 0;
                 file.read((char*)&file_hash, sizeof(file_hash));
                 file.close();
-                new_policy_list.emplace(std::make_pair(file_hash, file_path));
+                new_policy_list.emplace(std::make_pair(file_hash, cfg_file_path));
             }
         }
 
@@ -332,69 +176,90 @@ void CServerPolicyMgr::reload_all_policy()
 void CServerPolicyMgr::create_policy_file(const std::string& file_name, std::vector<uint8_t>& data)
 {
     std::filesystem::path path = g_cur_dir / file_name;
-    if (path.extension() == ".cfg")
+    if (path.extension() != ".cfg") return;
+
+    // 1. 先写入临时文件
+    std::filesystem::path temp_path = path.parent_path() / (file_name + ".tmp");
     {
-        // 合并策略文件
-		std::filesystem::path g_cfg_path = g_cur_dir / "config.cfg";
-
-		std::ifstream file(g_cfg_path, std::ios::in | std::ios::binary);
-		if (!file.is_open())
-			return;
-		std::stringstream ss;
-		ss << file.rdbuf();
-		file.close();
-		auto str = ss.str();
-		auto policies = ProtocolS2CPolicy::load(str.data(), str.size());
-        // 加载新策略
-		auto up_policies = ProtocolS2CPolicy::load(reinterpret_cast<char*>(data.data()), data.size());
-
-        // 合并
-        for (auto [policy_id_gm, policy_gm] : policies->policies)// gm本地策略
-        {
-            // admin下发的策略
-            if (up_policies->policies.find(policy_id_gm) != up_policies->policies.end()) {
-                // 本地策略
-                if (policy_id_gm < 689000) {
-                    bool is_same = false;
-                    // 合并策略
-					for (auto [policy_id, policy] : up_policies->policies)
-					{
-                        // 一样的不处理
-                        if (policy.policy_type == policy_gm.policy_type && policy.config == policy_gm.config) {
-                            is_same = true;
-                            break;
-                        }
-					}
-
-                    // 不一样的config值,
-					if(!is_same) {
-						uint32_t new_policy_id = 688000 + 1;
-
-						while (up_policies->policies.find(new_policy_id) != up_policies->policies.end()) {
-                            new_policy_id++;
-							if (new_policy_id >= 689000) {
-								break;
-							}
-						}
-
-                        policy_gm.policy_id = new_policy_id;
-						up_policies->policies[new_policy_id] = policy_gm;
-					}
-                    
-                }
-            }
-            else {
-                up_policies->policies[policy_id_gm] = policy_gm;
-            }
+        std::ofstream output(temp_path, std::ios::binary);
+        if (!output) return;
+        output.write(reinterpret_cast<const char*>(data.data()), data.size());
+        if (!output) { // 检查写入是否成功
+            std::filesystem::remove(temp_path); // 失败则删除临时文件
+            return;
         }
+    } // 确保文件句柄关闭
 
-
-        auto buf = up_policies->dump();
-
-        std::ofstream output(path, std::ios::out | std::ios::binary);
-        output.write((char*)buf.data(), buf.size());
-        output.close();
+    // 2. 原子替换原文件（跨平台安全）
+    std::error_code ec;
+    std::filesystem::rename(temp_path, path, ec);
+    if (ec) {
+        std::filesystem::remove(temp_path); // 替换失败则清理临时文件
     }
+  //  std::filesystem::path path = g_cur_dir / file_name;
+  //  if (path.extension() == ".cfg")
+  //  {
+  //      // 合并策略文件
+		//std::filesystem::path g_cfg_path = g_cur_dir / "config.cfg";
+
+		//std::ifstream file(g_cfg_path, std::ios::in | std::ios::binary);
+		//if (!file.is_open())
+		//	return;
+		//std::stringstream ss;
+		//ss << file.rdbuf();
+		//file.close();
+		//auto str = ss.str();
+		//auto policies = ProtocolS2CPolicy::load(str.data(), str.size());
+  //      // 加载新策略
+		//auto up_policies = ProtocolS2CPolicy::load(reinterpret_cast<char*>(data.data()), data.size());
+
+  //      // 合并
+  //      for (auto [policy_id_gm, policy_gm] : policies->policies)// gm本地策略
+  //      {
+  //          // admin下发的策略
+  //          if (up_policies->policies.find(policy_id_gm) != up_policies->policies.end()) {
+  //              // 本地策略
+  //              if (policy_id_gm < 689000) {
+  //                  bool is_same = false;
+  //                  // 合并策略
+		//			for (auto [policy_id, policy] : up_policies->policies)
+		//			{
+  //                      // 一样的不处理
+  //                      if (policy.policy_type == policy_gm.policy_type && policy.config == policy_gm.config) {
+  //                          is_same = true;
+  //                          break;
+  //                      }
+		//			}
+
+  //                  // 不一样的config值,
+		//			if(!is_same) {
+		//				uint32_t new_policy_id = 688000 + 1;
+
+		//				while (up_policies->policies.find(new_policy_id) != up_policies->policies.end()) {
+  //                          new_policy_id++;
+		//					if (new_policy_id >= 689000) {
+		//						break;
+		//					}
+		//				}
+
+  //                      policy_gm.policy_id = new_policy_id;
+		//				up_policies->policies[new_policy_id] = policy_gm;
+		//			}
+  //                  
+  //              }
+  //          }
+  //          else {
+  //              up_policies->policies[policy_id_gm] = policy_gm;
+  //          }
+  //      }
+
+
+  //      auto buf = up_policies->dump();
+
+  //      std::ofstream output(path, std::ios::out | std::ios::binary);
+  //      output.write((char*)buf.data(), buf.size());
+  //      output.close();
+  //  }
 }
 
 void CServerPolicyMgr::remove_policy_file(const std::string& file_name)
