@@ -10,7 +10,7 @@ class CProcessSubViewWnd : public CDockablePane
     // 构造
 public:
     CProcessSubViewWnd() noexcept;
-
+    virtual ~CProcessSubViewWnd();
     void UpdateFonts(); 
     void OnCopyValue();
     void OnCopyModulePath();
@@ -32,9 +32,6 @@ protected:
 
     void AdjustHorzScroll(CListBox& wndListBox);
 
-    // 实现
-public:
-    virtual ~CProcessSubViewWnd();
 protected:
     afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
     afx_msg void OnSize(UINT nType, int cx, int cy);

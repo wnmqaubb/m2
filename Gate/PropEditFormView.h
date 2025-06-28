@@ -9,7 +9,7 @@ class CPropEditFormView : public CFormView
 {
 	DECLARE_DYNCREATE(CPropEditFormView)
 public:
-	CPropEditFormView();           // 动态创建所使用的受保护的构造函数
+	CPropEditFormView() noexcept;   
 	virtual ~CPropEditFormView();
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_PROP_EDIT_VIEW };

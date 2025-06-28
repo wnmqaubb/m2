@@ -13,6 +13,7 @@
 #include "MainFrm.h"
 #include "ObserverClientGroupImpl.h"
 #include "CConfig.h"
+#include "ConfigSettingChildFrm.h"
 
 typedef enum _SETTIMEOUT_ID
 {
@@ -52,6 +53,24 @@ public:
         }
         return (T*)m_DocTemplates[cTemplateName];
     }
+    template <class T = CDocument>
+    T* FindOpenDocument(LPCTSTR lpszPathName)
+    {
+        for (auto& [name, pTemplate] : m_DocTemplates)
+        {
+            CMultiDocTemplate* pDocTemplate = (CMultiDocTemplate*)pTemplate;
+            POSITION pos = pDocTemplate->GetFirstDocPosition();
+            while (pos)
+            {
+                CDocument* pDoc = pDocTemplate->GetNextDoc(pos);
+                if (pDoc->GetPathName().CompareNoCase(lpszPathName) == 0)
+                {
+                    return dynamic_cast<T*>(pDoc);
+                }
+            }
+        }
+        return nullptr;
+    }
 private:
     std::map<std::string, void*> m_DocTemplates;
 };
@@ -64,6 +83,7 @@ public:
     std::string ReadLicense();
     std::string ReadAuthKey();
     void ConnectionLicenses();
+    void ResetConfigDoc() { m_ConfigDoc = nullptr; }
     virtual CDocTemplateMgr& GetDocTemplateMgr() { return m_DocTemplatesMgr; }
 protected:
     CDocTemplateMgr m_DocTemplatesMgr;
@@ -75,11 +95,13 @@ public:
 // 实现
     CHAR  m_ExeDir[MAX_PATH];
     CString m_cCfgPath;
+    CString m_inner_CfgPath;
     UINT  m_nAppLook;
 	BOOL  m_bHiColorIcons;
     CObserverClientGroupImpl m_ObServerClientGroup;
     asio::io_service m_WorkIo;
     CDocument* m_ConfigDoc = nullptr;
+    CConfigSettingChildFrame* m_pConfigFrame; // 保存框架指针
     HANDLE m_childpHandle;
     CConfig m_wndConfig;
     bool is_parent_gate = true;

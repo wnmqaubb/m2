@@ -16,7 +16,7 @@ public:
     CDocument* GetDocument() { return m_pDoc; }
     // 特性
 protected:
-    CPropEditFormView m_PropEditForm;
+    CPropEditFormView* m_PropEditForm;
     CDocument* m_pDoc = nullptr;    
     void AdjustHorzScroll(CListBox& wndListBox);
     afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);

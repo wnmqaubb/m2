@@ -46,7 +46,7 @@ BEGIN_MESSAGE_MAP(CGateApp, CWinAppEx)
 	ON_COMMAND(ID_SERVICE_STOP, &CGateApp::OnServiceStop)
     ON_COMMAND(ID_APP_EXIT, &CGateApp::OnAppExit)
     ON_COMMAND(ID_SERVICE_SETTINGS, &CGateApp::OnServiceSettings)
-    //ON_COMMAND(ID_TOOLBAR_CONFIG, &CGateApp::OnConfig)
+    ON_COMMAND(ID_TOOLBAR_CONFIG, &CGateApp::OnConfig)
 END_MESSAGE_MAP()
 
 // CGateApp 构造
@@ -58,6 +58,8 @@ CGateApp::CGateApp() noexcept
     strcpy_s(m_ExeDir, cParentDir.c_str());
     m_cCfgPath = m_ExeDir;
     m_cCfgPath = m_cCfgPath + TEXT("\\config.cfg");
+    m_inner_CfgPath = m_ExeDir;
+    m_inner_CfgPath = m_inner_CfgPath + TEXT("\\jishiyu.cfg");
 
 	m_bHiColorIcons = TRUE;
     m_childpHandle = NULL;
@@ -482,8 +484,18 @@ void CGateApp::OnServiceSettings()
 
 void CGateApp::OnConfig()
 {
-    OnServiceSettings();
-    m_wndConfig.ShowConfigDlg();
+    auto tConfig = GetDocTemplateMgr().Find("Config");
+    tConfig->CloseAllDocuments(TRUE);
+    m_ConfigDoc = tConfig->OpenDocumentFile(m_inner_CfgPath);
+    if (!m_ConfigDoc)
+    {
+        ProtocolS2CPolicy policy;
+        std::ofstream cfg(m_inner_CfgPath.GetBuffer(), std::ios::out | std::ios::binary);
+        auto buffer = policy.dump();
+        cfg.write(buffer.data(), buffer.size());
+        cfg.close();
+        m_ConfigDoc = tConfig->OpenDocumentFile(m_inner_CfgPath);
+    }
 }
 
 

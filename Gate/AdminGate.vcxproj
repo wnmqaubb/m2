@@ -215,6 +215,9 @@
     <Manifest>
       <EnableDpiAwareness>false</EnableDpiAwareness>
     </Manifest>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\admin_server\插件版_管理员后台.exe -pf $(SolutionDir)AdminGateRelease_red.vmp</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>

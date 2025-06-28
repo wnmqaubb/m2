@@ -13,7 +13,7 @@
 
 IMPLEMENT_DYNCREATE(CPropEditFormView, CFormView)
 
-CPropEditFormView::CPropEditFormView(): CFormView(IDD_PROP_EDIT_VIEW)
+CPropEditFormView::CPropEditFormView() noexcept : CFormView(IDD_PROP_EDIT_VIEW)
 {
 }
 
