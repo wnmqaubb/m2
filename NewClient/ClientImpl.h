@@ -22,5 +22,4 @@ public:
     DWORD g_currentPid = 0;
     // 角色名变更回调函数
     std::function<void(const std::wstring&)> g_roleNameCallback;
-    std::thread monitor_thread_;
 };

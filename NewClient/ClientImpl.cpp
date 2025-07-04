@@ -220,7 +220,7 @@ void CClientImpl::monitor_main_window() {
         // 检查类名匹配
         wchar_t classBuf[256] = {};
         ::GetClassName(hwnd, classBuf, ARRAYSIZE(classBuf));
-        if (wcscmp(classBuf, main_window_class.c_str()) != 0) return TRUE;
+        if (_wcsicmp(classBuf, main_window_class.c_str()) != 0) return TRUE;
 
         // 检查可见性（主窗口通常可见）
         if (!::IsWindowVisible(hwnd)) return TRUE;
@@ -261,11 +261,30 @@ void CClientImpl::window_monitor_thread() {
 
 // 在应用程序初始化时调用
 void CClientImpl::init_role_monitor() {
-    // 启动监控线程
-    monitor_thread_ = std::thread([this]() {
-        window_monitor_thread();
-    });
-    monitor_thread_.detach();
+    // 使用 _beginthreadex 创建线程
+    unsigned int threadID;
+    HANDLE hThread = (HANDLE)_beginthreadex(
+        NULL,                   // 安全属性（默认）
+        1024 * 1024,                      // 栈大小（1M）
+        [](void* pThis) -> unsigned {  // 线程函数
+        static_cast<CClientImpl*>(pThis)->window_monitor_thread();
+        return 0;            // 线程退出码
+    },
+        this,                    // 传递给线程的参数
+        0,                       // 创建标志（0=立即运行）
+        &threadID                // 接收线程ID
+    );
+
+    // 检查线程是否创建成功
+    if (hThread == NULL) {
+        DWORD err = GetLastError();
+        // 记录错误日志（根据您的日志系统调整）
+        OutputDebugStringA(("Failed to create monitor thread, error: " + std::to_string(err)).c_str());
+        return;
+    }
+
+    // 不需要保留句柄时可以立即关闭（线程会继续运行）
+    CloseHandle(hThread);
 
     // 设置角色名变化回调
     set_role_name_callback([this](const std::wstring& roleName) {
