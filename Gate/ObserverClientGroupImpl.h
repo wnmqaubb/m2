@@ -36,6 +36,7 @@ public:
         std::shared_lock<std::shared_mutex> lck(mtx_);
         for (auto[address, client] : group_)
         {
+            if (!client->is_started() || !client->is_auth()) continue;
             client->send(req);
         }
     }

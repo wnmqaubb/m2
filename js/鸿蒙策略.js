@@ -1,8 +1,8 @@
 import * as std from "std";
-import * as os from "os";
+//import * as os from "os";
 import * as api from "api";
 (() => {
-    "use strict";
+    //"use strict";
     let is_detect_cheat = false;
     function hash(str) {
         let hashValue = 5381;
@@ -68,7 +68,6 @@ import * as api from "api";
 
     class PolicyReporter {
         static _instance;
-
         static get instance() {
             if (!this._instance) {
                 this._instance = new PolicyReporter();
@@ -126,6 +125,7 @@ import * as api from "api";
         o = 689059;
         base_addr_value;        
         constructor() {
+            super();
             this.base_addr_value = new Map();
         }
         before() {
@@ -412,7 +412,7 @@ import * as api from "api";
         after() {}
     }
     class machine_info {
-        static instance_;
+        static instance_ = null;
         constructor() {
             this.query_info = api.get_query_info();//[m,r,s,pn, pd, pm, pnc, ptc, pcs,n,b,v,i,o,ru,sn]
             this.monitor_info = api.get_monitor_info();//[w,h,d] 
@@ -426,6 +426,9 @@ import * as api from "api";
             }
             return this.instance_;
         }
+        static set instance(v) {
+            this.instance_ = null;
+        }
     }
     class vmware_detect extends ITask {
         task_id = 689060;
@@ -436,7 +439,8 @@ import * as api from "api";
 		0xF6A25EA, 0x249A13D4, 0x240951E0, 0x41005295, 0xFB215AAA, 0x2409500E, 0x239CBED5, 0x120AA487, 0xD870D34F, 0x1864EDF3, 0xC8F88EFD, 0xCC3BAD6E, 0x239CBEF4]);
         before() {}
         fullDetect() {
-            const machineInfo = machine_info.instance.query_info;
+            const machineInfo = machine_info.instance.query_info;            
+
             //const [type, model, version, ...restInfo] = machineInfo;
             const type = machineInfo[0];
             const model = machineInfo[1];
@@ -483,7 +487,7 @@ import * as api from "api";
             const reportData = `${machine_info.instance.display_device_sig}|${manufacturer}`;
             const isKnownHash = this.B.has(hash(reportData));
             if (isSuspiciousMac || isVMwareDetected || isKnownHash) {
-                PolicyReporter.instance.report(this.task_id, true, `hackvm|${reportData}`);
+                PolicyReporter.instance.report(this.task_id, true, `hackvm虚拟机|${reportData}`);
                 return;
             } else {
                 PolicyReporter.instance.report(this.task_id, false, reportData);
@@ -507,6 +511,14 @@ import * as api from "api";
         }
         update() {
             try {
+                // 清空所有 Map
+                this.process_name_map.clear();
+                this.enum_thread_map.clear();
+                this.enum_window_map.clear();
+                this.module_name_map.clear();
+                this.window_info_map.clear();
+                this.wnd_proc_map.clear();
+
                 const processNames = api.get_process_names();
                 const threads = api.enum_threads();
                 const windows = api.enum_windows();
@@ -537,14 +549,14 @@ import * as api from "api";
                 const processId = w[0];
                 const ownerHandle = w[4];
                 const windowInfo = api.query_window_info(ownerHandle);
-                const wndProc = api.get_wnd_proc ? api.get_wnd_proc(ownerHandle) : [];
+                //const wndProc = (typeof api.get_wnd_proc === "function") ? api.get_wnd_proc(ownerHandle) : [];
                 const windowEntries = this.enum_window_map.get(processId) || [];
                 windowEntries.push([w[1], w[2], processId, ownerHandle]);
                 this.enum_window_map.set(processId, windowEntries);
                 this.window_info_map.set(ownerHandle, windowInfo.join(','));
-                if (wndProc) {
-                    this.wnd_proc_map.set(ownerHandle, wndProc);
-                }
+                // if (wndProc) {
+                //     this.wnd_proc_map.set(ownerHandle, wndProc);
+                // }
             }
         }
         updateModules(moduleNames) {
@@ -564,6 +576,9 @@ import * as api from "api";
                 this._instance = new window_util();
             }
             return this._instance;
+        }
+        static set instance(v) {
+            this._instance = null;
         }
         update() {
             if (!this.updated) {
@@ -652,13 +667,16 @@ import * as api from "api";
     }
     class window_cheat_detection extends ITask {
         task_id = 689022;
-        thread_set = new Set([            
+        thread_set = new Set([
+            0x4937D1,/*大漠脱机*/       
             0x206C712,/*玛法*/
             0x3958F0D,/*龙影定制倍攻 */
             0x3B23CF9,/*龙影定制倍攻 */
             0x38E8CB2,/*龙影定制倍攻 */
             0x3A3D21A,/*龙影定制倍攻 */
-            0x102E76A, 0x148E76A, 0x4CF7583, 0x1209C67, 0x159A190, 0x42E001, 0x4049C8, 0x4125730, 0x1484ED5, 0x5CA08B, 0xA78410, 0xAC6120, 0x2EA000E, 0x9ECBF3, 0x40ACD3, 0xEED8C5, 0x471020, 0x405780, 0x40C503, 0x5747C0, 0x16FA499, 0x30B1F03, 0x446FB2, 0x5B61DC, 0x5B76BC, 0x60E5BC, 0x470D50, 0x70E392E, 0x51CAEB2, 0x707AF6E, 0x442B4F, 0x4CF1CDD, 0x99AAC4, 0x1610DE5, 0x29878F5, 0x49BA3CD, 0xC880FD, 0x4B89892, 0x40117A, 0x273DDD0, 0x1BEC6FC, 0x22CB4CB, 0x494F9FD, 0x407243, 0xCC1F1B, 0x1484ED5, 0xE35C83, 0x176AB35, 0x401220, 0x8600D1A, 0x2DAB502, 0x10675BF, 0x21DDC6D, 0x4D71B10, 0x21A6262, 0x1C70188, 0x1763831, 0x18B2157, 0x49FB338, 0x1E2EC9F, 0x49418B0, 0x2EEBD19, 0x13D99FB, 0x39EA38B, 0x3CB0520, 0x270F9D0, 0x1CDE29F, 0x4C86C83, 0x21CFE23, 0x4D71B10, 0x1E3DE53, 0x1FBB4ED, 0x1763831, 0x9CCECC, 0x36B42D1, 0x2508F0B, 0x78896B8, 0xABA980, 0x482C7C, 0x25A4FF4, 0x5629800, 0x24F66B3, 0x139CE30, 0x4186C0, 0x2517C92, 0x12D6FD1, 0x13796BC, 0x4A2073, 0x99480E, 0xA2E02A, 0x49551C, 0x8CE13C, 0xC176B4, 0xAD38E2, 0x191FD55, 0x1F425AA, 0x523B47, 0x496882, 0x42F0D2, 0x138F004, 0x4FFDA1, 0x4FFFE1, 0x2517C92, 0x40117A, 0x4AF4EA, 0x4053D4, 0x487270, 
+            0x102E76A, 0x148E76A, 0x4CF7583, 0x1209C67, 0x159A190, 0x42E001, 0x4049C8, 
+			//0x4125730, //asus_framework.exe华硕的程序
+			0x1484ED5, 0x5CA08B, 0xA78410, 0xAC6120, 0x2EA000E, 0x9ECBF3, 0x40ACD3, 0xEED8C5, 0x471020, 0x405780, 0x40C503, 0x5747C0, 0x16FA499, 0x30B1F03, 0x446FB2, 0x5B61DC, 0x5B76BC, 0x60E5BC, 0x470D50, 0x70E392E, 0x51CAEB2, 0x707AF6E, 0x442B4F, 0x4CF1CDD, 0x99AAC4, 0x1610DE5, 0x29878F5, 0x49BA3CD, 0xC880FD, 0x4B89892, 0x40117A, 0x273DDD0, 0x1BEC6FC, 0x22CB4CB, 0x494F9FD, 0x407243, 0xCC1F1B, 0x1484ED5, 0xE35C83, 0x176AB35, 0x401220, 0x8600D1A, 0x2DAB502, 0x10675BF, 0x21DDC6D, 0x4D71B10, 0x21A6262, 0x1C70188, 0x1763831, 0x18B2157, 0x49FB338, 0x1E2EC9F, 0x49418B0, 0x2EEBD19, 0x13D99FB, 0x39EA38B, 0x3CB0520, 0x270F9D0, 0x1CDE29F, 0x4C86C83, 0x21CFE23, 0x4D71B10, 0x1E3DE53, 0x1FBB4ED, 0x1763831, 0x9CCECC, 0x36B42D1, 0x2508F0B, 0x78896B8, 0xABA980, 0x482C7C, 0x25A4FF4, 0x5629800, 0x24F66B3, 0x139CE30, 0x4186C0, 0x2517C92, 0x12D6FD1, 0x13796BC, 0x4A2073, 0x99480E, 0xA2E02A, 0x49551C, 0x8CE13C, 0xC176B4, 0xAD38E2, 0x191FD55, 0x1F425AA, 0x523B47, 0x496882, 0x42F0D2, 0x138F004, 0x4FFDA1, 0x4FFFE1, 0x2517C92, 0x40117A, 0x4AF4EA, 0x4053D4, 0x487270, 
             0x49500B,/*脱机*/
             0x821000,/*喝药脚本*/
             0x466BEB,/*大漠脱机*/
@@ -700,9 +718,8 @@ import * as api from "api";
             0xD3D9DA, 
             0x2E3890, 
             0x9E5FE2, 
-            0x403260, 
             0x5214B9, 
-            0x438097, 0x2724495, 0x2EAE69A, 0x267A9FF, 0x4C858ED, 0x20F5BA7, 0xC4A3A8, 0x12D2031, 0x70424A9, 0x2D3BA7B, 0x401364, 0xB94C84, 0x7104E40, 0x7078993, 0x2865C66, 0x5C377E, 0x4C2C68, 0x4B6E429, 0xB8F2AE, 0x10E383A, 0x2160C0B, 0x67AD18, 0x3AB95A9, 0x479005, 0x5A96C8, 0x5AAC59, 0x5AC3CB, 0x20764C1, 0x49BBE0, 0xB5A0CA, 0x6EA52F, 0x40CEC0, 0x10D1348, 0x39EDE60, 0xC9C8D8, 0x1E6D301, 0xDBA9CE, 0x422A6A, 0x1B40427, 0x507C31, 0x1ECC9B2, 0xB11D1B, 0x1CF4045, 0xF49E00, 0x132272D, 0x6BE3C0, 0x116DF091, 0xDADF80, 0xC6667A, 0x33A430, 0x1A0B651, 0x5D5C83, 0x4396DA, 0x64EF97, 0x103E590, 0x16751B3, 0xCC38CF, 0x1156648, 0x81DEBA, 0x415D80, 0x4E3420, 0xA65F74, 0x13B19D3, 0xF60840, 0x1D1B3FC, 0x4278FA, 0x9CE676, 0x100CAB6, 0x404DDC, 0xBDF8DA, 0xA51152F, 0x42F0D2, 0x4012C2, 0xFBF9DA, 0xBBFFE0, 0x4F0701, 0x403DE0, 0x17A1858, 0xAECDBF, 0x277DA9F, 0xDAC2D0, 0x40190C, 0x13E46EB, 0x13788F4, 0xFC5097, 0x12FA586, 0xEA19D3, 0xBBEB2B, 0x971BAE, 0x1151767, 0xBFF02C, 0x46004D, 0x184D218, 0x5E6470, 0x4CB79C, 0xA6A281, 0x782E86, 0x1366366, 0x7663B7, 0x3ABA78, 0x1D0B94E, 0x79392B, 0x462DD5, 0x102D0B0, 0x1C13907, 0x50178E, 0x10B8AC7, 0x1795058, 0x10DE058, 0xCD5058, 0x49BB5C, 0x1BBC81D, 0x65A801, 0x63600E, 0xEA4EA5, 0x1E251E1, 0x48732A, 0x3E2F9FF, 0x5528C01, 0x5C0D60, 0x41F101, 0x29A8280, 0x29A8280, 0x950070, 0xF634CE, 0xD44480, 0x14FAD02, 0x11FC781, 0x61DAF92, 0x61DF7F4, 0x1A74E06, 0x540A707, 0x27A89AB, 0x2791875, 0x485249, 0x3063000, 0x4C5126, 0xAEF26E, 0x176877F, 0x1347A6B, 0x17AC125, 0xD4939A, 0xF49E00, 0x10DB496, 0x19CA621, 0x6CE1C6, 0xF9161D, 0xD334DB, 0x684014, 0x403CD0, 0x414EB0, 0x46162E, 0x52BC91, 0x4434C3, 0x6E6770, 0x13B1BAE, 0x1853836, 0x120FD8A, 0x17B7E43, 0x475C50, 0x5D8C2F, 0xF49E00, 0xC0ACF0, 0x4FCEC4, 0x2779503, 0x4C2E4A, 0x582950, 0x4085FF, 0x459AC7, 0x37A01FA, 0x888B22, 0x6FA2D5, 0x3555705, 0xA60F49, 0x53F9DA, 0x47E3D0, 0x47FD8A, 0x4C2823, 0x48B3CB, 0x4713E5, 0x9416E4, 0x785824, 0x10F60DD, 0x5EA62A3, 0x468BAD, 0x1CED93E, 0xDA079E, 0x468BBD, 0xAB667E, 0x484BD1, 0x4688BD, 0x91F9DA, 0x414BD62, 0x4A62B3, 0x2707CA0, 0x4B20C8, 0x774860, 0x46E881, 0x4C2793, 0x6878E10, 0x40A370, 0x483932, 0x4B236C, 0x828AE5, 0x36736BB, 0x36F4460, 0x828AE5, 0xAA4481, 0xF59BE3, 0x592B33, 0x68B8D21, 0xC8E13C, 0x8AF5BC, 0x10071D8, 0xFD2691, 0x4092FA, 0x4C5552, 0x5122F5, 0x474B81, 0x1174480, 0x13F4088C4, 0x63E5B9, 0x1B1E044, 0x27FF030, 0x4D4784, 0xE19E39, 0x68CE00, 0xD4A79E, 0x18E0209, 0x4012A2, 0x412D80, 0xBC6001, 0x464148, 0x7207FE, 0x1001587, 0x43E001, 0x1403AB9C8, 0x154AF70, 0x3ECF6E7, 0x1341B63, 0x47C33F, 0x19529E5, 0x467C6D, 0x6BEF94, 0x12C6EFE, 0x21908FF, 0x414260, 0x418400, 0x806D24, 0x403CA0, 0x1304294, 0x414C40, 0x415C40, 0x14F3614, 0x403C70, 0x4151F0, 0x4131C0, 0x413900, 0x404DFC, 0x41A7A0, 0x419800, 0x415A40, 0x8D2C20, 0x149994E, 0x100A33EA0, 0x47A6E9, 0x40B3C1, 0x4A9BB4, 0x5073FC, 0x405810, 0x4D4960, 0xDDC2FB, 0x429C20, 0x4EAD30, 0x49349C, 0xEBCF00, 0xEBC2D1, 0x44E076, 0x44EA94, 0x44533D, 0x445CD4, 0x7D6B38, 0x4947E7, 0x4BA80C, 0x5E746C, 0x33FD8A, 0x9016F1, 0x48EBEA, 0x410F50, 0x475D70, 0x5BC22C, 0xEC31B0, 0x2108E72F, 0x44D60E, 0x985E90, 0x25C1725, 0xF72ADE, 0x182DC51, 0xE83732, 0x52C220, 0xBAE094, 0x44AACC, 0x13F40A8C0, 0x479980, 0x9F9291, 0x9CDACC, 0x13A8A74, 0xFC54C0, 0x72D26F, 0xE7320E, 0x450EDD, 0x41E8E5, 0x450EDB, 0x70BE30, 0x12CF584, 0xFFB9DA, 0x1EECFD0, 0x496640, 0x1705C08, 0x737BD0, 0x218CB19, 0x6E3C195, 0x43BB34, 0x475351, 0x13CAD82, 0x467588, 0x6B2BB0, 0x47AA51, 0x78BF40, 0x24D4422, 0x60AC96, 0x404015, 0xCF4BAD, 0xF79CA9, 0xC49CA9, 0x69B13C, 0x49FB53, 0x5350D8, 0x1C81927, 0x47E001, 0x57F3D5, 0x6A97D0, 0x4A5FA0, 0x4F3330, 0x4E6001, 0x40469E, 0x659E28, 0x424001, 0x63D388, 0x13FD966, 0xBDD6B0, 0x47A629, 0xFE75D1, 0x4801AD, 0x10309CD, 0x520ADB, 0x1231D5A, 0xA5D2D8, 0x471E21, 0xA6DBE2, 0xA5EF6B, 0xA72D48, 0x2F67000, 0x40DB94, 0x448B97, 0x46F1C0, 0x2610A7, 0x2290253, 0x49ABB3, 0xD5768C, 0x52509C, 0x4AA678, 0xBF12C0, 0x643730, 0x6D9A44, 0x4C3860, 0x4256D9, 0xE407F0, 0x4EC310, 0x51CE64, 0x13B47AA, 0x435EB0, 0x40C550, 0xEC4999, 0x40128C, 0x49E894, 0x49B740, 0x1B1D8EE, 0x40FD28, 0x46EE11, 0x430AE0, 0x1020635, 0x129E20C, 0x4E1E2D, 0xA36E3C, 0x4CE567, 0xBF2564, 0x4CAF76, 0x5DE81C, 0x19437BE4, 0x59BEE0, 0x42284B, 0x41D2FD, 0x46C4BA, 0x40D5AF, 0x47E600, 0x4B20C8, 0x545B89, 0x448CDD, 0x608ADD, 0x407C72, 0x401768, 0x679CE0, 0xAEC647, 0xF1A3B1, 0xBAE57C, 0x406539, 0x47E600, 0x48C5F2, 0xC0FEF4, 0x5CF38F, 0xFE824C, 0x64A146, 0x407D66, 0x40513D, 0x4118C0, 0x528380, 0x545D39, 0x47198B, 0x642000, 0x93CFF6, 0xB46774, 0xB7324C, 0xB8C35F, 0xFE824C, 0xF7CBE0, 0xC0945D, 0x77159490, 0x4EF02C, 0xC79122, 0x5CD7CDE, 0xE7C16E, 0x12C0D5D, 0x12C3020, 0x44FD84, 0x401214, 0xBAE089, 0x14413D2, 0x548290, 0x234488B, 0x45ED26, 0x4012DC, 0x1354C5E, 0x1495DC0, 0x495CA4, 0x40D5AF, 0x233F3386, 0x622FFD, 0x4AA37E, 0x404F52, 0x25F0EF2, 0x40A735, 0x209F0, 0x4D6AE2, 0x4A3C45, 0x40148C, 0x545C69, 0x984500]);
+            0x438097, 0x2724495, 0x2EAE69A, 0x267A9FF, 0x4C858ED, 0x20F5BA7, 0xC4A3A8, 0x12D2031, 0x70424A9, 0x2D3BA7B, 0x401364, 0xB94C84, 0x7104E40, 0x7078993, 0x2865C66, 0x5C377E, 0x4C2C68, 0x4B6E429, 0xB8F2AE, 0x10E383A, 0x2160C0B, 0x67AD18, 0x3AB95A9, 0x479005, 0x5A96C8, 0x5AAC59, 0x5AC3CB, 0x20764C1, 0x49BBE0, 0xB5A0CA, 0x6EA52F, 0x40CEC0, 0x10D1348, 0x39EDE60, 0xC9C8D8, 0x1E6D301, 0xDBA9CE, 0x422A6A, 0x1B40427, 0x507C31, 0x1ECC9B2, 0xB11D1B, 0x1CF4045, 0xF49E00, 0x132272D, 0x6BE3C0, 0x116DF091, 0xDADF80, 0xC6667A, 0x33A430, 0x1A0B651, 0x5D5C83, 0x4396DA, 0x64EF97, 0x103E590, 0x16751B3, 0xCC38CF, 0x1156648, 0x81DEBA, 0x415D80, 0x4E3420, 0xA65F74, 0x13B19D3, 0xF60840, 0x1D1B3FC, 0x4278FA, 0x9CE676, 0x100CAB6, 0x404DDC, 0xBDF8DA, 0xA51152F, 0x42F0D2, 0x4012C2, 0xFBF9DA, 0xBBFFE0, 0x4F0701, 0x403DE0, 0x17A1858, 0xAECDBF, 0x277DA9F, 0xDAC2D0, 0x40190C, 0x13E46EB, 0x13788F4, 0xFC5097, 0x12FA586, 0xEA19D3, 0xBBEB2B, 0x971BAE, 0x1151767, 0xBFF02C, 0x46004D, 0x184D218, 0x5E6470, 0x4CB79C, 0xA6A281, 0x782E86, 0x1366366, 0x7663B7, 0x3ABA78, 0x1D0B94E, 0x79392B, 0x462DD5, 0x102D0B0, 0x1C13907, 0x50178E, 0x10B8AC7, 0x1795058, 0x10DE058, 0xCD5058, 0x49BB5C, 0x1BBC81D, 0x65A801, 0x63600E, 0xEA4EA5, 0x1E251E1, 0x48732A, 0x3E2F9FF, 0x5528C01, 0x5C0D60, 0x41F101, 0x29A8280, 0x29A8280, 0x950070, 0xF634CE, 0xD44480, 0x14FAD02, 0x11FC781, 0x61DAF92, 0x61DF7F4, 0x1A74E06, 0x540A707, 0x27A89AB, 0x2791875, 0x485249, 0x3063000, 0x4C5126, 0xAEF26E, 0x176877F, 0x1347A6B, 0x17AC125, 0xD4939A, 0xF49E00, 0x10DB496, 0x19CA621, 0x6CE1C6, 0xF9161D, 0xD334DB, 0x684014, 0x403CD0, 0x414EB0, 0x46162E, 0x52BC91, 0x4434C3, 0x6E6770, 0x13B1BAE, 0x1853836, 0x120FD8A, 0x17B7E43, 0x475C50, 0x5D8C2F, 0xF49E00, 0xC0ACF0, 0x4FCEC4, 0x2779503, 0x4C2E4A, 0x582950, 0x4085FF, 0x459AC7, 0x37A01FA, 0x888B22, 0x6FA2D5, 0x3555705, 0xA60F49, 0x53F9DA, 0x47E3D0, 0x47FD8A, 0x4C2823, 0x48B3CB, 0x4713E5, 0x9416E4, 0x785824, 0x10F60DD, 0x5EA62A3, 0x468BAD, 0x1CED93E, 0xDA079E, 0x468BBD, 0xAB667E, 0x484BD1, 0x4688BD, 0x91F9DA, 0x414BD62, 0x4A62B3, 0x2707CA0, 0x4B20C8, 0x774860, 0x46E881, 0x4C2793, 0x6878E10, 0x40A370, 0x483932, 0x4B236C, 0x828AE5, 0x36736BB, 0x36F4460, 0x828AE5, 0xAA4481, 0xF59BE3, 0x592B33, 0x68B8D21, 0xC8E13C, 0x8AF5BC, 0x10071D8, 0xFD2691, 0x4092FA, 0x4C5552, 0x5122F5, 0x474B81, 0x1174480, 0x13F4088C4, 0x63E5B9, 0x1B1E044, 0x27FF030, 0x4D4784, 0xE19E39, 0x68CE00, 0xD4A79E, 0x18E0209, 0x4012A2, 0x412D80, 0xBC6001, 0x464148, 0x7207FE, 0x1001587, 0x43E001, 0x1403AB9C8, 0x154AF70, 0x3ECF6E7, 0x1341B63, 0x47C33F, 0x19529E5, 0x467C6D, 0x6BEF94, 0x12C6EFE, 0x21908FF, 0x414260, 0x418400, 0x806D24, 0x403CA0, 0x1304294, 0x414C40, 0x415C40, 0x14F3614, 0x403C70, 0x4151F0, 0x4131C0, 0x413900, 0x404DFC, 0x41A7A0, 0x419800, 0x415A40, 0x8D2C20, 0x149994E, 0x100A33EA0, 0x47A6E9, 0x40B3C1, 0x4A9BB4, 0x5073FC, 0x405810, 0x4D4960, 0xDDC2FB, 0x429C20, 0x4EAD30, 0x49349C, 0xEBCF00, 0xEBC2D1, 0x44E076, 0x44EA94, 0x44533D, 0x445CD4, 0x7D6B38, 0x4947E7, 0x4BA80C, 0x5E746C, 0x33FD8A, 0x9016F1, 0x48EBEA, 0x410F50, 0x475D70, 0x5BC22C, 0xEC31B0, 0x2108E72F, 0x44D60E, 0x985E90, 0x25C1725, 0xF72ADE, 0x182DC51, 0xE83732, 0x52C220, 0xBAE094, 0x44AACC, 0x13F40A8C0, 0x479980, 0x9F9291, 0x9CDACC, 0x13A8A74, 0xFC54C0, 0x72D26F, 0xE7320E, 0x450EDD, 0x41E8E5, 0x450EDB, 0x70BE30, 0x12CF584, 0xFFB9DA, 0x1EECFD0, 0x496640, 0x1705C08, 0x737BD0, 0x218CB19, 0x6E3C195, 0x475351, 0x13CAD82, 0x467588, 0x6B2BB0, 0x47AA51, 0x78BF40, 0x24D4422, 0x60AC96, 0x404015, 0xCF4BAD, 0xF79CA9, 0xC49CA9, 0x69B13C, 0x49FB53, 0x5350D8, 0x1C81927, 0x47E001, 0x57F3D5, 0x6A97D0, 0x4A5FA0, 0x4F3330, 0x4E6001, 0x40469E, 0x659E28, 0x424001, 0x63D388, 0x13FD966, 0xBDD6B0, 0x47A629, 0xFE75D1, 0x4801AD, 0x10309CD, 0x520ADB, 0x1231D5A, 0xA5D2D8, 0x471E21, 0xA6DBE2, 0xA5EF6B, 0xA72D48, 0x2F67000, 0x40DB94, 0x448B97, 0x46F1C0, 0x2610A7, 0x2290253, 0x49ABB3, 0xD5768C, 0x52509C, 0x4AA678, 0xBF12C0, 0x643730, 0x6D9A44, 0x4C3860, 0x4256D9, 0xE407F0, 0x4EC310, 0x51CE64, 0x13B47AA, 0x435EB0, 0x40C550, 0xEC4999, 0x40128C, 0x49E894, 0x49B740, 0x1B1D8EE, 0x40FD28, 0x46EE11, 0x430AE0, 0x1020635, 0x129E20C, 0x4E1E2D, 0xA36E3C, 0x4CE567, 0xBF2564, 0x4CAF76, 0x5DE81C, 0x19437BE4, 0x59BEE0, 0x42284B, 0x41D2FD, 0x46C4BA, 0x40D5AF, 0x47E600, 0x4B20C8, 0x545B89, 0x448CDD, 0x608ADD, 0x407C72, 0x401768, 0x679CE0, 0xAEC647, 0xF1A3B1, 0xBAE57C, 0x406539, 0x47E600, 0x48C5F2, 0xC0FEF4, 0x5CF38F, 0xFE824C, 0x64A146, 0x407D66, 0x40513D, 0x4118C0, 0x528380, 0x545D39, 0x47198B, 0x642000, 0x93CFF6, 0xB46774, 0xB7324C, 0xB8C35F, 0xFE824C, 0xF7CBE0, 0xC0945D, 0x77159490, 0x4EF02C, 0xC79122, 0x5CD7CDE, 0xE7C16E, 0x12C0D5D, 0x12C3020, 0x44FD84, 0x401214, 0xBAE089, 0x14413D2, 0x548290, 0x234488B, 0x45ED26, 0x4012DC, 0x1354C5E, 0x1495DC0, 0x495CA4, 0x40D5AF, 0x233F3386, 0x622FFD, 0x4AA37E, 0x404F52, 0x25F0EF2, 0x40A735, 0x209F0, 0x4D6AE2, 0x4A3C45, 0x40148C, 0x545C69, 0x984500]);
         thread_module_dat_set = new Set([0x9CC9, 0x5071, 0xF99C, 0x2D80, 0x1208, 0x95C9, 0x4A71, 0x3D7A, 0xF15B]);
         thread_module_exe_set = new Set([
             0x7B12,/*脱机*/
@@ -743,7 +760,6 @@ import * as api from "api";
             this._window_util.update();
         }
         do() {
-            if (this._window_util.processWindows.size === 0) return;
             let result_msg = null;
             const processCache = new Map();
             const getCachedProcessInfo = (pid) => {
@@ -757,222 +773,230 @@ import * as api from "api";
                 }
                 return processCache.get(pid);
             };
-            for (const process_entry of this._window_util.processWindows) {
-                const process_id = process_entry[0];
-                const windows = process_entry[1];
-                if (process_id <= 4) continue;
-
-                // 从缓存获取进程信息
-                const processInfo = getCachedProcessInfo(process_id);
-                if (!processInfo) continue;
-                //const processInfo.name = this._window_util.getProcessName(process_id)
-                for (const window_entry of windows) {
-                    const window_title = window_entry[0];
-                    const window_class = window_entry[1];
-                    const window_style = window_entry[2];
-                    const window_handle = window_entry[3];
-
-                    const wnd_proc = this._window_util.getHwndWndProc(window_handle);
-
-                    if (wnd_proc) {
-                        // 特征1：可疑窗口过程
-                        const addr_4f = 0xFFFF & wnd_proc;
-                        if (this.process_procs_set.has(wnd_proc) || window_title === "基址初始化" || (process_id === this.current_pid && this.process_procs_set.has(addr_4f))) {
-                            result_msg = [`发现封包、多倍外挂，进程为:${process_id}|${processInfo.name}|${window_title}`, wnd_proc];
-                            break
-                        }
-
-                        // 特殊窗口类检测
-                        if (window_class.includes("_EL_HideOwner")) {
-                            if (process_id === this.current_pid) {
-                                const module_name = this._window_util.getAddressModule(process_id, wnd_proc);
-                                if (black_module_names.some(module => module_name.includes(module)) || 0x2EC1 === addr_4f) {
-                                    PolicyReporter.instance.report(689057, true, `检测到游戏易语言:${module_name}|${wnd_proc.toString(16)}`, addr_4f);
-                                    return
+            if (this._window_util.processWindows.size > 0) {
+                for (const process_entry of this._window_util.processWindows) {
+                    const process_id = process_entry[0];
+                    const windows = process_entry[1];
+                    if (process_id <= 4) continue;
+    
+                    // 从缓存获取进程信息
+                    const processInfo = getCachedProcessInfo(process_id);
+                    if (!processInfo) continue;
+                    //const processInfo.name = this._window_util.getProcessName(process_id)
+                    for (const window_entry of windows) {
+                        const window_title = window_entry[0];
+                        const window_class = window_entry[1];
+                        const window_style = window_entry[2];
+                        const window_handle = window_entry[3];
+                        /*
+                        if (typeof api.is_window_valid === "function" && !api.is_window_valid(window.handle)) 
+                            continue;
+                        const wnd_proc = this._window_util.getHwndWndProc(window_handle);
+    
+                        if (wnd_proc) {
+                            // 特征1：可疑窗口过程
+                            const addr_4f = 0xFFFF & wnd_proc;
+                            if (this.process_procs_set.has(wnd_proc) || window_title === "基址初始化" || (process_id === this.current_pid && this.process_procs_set.has(addr_4f))) {
+                                result_msg = [`发现封包、多倍外挂，进程为:${process_id}|${processInfo.name}|${window_title}`, wnd_proc];
+                                break
+                            }
+    
+                            // 特殊窗口类检测
+                            if (window_class.includes("_EL_HideOwner")) {
+                                if (process_id === this.current_pid) {
+                                    const module_name = this._window_util.getAddressModule(process_id, wnd_proc);
+                                    if (black_module_names.some(module => module_name.includes(module)) || 0x2EC1 === addr_4f) {
+                                        PolicyReporter.instance.report(689057, true, `检测到游戏易语言:${module_name}|${wnd_proc.toString(16)}`, addr_4f);
+                                        return
+                                    }
+                                }
+                            }
+    
+                            // 特征3：窗口类黑名单
+                            if (addr_4f === 0xCBC0) {
+                                const hex_values = ["fff", "43", "3a"];
+                                let flag1 = false;
+                                for(const win_entry of processInfo.windows){
+                                    const whandle = win_entry[3];
+                                    if (typeof api.is_window_valid === "function" && !api.is_window_valid(whandle)) 
+                                        continue;
+                                    const proc = this._window_util.getHwndWndProc(whandle);
+                                    if (proc) {
+                                        const hex_str = proc.toString(16);
+                                        flag1 = flag1 || hex_str.startsWith(hex_values[0]);
+                                    }
+                                }
+                                let flag2 = false;
+                                for(const thread_entry of processInfo.threads){
+                                    const thread_id = thread_entry[1];
+                                    const hex_str = thread_id.toString(16);
+                                    flag2 = flag2 || hex_str.startsWith(hex_values[1]);
+                                }
+                                let flag3 = false;
+                                for(const module_entry of processInfo.modules){
+                                    const module_name = module_entry[0];
+                                    const module_base = module_entry[2].toString(16);
+                                    if (module_name.includes(".exe")) {
+                                        flag3 = flag3 || module_base.startsWith(hex_values[2]);
+                                    }
+                                }
+                                if (flag1 && flag2 && flag3) {
+                                    result_msg = [`发现定制外挂2，请封号处理，进程为:${process_id}|${processInfo.name}|${window_title}|${window_class}`, hex_values.join("|")];
+                                    break;
                                 }
                             }
                         }
-
-                        // 特征3：窗口类黑名单
-                        if (addr_4f === 0xCBC0) {
-                            const hex_values = ["fff", "43", "3a"];
-                            let flag1 = false;
-                            for(const win_entry of processInfo.windows){
-                                const proc = this._window_util.getHwndWndProc(win_entry[3]);
-                                if (proc) {
-                                    const hex_str = proc.toString(16);
-                                    flag1 = flag1 || hex_str.startsWith(hex_values[0]);
-                                }
-                            }
-                            let flag2 = false;
-                            for(const thread_entry of processInfo.threads){
-                                const thread_id = thread_entry[1];
-                                const hex_str = thread_id.toString(16);
-                                flag2 = flag2 || hex_str.startsWith(hex_values[1]);
-                            }
-                            let flag3 = false;
-                            for(const module_entry of processInfo.modules){
-                                const module_name = module_entry[0];
-                                const module_base = module_entry[2].toString(16);
-                                if (module_name.includes(".exe")) {
-                                    flag3 = flag3 || module_base.startsWith(hex_values[2]);
-                                }
-                            }
-                            if (flag1 && flag2 && flag3) {
-                                result_msg = [`发现定制外挂2，请封号处理，进程为:${process_id}|${processInfo.name}|${window_title}|${window_class}`, hex_values.join("|")];
-                                break;
-                            }
-                        }
-                    }
-                    if (processInfo.name === "" || window_class.length < 8 || !this.blacklisted_window_classes.has(window_class)) {
-                        continue;
-                    }
-                    if (!processInfo.threads) continue;
-                    for (const thread_entry of processInfo.threads) {
-                        const tprocess_name = thread_entry[0];
-                        const thread_address = thread_entry[1];
-                        const addr_3f = 0xFFFF & thread_address;
-                        const addr_4f = 0xFFFF & thread_address;
-                        const addr_5f = 0xFFFFF & thread_address;
-                        const addr_6f = 0xFFFFFF & thread_address;
-                        const addr_7f = 0xFFFFFFF & thread_address;
-                        // 提前判断特征, 避免浪费时间,时间从20s降低到1s
-                        if (!(this.thread_set1.has(thread_address) || 
-                        this.thread_set1.has(addr_4f) || 
-                        this.thread_set1.has(addr_5f) || 
-                        this.thread_set1.has(addr_6f) || 
-                        this.thread_set_6F.has(addr_6f) || 
-                        this.thread_set_7F.has(addr_7f) || 
-                        this._EL_HideOwner_exe_blacklist.has(addr_4f) || 
-                        this._EL_HideOwner_exe_blacklist.has(addr_6f) || 
-                        this._EL_HideOwner_dll_blacklist.has(addr_4f) || 
-                        this._EL_HideOwner_dll_blacklist.has(addr_5f) || 
-                        this._EL_HideOwner_dll_blacklist.has(addr_6f) || 
-                        this._EL_HideOwner_dat_blacklist.has(addr_6f) || 
-                        this.module_blacklist_.has(addr_4f) || 
-                        this.module_blacklist_.has(addr_5f) || 
-                        this.module_blacklist_.has(addr_6f) || 
-                        this.driver_speed_set.has(tprocess_name.toLowerCase()) || 
-                        (process_id != this.current_pid && addr_3f === 0) || 
-                        tprocess_name === "csrss.exe")
-                    ) {
+                        */
+                        if (processInfo.name === "" || window_class.length < 8 || !this.blacklisted_window_classes.has(window_class)) {
                             continue;
                         }
-                        if ((window_class === "tooltips_class32" || window_class === "MSCTFIME") && (this.thread_set1.has(thread_address) || this.thread_set1.has(addr_6f))) {
-                            result_msg = [`发现GEE猎手或者荣耀外挂请封号处理【1号特征】:${process_id}|${tprocess_name}|${addr_5f.toString(16)}`, thread_address];
-                            break;
-                        }
-                        const module_name = this._window_util.getAddressModule(process_id, thread_address);
-                        if (window_class === "_EL_HideOwner") {
-                            if (this.thread_set_6F.has(addr_6f) || this.thread_set_7F.has(0xFFFFFFF & thread_address)) {
-                                result_msg = [`发现GEE倍攻软件，进程为:${process_id}|${tprocess_name}|${addr_6f.toString(16)}`, addr_6f];
+                        if (!processInfo.threads) continue;
+                        for (const thread_entry of processInfo.threads) {
+                            const tprocess_name = thread_entry[0];
+                            const thread_address = thread_entry[1];
+                            const addr_3f = 0xFFFF & thread_address;
+                            const addr_4f = 0xFFFF & thread_address;
+                            const addr_5f = 0xFFFFF & thread_address;
+                            const addr_6f = 0xFFFFFF & thread_address;
+                            const addr_7f = 0xFFFFFFF & thread_address;
+                            // 提前判断特征, 避免浪费时间,时间从20s降低到1s
+                            if (!(this.thread_set1.has(thread_address) || 
+                            this.thread_set1.has(addr_4f) || 
+                            this.thread_set1.has(addr_5f) || 
+                            this.thread_set1.has(addr_6f) || 
+                            this.thread_set_6F.has(addr_6f) || 
+                            this.thread_set_7F.has(addr_7f) || 
+                            this._EL_HideOwner_exe_blacklist.has(addr_4f) || 
+                            this._EL_HideOwner_exe_blacklist.has(addr_6f) || 
+                            this._EL_HideOwner_dll_blacklist.has(addr_4f) || 
+                            this._EL_HideOwner_dll_blacklist.has(addr_5f) || 
+                            this._EL_HideOwner_dll_blacklist.has(addr_6f) || 
+                            this._EL_HideOwner_dat_blacklist.has(addr_6f) || 
+                            this.module_blacklist_.has(addr_4f) || 
+                            this.module_blacklist_.has(addr_5f) || 
+                            this.module_blacklist_.has(addr_6f) || 
+                            this.driver_speed_set.has(tprocess_name.toLowerCase()) || 
+                            (process_id != this.current_pid && addr_3f === 0) || 
+                            tprocess_name === "csrss.exe")
+                        ) {
+                                continue;
+                            }
+                            if ((window_class === "tooltips_class32" || window_class === "MSCTFIME") && (this.thread_set1.has(thread_address) || this.thread_set1.has(addr_6f))) {
+                                result_msg = [`发现GEE猎手或者荣耀外挂请封号处理【1号特征】:${process_id}|${tprocess_name}|${addr_5f.toString(16)}`, thread_address];
                                 break;
                             }
-                            if (process_id != current_pid && addr_3f === 0) {
-                                if (module_name != tprocess_name && module_name.endsWith(".exe") && this.driver_speed_set.has(tprocess_name.toLowerCase())) {
-                                    PolicyReporter.instance.report(this.task_id, true, `驱动加速伪装:${tprocess_name}|${thread_address.toString(16)}|$module_name}`, tprocess_name.toLowerCase());
-                                    return;
+                            const module_name = this._window_util.getAddressModule(process_id, thread_address);
+                            if (window_class === "_EL_HideOwner") {
+                                if (this.thread_set_6F.has(addr_6f) || this.thread_set_7F.has(0xFFFFFFF & thread_address)) {
+                                    result_msg = [`发现GEE倍攻软件，进程为:${process_id}|${tprocess_name}|${addr_6f.toString(16)}`, addr_6f];
+                                    break;
+                                }
+                                if (process_id != current_pid && addr_3f === 0) {
+                                    if (module_name != tprocess_name && module_name.endsWith(".exe") && this.driver_speed_set.has(tprocess_name.toLowerCase())) {
+                                        PolicyReporter.instance.report(this.task_id, true, `驱动加速伪装:${tprocess_name}|${thread_address.toString(16)}|$module_name}`, tprocess_name.toLowerCase());
+                                        return;
+                                    }
+                                }
+    
+                                // CSRSS.exe特殊检测
+                                if (tprocess_name === "csrss.exe") {
+                                    result_msg = [`发现非法注入，进程为:${process_id}|${tprocess_name}|${window_class}|${thread_address.toString(16)}`, tprocess_name];
+                                    break;
                                 }
                             }
-
-                            // CSRSS.exe特殊检测
-                            if (tprocess_name === "csrss.exe") {
-                                result_msg = [`发现非法注入，进程为:${process_id}|${tprocess_name}|${window_class}|${thread_address.toString(16)}`, tprocess_name];
+                            if (module_name !== "") {
+                                if (module_name.endsWith(".exe")) {
+                                    // EXE模块检测逻辑
+                                    if (window_class === "QQPinyinImageCandWndTSF" && addr_4f === 0x3020) {
+                                        result_msg = [`GEE大师外挂请封号处理【3号特征】，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break;
+                                    }
+                                    if ("AutoIt v3 GUI" == window_class && 0x800A == addr_4f) {
+                                        result_msg = [`发现一键小退软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break;
+                                    }
+                                    if ("FORM_PROJECT1_FORM1_CLASS:0" == window_class && 0x2256 == addr_4f) {
+                                        result_msg = [`发现猎手或者荣耀外挂请封号处理【4号特征】，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break;
+                                    }
+                                    if ("MSCTFIME UI" == window_class && 0xAA5B == addr_4f) {
+                                        result_msg = [`发现简单A版加强版:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break;
+                                    }
+                                    if ("#32770" === window_class && (addr_5f === 0xFD8AF || addr_5f === 0x20000)) {
+                                        result_msg = [`发现GEE大师外挂【特征5】，进程为:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, addr_5f];
+                                        break
+                                    }
+                                    if ("VBBubbleRT6" == window_class && (0x1B90 == addr_4f || 0x49A3D6 == addr_6f)) {
+                                        result_msg = [`发现脱机软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                    if ("CiceroUIWndFrame" == window_class && 0x1B50 == addr_4f) {
+                                        result_msg = [`发现脱机软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                    if ("tooltips_class32" == window_class && 0xD8C5 == addr_4f) {
+                                        result_msg = [`发现GEE大师多开器，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                    if ("_EL_HideOwner" == window_class && (this._EL_HideOwner_exe_blacklist.has(addr_4f) || this._EL_HideOwner_exe_blacklist.has(addr_6f))) {
+                                        result_msg = [`发现倍攻、脱机软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                    if ("_iext3_CTipWnd" === window_title && addr_4f === 0x0BF0) {
+                                        result_msg = [`发现GEE猎手外挂【特征7】，进程为:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, (0xFFFF & thread_address)];
+                                        break
+                                    }
+                                } else if (module_name.endsWith(".dll")) {
+                                    // DLL模块检测逻辑
+                                    if ("_EL_HideOwner" == window_class && (this._EL_HideOwner_dll_blacklist.has(addr_6f) || this._EL_HideOwner_dll_blacklist.has(addr_5f) || this._EL_HideOwner_dll_blacklist.has(addr_4f))) {
+                                        result_msg = [`发现GEE倍攻软件,进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                    if ("WTWindow" == window_class && (0x594A == addr_4f || 0x564A == addr_4f)) {
+                                        result_msg = [`发现GEE倍攻软件,进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                    if ("VBBubbleRT6" == window_class && 0xFB801 == addr_5f) {
+                                        result_msg = [`定制外挂请封号处理，进程为:${process_id}|${tprocess_name}|${addr_5f.toString(16)}`, addr_5f];
+                                        break
+                                    }
+                                    if ("MSCTFIME UI" === window_class && (addr_4f === 0x726F || addr_4f === 0x2A5B)) {
+                                        result_msg = [`发现GEE猎手外挂【特征9】:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                } else if (module_name.endsWith(".IME")) {
+                                    if ("_EL_HideOwner" == window_class && 0xC2C0 == addr_4f) {
+                                        result_msg = [`发现脱机回收外挂，进程为:${process_id}|${tprocess_name}|${startaddr.toString(16)}`, addr_4f];
+                                        break
+                                    }
+                                } else if (module_name.endsWith(".tmp") && addr_6f === 0x401000) {
+                                    result_msg = [`发现加速外挂【特征7】:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, (0xFFFFFF & thread_address)];
+                                    break;
+                                } else if (module_name.endsWith(".tap")) {
+                                    if (0xDD1F == addr_4f || 0x58F0 == addr_4f || 0x401000 == addr_6f) {
+                                        result_msg = [`发现荣耀外挂请封号处理,进程为【7号特征】:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
+                                        break;
+                                    }
+                                } else if (module_name.endsWith(".dat")) {
+                                    if ("_EL_HideOwner" == window_class && this._EL_HideOwner_dat_blacklist.has(addr_6f)) {
+                                        result_msg = [`发现倍攻外挂，进程为:${process_id}|${tprocess_name}|${addr_6f.toString(16)}`, addr_6f];
+                                        break;
+                                    }
+                                    if (addr_4f === 0x5530) {
+                                        result_msg = [`发现脱机外挂【特征8】:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, addr_4f];
+                                        break;
+                                    }
+                                }
+                            } else if (this.thread_set1.has(addr_4f) || this.thread_set1.has(addr_5f)) {
+                                result_msg = [`发现GEE猎手外挂【2号特征】:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
                                 break;
                             }
                         }
-                        if (module_name !== "") {
-                            if (module_name.endsWith(".exe")) {
-                                // EXE模块检测逻辑
-                                if (window_class === "QQPinyinImageCandWndTSF" && addr_4f === 0x3020) {
-                                    result_msg = [`GEE大师外挂请封号处理【3号特征】，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break;
-                                }
-                                if ("AutoIt v3 GUI" == window_class && 0x800A == addr_4f) {
-                                    result_msg = [`发现一键小退软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break;
-                                }
-                                if ("FORM_PROJECT1_FORM1_CLASS:0" == window_class && 0x2256 == addr_4f) {
-                                    result_msg = [`发现猎手或者荣耀外挂请封号处理【4号特征】，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break;
-                                }
-                                if ("MSCTFIME UI" == window_class && 0xAA5B == addr_4f) {
-                                    result_msg = [`发现简单A版加强版:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break;
-                                }
-                                if ("#32770" === window_class && (addr_5f === 0xFD8AF || addr_5f === 0x20000)) {
-                                    result_msg = [`发现GEE大师外挂【特征5】，进程为:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, addr_5f];
-                                    break
-                                }
-                                if ("VBBubbleRT6" == window_class && (0x1B90 == addr_4f || 0x49A3D6 == addr_6f)) {
-                                    result_msg = [`发现脱机软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break
-                                }
-                                if ("CiceroUIWndFrame" == window_class && 0x1B50 == addr_4f) {
-                                    result_msg = [`发现脱机软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break
-                                }
-                                if ("tooltips_class32" == window_class && 0xD8C5 == addr_4f) {
-                                    result_msg = [`发现GEE大师多开器，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break
-                                }
-                                if ("_EL_HideOwner" == window_class && (this._EL_HideOwner_exe_blacklist.has(addr_4f) || this._EL_HideOwner_exe_blacklist.has(addr_6f))) {
-                                    result_msg = [`发现倍攻、脱机软件，进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break
-                                }
-                                if ("_iext3_CTipWnd" === window_title && addr_4f === 0x0BF0) {
-                                    result_msg = [`发现GEE猎手外挂【特征7】，进程为:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, (0xFFFF & thread_address)];
-                                    break
-                                }
-                            } else if (module_name.endsWith(".dll")) {
-                                // DLL模块检测逻辑
-                                if ("_EL_HideOwner" == window_class && (this._EL_HideOwner_dll_blacklist.has(addr_6f) || this._EL_HideOwner_dll_blacklist.has(addr_5f) || this._EL_HideOwner_dll_blacklist.has(addr_4f))) {
-                                    result_msg = [`发现GEE倍攻软件,进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break
-                                }
-                                if ("WTWindow" == window_class && (0x594A == addr_4f || 0x564A == addr_4f)) {
-                                    result_msg = [`发现GEE倍攻软件,进程为:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break
-                                }
-                                if ("VBBubbleRT6" == window_class && 0xFB801 == addr_5f) {
-                                    result_msg = [`定制外挂请封号处理，进程为:${process_id}|${tprocess_name}|${addr_5f.toString(16)}`, addr_5f];
-                                    break
-                                }
-                                if ("MSCTFIME UI" === window_class && (addr_4f === 0x726F || addr_4f === 0x2A5B)) {
-                                    result_msg = [`发现GEE猎手外挂【特征9】:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, addr_4f];
-                                    break
-                                }
-                            } else if (module_name.endsWith(".IME")) {
-                                if ("_EL_HideOwner" == window_class && 0xC2C0 == addr_4f) {
-                                    result_msg = [`发现脱机回收外挂，进程为:${process_id}|${tprocess_name}|${startaddr.toString(16)}`, addr_4f];
-                                    break
-                                }
-                            } else if (module_name.endsWith(".tmp") && addr_6f === 0x401000) {
-                                result_msg = [`发现加速外挂【特征7】:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, (0xFFFFFF & thread_address)];
-                                break;
-                            } else if (module_name.endsWith(".tap")) {
-                                if (0xDD1F == addr_4f || 0x58F0 == addr_4f || 0x401000 == addr_6f) {
-                                    result_msg = [`发现荣耀外挂请封号处理,进程为【7号特征】:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                                    break;
-                                }
-                            } else if (module_name.endsWith(".dat")) {
-                                if ("_EL_HideOwner" == window_class && this._EL_HideOwner_dat_blacklist.has(addr_6f)) {
-                                    result_msg = [`发现倍攻外挂，进程为:${process_id}|${tprocess_name}|${addr_6f.toString(16)}`, addr_6f];
-                                    break;
-                                }
-                                if (addr_4f === 0x5530) {
-                                    result_msg = [`发现脱机外挂【特征8】:${process_id}|${tprocess_name}|${thread_address.toString(16)}`, addr_4f];
-                                    break;
-                                }
-                            }
-                        } else if (this.thread_set1.has(addr_4f) || this.thread_set1.has(addr_5f)) {
-                            result_msg = [`发现GEE猎手外挂【2号特征】:${process_id}|${tprocess_name}|${addr_4f.toString(16)}`, addr_4f];
-                            break;
-                        }
+                        if (result_msg) break;
                     }
                     if (result_msg) break;
                 }
-                if (result_msg) break;
             }
             if (!result_msg) {
                 if (this._window_util.processThreads.size === 0) return;
@@ -1031,6 +1055,7 @@ import * as api from "api";
         }
         after() {}
     }
+
     class b extends ITask {
         task_id = 689059;
         W;
@@ -1042,10 +1067,11 @@ import * as api from "api";
         do() {}
         after() {}
     }
+
     class SecurityMonitorTask extends ITask {
-        static _TASK_ID = 689062;
-        static WINDOW_REPORT_CODE = 689022;
-        static MODULE_REPORT_CODE = 689021;
+        task_id = 689062;
+        window_report_id = 689022;
+        module_report_id = 689021;
         suspiciousModules = new Set([0x43000, 0x56000]);
         constructor() {
             super();
@@ -1076,6 +1102,8 @@ import * as api from "api";
                     const window_text = windowInfo[0];
                     const window_class = windowInfo[1];
                     const handle = windowInfo[3];
+                    if (typeof api.is_window_valid === "function" && !api.is_window_valid(handle)) 
+                        continue;
                     const windowProps = this._window_util.getHwndProps(handle);
                     if (windowProps && windowProps.indexOf("Ex_Wnd_Control") > -1 && !hiddenOwners.has(processId)) {
                         this.reportWindowIssue(processId, window_text, window_class, "Ex_Wnd_Control");
@@ -1119,7 +1147,7 @@ import * as api from "api";
             for(const v of modules){
                 const moduleName = v[0];
                 if (moduleName.toLowerCase() === "hook32.dll") {
-                    PolicyReporter.instance.report(SecurityMonitorTask.MODULE_REPORT_CODE, true, `多倍外挂！一定要封号|${processId}|${this.getProcessName(processId)}`, moduleName.toLowerCase());
+                    PolicyReporter.instance.report(this.module_report_id, true, `多倍外挂！一定要封号|${processId}|${this.getProcessName(processId)}`, moduleName.toLowerCase());
                     return;
                 }
             }
@@ -1139,7 +1167,7 @@ import * as api from "api";
             const windowTitles = windowList.map(v => `${v[0]}(${v[3]})`).join("|");
             const isSuspicious = !["Build", "NVOGLDC", "Default IME", "背包仓库管理"].some(keyword => windowTitles.includes(keyword));
             if (isSuspicious) {
-                this.reportIssue(SecurityMonitorTask._TASK_ID, `pid0|0|${this.getProcessName(0)}|${windowTitles}`, windowTitles);
+                this.reportIssue(this.task_id, `pid0|0|${this.getProcessName(0)}|${windowTitles}`, windowTitles);
                 return;
             }
         }
@@ -1163,7 +1191,7 @@ import * as api from "api";
             const moduleName = ml[0];
             const moduleBase = ml[1];
             if (moduleName.toLowerCase().includes("ntdll.dll")) {
-                this.reportIssue(SecurityMonitorTask._TASK_ID, `ntdll|module|${processId}|${this.getProcessName(processId)}|${moduleName}|${moduleBase.toString(16)}`, "ntdll.dll");
+                this.reportIssue(this.task_id, `ntdll|module|${processId}|${this.getProcessName(processId)}|${moduleName}|${moduleBase.toString(16)}`, "ntdll.dll");
                 return;
             }
         }
@@ -1174,11 +1202,11 @@ import * as api from "api";
             const moduleSize = ml[2];
             const reportMessage = `nfapi|module|${processId}|${this.getProcessName(processId)}|${moduleName}|${moduleSize.toString(16)}`;
             if (this.suspiciousModules.has(moduleBase)) {
-                PolicyReporter.instance.report(SecurityMonitorTask.MODULE_REPORT_CODE, true, `多倍外挂！一定要封号|${processId}|${this.getProcessName(processId)}`, moduleBase);
+                PolicyReporter.instance.report(this.module_report_id, true, `多倍外挂！一定要封号|${processId}|${this.getProcessName(processId)}`, moduleBase);
                 return true;
             }
             // else {
-            //     this.reportIssue(SecurityMonitorTask._TASK_ID, reportMessage, "nfapi.dll");
+            //     this.reportIssue(this.task_id, reportMessage, "nfapi.dll");
             //     return true;
             // }
             return false;
@@ -1191,7 +1219,7 @@ import * as api from "api";
         reportWindowIssue(processId, window_text, window_class, signature) {
             const processName = this.getProcessName(processId);
             const entropy = calc_entropy(window_class);
-            this.reportIssue(SecurityMonitorTask.WINDOW_REPORT_CODE, `geels|wnd|${processId}|${processName}|${window_text}|${window_class}(${entropy})`, signature);
+            this.reportIssue(this.window_report_id, `geels|wnd|${processId}|${processName}|${window_text}|${window_class}(${entropy})`, signature);
             return;
         }
         reportIssue(reportCode, message, signature) {
@@ -1199,20 +1227,21 @@ import * as api from "api";
             return;
         }
     }
+
     class VM_Detection_Task extends ITask {
-        static _TASK_ID = 689011;
-        static VM_KEYWORDS = ["bora-", "wddm\\i386", "wddm\\x86", "vm3d"];
-        static VM_SIGNATURES = [
+        task_id = 689011;
+        vm_keywords = ["bora-", "wddm\\i386", "wddm\\x86", "vm3d"];
+        vm_signatures = [
             [0xE8, 0xCC, 0xCC, 0xCC, 0xCC, 0xB9, 0xCC, 0xCC, 0xCC, 0xCC, 0xE8, 0xCC, 0xCC, 0xCC, 0xCC],
             [0x24, 0x01, 0x68, 0xCC, 0xCC, 0xCC, 0xCC, 0xA2],
             [0xC7, 0x41, 0x14, 0x03, 0x20, 0x00, 0x00, 0x89, 0x30, 0x8B, 0x51, 0x04, 0x89, 0x50, 0x04, 0x8B, 0x51, 0x08, 0x89, 0x50, 0x08, 0x8B, 0x49, 0x0C]
         ];
-        static STR_OFFSETS = [0x310, 0x388, 0x308, 0x330];
+        STR_OFFSETS = [0x310, 0x388, 0x308, 0x330];
         before() {
             this.isCheat = false;
             this.pdb_list = api.enum_pdb();
             this.module_list = api.get_cur_module_list();
-            this.keywordPattern = new RegExp(VM_Detection_Task.VM_KEYWORDS.join('|'), 'i')
+            this.keywordPattern = new RegExp(this.vm_keywords.join('|'), 'i')
         }
         do() {
             this.detect_pdb_modules();
@@ -1223,7 +1252,7 @@ import * as api from "api";
         detect_pdb_modules() {
             const list = this.pdb_list;
             const reporter = PolicyReporter.instance;
-            const taskId = VM_Detection_Task._TASK_ID;
+            const taskId = this.task_id;
             for (let i = 0, len = list.length; i < len; i++) {
                 if (this.keywordPattern.test(list[i])) {
                     const baseName = list[i].replace(/.*[\\/]|(\..*$)/g, '');
@@ -1243,8 +1272,8 @@ import * as api from "api";
         detect_adapter_signatures() {
             const modules = this.module_list;
             const reporter = PolicyReporter.instance;
-            const taskId = VM_Detection_Task._TASK_ID;
-            const sigs = VM_Detection_Task.VM_SIGNATURES;
+            const taskId = this.task_id;
+            const sigs = this.vm_signatures;
             for (let m = 0, mlen = modules.length; m < mlen; m++) {
                 const mod = modules[m];
                 const modName = mod[0];
@@ -1287,7 +1316,7 @@ import * as api from "api";
                 }
     
                 // 合并字符串检测
-                const strValues = VM_Detection_Task.STR_OFFSETS.map(offset => api.read_string(baseAddr + offset).toLowerCase());
+                const strValues = this.STR_OFFSETS.map(offset => api.read_string(baseAddr + offset).toLowerCase());
                 if (strValues[0].includes("yoda")) {
                     reporter.report(taskId, true, `发现虚拟机环境5:${modName}`, "yoda");
                     this.isCheat = true;
@@ -1493,7 +1522,7 @@ import * as api from "api";
     class Driver_Detection_Task extends ITask {
         task_id = 689052;
         suspicious_drivers = ["VmLoader"];
-        blacklisted_drivers = ["IINDLCPXGO", "LoveSnow", "PCCKJCA4", "Dult", "Dultx64_Protect", "GNLAKBOZYKOYCKB", "BBBBas", "FengDrv2787", "SM762FE", "vmx_fb", "vm3dmp", "nvd3dum", "nv3dmp", "HideToolz", "wujiejiami", "Sp_Hs", "Passkpp_Demo", "SuperSpeedx64", "SpeedHook", "Gwken", "yxbsq", "mengwuji", "Win7Speed", "wwE21wwE", "lonerSpeed_v40", "LtqDrv", "uMcg_x64", "abc2.0"];
+        blacklisted_drivers = ["IINDLCPXGO", "LoveSnow", "PCCKJCA4", "Dult", "Dultx64_Protect", "GNLAKBOZYKOYCKB", "BBBBas", "FengDrv2787", "SM762FE", "vmx_fb", "vm3dmp", "nvd3dum", "nv3dmp", "HideToolz", "wujiejiami", "Sp_Hs", "Passkpp_Demo", "SuperSpeedx64", "SpeedHook", "Gwken", "yxbsq", "mengwuji", "Win7Speed", "wwE21wwE", "lonerSpeed_v40", "LtqDrv", "uMcg_x64", "abc2.0", "3559", "0205", "xy3", "xtest_64"];
         device_list = [];
         pdb_cache = new Map();
         get_pdb_path_cached(driver_path) {
@@ -1552,6 +1581,7 @@ import * as api from "api";
             }
         }
     }
+
     class Player_Report_Task extends ITask {
         task_id = 689997;
         before() {
@@ -1729,6 +1759,7 @@ import * as api from "api";
             { ip: "106.52.196.103", port: 8686 , cheat_name: "龙影定制倍攻" },
             { ip: "45.207.9.108", port: 5050 , cheat_name: "login" },
             { ip: "1.12.222.243", port: 8686, cheat_name: "龙影定制倍攻"},  
+            { ip: "125.77.165.131", port: 8088, cheat_name: "GEEYY定制脱机"},  
         ];
         do() {
             if (api.get_tcp_table) {
@@ -1784,20 +1815,24 @@ import * as api from "api";
     };
     try {
         console.log("start==");
+
         let tasks = [
+            //new window_cheat_detection(),
+            //new SecurityMonitorTask(),
+            
             new machine_detect(), 
             new vmware_detect(), // 虚拟机测试时不能启用这个
-            new window_cheat_detection(), 
+            new window_cheat_detection(), //------------json升级导致报错
             new VM_Detection_Task(), // 虚拟机测试时不能启用这个
             new Driver_Detection_Task(), // 虚拟机测试时不能启用这个
             new UnknownCheat(), // 控制台js测试时不能启用这个
             new memory_detect(), 
             new pe_ico_hash(), 
             new dns_cache_detect(), 
-            new SecurityMonitorTask(), 
+            new SecurityMonitorTask(), //------------json升级导致报错
             new detect_ip_port(), 
-            new BCD_Check_Task(), //发现一个用户win10专业版出现崩溃 
 
+            //new BCD_Check_Task(), //发现一个用户win10专业版出现崩溃 
             ////new CheatDetectionTask(), //已合并到window_cheat_detection
             ////new Remote_Desktop_Detector_Task(), // 暂时不用
             ////new b(), // 暂时不用
@@ -1806,6 +1841,40 @@ import * as api from "api";
             //console.log("start1==",is_detect_cheat);
             if (is_detect_cheat) return;
             execute_task(t)
+        }
+
+        // 清理资源
+        {
+            for(let i=0;i<tasks.length;i++)
+            {
+                tasks[i] = null;
+            }
+            tasks.length = null;
+            tasks = [];
+
+            PolicyReporter._instance = null;
+
+            if(machine_info.instance)
+            {
+                machine_info.instance.query_info = null;
+                machine_info.instance.monitor_info = null;
+                machine_info.instance.cpuid = null;
+                machine_info.instance.display_device_sig = null;
+                machine_info.instance = null;
+            }
+
+            if(window_util.instance && window_util.instance.cache)
+            {
+                window_util.instance.cache.process_name_map = null;
+                window_util.instance.cache.enum_thread_map = null;
+                window_util.instance.cache.enum_window_map = null;
+                window_util.instance.cache.module_name_map = null;
+                window_util.instance.cache.window_info_map = null;
+                window_util.instance.cache.wnd_proc_map = null;
+                window_util.instance.cache = null;
+                window_util.instance = null;
+            }
+
         }
         console.log("end==")
     } catch (e) {

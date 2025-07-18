@@ -12,7 +12,7 @@
 #define VMP_VIRTUALIZATION_BEGIN()
 #define VMP_VIRTUALIZATION_END()
 #else
-#include "../3rdparty/vmprotect/VMProtectSDK.h"
+#include "../../yk/3rdparty/vmprotect/VMProtectSDK.h"
 #define VMP_VIRTUALIZATION_BEGIN() VMProtectBeginVirtualization("");
 #define VMP_VIRTUALIZATION_END() VMProtectEnd();
 #endif

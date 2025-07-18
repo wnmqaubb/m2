@@ -6,7 +6,7 @@
 #include "SubServicePackage.h"
 #include <filesystem>
 #include <fstream>
-#include "Lightbone/utils.h"
+#include "../../yk/Lightbone/utils.h"
 class CAntiCheatClient : public asio2::tcp_client
 {
 public:
@@ -25,7 +25,8 @@ public:
     }
     virtual void start(const std::string& ip, unsigned short port)
     {
-        is_stop_ = false;
+        is_stop_.store(false, std::memory_order_release);
+
 		ip_ = ip;
 		port_ = port;
         if (super::start(ip, port, RawProtocolImpl())) {
@@ -38,7 +39,7 @@ public:
 	}
 	virtual void async_start(const std::string& ip, unsigned short port)
 	{
-		is_stop_ = false;
+		is_stop_.store(false, std::memory_order_release);
 		ip_ = ip;
 		port_ = port;
         if (super::async_start(ip, port, RawProtocolImpl())) {
@@ -53,7 +54,7 @@ public:
     {   
         try {
             super::stop();
-		    is_stop_ = true;
+		    is_stop_.store(true, std::memory_order_release);
         }
         catch (const std::exception& e) {
             std::string error_msg("C++ “Ï≥£: CAntiCheatClient::stop() %s"); 
@@ -78,7 +79,7 @@ public:
     }
 	virtual void on_disconnect()
     {
-        if (is_stop_ == false)
+        if (is_stop_.load() == false)
         {
             stop_timer<int>(CLIENT_HEARTBEAT_TIMER_ID);
         }
@@ -114,7 +115,7 @@ public:
     }
     virtual void send(const std::string& text)
     {
-        super::async_send(std::move(text));
+        super::send(std::move(text));
     }
     virtual void send(msgpack::sbuffer& buffer, unsigned int session_id)
     {
@@ -123,7 +124,7 @@ public:
         raw_package.head.session_id = session_id;
         step_++;
         raw_package.head.step = step_;
-        super::async_send(std::move(raw_package.release()));
+        super::send(std::move(raw_package.release()));
     }
 
     template <typename T>
@@ -134,6 +135,31 @@ public:
         msgpack::sbuffer buffer;
         msgpack::pack(buffer, *package);
         send(buffer, session_id);
+    }
+
+    virtual void async_send(const std::string& text)
+    {
+        super::async_send(text);
+    }
+
+    virtual void async_send(msgpack::sbuffer& buffer, std::size_t session_id)
+    {
+        RawProtocolImpl raw_package;
+        raw_package.encode(buffer.data(), buffer.size());
+        raw_package.head.session_id = session_id;
+        step_++;
+        raw_package.head.step = step_;
+        super::async_send(raw_package.release());
+    }
+
+    template <typename T>
+    void async_send(T* package, std::size_t session_id = 0)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        async_send(buffer, session_id);
     }
 
     virtual void on_recv_handshake(const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg)
@@ -275,7 +301,7 @@ public:
     inline std::chrono::system_clock::time_point& last_recv_hearbeat_time() { return last_recv_hearbeat_time_; }
     inline bool has_handshake() { return has_handshake_; }
     inline asio2::uuid& uuid() {  return uuid_.next(); }
-    inline bool is_stop() { return is_stop_; }
+    inline bool is_stop() { return is_stop_.load(); }
     inline bool is_loaded_plugin() { return is_loaded_plugin_; }
 	inline void set_is_loaded_plugin(bool is_loaded_plugin) { is_loaded_plugin_ = is_loaded_plugin; }
     inline NetUtils::UsersData& user_data() { return user_data_; }
@@ -290,7 +316,6 @@ protected:
 	std::chrono::system_clock::time_point last_recv_hearbeat_time_;
     bool has_handshake_ = false;
 	asio2::uuid uuid_;
-    bool is_stop_ = false;
     NetUtils::UsersData user_data_;
     NetUtils::EventMgr<package_handler_t> package_mgr_;
     NetUtils::EventMgr<notify_handler_t> notify_mgr_;
@@ -298,5 +323,6 @@ protected:
 	unsigned char step_ = 0;
 	std::string ip_;
 	unsigned short port_;
-	bool is_loaded_plugin_ = false;
+    std::atomic<bool> is_stop_{ true };
+    bool is_loaded_plugin_ = false;
 };

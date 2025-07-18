@@ -22,7 +22,7 @@
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
 
-#include <3rdparty/vmprotect/VMProtectSDK.h>
+#include <../../yk/3rdparty/vmprotect/VMProtectSDK.h>
 #include <asio2/util/sha1.hpp>
 #include <asio2/util/base64.hpp>
 #include "../version.build"
@@ -46,7 +46,9 @@ BEGIN_MESSAGE_MAP(CGateApp, CWinAppEx)
 	ON_COMMAND(ID_SERVICE_STOP, &CGateApp::OnServiceStop)
     ON_COMMAND(ID_APP_EXIT, &CGateApp::OnAppExit)
     ON_COMMAND(ID_SERVICE_SETTINGS, &CGateApp::OnServiceSettings)
+#ifdef GATE_ADMIN
     ON_COMMAND(ID_TOOLBAR_CONFIG, &CGateApp::OnConfig)
+#endif
 END_MESSAGE_MAP()
 
 // CGateApp 构造

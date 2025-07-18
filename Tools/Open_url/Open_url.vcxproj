@@ -82,7 +82,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
       <DataExecutionPrevention>false</DataExecutionPrevention>
     </Link>
   </ItemDefinitionGroup>
@@ -102,7 +102,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -117,7 +117,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Lightbone\Lightbone.vcxproj">
+    <ProjectReference Include="..\..\yk\Lightbone\Lightbone.vcxproj">
       <Project>{c2580503-90fb-4ded-834f-597162126471}</Project>
     </ProjectReference>
   </ItemGroup>

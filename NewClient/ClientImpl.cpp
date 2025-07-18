@@ -2,6 +2,7 @@
 #include "ClientImpl.h"
 #include "version.build"
 #include "TaskBasic.h"
+#include "../../yk/NewClient/window_role_name.h"
 
 using namespace Utils;
 extern std::shared_ptr<asio2::timer> g_timer;
@@ -87,7 +88,7 @@ CClientImpl::CClientImpl() : super()
 		user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
 		user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
 		user_data().set_field(rev_version_field_id, (int)REV_VERSION);
-		user_data().set_field(commited_hash_field_id, std::string(VER2STR(COMMITED_HASH)));
+		user_data().set_field(commited_hash_field_id, std::string(VER2STR(VERSION)));
 		this->load_uuid();
         init_role_monitor();
 	});
@@ -100,7 +101,16 @@ CClientImpl::CClientImpl() : super()
 		//	default:
 		//		break;
 		//}
-	}); 
+	});
+
+    notify_mgr().register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
+        // 用于后台重启后更新用户名
+        if (cfg()->get_field<std::wstring>(usrname_field_id) != L"未登录用户") {
+            ProtocolC2SUpdateUsername req;
+            req.username = cfg()->get_field<std::wstring>(usrname_field_id);
+            async_send(&req);
+        }
+    });
 }
 
 void CClientImpl::on_recv(unsigned int package_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)
@@ -145,58 +155,16 @@ void CClientImpl::set_role_name_callback(std::function<void(const std::wstring&)
     g_roleNameCallback = callback;
 }
 
-// 安全的窗口标题获取
-std::wstring GetWindowTextSafe(HWND hwnd, int max_retries = 2) {
-    constexpr int timeoutMs = 50; // 每次尝试100ms超时
-    wchar_t title[MAX_PATH] = {};
-    for (int attempt = 0; attempt < max_retries; ++attempt) {
-        // 使用SendMessageTimeout
-        LRESULT res = ::SendMessageTimeoutW(
-            hwnd,
-            WM_GETTEXT,
-            MAX_PATH - 1,
-            reinterpret_cast<LPARAM>(title),
-            SMTO_ABORTIFHUNG | SMTO_BLOCK | SMTO_ERRORONEXIT,
-            timeoutMs,
-            nullptr
-        );
-
-        if (res == 0 || title[0] == L'\0') {
-            // 备选方案：使用GetWindowText避免阻塞
-            int len = GetWindowTextW(hwnd, title, MAX_PATH);
-            if (len <= 0) title[0] = L'\0';
-        }
-
-        return title;
-    }
-
-    // 重试后仍然失败
-    return L"";
-}
-
 // 主窗口检测函数
 void CClientImpl::monitor_main_window() {
+    std::lock_guard<std::mutex> lock(g_windowMutex);
     HWND hCurrentWindow = g_main_window_hwnd.load();
 
+    auto& wrn = window_role_name_hook::get_instance();
     // 1. 检查当前缓存的主窗口是否有效
     if (hCurrentWindow && IsWindow(hCurrentWindow)) {
-        // 获取当前窗口标题
-        std::wstring currentTitle = GetWindowTextSafe(hCurrentWindow);
-
-        // 2. 检测标题变化（并忽略空标题）
-        if (!currentTitle.empty() && currentTitle != g_lastKnownTitle) {
-            g_lastKnownTitle = currentTitle;
-
-            // 触发角色名变更回调
-            if (g_roleNameCallback) {
-                g_roleNameCallback(currentTitle);
-            }
-        }
         return;
     }
-
-    // 3. 缓存无效时重新查找窗口
-    std::lock_guard<std::mutex> lock(g_windowMutex);
 
     // 双重检查
     if (g_main_window_hwnd.load() && IsWindow(g_main_window_hwnd.load())) {
@@ -228,9 +196,6 @@ void CClientImpl::monitor_main_window() {
         // 找到目标窗口
         ctx.result = hwnd;
 
-        // 获取当前标题（可能包含角色名）        
-        g_lastKnownTitle = GetWindowTextSafe(hwnd);
-
         return FALSE; // 找到后停止枚举
     }, reinterpret_cast<LPARAM>(&ctx));
 
@@ -238,9 +203,11 @@ void CClientImpl::monitor_main_window() {
     if (ctx.result) {
         g_main_window_hwnd.store(ctx.result);
 
-        // 首次发现窗口且标题非空时触发回调
-        if (!g_lastKnownTitle.empty() && g_roleNameCallback) {
-            g_roleNameCallback(g_lastKnownTitle);
+        auto& wrn = window_role_name_hook::get_instance();
+
+        if (wrn.init(ctx.result)) {
+            // ✅ 在这里调用 request_title()
+            wrn.request_title();
         }
     }
 }
@@ -250,41 +217,58 @@ void CClientImpl::window_monitor_thread() {
     // 初始化进程ID
     g_currentPid = ::GetCurrentProcessId();
 
-    while (true) {
-        // 每10秒检测一次
-        monitor_main_window();
+    // 获取当前线程 ID
+    DWORD currentThreadId = GetCurrentThreadId();
 
-        if (is_stop_) return;
-        Sleep(15000);
+    // 设置回调和线程ID
+    auto& wrn = window_role_name_hook::get_instance();
+    wrn.set_async_callback([this](const std::wstring& title) {
+
+        if (!title.empty() && title != g_lastKnownTitle) {
+            g_lastKnownTitle = title;
+
+            if (g_roleNameCallback) {
+                g_roleNameCallback(title);
+            }
+        }
+    }, currentThreadId);
+
+    //while (true) {
+        // 每15秒检测一次
+    monitor_main_window();
+    wrn.request_title();
+    MSG msg;
+    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        if (msg.message == WM_USER + 100) {
+            std::wstring* pTitle = reinterpret_cast<std::wstring*>(msg.lParam);
+            std::wstring title = *pTitle;
+            delete pTitle; // 释放堆内存
+
+            if (!title.empty() && title != g_lastKnownTitle) {
+                g_lastKnownTitle = title;
+                if (g_roleNameCallback) {
+                    g_roleNameCallback(title);
+                }
+            }
+        }
     }
+
+    if (is_stop_.load()) return;
+    //Sleep(15000);
+//}
 }
 
 // 在应用程序初始化时调用
 void CClientImpl::init_role_monitor() {
-    // 使用 _beginthreadex 创建线程
-    unsigned int threadID;
-    HANDLE hThread = (HANDLE)_beginthreadex(
-        NULL,                   // 安全属性（默认）
-        1024 * 1024,                      // 栈大小（1M）
-        [](void* pThis) -> unsigned {  // 线程函数
-        static_cast<CClientImpl*>(pThis)->window_monitor_thread();
-        return 0;            // 线程退出码
-    },
-        this,                    // 传递给线程的参数
-        0,                       // 创建标志（0=立即运行）
-        &threadID                // 接收线程ID
-    );
+    // 启动监控线程
+    //monitor_thread_ = std::thread([this]() {
+    //    window_monitor_thread();
+    //});
+    //monitor_thread_.detach();
 
-    // 检查线程是否创建成功
-    if (hThread == NULL) {
-        DWORD err = GetLastError();
-        // 记录错误日志（根据您的日志系统调整）
-        OutputDebugStringA(("Failed to create monitor thread, error: " + std::to_string(err)).c_str());
-        return;
-    }
-
-    // 不需要保留句柄时可以立即关闭（线程会继续运行）
-    CloseHandle(hThread);
+    start_timer("window_monitor_thread", std::chrono::seconds(15), [this]() {
+        window_monitor_thread();
+    });
 
     // 设置角色名变化回调
     set_role_name_callback([this](const std::wstring& roleName) {
@@ -294,7 +278,7 @@ void CClientImpl::init_role_monitor() {
             cfg()->set_field<std::wstring>(usrname_field_id, roleName);
             ProtocolC2SUpdateUsername req;
             req.username = roleName;
-            send(&req);
+            async_send(&req);
             return true;
         }
     });

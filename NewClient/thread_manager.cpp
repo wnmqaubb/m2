@@ -8,7 +8,7 @@
 #include <asio2/base/timer.hpp>
 #include <clocale>
 #include <exception>
-#include <Lightbone/utils.h>
+#include <../../yk/Lightbone/utils.h>
 #include <memory>
 #include <Service/NetUtils.h>
 #include <Service/SubServicePackage.h>
@@ -91,6 +91,7 @@ void AntiCheatSystem::client_entry()
         client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
         client_->cfg()->set_field<bool>(test_mode_field_id, false);
         client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+        client_->cfg()->set_field<std::wstring>(usrname_field_id, L"未登录用户");
     #ifdef _DEBUG
         client_->cfg()->set_field<bool>(test_mode_field_id, true);
         client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
@@ -100,9 +101,7 @@ void AntiCheatSystem::client_entry()
         {
             auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
             auto port = client_->cfg()->get_field<int>(port_field_id);
-            LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
             client_->async_start(ip, port);
-            LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
             g_thread_group->create_threads([this]() {
                 // 禁用DLL_THREAD_ATTACH/DETACH通知
                 if(dll_base)

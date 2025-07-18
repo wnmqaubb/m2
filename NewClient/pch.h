@@ -12,11 +12,11 @@
 #include <asio2\asio2.hpp>
 #include <asio2\util\uuid.hpp>
 #include <msgpack.hpp>
-#include "Lightbone/utils.h"
-#include "Lightbone/api_resolver.h"
-#include "Lightbone/pointer.hpp"
-#include "Lightbone/lighthook.h"
-#include "Lightbone/xorstr.hpp"
+#include "..\..\yk\Lightbone\utils.h"
+#include "..\..\yk\Lightbone/api_resolver.h"
+#include "..\..\yk\Lightbone/pointer.hpp"
+#include "..\..\yk\Lightbone/lighthook.h"
+#include "..\..\yk\Lightbone/xorstr.hpp"
 #include "qjs.h"
 //#define LOG_SHOW
 #ifdef LOG_SHOW

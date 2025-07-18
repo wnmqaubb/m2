@@ -16,7 +16,7 @@
 #include <asio2\util\uuid.hpp>
 #include <msgpack.hpp>
 #include <asio\detail\thread_group.hpp>
-#include <json\json.hpp>
+#include <nlohmann\json.hpp>
 #include <iostream>
 #include <afxext.h>
 #include <afxext.h>

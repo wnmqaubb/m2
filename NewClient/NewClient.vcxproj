@@ -17,27 +17,28 @@
     <ProjectGuid>{5E50DEDE-27F8-4C1D-B973-0598E3142787}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>NewClient</RootNamespace>
-    <WindowsTargetPlatformVersion>7.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141_xp</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <DisableAdvancedSupport>true</DisableAdvancedSupport>
     <SupportWinXP>true</SupportWinXP>
+    <WindowsTargetPlatformMinVersion>6.0.6000.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141_xp</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
     <DisableAdvancedSupport>true</DisableAdvancedSupport>
     <SupportWinXP>true</SupportWinXP>
     <SupportLTL>false</SupportLTL>
-    <WindowsTargetPlatformMinVersion>5.0.2195.0</WindowsTargetPlatformMinVersion>
+    <WindowsTargetPlatformMinVersion>6.0.6000.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -75,7 +76,7 @@
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(ProjectDir)shellcode;$(SolutionDir)3rdparty\breakpad\includes;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\phnt;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)..\yk\NewClient\shellcode;$(SolutionDir)..\yk\3rdparty\breakpad\includes;$(SolutionDir)..\yk\3rdparty\lua-5.4.3;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
@@ -85,7 +86,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)3rdparty\breakpad\debug\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)..\yk\3rdparty\breakpad\debug\lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
       <DataExecutionPrevention>false</DataExecutionPrevention>
       <ProgramDatabaseFile>$(SolutionDir)build\pdb\NewClient_$(Platform).pdb</ProgramDatabaseFile>
@@ -108,7 +109,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\phnt;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(ProjectDir)shellcode;$(SolutionDir)3rdparty\lua-5.4.3;$(SolutionDir)3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\phnt;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)..\yk\NewClient\shellcode;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -122,14 +123,16 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)..\yk\3rdparty\quickjs\quickjs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DataExecutionPrevention>false</DataExecutionPrevention>
       <ModuleDefinitionFile>export.def</ModuleDefinitionFile>
       <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
       <EntryPointSymbol>DllMainCRTStartupForYY_Thunks</EntryPointSymbol>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <ProgramDatabaseFile>$(SolutionDir)build\pdb\$(TargetName)_$([System.DateTime]::Now.ToString("MMdd_HHmmss")).pdb</ProgramDatabaseFile>
     </Link>
     <PostBuildEvent>
-      <Command>$(SolutionDir)\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)$(ProjectName).vmp
+      <Command>$(SolutionDir)..\yk\3rdparty\vmprotect\VMProtect_Con.exe $(TargetPath) $(TargetDir)$(TargetName).vmp.dll -pf $(SolutionDir)$(ProjectName).vmp
 del /f /s /q $(TargetPath)
 copy $(TargetDir)$(TargetName).vmp.dll $(TargetPath)
 $(TargetDir)\packer.exe --obfuse_dll_export -d $(TargetPath)</Command>
@@ -139,57 +142,53 @@ $(TargetDir)\packer.exe --obfuse_dll_export -d $(TargetPath)</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\yk\NewClient\window_role_name.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="qjs.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="..\3rdparty\wmic\dnscache.h" />
-    <ClInclude Include="..\3rdparty\wmic\wmic.h" />
+    <ClInclude Include="..\..\yk\3rdparty\wmic\dnscache.h" />
+    <ClInclude Include="..\..\yk\3rdparty\wmic\wmic.h" />
     <ClInclude Include="ClientImpl.h" />
-    <ClInclude Include="ShellCode\BasicUtils.h" />
-    <ClInclude Include="ShellCode\ModuleCheckSum.h" />
-    <ClInclude Include="ShellCode\TaskBasic.h" />
+    <ClInclude Include="..\..\yk\NewClient\ShellCode\BasicUtils.h" />
+    <ClInclude Include="..\..\yk\NewClient\ShellCode\ModuleCheckSum.h" />
+    <ClInclude Include="..\..\yk\NewClient\ShellCode\TaskBasic.h" />
     <ClInclude Include="thread_manager.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\3rdparty\quickjs\quickjs-one.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\wmic\dnscache.cpp" />
-    <ClCompile Include="..\3rdparty\wmic\wmic.cpp" />
+    <ClCompile Include="..\..\yk\3rdparty\wmic\dnscache.cpp" />
+    <ClCompile Include="..\..\yk\3rdparty\wmic\wmic.cpp" />
     <ClCompile Include="ClientImpl.cpp" />
     <ClCompile Include="thread_manager.cpp" />
-    <ClCompile Include="ShellCode\BasicUtils.cpp" />
-    <ClCompile Include="ShellCode\ModuleCheckSum.cpp" />
-    <ClCompile Include="ShellCode\TaskBasic.cpp" />
-    <ClCompile Include="ShellCode\TaskHideProcessDetect.cpp" />
-    <ClCompile Include="ShellCode\TaskImageProtectCheck.cpp" />
-    <ClCompile Include="ShellCode\TaskJavaScript.cpp" />
-    <ClCompile Include="ShellCode\TaskRmc.cpp" />
-    <ClCompile Include="ShellCode\TaskShowWindowHook.cpp" />
-    <ClCompile Include="ShellCode\TaskSpeedDetect.cpp" />
-    <ClCompile Include="ShellCode\TaskTimeoutCheck.cpp" />
-    <ClCompile Include="ShellCode\UnitPunish.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\BasicUtils.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\ModuleCheckSum.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskBasic.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskHideProcessDetect.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskImageProtectCheck.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskJavaScript.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskRmc.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskShowWindowHook.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskSpeedDetect.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskTimeoutCheck.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\UnitPunish.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Lightbone\Lightbone.vcxproj">
+    <ProjectReference Include="..\..\yk\Lightbone\Lightbone.vcxproj">
       <Project>{c2580503-90fb-4ded-834f-597162126471}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />
     <None Include="packages.config" />
-    <None Include="ShellCode\ClassDiagram.cd" />
-    <None Include="ShellCode\export.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\YY-Thunks.1.1.6\build\native\YY-Thunks.targets" Condition="Exists('..\packages\YY-Thunks.1.1.6\build\native\YY-Thunks.targets')" />
     <Import Project="..\packages\YY.NuGet.Import.Helper.1.0.1\build\native\YY.NuGet.Import.Helper.targets" Condition="Exists('..\packages\YY.NuGet.Import.Helper.1.0.1\build\native\YY.NuGet.Import.Helper.targets')" />
+    <Import Project="..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets" Condition="Exists('..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -199,5 +198,6 @@ $(TargetDir)\packer.exe --obfuse_dll_export -d $(TargetPath)</Command>
     <Error Condition="!Exists('..\packages\YY.NuGet.Import.Helper.1.0.1\build\native\YY.NuGet.Import.Helper.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\YY.NuGet.Import.Helper.1.0.1\build\native\YY.NuGet.Import.Helper.props'))" />
     <Error Condition="!Exists('..\packages\YY.NuGet.Import.Helper.1.0.1\build\native\YY.NuGet.Import.Helper.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\YY.NuGet.Import.Helper.1.0.1\build\native\YY.NuGet.Import.Helper.targets'))" />
     <Error Condition="!Exists('..\packages\VC-LTL.5.2.1\build\native\VC-LTL.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\VC-LTL.5.2.1\build\native\VC-LTL.props'))" />
+    <Error Condition="!Exists('..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets'))" />
   </Target>
 </Project>

@@ -13,7 +13,7 @@
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
 #include "ClientViewList.h"
-#include <Lightbone/xorstr.hpp>
+#include <../../yk/Lightbone/xorstr.hpp>
 #include <asio2/http/request.hpp>
 #include <asio2/http/http_client.hpp>
 //////////////////////////////////////////////////////////////////////
@@ -402,6 +402,9 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
         break;
     case WINDOWS_10:
         result = "Win10";
+        break;
+    case WINDOWS_11:
+        result = "Win11";
         break;
     case WINDOWS_NEW:
         result = "New";

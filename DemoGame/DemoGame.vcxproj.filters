@@ -9,4 +9,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\3rdparty\wmic\wmic.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>

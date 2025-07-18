@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
-#include <Lightbone/utils.h>
-#include <Lightbone/windows_internal.h>
+#include <../../yk/Lightbone/utils.h>
+#include <../../yk/Lightbone/windows_internal.h>
 #include <fstream>
 #include <iphlpapi.h>
 #include <WinSock.h>

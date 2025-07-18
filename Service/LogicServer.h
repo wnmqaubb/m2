@@ -122,6 +122,7 @@ public:
         req.val = val;
         super::send(session, &req);
     }
+    bool content_exists(const std::string& file_name, const std::string& content);
     virtual void write_img(unsigned int session_id, std::vector<uint8_t>& data);
     /**
      * msg: 日志信息

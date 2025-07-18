@@ -318,5 +318,6 @@
     <None Include="res\Gate.rc2">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

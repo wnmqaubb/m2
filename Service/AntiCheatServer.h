@@ -63,6 +63,30 @@ protected:
         send(session, raw_package, session_id);
     }
 
+    virtual void async_send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, std::size_t session_id = 0)
+    {
+        if (session)
+        {
+            if (session_id != 0)
+            {
+                package.head.session_id = session_id;
+            }
+            else
+            {
+                package.head.session_id = session->hash_key();
+            }
+            session->async_send(package.release()); // 在IO线程安全发送数据
+
+        }
+    }
+
+    virtual void async_send(tcp_session_shared_ptr_t& session, msgpack::sbuffer& buffer, std::size_t session_id = 0)
+    {
+        RawProtocolImpl raw_package;
+        raw_package.encode(buffer.data(), buffer.size());
+        async_send(session, raw_package, session_id);
+    }
+
     virtual void start_timer(unsigned int timer_id, std::chrono::system_clock::duration duration, std::function<void()> handler);
     virtual void stop_timer(unsigned int timer_id);
 public:
@@ -85,6 +109,22 @@ public:
     void send(size_t session_id, T* package, unsigned int cur_session_id = 0)
     {
         send(sessions().find(session_id), package, cur_session_id);
+    }
+
+    template <typename T>
+    void async_send(tcp_session_shared_ptr_t& session, T* package, std::size_t session_id = 0)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        async_send(session, buffer, session_id);
+    }
+
+    template <typename T>
+    void async_send(size_t session_id, T* package, std::size_t cur_session_id = 0)
+    {
+        async_send(find_session(session_id), package, cur_session_id);
     }
 
     void close(unsigned int session_id);
@@ -115,7 +155,9 @@ protected:
     bool is_logic_server_;
     bool is_auth_success_;
     log_cb_t log_cb_;
-    char log_level_;
+    char log_level_;    
+    std::atomic<bool> auth_lock_{ true }; // 启动时锁定
+    std::shared_mutex mutex_;
 };
 
 struct AntiCheatUserData

@@ -346,7 +346,7 @@ void CProcessView::OnGetGameUserFileSign()
     {
         process_path = m_ViewList.GetItemText(selectedRow, 4);
         CString cmd;
-        cmd.Format(TEXT("powershell -Command \"Get - AuthenticodeSignature -FilePath '%s' | Format-List\" -Property Status"), process_path);
+        cmd.Format(TEXT("powershell -Command \"Get-AuthenticodeSignature -FilePath '%s' | Format-List\" -Property Status"), process_path);
         //theApp.GetMainFrame()->GetClientView().OnCmdView();
         cmd.Replace(_T("\\"), _T("\\\\"));
         theApp.GetMainFrame()->CopyToClipboard(cmd);

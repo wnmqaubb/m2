@@ -17,7 +17,7 @@
 #include <msgpack.hpp>
 #endif
 #ifndef INCLUDE_NLOHMANN_JSON_HPP_
-#include <json/json.hpp>
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 #endif
 #include <zlib.h>

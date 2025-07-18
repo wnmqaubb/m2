@@ -364,7 +364,23 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 #else
     try
     {
+        auto remote_address = session->get_remote_address();
+    #ifdef G_SERVICE 
+        // 认证锁,优先处理网关后台认证
+        if (auth_lock_.load()) [[unlikely]] {
+            std::shared_lock lock(mutex_);
+            if (session->is_stopped()) return; // 检查会话状态
+            if (remote_address == kDefaultLocalhost) {
+                _on_recv(session, sv);
+                return;
+            }
+        }
+        else [[likely]] {
+            _on_recv(session, sv);
+        }
+    #else
         _on_recv(session, sv);
+    #endif
     }
     catch (...)
     {

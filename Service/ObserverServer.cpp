@@ -77,13 +77,16 @@ CObserverServer::CObserverServer()
             session->remote_port());
         ProtocolLC2LSAddObsSession req;
         req.session_id = session->hash_key();
-        logic_client_->send(&req);
+        logic_client_->async_send(&req);
         ProtocolOBS2OBCAuth auth;
         auth.status = true;
-        send(session, &auth); 
+        async_send(session, &auth);
         ProtocolOBS2OBCQueryVmpExpire resp;
         resp.vmp_expire = get_vmp_expire(); 
-        send(session, &resp);
+        async_send(session, &resp);
+        if (auth_lock_.load()) {
+            auth_lock_.store(false);
+        }
         return;
 #else
         auto auth_key = raw_msg.get().as<ProtocolOBC2OBSAuth>().key;
@@ -95,13 +98,16 @@ CObserverServer::CObserverServer()
                 session->remote_port());
             ProtocolLC2LSAddObsSession req;
             req.session_id = session->hash_key();
-            logic_client_->send(&req);
+            logic_client_->async_send(&req);
             ProtocolOBS2OBCAuth auth;
             auth.status = true;
-            send(session, &auth);
+            async_send(session, &auth);
             ProtocolOBS2OBCQueryVmpExpire resp;
             resp.vmp_expire = get_vmp_expire();
-            send(session, &resp);
+            async_send(session, &resp);
+            if (auth_lock_.load()) {
+                auth_lock_.store(false);
+            }
         }
         else
         {
@@ -110,7 +116,7 @@ CObserverServer::CObserverServer()
                 session->remote_port());
             ProtocolOBS2OBCAuth auth;
             auth.status = false;
-            send(session, &auth);
+            async_send(session, &auth);
         }
         std::wstring username = TEXT("(NULL)");
         get_user_data_(session)->set_field("usrname", username);

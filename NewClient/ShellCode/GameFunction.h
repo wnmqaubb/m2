@@ -1,9 +1,9 @@
 #pragma once
 #include <windows.h>
 #include <stdint.h>
-#include "lightbone/pattern.hpp"
-#include "lightbone/lighthook.h"
-#include "lightbone/utils.h"
+#include "../../yk/Lightbone/pattern.hpp"
+#include "../../yk/Lightbone/lighthook.h"
+#include "../../yk/Lightbone/utils.h"
 #include "Service/AntiCheatClient.h"
 
 typedef struct _Strings

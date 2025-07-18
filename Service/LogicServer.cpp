@@ -4,7 +4,7 @@
 #include "vmprotect/VMProtectSDK.h"
 std::filesystem::path g_cur_dir;
 
-#if 1
+#if 0
 #define ENABLE_POLICY_TIMEOUT_CHECK
 #define ENABLE_POLICY_TIMEOUT_CHECK_TIMES 3
 #define ENABLE_DETAIL_USER_LOGIN_LOGOUT_LOG
@@ -307,7 +307,7 @@ CLogicServer::CLogicServer()
 
 			if (req.task_id == 689999 && req.is_cheat)
 			{
-				write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
+				//write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
 				user_log(LOG_TYPE_EVENT, silence, false, user_data->get_uuid().str(), TEXT("玩家:%s 策略ID:%d 日志:多次脚本错误定性为外挂,已写入恶性名单!"), usr_name.c_str(), req.task_id, reason.c_str());
 			}
 
@@ -448,15 +448,24 @@ void CLogicServer::write_txt(const std::string& file_name, const std::string& st
 {
 	static counter limit_counter(std::chrono::seconds(30), 5);
 	static bool is_enable_write_txt = true;
+
+    // 检查内容是否已存在
+    if (content_exists(file_name, str))
+    {
+        /*log(LOG_TYPE_EVENT, TEXT("内容已存在，跳过写入[%s]:%s"),
+            Utils::c2w(file_name).c_str(), Utils::c2w(str).c_str());*/
+        return;
+    }
+
 	if (!is_from_add_list)
 	{
 		if (limit_counter.count([this, file_name = file_name]() {
-			if (is_enable_write_txt == true)
-			{
-				clear_txt(file_name);
-			}
+			//if (is_enable_write_txt == true)
+			//{
+			//	clear_txt(file_name);
+			//}
 			is_enable_write_txt = false;
-			}))
+		}))
 		{
 			log(LOG_TYPE_EVENT, TEXT("触发写入列表频率上限，暂时关闭写列表功能"));
 			return;
@@ -472,6 +481,26 @@ void CLogicServer::write_txt(const std::string& file_name, const std::string& st
 		list.close();
 		log(LOG_TYPE_EVENT, TEXT("加入列表[%s]:%s"), Utils::c2w(file_name).c_str(), Utils::c2w(str).c_str());
 	}
+}
+
+// 新增辅助函数：检查内容是否已存在于文件中
+bool CLogicServer::content_exists(const std::string& file_name, const std::string& content)
+{
+    std::ifstream file(file_name);
+    if (!file)
+    {
+        return false; // 文件不存在视为不重复
+    }
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        if (line == content)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void CLogicServer::write_img(unsigned int session_id, std::vector<uint8_t>& data)
@@ -622,11 +651,11 @@ void CLogicServer::punish(tcp_session_shared_ptr_t& session, unsigned int sessio
 				}
 			}
 
-			if (user_data->get_punish_times() >= 3)
+			if (user_data->get_punish_times() >= 5)
 			{
 				user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("处罚失效，请手动处罚:%d"), user_data->session_id);
 				std::wstring usr_name = user_data->json.find("usrname") != user_data->json.end() ? user_data->json.at("usrname").get<std::wstring>() : L"(NULL)";
-				//write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
+				write_txt(".\\恶性开挂人员名单.txt", trim_user_name(Utils::w2c(usr_name)));
 			}
 		}
 

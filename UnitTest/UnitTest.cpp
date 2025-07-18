@@ -1,13 +1,13 @@
 ﻿#include "pch.h"
 #include <iostream>
-#include "Lightbone/lighthook.h"
-#include "Lightbone/pointer.hpp"
-#include "Lightbone/utils.h"
+#include "../../yk/Lightbone/lighthook.h"
+#include "../../yk/Lightbone/pointer.hpp"
+#include "../../yk/Lightbone/utils.h"
 #include "NewClient/ClientImpl.h"
 #include "NewClient/shellcode/TaskBasic.h"
 #include "Gate/cmdline.h"
 #include "PEScan.h"
-#include <Lightbone/api_resolver.h>
+#include <../../yk/Lightbone/api_resolver.h>
 #include <NewClient/thread_manager.h>
 #include <Psapi.h>
 #pragma comment(lib, "Psapi.lib")

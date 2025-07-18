@@ -115,7 +115,7 @@ void LoadPlugin()
         // 如果进程已经退出,但枚举窗口因为还没有刷新会导致检测不准确,产生误报
 		//InitHideProcessDetect();
 		InitSpeedDetect();
-		InitShowWindowHookDetect();
+		//InitShowWindowHookDetect();
     }   
 
     VMP_VIRTUALIZATION_END();

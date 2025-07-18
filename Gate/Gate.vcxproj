@@ -114,7 +114,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GATE_EXPORT=;WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\asio2-2.9\3rd;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -125,10 +125,10 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <DataExecutionPrevention>false</DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -154,7 +154,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>VERSION_GUARD;GATE_EXPORT=;WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\asio2-2.9\3rd;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -167,10 +167,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <DataExecutionPrevention>false</DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -186,7 +186,7 @@
       <Command>taskkill /f /fi "pid gt 0" /im Gate.exe</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨定制\及时雨定制.exe -pf $(SolutionDir)GateRelease_blue.vmp</Command>
+      <Command>$(SolutionDir)..\yk\3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨定制\及时雨定制.exe -pf $(SolutionDir)GateRelease_blue.vmp</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_red|Win32'">
@@ -199,7 +199,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>VERSION_RED;GATE_EXPORT=;WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\asio2-2.9\3rd;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -212,10 +212,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <DataExecutionPrevention>false</DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -236,7 +236,7 @@
 ie4uinit.exe -ClearIconCache</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨鸿蒙\及时雨鸿蒙.exe -pf $(SolutionDir)GateRelease_red.vmp</Command>
+      <Command>$(SolutionDir)..\yk\3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨鸿蒙\及时雨鸿蒙.exe -pf $(SolutionDir)GateRelease_red.vmp</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_blue|Win32'">
@@ -249,7 +249,7 @@ ie4uinit.exe -ClearIconCache</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>VERSION_BLUE;GATE_EXPORT=;WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\asio2-2.9\3rd;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -262,10 +262,10 @@ ie4uinit.exe -ClearIconCache</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;Psapi.lib</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <DataExecutionPrevention>false</DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -283,7 +283,7 @@ ie4uinit.exe -ClearIconCache</Command>
 ie4uinit.exe -ClearIconCache</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>$(SolutionDir)3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨定制\及时雨定制.exe -pf $(SolutionDir)GateRelease_blue.vmp</Command>
+      <Command>$(SolutionDir)..\yk\3rdparty\vmprotect\VMProtect_Con3.9.4.exe $(TargetPath) $(SolutionDir)build\bin\gm_server\及时雨定制\及时雨定制.exe -pf $(SolutionDir)GateRelease_blue.vmp</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release_blue|x64'">
@@ -296,7 +296,7 @@ ie4uinit.exe -ClearIconCache</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GATE_EXPORT=;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)3rdparty;$(SolutionDir)3rdparty\asio2-2.9\include;$(SolutionDir)3rdparty\asio2-2.9\3rd;$(SolutionDir)3rdparty\msgpack\include;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -307,10 +307,10 @@ ie4uinit.exe -ClearIconCache</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
-      <AdditionalDependencies>$(SolutionDir)3rdparty\YY-Thunks-1.0.2.4-Beta-Binary\objs\$(PlatformShortName)\YY_Thunks_for_WinXP.obj;$(SolutionDir)3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <DataExecutionPrevention>false</DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -436,9 +436,17 @@ ie4uinit.exe -ClearIconCache</Command>
     <Image Include="res\userimages.bmp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="res\Gate.rc2" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets" Condition="Exists('..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\nlohmann.json.3.12.0\build\native\nlohmann.json.targets'))" />
+  </Target>
 </Project>

@@ -3,7 +3,7 @@
 #include "WndProcHook.h"
 #include "version.build"
 #include "../lf_rungate_server_plug/lf_plug_sdk.h"
-#include "Lightbone/lighthook.h"
+#include "../../yk/Lightbone/lighthook.h"
 //#include <asio/experimental/channel.hpp>
 //#include "anti_monitor_directory/ReadDirectoryChanges.h"
 

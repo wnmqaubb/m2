@@ -9,7 +9,7 @@
   <ItemDefinitionGroup>
     <Link>
       <ProgramDatabaseFile>$(SolutionDir)build\pdb\$(TargetName)_$(Platform).pdb</ProgramDatabaseFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rdparty\vmprotect</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\yk\3rdparty\vmprotect</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

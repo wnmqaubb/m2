@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "VmpSerialValidate.h"
-#include "3rdparty/vmprotect/VMProtectSDK.h"
+#include "../../yk/3rdparty/vmprotect/VMProtectSDK.h"
 #include <asio2/util/base64.hpp>
 #include <asio2/util/sha1.hpp>
 
@@ -103,10 +103,8 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
             break;
         }
         if (slience)
-            server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
-        else
             MessageBox(NULL, vmp_text.c_str(), TEXT("提示"), MB_OK);
-            server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
+        server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
         return false;
     }
 
