@@ -1,129 +1,681 @@
-ï»¿// dllmain.cpp : å®šä¹‰ DLL åº”ç”¨ç¨‹åºçš„å…¥å£ç‚¹ã€‚
 #include "pch.h"
-#include <iostream>
 #include "ClientImpl.h"
-#include "loader.h"
-#include "CreateProcessHook.h"
 #include "WndProcHook.h"
 #include "version.build"
-#include <regex>
+#include "../lf_rungate_server_plug/lf_plug_sdk.h"
+#include "../../yk/Lightbone/lighthook.h"
+//#include <asio/experimental/channel.hpp>
+//#include "anti_monitor_directory/ReadDirectoryChanges.h"
 
-__declspec(dllexport) HINSTANCE dll_base = NULL;
-share_data_ptr_t share_data = nullptr;
+#define RUNGATE_API void __stdcall
+using namespace lfengine::client;
 
-__declspec(dllexport) asio::io_service g_io;
-__declspec(dllexport) asio::io_service g_game_io;
-__declspec(dllexport) asio::detail::thread_group g_thread_group;
-__declspec(dllexport) int g_client_rev_version = REV_VERSION;
-__declspec(dllexport) NetUtils::CTimerMgr g_game_timer_mgr(g_game_io);
+std::shared_ptr<TAppFuncDefExt> g_AppFunc;
+std::shared_ptr<HINSTANCE> dll_base;
+std::shared_ptr<asio::io_service> g_game_io;
+std::shared_ptr<asio::detail::thread_group> g_thread_group;
+std::shared_ptr<int> g_client_rev_version;
+std::shared_ptr<CClientImpl> client_;
+std::shared_ptr<asio2::timer> g_timer;
+HWND g_main_window_hwnd;
+const UINT WM_UNLOAD_COMPLETE = RegisterWindowMessageW(L"WM_UNLOAD_COMPLETE_7A3F1B");  // [!code ++]
+// ĞÂÔöÈ«¾Ö±äÁ¿£º×¨ÓÃJSÏß³Ì³ØºÍĞÅºÅÁ¿
+//std::shared_ptr<asio::thread_pool> g_js_thread_pool = std::make_shared<asio::thread_pool>(4); // 4Ïß³Ì³Ø
+//std::shared_ptr<asio::experimental::channel<void(asio::error_code)>> g_js_semaphore;
+// dll ÍË³öĞÅºÅ
+//std::shared_ptr<HANDLE> dll_exit_event_handle_;
+RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen);
+extern "C" __declspec(dllexport) void DoUnInit() noexcept;
+void client_start_routine();
+RUNGATE_API client_entry(std::string guard_gate_ip);
+#include <Psapi.h>
+#include <dbghelp.h>
 
-void __declspec(dllexport) reference_to_api()
-{
-    std::set<void*> ref;
-    ref.emplace(get_ptr(&Utils::CWindows::instance));
-    ref.emplace(get_ptr(&Utils::get_screenshot));
-    ref.emplace(get_ptr(&Utils::PEScan::calc_pe_ico_hash));
+#pragma comment(lib, "Dbghelp.lib")
+
+// È«¾Ö»¥³âËø£¨StackWalk64·ÇÏß³Ì°²È«£©
+std::mutex g_stackwalk_mutex;
+
+bool IsThreadFromDllModule(DWORD tid) {
+    std::lock_guard<std::mutex> lock(g_stackwalk_mutex);
+
+    // 1. »ñÈ¡µ±Ç°DLLÄ£¿éĞÅÏ¢
+    MODULEINFO modInfo = { 0 };
+    if (!GetModuleInformation(
+        GetCurrentProcess(),
+        *dll_base,
+        &modInfo,
+        sizeof(MODULEINFO))
+        ) {
+        return false;
+    }
+
+    // 2. ´ò¿ªÄ¿±êÏß³Ì
+    HANDLE hThread = OpenThread(
+        THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION,
+        FALSE,
+        tid
+    );
+    if (!hThread) return false;
+
+    // 3. »ñÈ¡Ïß³ÌÉÏÏÂÎÄ
+    CONTEXT ctx = { 0 };
+    ctx.ContextFlags = CONTEXT_ALL;
+    if (!GetThreadContext(hThread, &ctx)) {
+        CloseHandle(hThread);
+        return false;
+    }
+
+    // 4. ³õÊ¼»¯¶ÑÕ»Ö¡£¨32Î»¼Ü¹¹£©
+    STACKFRAME64 stack = { 0 };
+    stack.AddrPC.Offset = ctx.Eip;
+    stack.AddrPC.Mode = AddrModeFlat;
+    stack.AddrStack.Offset = ctx.Esp;
+    stack.AddrStack.Mode = AddrModeFlat;
+    stack.AddrFrame.Offset = ctx.Ebp;
+    stack.AddrFrame.Mode = AddrModeFlat;
+
+    // 5. ±éÀúµ÷ÓÃÕ»
+    bool belongs = false;
+    for (int i = 0; i < 32; i++) { // ¼ì²é32²ãµ÷ÓÃÕ»
+        if (!StackWalk64(
+            IMAGE_FILE_MACHINE_I386, // 32Î»³ÌĞò
+            GetCurrentProcess(),
+            hThread,
+            &stack,
+            &ctx,
+            NULL,
+            SymFunctionTableAccess64,
+            SymGetModuleBase64,
+            NULL)
+            ) {
+            break;
+        }
+
+        // ¼ì²éµØÖ·ÊÇ·ñÔÚDLLÄ£¿é·¶Î§ÄÚ
+        if (stack.AddrPC.Offset >= (DWORD64)modInfo.lpBaseOfDll &&
+            stack.AddrPC.Offset < (DWORD64)modInfo.lpBaseOfDll + modInfo.SizeOfImage
+            ) {
+            belongs = true;
+            break;
+        }
+    }
+
+    CloseHandle(hThread);
+    return belongs;
 }
 
-void client_start_routine(std::shared_ptr<CClientImpl> client)
-{
-    WndProcHook::install_hook();
-    std::string ip = client->cfg()->get_field<std::string>(ip_field_id);
-    std::transform(ip.begin(), ip.end(), ip.begin(), ::tolower);
-    if (ip[0] == '0' && ip[1] == 'x')
-    {
-        char* ip_ptr = NULL;
-        sscanf_s(ip.c_str(), "0x%x", &ip_ptr);
-        g_thread_group.create_thread([ip_ptr, client]() {
-			std::regex ip_regex(R"((\d{1,3}\.){3}\d{1,3})");
-			while (!(!IsBadReadPtr(ip_ptr, 1) && *ip_ptr != 0 && std::regex_match(std::string(ip_ptr), ip_regex)))
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(200));
-			}
-            client->cfg()->set_field<std::string>(ip_field_id, ip_ptr);
-            client->start(client->cfg()->get_field<std::string>(ip_field_id), client->cfg()->get_field<unsigned int>(port_field_id));
-            auto work_guard = asio::make_work_guard(g_io);
-            g_io.run();
-        });
+// È«¾Ö»¥³âËø
+std::mutex socket_mutex;
+
+// ĞÂÔöÒì²½Ğ¶ÔØ¿ØÖÆÆ÷
+class UnloadController {
+public:
+    static void RequestUnload() {
+        // ´´½¨×¨ÓÃĞ¶ÔØÏß³Ì
+        HANDLE hThread = CreateThread(NULL, 0, UnloadThreadProc, NULL, 0, NULL);
+        SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
     }
-    else
-    {
-        client->start(client->cfg()->get_field<std::string>(ip_field_id), client->cfg()->get_field<unsigned int>(port_field_id));
-        g_thread_group.create_thread([]() {
-            auto work_guard = asio::make_work_guard(g_io);
-            g_io.run();
-        });
-    }
-    
-#if 0
-    g_thread_group.create_thread([client](){
-        static std::vector<std::shared_ptr<CClientImpl>> client_vec;
-        for (int i = 0; i < 200; i++)
-        {
-            auto client_ = std::make_shared<CClientImpl>(g_io);
-            client_->cfg_ = std::make_unique<ProtocolCFGLoader>();
-            client_->cfg_->data = client->cfg_->data;
-            client_->cfg_->json = client_->cfg_->json;/*
-            std::this_thread::sleep_for(std::chrono::seconds(1));*/
-            client_->start(client->cfg_->get_field<std::string>(ip_field_id), client->cfg_->get_field<unsigned int>(port_field_id));
-            client_vec.push_back(std::move(client_));
+
+private:
+    static DWORD WINAPI UnloadThreadProc(LPVOID) {
+        __try {
+            // Ö´ĞĞÊµ¼ÊĞ¶ÔØ²Ù×÷
+            CoreUnloadProcess();
+
+            // ·¢ËÍÏûÏ¢Ç°Ìí¼ÓÄÚ´æÆÁÕÏ
+            MemoryBarrier();
+            // ÔöÇ¿µÄÏûÏ¢·¢ËÍÂß¼­
+            if (g_main_window_hwnd && IsWindow(g_main_window_hwnd))
+            {
+                // ³¢ÊÔÈı´Î·¢ËÍ
+                for (int i = 0; i < 3; i++)
+                {
+                    if (PostMessage(g_main_window_hwnd, WM_UNLOAD_COMPLETE, 0, 0))
+                    {
+                        LOG("Unload complete message sent");
+                        break;
+                    }
+                    Sleep(10);
+                }
+            }
+            else
+            {
+                LOG("Invalid window handle");
+            }
         }
-    });
-    g_thread_group.create_thread([]() {
-        auto work_guard = asio::make_work_guard(g_io);
-        g_io.run();
-    });
+        __except (FilterException(GetExceptionCode())) {
+            LOG("Ğ¶ÔØÏß³Ì±ÀÀ£: 0x%X", GetExceptionCode());
+        }
+        return 0;
+    }
+
+    // ×Ô¶¨ÒåÒì³£¹ıÂËÆ÷
+    static LONG FilterException(DWORD code) {
+        if (code == EXCEPTION_ACCESS_VIOLATION) {
+            LOG("²¶»ñAVÒì³££¬°²È«Ìø¹ı");
+            return EXCEPTION_EXECUTE_HANDLER;
+        }
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    static void SafeCloseSocket(asio::ip::tcp::socket& socket) {
+        std::lock_guard<std::mutex> lock(socket_mutex);
+        asio::error_code ec;
+        try {
+            // Ö±½Óµ÷ÓÃÔ­Éú API ¹Ø±Õ Socket£¨±ÜÃâ ASIO ³éÏó²ãÎÊÌâ£©
+            if (socket.is_open()) {
+                // 1. ASIO ¹Ø±Õ
+                socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+                if (ec) {
+                    if (ec == asio::error::not_connected) {
+                        LOG("ASIO shutdown: Ì×½Ó×ÖÎ´Á¬½Ó£¨ÎŞº¦£©");
+                    }
+                    else {
+                        LOG("ASIO shutdown ´íÎó: %s", ec.message().c_str());
+                    }
+                }
+
+                socket.close(ec);
+                if (ec) {
+                    LOG("ASIO close ´íÎó: %s", ec.message().c_str());
+                }
+
+                // 2. Ô­Éú API ¶µµ×
+                SOCKET native_handle = socket.native_handle();
+                if (native_handle != INVALID_SOCKET) {
+                    if (::shutdown(native_handle, SD_BOTH) == SOCKET_ERROR) {
+                        DWORD error = WSAGetLastError();
+                        if (error != WSAENOTCONN && error != WSAENOTSOCK) {
+                            LOG("Ô­Éú shutdown ´íÎó: %d", error);
+                        }
+                    }
+
+                    if (::closesocket(native_handle) == SOCKET_ERROR) {
+                        DWORD error = WSAGetLastError();
+                        if (error != WSAENOTSOCK) {
+                            LOG("Ô­Éú closesocket ´íÎó: %d", error);
+                        }
+                    }
+                }
+
+                // 3. Ç¿ÖÆ±ê¼ÇÎª¹Ø±Õ
+                socket.close(ec); // ÔÙ´Îµ÷ÓÃÈ·±£×´Ì¬Í¬²½
+            }
+        }
+        catch (const std::exception& e) {
+            LOG("C++ Òì³£: SafeCloseSocket %s", e.what());
+        }
+        catch (...) {
+            LOG("Î´ÖªÒì³£ SafeCloseSocket");
+        }
+    }
+
+    static void CoreUnloadProcess() {
+        __try {
+            LOG("Ä£¿éĞ¶ÔØ¿ªÊ¼");
+            auto start = std::chrono::steady_clock::now(); // ¼ÇÂ¼¿ªÊ¼Ê±¼ä
+            if (client_) {
+                // ½ûÓÃ×Ô¶¯ÖØÁ¬
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                client_->auto_reconnect(false);
+
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                // Í£Ö¹io_context
+                client_->stop();
+
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                while (!client_->is_stopped()) { // µÈ´ıÁ¬½ÓÍêÈ«Í£Ö¹
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                }
+
+                // ÊÍ·ÅÌ×½Ó×Ö
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                client_->socket().close();
+
+
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                client_->destroy();
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                // ÖØÖÃclientÖ¸Õë
+                //client_->();
+                // 1. Á¢¼´Í£Ö¹ËùÓĞ¶¨Ê±Æ÷
+                if (g_timer) {
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                    g_timer->stop();
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                    //g_timer->destroy();
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                }
+                // 3. Í£Ö¹I/O·şÎñ²¢Çå¿Õ¶ÓÁĞ
+                if (g_game_io) {
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                    g_game_io->stop();
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                    //g_game_io->reset();
+                    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                }
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                //client_->socket().cancel();  // Á¢¼´È¡ÏûËùÓĞÒì²½²Ù×÷
+                //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                //client_->socket().shutdown(asio::socket_base::shutdown_both);
+                //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                ////client_->socket().close();
+                //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                //client_->stop();
+                //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                //client_->destroy();
+                //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                //__try {
+                //    client_->iopool().destroy();
+                //}
+                //__except (EXCEPTION_EXECUTE_HANDLER) {
+                //    LOG("ÊÍ·Å client_ Òì³£: 0x%X", GetExceptionCode());
+                //}
+            }
+            //// 1. Á¢¼´Í£Ö¹ËùÓĞ¶¨Ê±Æ÷
+            //if (g_timer) {
+            //    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //    g_timer->stop();
+            //    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //    g_timer->destroy();
+            //    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //}
+            //if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {
+            //    // 2. ¹Ø±ÕÍøÂçÁ¬½Ó£¨¼¤½øÄ£Ê½£©
+            //    if (client_) {
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->socket().cancel();  // Á¢¼´È¡ÏûËùÓĞÒì²½²Ù×÷
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->socket().shutdown(asio::socket_base::shutdown_both);
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        //client_->socket().close();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->stop();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->destroy();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        __try {
+            //            client_->iopool().destroy();
+            //        }
+            //        __except (EXCEPTION_EXECUTE_HANDLER) {
+            //            LOG("ÊÍ·Å client_ Òì³£: 0x%X", GetExceptionCode());
+            //        }
+            //    }
+
+            //    // 3. Í£Ö¹I/O·şÎñ²¢Çå¿Õ¶ÓÁĞ
+            //    if (g_game_io) {
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        g_game_io->stop();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        g_game_io->reset();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //    }
+            //}
+            //else if (Utils::CWindows::instance().get_system_version() == WINDOWS_7) {
+            //    // 2. ¹Ø±ÕÍøÂçÁ¬½Ó£¨¼¤½øÄ£Ê½£©
+            //    if (client_) {
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->socket().close();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->super::super::stop();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        client_->destroy();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        __try {
+            //            client_.reset();
+            //        }
+            //        __except (EXCEPTION_EXECUTE_HANDLER) {
+            //            LOG("ÊÍ·Å client_ Òì³£: 0x%X", GetExceptionCode());
+            //        }
+            //    }
+            //}
+            //else {
+            //    // 1. Í£Ö¹ËùÓĞÒì²½²Ù×÷
+            //    if (client_) {
+            //        client_->stop_all_timers();
+            //        client_->stop_all_timed_tasks();
+            //        client_->stop_all_timed_events();
+            //    }
+
+            //    // 1. ÓÅÏÈ¹Ø±Õ Socket£¨Ê¹ÓÃÔ­Éú API ¶µµ×£©
+            //    if (client_ && client_->socket().is_open()) {
+            //        SafeCloseSocket(client_->socket());
+            //    }
+
+            //    // 3. Í£Ö¹ I/O ·şÎñ£¨´¥·¢Ïß³ÌÍË³ö£©
+            //    if (g_game_io) {
+            //        g_game_io->stop();
+            //        g_game_io->reset();
+            //    }
+
+            //    // 4. ÑÓ³ÙÊÍ·Å client_ ¶ÔÏó£¨È·±£Òì²½²Ù×÷Íê³É£©
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+            //    __try {
+            //        // XPÏµÍ³ĞèÒª¶îÍâÇ¿ÖÆ¹Ø±Õ
+            //        //if (Utils::CWindows::instance().get_system_version() <= WINDOWS_7) {
+            //        //    LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        //    asio::detail::win_thread::set_terminate_threads(true); // Ç¿ÖÆÖÕÖ¹ASIOÏß³Ì
+            //        //}
+            //        //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        //client_->stop();
+            //        //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        //client_->destroy();
+            //        //LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //        //client_.reset();
+            //        LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            //    }
+            //    __except (EXCEPTION_EXECUTE_HANDLER) {
+            //        LOG("ÊÍ·Å client_ Òì³£: 0x%X", GetExceptionCode());
+            //    }
+            //}
+
+
+            // 4. ·ÖÀëÏß³Ì£¨²»ÔÙµÈ´ı£©
+            if (g_thread_group) {
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                g_thread_group->~thread_group(); // Ö±½ÓÎö¹¹
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+                g_thread_group.reset();
+                LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            }
+
+            // 5. ¿ìËÙ»Ö¸´ÏµÍ³¹³×Ó
+            LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+            LightHook::HookMgr::instance().restore();
+            LOG("²å¼şĞ¶ÔØÍê³É line:%d", __LINE__);
+
+            auto end = std::chrono::steady_clock::now(); // ¼ÇÂ¼½áÊøÊ±¼ä
+            auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            LOG("²å¼şĞ¶ÔØstop 2 %d ms", elapsed);
+            LOG("Ä£¿éĞ¶ÔØÍê³É");
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            
+            LOG("Ğ¶ÔØ¹ı³ÌÖĞ²¶»ñÒì³£: 0x%X", GetExceptionCode());
+        }
+    }
+};
+
+extern "C" __declspec(dllexport) void Init(PAppFuncDef AppFunc)
+{
+	if (AppFunc->AddChatText && AppFunc->SendSocket) {
+		LOG("===== Plugin Init OK =====");
+
+		lfengine::TDefaultMessage initok(0, 10000, 0, 0, 0);
+		AppFunc->SendSocket(&initok, 0, 0);
+	}
+	else {
+		LOG("Init Òì³£");
+		return;
+	}
+	g_client_rev_version = std::make_shared<int>(REV_VERSION);
+	g_AppFunc = std::make_shared<TAppFuncDefExt>();
+	g_game_io = std::make_shared<asio::io_service>();
+	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	g_timer = std::make_shared<asio2::timer>();
+	//dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+	g_AppFunc->AddChatText = AppFunc->AddChatText;
+	g_AppFunc->SendSocket = AppFunc->SendSocket;
+
+	AddChatText = AppFunc->AddChatText;
+	SendSocket = AppFunc->SendSocket;
+
+	LOG("lf¿Í»§¶Ë²å¼şÀ­Æğ³É¹¦ dll_base:%p", *dll_base);
+	//AddChatText("lf¿Í»§¶Ë²å¼şÀ­Æğ³É¹¦", 0x0000ff, 0);
+}
+
+inline LONG WINAPI GlobalExceptionFilter(_EXCEPTION_POINTERS* pExp)
+{
+    LOG("GlobalExceptionFilter²¶»ñÒì³£");
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+#ifdef _DEBUG
+#pragma comment(linker, "/EXPORT:client_entry=?client_entry@@YGXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z")
 #endif
-}
-
-void __stdcall client_entry(share_data_ptr_t param) noexcept
+RUNGATE_API client_entry(std::string guard_gate_ip)
 {
-    VMP_VIRTUALIZATION_BEGIN();
-    if (!param)
-        return;
-    if (param->stage == 0)
-    {
-        share_data = param;
-        HookProc::init_create_process_hook();
-    }
-    else if (param->stage == 1)
-    {
-        share_data = param;
-        setlocale(LC_CTYPE, "");
-        std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-        client->cfg() = ProtocolCFGLoader::load((char*)param->cfg, param->cfg_size);
-        if (client->cfg()->get_field<bool>(test_mode_field_id))
-        {
-            ::MessageBoxA(NULL, "test mode", "test", MB_OK);
-        }
+    // ÔÚ main º¯Êı»ò³õÊ¼»¯´úÂëÖĞ×¢²á SEH ¹ıÂËÆ÷
+    SetUnhandledExceptionFilter(GlobalExceptionFilter);
+    _se_translator_function old_seh = _set_se_translator([](unsigned code, EXCEPTION_POINTERS*) {
+        throw std::runtime_error("SEH Exception: code=" + std::to_string(code));
+    });
+#if 1
+	g_client_rev_version = std::make_shared<int>(REV_VERSION);
+	g_AppFunc = std::make_shared<TAppFuncDefExt>();
+	g_game_io = std::make_shared<asio::io_service>();
+	g_thread_group = std::make_shared<asio::detail::thread_group>();
+	g_timer = std::make_shared<asio2::timer>();
+    //dll_base = std::make_shared<HINSTANCE>(nullptr);
+    //*dll_base = GetModuleHandle(nullptr);
+	//dll_exit_event_handle_ = std::make_shared<HANDLE>(CreateEvent(NULL, TRUE, FALSE, NULL));
+#endif
+	VMP_VIRTUALIZATION_BEGIN();
+	try
+	{
+	    setlocale(LC_CTYPE, "");
+	    ProtocolCFGLoader cfg;
+	    cfg.set_field<std::string>(ip_field_id, guard_gate_ip.empty() ? "127.0.0.1" : guard_gate_ip);
+	    cfg.set_field<int>(port_field_id, 23268);
+	    client_ = std::make_shared<CClientImpl>();
+	    client_->cfg() = std::make_unique<ProtocolCFGLoader>(cfg);
+	    client_->cfg()->set_field<bool>(test_mode_field_id, false);
+	    client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+#ifdef _DEBUG
+	    client_->cfg()->set_field<bool>(test_mode_field_id, true);
+	    client_->cfg()->set_field<bool>(sec_no_change_field_id, false);
+#endif
+		client_start_routine();
 
-        if (client->cfg()->get_field<bool>(sec_no_change_field_id))
-        {
-            Utils::ImageProtect::instance().register_callback(std::bind(&client_start_routine, std::move(client)));
-            Utils::ImageProtect::instance().install();
-        }
-        else
-        {
-            client_start_routine(std::move(client));
-        }
-    }
-    VMP_VIRTUALIZATION_END();
+        /*printf("-----------------------------------------------------------------------------------------------------------------\n");
+        std::thread t([]() {
+            try {
+                for (int i = 0; i < 10; i++) {
+                    Sleep(5000);
+                    Utils::CWindows::ProcessInfo pi;
+                    Utils::CWindows::instance().get_process(Utils::CWindows::instance().get_current_process_id(), pi);
+                    int n = 0;
+                    for (auto& i : pi.threads) {
+                        if (!IsThreadFromDllModule(i.second.tid)) continue;
+                        printf("%d \t%d \t%d \t%p\n", ++n, i.first, i.second.tid, i.second.start_address);
+                    }
+                    printf("-----------------------------------------------------------------------------------------------------------------\n");
+                }
+                
+            }
+            catch (const std::exception& e) {
+                LOG("IsThreadFromModule: %s", e.what());
+            }
+        });
+        t.detach();*/
+	}
+	catch (std::exception& e)
+	{
+		LOG("client_start_routine Òì³£: %s ",e.what());
+	}
+	VMP_VIRTUALIZATION_END();
 }
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+void client_start_routine()
 {
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-        dll_base = hModule;
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    }
-    return TRUE;
+    LOG("client_start_routine ");
+    //WndProcHook::install_hook();
+    // ÔÚ client_start_routine ÖĞÉèÖÃ ASIO ´íÎó´¦Àí
+    g_game_io->notify_fork(asio::io_service::fork_prepare);
+    g_game_io->notify_fork(asio::io_service::fork_child);
+    asio::detail::socket_ops::clear_last_error(); // Çå³ıÇ±ÔÚ´íÎóÂë
+    // È·±£ ASIO Ïß³Ì×éÔÚ client_ Ç°³õÊ¼»¯
+    //g_thread_group = std::make_shared<asio::detail::thread_group>();
+    // ĞŞ¸Äclient_start_routineÖĞµÄÏß³Ì´´½¨
+    auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
+    auto port = client_->cfg()->get_field<int>(port_field_id);
+    client_->async_start(ip, port);
+    LOG("client_start_routine ip:%s, port:%d", ip.c_str(), port);
+    g_thread_group->create_threads([&]() {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+        g_game_io->run();
+        LOG("ASIOÏß³Ì°²È«ÍË³ö"); // È·±£Ïß³ÌÍË³öÊ±ÎŞÄ£¿é´úÂë
+    }, 2);
 }
 
+RUNGATE_API HookRecv(lfengine::PTDefaultMessage defMsg, char* lpData, int dataLen)
+{
+	if (defMsg->ident == 10001)
+	{
+		try
+		{
+			client_entry(lpData);
+		}
+		catch (...)
+		{
+			LOG("client_entry Òì³£");
+		}
+		//AddChatText(lpData, 0x0000ff, 0);
+		LOG("lf¿Í»§¶Ë²å¼şHookRecv--gate_ip: %s ", lpData);
+	}
+
+	if (defMsg->ident == 10002 || defMsg->ident == 10003)
+	{
+		AddChatText(lpData, 0x0000ff, 0);
+	}
+
+}
+// ĞŞ¸ÄDoUnInitº¯Êı
+extern "C" __declspec(dllexport) void DoUnInit() noexcept
+{
+    UnloadController::RequestUnload(); // ·Ç×èÈûµ÷ÓÃ
+    return; // Á¢¼´·µ»Ø
+}
+
+RUNGATE_API DoUnInit1() noexcept
+{
+    //try
+    __try
+    {
+        LOG("²å¼şĞ¶ÔØ¿ªÊ¼");
+        //SetEvent(dll_exit_event_handle_);
+
+        //client_->wait_stop();
+        //if (notifier) {
+        //	notifier->join_all();
+        //}
+        //WndProcHook::restore_hook();
+        LOG("²å¼şĞ¶ÔØLightHook::HookMgr::instance().restore()1");
+        LightHook::HookMgr::instance().restore();
+        LOG("²å¼şĞ¶ÔØ  -- restore_hook ok");
+        g_game_io->stop();
+        g_game_io->reset();
+        //g_thread_group->join();
+        //g_thread_group.reset();
+        /*×÷Õß½¨Òé£º
+        if(!game_io->stopped()) °ÑÕâ¸öÅĞ¶ÏÉ¾ÁË£¬Ö±½Óstop¼´¿É
+        ÄãÔÚÕâ¸öuninitÀï¼Ó¸öÈÕÖ¾£¬¼ì²âÒ»ÏÂÊÇÔÚÄÄ¸ö²½Öè×èÈûµÄ£¬ºÃÅĞ¶ÏÎÊÌâ·¶Î§
+        client.post([&client](){client.socket().close();})  ÏÈ°ÑsocketÖ±½Ó¹ØÁË¾ÍĞĞ ÕâÑùºóĞøµÄ°ü¾Í²»»á·¢ËÍÁË£¬ºÜ¿ì¾Í½áÊø ÁË
+        client.stop();
+        */
+        LOG("²å¼şĞ¶ÔØstop 1");
+        auto start = std::chrono::steady_clock::now(); // ¼ÇÂ¼¿ªÊ¼Ê±¼ä
+        /*client_->post([]() {LOG("²å¼şĞ¶ÔØsocket close 1");
+            client_->socket().close(); LOG("²å¼şĞ¶ÔØsocket close 2");
+        });*/
+        client_->stop_all_timers();
+        client_->stop_all_timed_tasks();
+        client_->stop_all_timed_events();
+        if (Utils::CWindows::instance().get_system_version() > WINDOWS_7) {
+            LOG("win_version > WINDOWS_7");
+        }
+        else {
+            LOG("win_version <= WINDOWS_7");
+            asio::detail::win_thread::set_terminate_threads(true);
+            // ÅĞ¶ÏÊÇ·ñÊÇwin7ÏµÍ³£¬Èç¹ûÊÇ£¬ÔòÉèÖÃÏß³ÌÖÕÖ¹±êÖ¾
+        }
+        client_->socket().close();
+        client_->stop();
+        auto end = std::chrono::steady_clock::now(); // ¼ÇÂ¼½áÊøÊ±¼ä
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        LOG("²å¼şĞ¶ÔØstop 2 %d ms", elapsed);
+        /*
+        * set_terminate_threads Ç¿ÖÆÍË³öasioµÄÏß³Ì,·ñÔò»áµ¼ÖÂÏß³ÌÎŞ·¨ÍË³ö, µ¼ÖÂÏß³Ì¾ä±úĞ¹Â¶, µ¼ÖÂ±ÀÀ£
+        ±ØĞëÒªdestroy, ·ñÔò»áµ¼ÖÂ¶¨Ê±Æ÷ÎŞ·¨Ïú»Ù, µ¼ÖÂ¶¨Ê±Æ÷µÄÏß³Ì»¹ÔÚÖ´ĞĞ, Ğ¡ÍËÔÙ¿ªÊ¼ÓÎÏ·Ê±Ïß³Ì»¹ÔÚÖ´ĞĞÖ®Ç°dllµÄµØÖ·, »áµ¼ÖÂ±ÀÀ£
+        */
+        LOG("²å¼şĞ¶ÔØÍê³É1");
+        client_->destroy();
+        LOG("²å¼şĞ¶ÔØÍê³É2");
+        client_.reset();
+        LOG("²å¼şĞ¶ÔØÍê³É3");
+        /*if(dll_exit_event_handle_){
+            CloseHandle(dll_exit_event_handle_);
+        }*/
+        LOG("²å¼şĞ¶ÔØÍê³É");
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    //catch (...)
+    {
+        LOG("DoUnInit Òì³£");
+    }
+}
+
+//RUNGATE_API DoUnInit() noexcept 
+//{
+//    __try {
+//    //try {
+//        LOG("²å¼şĞ¶ÔØ¿ªÊ¼");
+//
+//        // 1. Í£Ö¹JSÏß³Ì³Ø
+//        if (g_js_thread_pool) {
+//            g_js_thread_pool->stop(); // Í£Ö¹½ÓÊÕĞÂÈÎÎñ
+//            g_js_thread_pool->join();  // µÈ´ıËùÓĞÈÎÎñÍê³É
+//            g_js_thread_pool.reset();
+//            g_js_semaphore.reset();
+//            LOG("JSÏß³Ì³ØÒÑÊÍ·Å");
+//        }
+//
+//        // 2. »Ö¸´¹³×Ó
+//        //WndProcHook::restore_hook();
+//        //LightHook::HookMgr::instance().restore();
+//
+//        // 3. Ç¿ÖÆ¹Ø±ÕSocketºÍ¿Í»§¶Ë
+//        if (client_ && client_->is_started()) {
+//            client_->socket().close();
+//            client_->stop_all_timers();
+//            asio::detail::win_thread::set_terminate_threads(true);
+//            client_->stop();
+//            client_->destroy();
+//        }
+//        client_.reset();
+//
+//        // 4. ÇåÀíAsio×ÊÔ´
+//        if (g_game_io) {
+//            g_game_io->stop();
+//            g_game_io.reset();
+//        }
+//        g_thread_group.reset();
+//
+//        LOG("²å¼şĞ¶ÔØÍê³É");
+//    }
+//    __except (EXCEPTION_EXECUTE_HANDLER) {
+//        LOG("DoUnInit Òì³£");
+//    }
+//    /*catch (...) {
+//        LOG("DoUnInit Òì³£");
+//    }*/
+//}
+
+BOOL APIENTRY DllMain(HMODULE hModule,	DWORD  ul_reason_for_call,	LPVOID lpReserved)
+{
+	switch (ul_reason_for_call)
+	{
+		case DLL_PROCESS_ATTACH:
+			dll_base = std::make_shared<HINSTANCE>(hModule); LOG("DLL_PROCESS_ATTACH1 hModule:%p", hModule); break;
+		case DLL_THREAD_ATTACH:
+			LOG("DLL_THREAD_ATTACH"); break;
+		case DLL_THREAD_DETACH:
+			LOG("DLL_THREAD_DETACH"); break;
+		case DLL_PROCESS_DETACH:
+			//DoUnInit();²»ÄÜÔÚÕâÀïµ÷ÓÃDoUnInit-->>²»ÄÜÔÚWindows DllµÄDLL_PROCESS_DETACH¿éÖĞµ÷ÓÃasio2µÄserver»òclient¶ÔÏóµÄstopº¯Êı£¬»áµ¼ÖÂstopº¯ÊıÓÀÔ¶×èÈûÎŞ·¨·µ»Ø¡£
+			//Ô­ÒòÊÇÓÉÓÚÔÚDLL_PROCESS_DETACHÊ±£¬Í¨¹ıPostQueuedCompletionStatusÍ¶µİµÄIOCPÊÂ¼şÓÀÔ¶µÃ²»µ½Ö´ĞĞ¡£
+			LOG("DLL_PROCESS_DETACH"); break;
+	}
+	return TRUE;
+}

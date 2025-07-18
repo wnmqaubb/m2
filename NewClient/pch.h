@@ -3,23 +3,26 @@
 // 这还将影响 IntelliSense 性能，包括代码完成和许多代码浏览功能。
 // 但是，如果此处列出的文件中的任何一个在生成之间有更新，它们全部都将被重新编译。
 // 请勿在此处添加要频繁更新的文件，这将使得性能优势无效。
-
 #ifndef PCH_H
 #define PCH_H
-
 // 添加要在此处预编译的标头
 #include "framework.h"
 
 #define ASIO_STANDALONE
-#include <asio\asio.hpp>
+#include <asio2\asio2.hpp>
 #include <asio2\util\uuid.hpp>
 #include <msgpack.hpp>
-#include <asio/detail/thread_group.hpp>
-
-#include "Lightbone/utils.h"
-#include "Lightbone/api_resolver.h"
-#include "Lightbone/pointer.hpp"
-#include "Lightbone/lighthook.h"
-#include "Lightbone/xorstr.hpp"
+#include "..\..\yk\Lightbone\utils.h"
+#include "..\..\yk\Lightbone/api_resolver.h"
+#include "..\..\yk\Lightbone/pointer.hpp"
+#include "..\..\yk\Lightbone/lighthook.h"
+#include "..\..\yk\Lightbone/xorstr.hpp"
 #include "qjs.h"
+//#define LOG_SHOW
+#ifdef LOG_SHOW
+#define LOG(x,...) LOG_EVENT(x, __VA_ARGS__)
+#else 
+#define LOG(x,...)
+#endif
+
 #endif //PCH_H

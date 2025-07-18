@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document Version="2">
+    <Protection InputFileName="build\bin\Release\Win32\NewClient_Loader_f.dll" Options="394496" VMCodeSectionName=".???" VMVersion="1" VMComplexity="1" VMInstances="1" LicenseDataFileName="build\bin\Release\Win32\NewClient_Loader_f.dll.vmp">
+        <Procedures>
+            <Procedure MapAddress='VMProtectMarker &quot;Init&quot;' Options="0" CompilationType="1" />
+            <Procedure MapAddress='VMProtectMarker &quot;client_entry&quot;' Options="0" CompilationType="1" />
+            <Procedure MapAddress='VMProtectMarker &quot;HookRecv&quot;' Options="0" CompilationType="1" />
+        </Procedures>
+    </Protection>
+</Document>

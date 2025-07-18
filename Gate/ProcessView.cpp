@@ -9,10 +9,17 @@
 #include "ProcessChildFrm.h"
 #include "ProcessDoc.h"
 #include "ProcessView.h"
+#include "CmdView.h"
+#include <atlconv.h>
+#include <filesystem>
+#include "MainFrm.h"
+#include "ClientView.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include <ConfigSettingDoc.h>
+#include <ConfigSettingView.h>
 
 
 // CProcessView
@@ -27,6 +34,8 @@ BEGIN_MESSAGE_MAP(CProcessView, CView)
     ON_NOTIFY(LVN_ITEMCHANGED, ID_PROCESS_VIEW, &CProcessView::OnListItemChanged)
     ON_COMMAND(ID_PROCESS_NAME, &CProcessView::OnProcessNameBan)
     ON_COMMAND(ID_PROCESS_PATH, &CProcessView::OnProcessPathBan)
+    ON_COMMAND(ID_GET_GAMEUSER_FILE, &CProcessView::OnGetGameUserFile)
+    ON_COMMAND(ID_GET_GAMEUSER_FILE_SIGN, &CProcessView::OnGetGameUserFileSign)
 END_MESSAGE_MAP()
 
 // CProcessView 构造/析构
@@ -45,7 +54,7 @@ BOOL CProcessView::PreCreateWindow(CREATESTRUCT& cs)
 {
 	// TODO: 在此处通过修改
 	//  CREATESTRUCT cs 来修改窗口类或样式
-    
+
 	return CView::PreCreateWindow(cs);
 }
 
@@ -66,8 +75,8 @@ void CProcessView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 void CProcessView::OnContextMenu(CWnd* /* pWnd */, CPoint point)
 {
 	CMenu menu;
-	menu.LoadMenu(IDR_MAINFRAME);
-	CMenu* pSumMenu = menu.GetSubMenu(2);
+	menu.LoadMenu(IDR_PROCESS_RIGHT_MENU);
+	CMenu* pSumMenu = menu.GetSubMenu(0);
 	theApp.GetContextMenuManager()->ShowPopupMenu(*pSumMenu, point.x, point.y, this, TRUE);
 }
 
@@ -234,12 +243,8 @@ void CProcessView::OnProcessNameBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+        unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_policy_id(Policies);
+
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -251,10 +256,19 @@ void CProcessView::OnProcessNameBan()
         str = Cfg->dump();
         output.write(str.data(), str.size());
         output.close();
-        theApp.OnServiceSettings();
+        theApp.OnServiceSettings();        
+        ScrollToAddByPolicyId(uiLastPolicyId);
+
     }
 }
 
+void CProcessView::ScrollToAddByPolicyId(int policy_id) {
+    auto pSettingDoc = ((CConfigSettingDoc*)theApp.m_ConfigDoc);
+    if (pSettingDoc->GetView<CConfigSettingView>())
+    {
+        pSettingDoc->GetView<CConfigSettingView>()->ScrollToAddByPolicyId(policy_id);
+    }
+}
 
 void CProcessView::OnProcessPathBan()
 {
@@ -276,12 +290,7 @@ void CProcessView::OnProcessPathBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+        unsigned int uiLastPolicyId = theApp.GetMainFrame()->GetClientView().next_policy_id(Policies);
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_NO_OPEARATION;
@@ -294,5 +303,56 @@ void CProcessView::OnProcessPathBan()
         output.write(str.data(), str.size());
         output.close();
         theApp.OnServiceSettings();
+        ScrollToAddByPolicyId(uiLastPolicyId);
+    }
+
+}
+
+void CProcessView::OnGetGameUserFile()
+{
+	auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
+	CString process_path;
+	if (selectedRow != -1)
+	{
+		process_path = m_ViewList.GetItemText(selectedRow, 4);
+		std::filesystem::path output(theApp.m_ExeDir);
+		output /= "gamer_files";
+		if (!std::filesystem::exists(output))
+		{
+			std::filesystem::create_directory(output);
+		}
+        std::string process_path_str = CT2A(process_path);
+        std::filesystem::path file_name(process_path_str);
+        output /= file_name.filename();
+
+        CString cmd;
+		cmd.Format(TEXT("download -p \"%s\" -o \"%s\""), process_path, CA2T(output.string().c_str()));
+        //theApp.GetMainFrame()->GetClientView().OnCmdView();
+        cmd.Replace(_T("\\"), _T("\\\\"));
+        theApp.GetMainFrame()->CopyToClipboard(cmd);
+	}
+	else
+	{
+		return;
+	}
+}
+
+void CProcessView::OnGetGameUserFileSign()
+{
+    // powershell -Command "Get-AuthenticodeSignature -FilePath 'C:\Users\A.exe' | Format-List" -Property SignerCertificate, Status
+    auto selectedRow = (int)m_ViewList.GetFirstSelectedItemPosition() - 1;
+    CString process_path;
+    if (selectedRow != -1)
+    {
+        process_path = m_ViewList.GetItemText(selectedRow, 4);
+        CString cmd;
+        cmd.Format(TEXT("powershell -Command \"Get-AuthenticodeSignature -FilePath '%s' | Format-List\" -Property Status"), process_path);
+        //theApp.GetMainFrame()->GetClientView().OnCmdView();
+        cmd.Replace(_T("\\"), _T("\\\\"));
+        theApp.GetMainFrame()->CopyToClipboard(cmd);
+    }
+    else
+    {
+        return;
     }
 }

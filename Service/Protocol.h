@@ -10,20 +10,23 @@
 #define PROTOCOL_EXPORT
 #endif
 #else
-#ifndef ASIO_HPP
-#include <asio/asio.hpp>
+#ifndef __ASIO2_HPP__
+#include <asio2/asio2.hpp>
 #endif
 #ifndef MSGPACK_OBJECT_HPP
 #include <msgpack.hpp>
 #endif
 #ifndef INCLUDE_NLOHMANN_JSON_HPP_
-#include <json/json.hpp>
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 #endif
 #include <zlib.h>
 #define PROTOCOL_EXPORT
 #define PROTOCOL_IMPL
-#endif
+#endif/*
+#include <asio/buffers_iterator.hpp>
+#include <asio/streambuf.hpp>
+#include <asio/basic_streambuf.hpp>*/
 class RawProtocolHead;
 class RawProtocolBody;
 const unsigned char kRawProtocolHeadVersion = 1;
@@ -388,13 +391,13 @@ public:
 				break;
 			HeadType head_;
 			std::copy(begin, begin + sizeof(HeadType), (unsigned char*)&head_);
-            
-            if constexpr (EnableCrypt)
-            {
-                xor_buffer(&head_, sizeof(HeadType), kProtocolXorKey);
-            }
-            if (head_.tag != kRawProtocolHeadVersion)
-                return std::pair(begin, true);
+
+			if constexpr (EnableCrypt)
+			{
+				xor_buffer(&head_, sizeof(HeadType), kProtocolXorKey);
+			}
+			if (head_.tag != kRawProtocolHeadVersion)
+				return std::pair(begin, true);
 			if (head_.sz == sizeof(HeadType))
 				return std::pair(begin + sizeof(HeadType), true);
 			if (end - begin < head_.sz)
@@ -405,8 +408,16 @@ public:
 		} while (0);
 		return std::pair(begin, false);
 	}
+
+	void init(std::shared_ptr<asio2::tcp_session>& session_ptr)
+	{
+		session_ptr_ = session_ptr;
+	}
+
+
 	HeadType head;
 	BodyType body;
+    std::shared_ptr<asio2::tcp_session> session_ptr_;
 };
 
 using RawProtocolImpl = RawProtocol<RawProtocolHead, RawProtocolBody>;

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Document>
 	<Protection 
-	InputFileName="build\bin\Release\Win32\NewClient.dll"
+	InputFileName="build\bin\Release\Win32\NewClient_f.dll"
 	Options="0">
 		<Messages
 		/>

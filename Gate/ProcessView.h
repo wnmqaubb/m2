@@ -50,7 +50,10 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	
     afx_msg void OnProcessNameBan();
-    afx_msg void OnProcessPathBan();
+    void ScrollToAddByPolicyId(int policy_id);
+	afx_msg void OnGetGameUserFile();
+	afx_msg void OnProcessPathBan();
+    void OnGetGameUserFileSign();
 };
 
 #ifndef _DEBUG  // GateView.cpp 中的调试版本

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "AntiCheatClient.h"
 #include "AntiCheatServer.h"
 #include "ObserverClient.h"
@@ -6,7 +6,7 @@
 #include "ObserverServer.h"
 #include "ServerPluginMgr.h"
 
-#define CONFIG_APP_NAME "������"
+#define CONFIG_APP_NAME "及时雨"
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr
@@ -122,8 +122,16 @@ public:
         req.val = val;
         super::send(session, &req);
     }
+    bool content_exists(const std::string& file_name, const std::string& content);
     virtual void write_img(unsigned int session_id, std::vector<uint8_t>& data);
-    virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify);
+    /**
+     * msg: 日志信息
+     * silence: 是否显示到界面日志窗口
+     * gm_show: 是否显示到gm
+     * identify: 玩家uuid标识符
+     * punish_flag: 是否是惩罚log
+     */
+    virtual void log_cb(const wchar_t* msg, bool silence, bool gm_show, const std::string& identify, bool punish_flag);
     virtual void punish(tcp_session_shared_ptr_t& session, unsigned int session_id, ProtocolPolicy& policy, const std::wstring& comment, const std::wstring& comment_2 = L"");
     virtual void detect(tcp_session_shared_ptr_t& session, unsigned int session_id);
 	virtual void close_socket(tcp_session_shared_ptr_t& session, unsigned int session_id);
@@ -134,7 +142,7 @@ private:
     void OnlineCheck();
 protected:
     using observer_package_type = std::function<void(tcp_session_shared_ptr_t& session, unsigned int ob_session_id, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
-    CServerPluginMgr plugin_mgr_;
+    //CServerPluginMgr plugin_mgr_;
     CServerPolicyMgr policy_mgr_;
     NetUtils::EventMgr<observer_package_type> ob_pkg_mgr_;
     NetUtils::EventMgr<observer_package_type> policy_pkg_mgr_;

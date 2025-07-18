@@ -4,22 +4,35 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ClientImpl.h" />
-    <ClInclude Include="ClientPluginMgr.h" />
-    <ClInclude Include="CreateProcessHook.h" />
-    <ClInclude Include="WndProcHook.h" />
     <ClInclude Include="qjs.h" />
+    <ClInclude Include="..\..\yk\NewClient\ShellCode\BasicUtils.h" />
+    <ClInclude Include="..\..\yk\NewClient\ShellCode\ModuleCheckSum.h" />
+    <ClInclude Include="..\..\yk\NewClient\ShellCode\TaskBasic.h" />
+    <ClInclude Include="..\..\yk\3rdparty\wmic\dnscache.h" />
+    <ClInclude Include="..\..\yk\3rdparty\wmic\wmic.h" />
+    <ClInclude Include="thread_manager.h" />
+    <ClInclude Include="..\..\yk\NewClient\window_role_name.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="..\..\yk\3rdparty\wmic\dnscache.cpp" />
+    <ClCompile Include="..\..\yk\3rdparty\wmic\wmic.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\UnitPunish.cpp" />
     <ClCompile Include="ClientImpl.cpp" />
-    <ClCompile Include="ClientPluginMgr.cpp" />
-    <ClCompile Include="CreateProcessHook.cpp" />
-    <ClCompile Include="ReflectiveLoader.cpp" />
-    <ClCompile Include="WndProcHook.cpp" />
-    <ClCompile Include="..\3rdparty\quickjs\quickjs-one.c" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\BasicUtils.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\ModuleCheckSum.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskBasic.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskHideProcessDetect.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskImageProtectCheck.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskJavaScript.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskRmc.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskSpeedDetect.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskTimeoutCheck.cpp" />
+    <ClCompile Include="..\..\yk\NewClient\ShellCode\TaskShowWindowHook.cpp" />
+    <ClCompile Include="thread_manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="export.def" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

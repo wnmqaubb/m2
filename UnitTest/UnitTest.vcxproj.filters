@@ -8,4 +8,54 @@
   <ItemGroup>
     <ClInclude Include="PEScan.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Filter Include="js">
+      <UniqueIdentifier>{5be8a6bb-02ac-4ace-a76f-84f90e17fb6a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="scripts\1.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\2.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\3.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\4.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\5.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\6.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\7.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\8.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\9066.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\machine_v3.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\test.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\定制检测.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\线程检测9022.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="scripts\虚拟机检测9056.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>

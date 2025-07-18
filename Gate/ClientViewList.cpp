@@ -1,10 +1,11 @@
-
+﻿
 #include "pch.h"
 #include "Gate.h"
 #include "framework.h"
 #include "ClientViewList.h"
 BEGIN_MESSAGE_MAP(CClientViewList, CViewList)
     ON_NOTIFY_REFLECT(NM_CUSTOMDRAW, &CClientViewList::OnNMCustomdraw)
+    ON_NOTIFY_REFLECT(NM_DBLCLK, &CClientViewList::OnClientListCtrlDblClick)
 END_MESSAGE_MAP()
 
 
@@ -30,7 +31,7 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
     }
     else if (CDDS_ITEMPREPAINT == pLVCD->nmcd.dwDrawStage)
     {
-        //��������item�ı䱳����ɫ   
+        //处理，将item改变背景颜色   
         for (auto& m : m_suspicious_uuids)
         {
 #ifndef GATE_ADMIN
@@ -38,7 +39,7 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
 #endif
             std::wstring uuid = this->GetItemText(pLVCD->nmcd.dwItemSpec, 7);
             if (m.first == uuid)
-            {   //��ǰѡ�е�item   
+            {   //当前选中的item   
                 pLVCD->clrTextBk = RGB(235, 0, 0);
             }
         }
@@ -47,4 +48,18 @@ void CClientViewList::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult |= CDRF_NOTIFYPOSTPAINT;
     *pResult |= CDRF_NOTIFYITEMDRAW;
     *pResult |= CDRF_NOTIFYSUBITEMDRAW;
+}
+
+// 双击查看进程详细信息
+void CClientViewList::OnClientListCtrlDblClick(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+
+	// 获取当前被双击项的信息
+	int nItem = pNMItemActivate->iItem;
+	if (nItem != -1)
+	{
+        theApp.GetMainFrame()->GetClientView().OnQueryProcess();
+	}
+	*pResult = 0;
 }

@@ -22,7 +22,7 @@
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
 
-#include <3rdparty/vmprotect/VMProtectSDK.h>
+#include <../../yk/3rdparty/vmprotect/VMProtectSDK.h>
 #include <asio2/util/sha1.hpp>
 #include <asio2/util/base64.hpp>
 #include "../version.build"
@@ -46,7 +46,9 @@ BEGIN_MESSAGE_MAP(CGateApp, CWinAppEx)
 	ON_COMMAND(ID_SERVICE_STOP, &CGateApp::OnServiceStop)
     ON_COMMAND(ID_APP_EXIT, &CGateApp::OnAppExit)
     ON_COMMAND(ID_SERVICE_SETTINGS, &CGateApp::OnServiceSettings)
+#ifdef GATE_ADMIN
     ON_COMMAND(ID_TOOLBAR_CONFIG, &CGateApp::OnConfig)
+#endif
 END_MESSAGE_MAP()
 
 // CGateApp 构造
@@ -58,6 +60,8 @@ CGateApp::CGateApp() noexcept
     strcpy_s(m_ExeDir, cParentDir.c_str());
     m_cCfgPath = m_ExeDir;
     m_cCfgPath = m_cCfgPath + TEXT("\\config.cfg");
+    m_inner_CfgPath = m_ExeDir;
+    m_inner_CfgPath = m_inner_CfgPath + TEXT("\\jishiyu.cfg");
 
 	m_bHiColorIcons = TRUE;
     m_childpHandle = NULL;
@@ -94,13 +98,14 @@ CGateApp theApp;
 BOOL CGateApp::InitInstance()
 {
 #ifndef GATE_ADMIN
-    CString strCmdLine = AfxGetApp()->m_lpCmdLine;
-    if (strCmdLine == TEXT("/StartService"))
+	CString strCmdLine = AfxGetApp()->m_lpCmdLine;
+	if (strCmdLine == TEXT("/StartService"))
     {
+        is_parent_gate = false;
         giInstancePid = GetCurrentProcessId();
         HANDLE pHandles[2] = {};
         std::filesystem::path path(m_ExeDir);
-        path = path / "Service.exe";
+        path = path / "g_Service.exe";
         STARTUPINFOA si = {};
         si.dwFlags = STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
@@ -122,7 +127,7 @@ BOOL CGateApp::InitInstance()
             AfxMessageBox(TEXT("启动Service失败"));
         }
         pHandles[0] = pi.hProcess;
-        path = path.parent_path() / "LogicServer.exe";
+        path = path.parent_path() / "g_LogicServer.exe";
         std::string strLogicServerCmdline = path.string() + strCmdLine;
         res = CreateProcessA(NULL,
             (char*)strLogicServerCmdline.c_str(),
@@ -139,11 +144,11 @@ BOOL CGateApp::InitInstance()
             AfxMessageBox(TEXT("启动LogicServer失败"));
         }
         pHandles[1] = pi.hProcess;
-        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
-        ExitProcess(0);
+        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);OutputDebugStringA("=====gate_ExitProcess");
+        ExitProcess(0); 
         return FALSE;
     }
-    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->start(kDefaultLocalhost, kDefaultServicePort);
+    m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->async_start(kDefaultLocalhost, kDefaultServicePort);
     m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->set_auth_key(ReadAuthKey());
     m_ObServerClientGroup(kDefaultLocalhost, kDefaultServicePort)->get_gate_notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
         m_WorkIo.post([this]() {
@@ -157,10 +162,30 @@ BOOL CGateApp::InitInstance()
     });
     m_ObServerClientGroup.create_threads();
 #else
+
     ConnectionLicenses();
     
     m_ObServerClientGroup.create_threads(std::thread::hardware_concurrency() * 2);
 #endif;
+    // 初始化 richedit2 库
+    if (!AfxInitRichEdit2()) {
+        AfxMessageBox(L"无法初始化 richedit 库。可能是由于系统不支持该 DLL 版本。");
+        return FALSE;
+    }
+
+    // 初始化 OLE 库
+    if (!AfxOleInit())
+    {
+        AfxMessageBox(IDP_OLE_INIT_FAILED);
+        return FALSE;
+    }
+
+    // 加载 richedit2 库
+    HINSTANCE hriched = LoadLibrary(L"RICHED20.DLL");
+    if (hriched == NULL) {
+        AfxMessageBox(L"无法加载 richedit2 库。可能是由于系统不支持该 DLL 版本。");
+        return FALSE;
+    }
     
 	// 如果一个运行在 Windows XP 上的应用程序清单指定要
 	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
@@ -175,13 +200,6 @@ BOOL CGateApp::InitInstance()
 	CWinAppEx::InitInstance();
 
 	m_bSaveState = FALSE;
-
-	// 初始化 OLE 库
-	if (!AfxOleInit())
-	{
-		AfxMessageBox(IDP_OLE_INIT_FAILED);
-		return FALSE;
-	}
 
 	AfxEnableControlContainer();
 
@@ -262,6 +280,12 @@ BOOL CGateApp::InitInstance()
 
     m_wndConfig.Create(IDD_CONFIG_DIALOG);
     OnServiceStart();
+    // 释放加载的库
+    if (hriched != NULL)
+    {
+        FreeLibrary(hriched);
+    }
+
 	return TRUE;
 }
 
@@ -394,27 +418,46 @@ void CGateApp::OnServiceStart()
 #endif
 }
 
-
 void CGateApp::OnServiceStop()
 {
 #ifndef GATE_ADMIN
     if(m_pMainWnd->MessageBox(TEXT("确认要停止服务吗?"), TEXT("提示"), MB_YESNO) == IDYES)
     {
-        if(m_childpHandle == NULL && giInstancePid != 0)
-        {
-            m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
-        }
-        if (m_childpHandle)
-        {
-            TerminateProcess(m_childpHandle, 0);
-            CloseHandle(m_childpHandle);
-            m_childpHandle = NULL;
-            giInstancePid = 0;
-        }
+        OnServiceStop1();
         LogPrint(ObserverClientLog, TEXT("服务已停止"));
         theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_SERVER_STAUS, _T("已停止"));
         theApp.GetMainFrame()->SetPaneBackgroundColor(ID_INDICATOR_SERVER_STAUS, RGB(255, 0, 0));
     }
+#endif
+}
+
+void CGateApp::OnServiceStop1()
+{
+#ifndef GATE_ADMIN
+	if (m_childpHandle == NULL && giInstancePid != 0)
+	{
+		m_childpHandle = OpenProcess(PROCESS_TERMINATE, FALSE, giInstancePid);
+	}
+	if (m_childpHandle)
+	{
+		TerminateProcess(m_childpHandle, 0);
+		CloseHandle(m_childpHandle);
+	}
+
+	// 关闭g_Service.exe
+	HANDLE hProcess = theApp.GetMainFrame()->find_process("g_Service.exe");
+	if (hProcess) {
+		TerminateProcess(hProcess, 0);
+		CloseHandle(hProcess);
+	}
+	// 关闭g_LogicServer.exe
+	hProcess = theApp.GetMainFrame()->find_process("g_LogicServer.exe");
+	if (hProcess) {
+		TerminateProcess(hProcess, 0);
+		CloseHandle(hProcess);
+	}
+	m_childpHandle = NULL;
+	giInstancePid = 0;
 #endif
 }
 
@@ -443,8 +486,18 @@ void CGateApp::OnServiceSettings()
 
 void CGateApp::OnConfig()
 {
-    OnServiceSettings();
-    m_wndConfig.ShowConfigDlg();
+    auto tConfig = GetDocTemplateMgr().Find("Config");
+    tConfig->CloseAllDocuments(TRUE);
+    m_ConfigDoc = tConfig->OpenDocumentFile(m_inner_CfgPath);
+    if (!m_ConfigDoc)
+    {
+        ProtocolS2CPolicy policy;
+        std::ofstream cfg(m_inner_CfgPath.GetBuffer(), std::ios::out | std::ios::binary);
+        auto buffer = policy.dump();
+        cfg.write(buffer.data(), buffer.size());
+        cfg.close();
+        m_ConfigDoc = tConfig->OpenDocumentFile(m_inner_CfgPath);
+    }
 }
 
 
@@ -511,6 +564,7 @@ std::string CGateApp::ReadAuthKey()
 
 void CGateApp::ConnectionLicenses()
 {
+    m_ObServerClientGroup.clear_group();
     std::filesystem::path license_path = m_ExeDir;
     license_path = license_path / "license.txt";
     std::ifstream file(license_path, std::ios::in | std::ios::binary);
@@ -532,7 +586,7 @@ void CGateApp::ConnectionLicenses()
             const std::string ip = licenses[i]["ip"];
             const std::string snhash = licenses[i]["snhash"];
             const int port = licenses[i].find("port") != licenses[i].end() ? licenses[i]["port"] : kDefaultServicePort;
-            m_ObServerClientGroup(ip, port)->start(ip, port);
+            m_ObServerClientGroup(ip, port)->async_start(ip, port);
             m_ObServerClientGroup(ip, port)->set_auth_key(snhash);
         }
     }

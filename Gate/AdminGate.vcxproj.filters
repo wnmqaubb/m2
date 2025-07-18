@@ -85,6 +85,9 @@
     <ClCompile Include="CConfig.cpp">
       <Filter>MFC\ChildFrame</Filter>
     </ClCompile>
+    <ClCompile Include="CScrollingText.cpp">
+      <Filter>MFC\Widget</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ClientView.h">
@@ -180,6 +183,9 @@
     <ClInclude Include="CConfig.h">
       <Filter>MFC\ChildFrame</Filter>
     </ClInclude>
+    <ClInclude Include="CScrollingText.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\explorer.bmp">
@@ -263,7 +269,10 @@
     <Image Include="res\classview_hc.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="..\guard.ico" />
+    <Image Include="res\guard.ico" />
+    <Image Include="res\config.ico" />
+    <Image Include="res\blue.ico" />
+    <Image Include="res\red.ico" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="资源文件">
@@ -284,6 +293,9 @@
     <Filter Include="MFC\Output">
       <UniqueIdentifier>{a027dc6b-6e94-4290-afb2-378f076822d6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="js">
+      <UniqueIdentifier>{0d46b5e9-8c74-403a-bb40-6047a077a371}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Gate.rc">
@@ -293,6 +305,42 @@
   <ItemGroup>
     <None Include="res\Gate.rc2">
       <Filter>资源文件</Filter>
+    </None>
+    <None Include="..\js\本地线程689022.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\第五代机器码689054.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\第一代机器码689051.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\猎手检测689061.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\内部线程689055.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\内存检测689023.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\驱动检测689052.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\水仙机器码689060.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\图标检测689021_暂时不用.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\虚拟机检测689056.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\鸿蒙新增9051.js">
+      <Filter>js</Filter>
+    </None>
+    <None Include="..\js\鸿蒙新增待解密.js">
+      <Filter>js</Filter>
     </None>
   </ItemGroup>
 </Project>

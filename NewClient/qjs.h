@@ -7,9 +7,6 @@ extern "C" {
 
 #pragma once
 
-#include "quickjs/quickjs.h"
-#include "quickjs/quickjs-libc.h"
-
 #include <vector>
 #include <string_view>
 #include <string>
@@ -608,7 +605,7 @@ namespace qjs {
     /** Conversion to JSValue for free function in fwrapper. */
     template <typename R, typename... Args, R(*F)(Args...), bool PassThis>
     struct js_traits<fwrapper<F, PassThis>>
-    {
+    { 
         static JSValue wrap(JSContext * ctx, fwrapper<F, PassThis> fw) noexcept
         {
             return JS_NewCFunction(ctx, [](JSContext * ctx, JSValueConst this_value, int argc,
@@ -719,11 +716,11 @@ namespace qjs {
          */
         static void register_class(JSContext * ctx, const char * name, JSValue proto = JS_NULL)
         {
+            auto rt = JS_GetRuntime(ctx);
             if (QJSClassId == 0)
             {
-                JS_NewClassID(&QJSClassId);
+                JS_NewClassID(rt, &QJSClassId);
             }
-            auto rt = JS_GetRuntime(ctx);
             if (!JS_IsRegisteredClass(rt, QJSClassId))
             {
                 JSClassDef def{
@@ -863,11 +860,11 @@ namespace qjs {
         // TODO: replace ctx with rt
         static void register_class(JSContext * ctx, const char * name)
         {
+            auto rt = JS_GetRuntime(ctx);
             if (QJSClassId == 0)
             {
-                JS_NewClassID(&QJSClassId);
+                JS_NewClassID(rt, &QJSClassId);
             }
-            auto rt = JS_GetRuntime(ctx);
             if (JS_IsRegisteredClass(rt, QJSClassId))
                 return;
             JSClassDef def{
@@ -1460,14 +1457,14 @@ namespace qjs {
             js_traits<std::shared_ptr<T>>::register_class(ctx, name, proto);
         }
 
-        Value eval(std::string_view buffer, const char * filename = "<eval>", unsigned eval_flags = 0)
+        JSValue eval(std::string_view buffer, const char * filename = "<eval>", unsigned eval_flags = 0)
         {
             assert(buffer.data()[buffer.size()] == '\0' && "eval buffer is not null-terminated"); // JS_Eval requirement
             JSValue v = JS_Eval(ctx, buffer.data(), buffer.size(), filename, eval_flags);
-            return Value{ ctx, v };
+            return v;
         }
 
-        Value evalFile(const char * filename, unsigned eval_flags = 0)
+        JSValue evalFile(const char * filename, unsigned eval_flags = 0)
         {
             size_t buf_len;
             auto deleter = [this](void * p) { js_free(ctx, p); };
@@ -1595,7 +1592,7 @@ namespace qjs {
 
         static std::vector<T> unwrap(JSContext * ctx, JSValueConst jsarr)
         {
-            int e = JS_IsArray(ctx, jsarr);
+            int e = JS_IsArray(jsarr);
             if (e == 0)
                 JS_ThrowTypeError(ctx, "js_traits<std::vector<T>>::unwrap expects array");
             if (e <= 0)

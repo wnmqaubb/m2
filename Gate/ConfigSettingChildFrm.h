@@ -13,7 +13,7 @@ public:
 
 // 特性
 protected:
-	CSplitterWndEx m_wndSplitter;
+    CSplitterWndEx m_wndSplitter;
 public:
 
 // 操作

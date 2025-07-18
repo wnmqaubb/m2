@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document Version="2">
+    <Protection InputFileName="build\bin\Release\Win32\RunGatePlug_f.dll" Options="991176" VMCodeSectionName=".???" VMComplexity="1" VMInstances="1">
+        <Procedures>
+            <Procedure MapAddress="VMProtectMarker1" Options="0" />
+            <Procedure MapAddress="VMProtectMarker2" Options="0" />
+            <Procedure MapAddress="VMProtectMarker3" Options="0" />
+            <Procedure MapAddress="VMProtectMarker4" Options="0" />
+        </Procedures>
+    </Protection>
+    <LicenseManager ProductCode="Agw9rYXyflQ=" Algorithm="RSA" Bits="2048" PublicExp="AAEAAQ==" PrivateExp="AGyRZh8Nfkjl2qcTOufE5HjAuND8VdAqpIJM8+gIJPsbU/UBenuia4aopFY0bcDfmcib2afDZHwDwzZvTpM37UyW774487m5dIAo0mcYh3NRpWLph4vxvk6HxuiK+WGwiwQKLe6zSOp+V9SrPaJwP1CB6J8p+cNoYUSoet9tdL3/KBMFj87Bd90F2BFaO0FuHnsJ6lxilF7brHydxEYHnQiGUwRMypgh96fM0Cqj3fn4xZcCZvm9esZv0uT3cMuea7F3XaEt2CjRIKIoj1FM0TiWqKCugK6T3MmZZSSh1ZyxZAMX6f8Khf45iibL/DNldH0yMiDTvmUixnns1lIeZQ==" Modulus="oKhuhdj0qUXBLz9033GknFSiIxTw55YhjflI0J/j5zc1XbgiwgRLtKX7jdS9WTu2+97nPBk6E9bulETWlMEc4bBw9GWnIwklU8bEKU/OfwkFe6WcDgTeVjtQjof3AnZFHPpeqf7Xen4p6dI7o8eYDPR9+LVqb4zKP6+4RuRe9NaFnXpW8AYPgz9g8FwO6ztP+N8QuIFWgiCNkvaARbm0+OMYpFIujxVbLthYJkntSzZ2TtSyRCvRp9fkMHibI9E3DurxFXCQaNGoHH/UM2fTl37r7xFY1w/d7tfPX6eLL68UGu9Hy2+HaKSiEbhUitwserY6Ap4vamJ403DJxaz9eQ==" />
+</Document>

@@ -5,6 +5,7 @@
 
 #pragma once
 #include "Service/Protocol.h"
+#include "ObserverClientImpl.h"
 
 class CBaseDoc : public CDocument
 {

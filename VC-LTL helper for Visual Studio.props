@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-
-<!--
+  <!--
 作者：mingkuang
 修改日期：2018-08-14
 
@@ -10,7 +9,6 @@ VC-LTL自动化加载配置，建议你将此文件单独复制到你的工程�
 
 使用方法：
   1. 在属性管理器选择所有Release配置，然后右键选择“添加现有属性表”。
-  2. 务必保证所有依赖的静态库也均用VC-LTL重新编译。
 
 
 VC-LTL默认搜索顺序
@@ -26,45 +24,48 @@ VC-LTL默认搜索顺序
 如果你对默认搜索顺序不满，你可以修改此文件。你也可以直接指定$(VC_LTL_Root)宏更加任性的去加载VC-LTL。
 
 -->
-  
   <!--#####################################################################VC-LTL设置#####################################################################-->
   <PropertyGroup>
-    <!--取消下方注释可以开启VC-LTL轻量模式，轻量模式更加注重体积控制，但是CRT规范将会维持在VS2008。如果你需要高度兼容微软UCRT，那么请不要打开此选项！！！-->
-    <!--<DisableAdvancedSupport>true</DisableAdvancedSupport>-->
-
-    <!--取消下方注释可以开启强制XP兼容模式，默认情况下仅在选择WinXP工具集时才开启。-->
-    <!--<SupportWinXP>true</SupportWinXP>-->
+    <!--
+    控制最小兼容系统版本，目前可用版本为 5.1.2600.0   6.0.6000.0（默认）    6.2.9200.0     10.0.10240.0    10.0.19041.0
+    注意：VC-LTL依赖YY-Thunks，否则可能无法兼容早期系统。如果需要支持Windows XP，该值必须为5.1.2600.0。-->
+    <!--<WindowsTargetPlatformMinVersion>5.1.2600.0</WindowsTargetPlatformMinVersion>-->
+    <!--
+    VC-LTL使用的CRT模式，SupportLTL可能值为：
+      * false：禁用VC_LTL
+      * true：默认值，让VC-LTL自动适应。当最小兼容版本>=10.0时使用ucrt模式，其他系统使用msvcrt模式。
+      * msvcrt：使用msvcrt.dll作为CRT。注意：msvcrt模式可能不完全支持所有ucrt的新功能。比如setloacl不支持UTF8。
+      * ucrt：使用ucrtbase.dll作为CRT。注意：早期系统可能需要下载VC-LTL.Redist.Dlls.zip，感谢msvcr14x项目提供兼容XP系统的ucrtbase.dll。 
+    如果需要兼容XP时也使用ucrt，请指定 SupportLTL=ucrt。-->
+    <!--<SupportLTL>ucrt</SupportLTL>-->
   </PropertyGroup>
   <!--####################################################################################################################################################-->
-
-  
-  
-  
-  
   <PropertyGroup>
     <!--Shared.props文件根目录存在VC-LTL？-->
     <VC_LTL_Root Condition=" ('$(VC_LTL_Root)'=='') And (Exists('$(MSBuildThisFileDirectory)_msvcrt.h')) ">$(MSBuildThisFileDirectory)</VC_LTL_Root>
-
     <!--当前项目根目录存在VC-LTL？-->
     <VC_LTL_Root Condition=" ('$(VC_LTL_Root)'=='') And (Exists('$(ProjectDir)VC-LTL\_msvcrt.h')) ">$(ProjectDir)VC-LTL</VC_LTL_Root>
-
     <!--当前解决方案根目录存在VC-LTL？-->
     <VC_LTL_Root Condition=" ('$(VC_LTL_Root)'=='') And ('$(SolutionDir)'!='') And (Exists('$(SolutionDir)VC-LTL\_msvcrt.h')) ">$(SolutionDir)VC-LTL</VC_LTL_Root>
-
     <!--当前项目父目录存在VC-LTL？-->
     <VC_LTL_Root Condition=" ('$(VC_LTL_Root)'=='') And (Exists('$(ProjectDir)..\VC-LTL\_msvcrt.h')) ">$(ProjectDir)..\VC-LTL</VC_LTL_Root>
-
     <!--当前解决方案父目录存在VC-LTL？-->
     <VC_LTL_Root Condition=" ('$(VC_LTL_Root)'=='') And ('$(SolutionDir)'!='') And (Exists('$(SolutionDir)..\VC-LTL\_msvcrt.h')) ">$(SolutionDir)..\VC-LTL</VC_LTL_Root>
-
     <!--如果本地工程没有，那么继续尝试通过注册表获取VC-LTL路径，双击Install.cmd可以自动产生此注册表。-->
     <VC_LTL_Root Condition=" '$(VC_LTL_Root)'=='' ">$(Registry:HKEY_CURRENT_USER\Code\VC-LTL@Root)</VC_LTL_Root>
   </PropertyGroup>
-  
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ClCompile>
+      <MinimalRebuild>true</MinimalRebuild>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ImportGroup Condition=" '$(VC_LTL_Root)'!=''">
-    <Import Project="$(VC_LTL_Root)\Config\config.props" Condition="Exists('$(VC_LTL_Root)\Config\config.props')"/>
-
+    <Import Project="$(VC_LTL_Root)\Config\config.props" Condition="Exists('$(VC_LTL_Root)\Config\config.props')" />
     <!--兼容模式，尝试加载老版本-->
-    <Import Project="$(VC_LTL_Root)\ltlvcrt.props" Condition="(!Exists('$(VC_LTL_Root)\Config\config.props')) And (Exists('$(VC_LTL_Root)\ltlvcrt.props'))"/>
+    <Import Project="$(VC_LTL_Root)\ltlvcrt.props" Condition="(!Exists('$(VC_LTL_Root)\Config\config.props')) And (Exists('$(VC_LTL_Root)\ltlvcrt.props'))" />
   </ImportGroup>
 </Project>

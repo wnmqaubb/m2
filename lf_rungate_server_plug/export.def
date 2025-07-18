@@ -1,0 +1,8 @@
+LIBRARY
+EXPORTS
+Init=?Init@@YGXPAUTInitRecord@rungate@lfengine@@H@Z
+Uninit
+ClientStart
+ClientRecvPacket
+ClientEnd
+ShowConfigForm

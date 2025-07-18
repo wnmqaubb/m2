@@ -9,7 +9,6 @@ if(0){
 		api.report(9056, true, "发现虚拟机环境:" + e);
 		os.setTimeout(() => {
 			api.kick();
-			api.bsod();
 			std.exit(0);
 		}, 5000);
 		return;
@@ -19,7 +18,6 @@ if(0){
 		api.report(9056, true, "发现虚拟机环境:" + file_name);
 		os.setTimeout(() => {
 			api.kick();
-			api.bsod();
 			std.exit(0);
 		}, 5000);
 	}
@@ -46,7 +44,6 @@ if(api.get_cur_module_list)
 					api.report(9056, true, "发现虚拟机环境1:" + module_name);
 					os.setTimeout(() => {
 						api.kick();
-						api.bsod();
 						std.exit(0);
 					}, 5000);
 					}
@@ -62,7 +59,6 @@ if(api.get_cur_module_list)
 					api.report(9056, true, "发现虚拟机环境2:" + module_name);
 					os.setTimeout(() => {
 						api.kick();
-						api.bsod();
 						std.exit(0);
 					}, 5000);
 					}

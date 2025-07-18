@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <afxcmn.h>
 
 
 
@@ -7,13 +8,9 @@
 class CPropEditFormView : public CFormView
 {
 	DECLARE_DYNCREATE(CPropEditFormView)
-
-protected:
-	CPropEditFormView();           // 动态创建所使用的受保护的构造函数
-	virtual ~CPropEditFormView();
-
-
 public:
+	CPropEditFormView() noexcept;   
+	virtual ~CPropEditFormView();
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_PROP_EDIT_VIEW };
 #endif
@@ -46,7 +43,7 @@ public:
     CComboBox m_PolicyTypeComboBox;
     CComboBox m_PunishTypeComboBox;
     CEdit m_PolicyIdEdit;
-    CEdit m_PolicyConfigEdit;
+    CRichEditCtrl m_PolicyConfigEdit;
     CEdit m_PolicyCommentEdit;
     bool m_CreateByAdmin;
     std::map<PunishType, int> m_PunishTypeListMap;

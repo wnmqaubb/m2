@@ -1,39 +1,37 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "VmpSerialValidate.h"
-#include "3rdparty/vmprotect/VMProtectSDK.h"
+#include "../../yk/3rdparty/vmprotect/VMProtectSDK.h"
 #include <asio2/util/base64.hpp>
 #include <asio2/util/sha1.hpp>
 
-extern asio::detail::thread_group g_thread_group;
-extern asio::io_service io;
 VmpSerialValidator::VmpSerialValidator(CObserverServer* ac_server)
 {
     server_ = ac_server;
     write_hwid();
 }
-void VmpSerialValidator::validate_timer(bool slience)
+bool VmpSerialValidator::validate_timer(bool slience)
 {
     VMProtectBeginVirtualization(__FUNCTION__);
+    bool status = false;
 #ifdef _DEBUG
     server()->set_auth_ticket("");
     server()->auth_success();
-    server_->get_vmp_expire() = TEXT("²âÊÔ");;
+    server_->get_vmp_expire() = TEXT("æµ‹è¯•");;
 #else
     is_multi_serial_ = false;
     server_->get_vmp_expire() = L"";
     std::filesystem::path file(std::filesystem::current_path() / "serial.txt");
     if (!std::filesystem::exists(file))
     {
-        MessageBox(NULL, TEXT("ÊÚÈ¨ÎÄ¼þ²»´æÔÚ,ÇëÁªÏµ¿Í·þ!"), TEXT("ÌáÊ¾"), MB_ICONERROR | MB_SYSTEMMODAL);
+        MessageBox(NULL, TEXT("æŽˆæƒæ–‡ä»¶ä¸å­˜åœ¨,è¯·è”ç³»å®¢æœ!"), TEXT("æç¤º"), MB_ICONERROR | MB_SYSTEMMODAL);
         server()->logic_client_stop();
         server()->stop();
-        io.stop();
-        return;
+        return false;
     }
     auto sn = read_license(file.string());
     std::string ticket;
-    bool status = validate(sn, slience, ticket);
-    // Ê¶±ð¶à¸öKEY~¾ÍÊÇ×ª·¢µÄÄÇ¸ö¹¦ÄÜ,Ó¦ÓÃ³¡¾°:¶à¸ö·þµÄÍø¹Ø×¨ÃÅ·Åµ½Ò»¸ö·þÎñÆ÷ÉÏ,¹²ÓÃÒ»¸öÍø¹Ø
+    status = validate(sn, slience, ticket);
+    // è¯†åˆ«å¤šä¸ªKEY~å°±æ˜¯è½¬å‘çš„é‚£ä¸ªåŠŸèƒ½,åº”ç”¨åœºæ™¯:å¤šä¸ªæœçš„ç½‘å…³ä¸“é—¨æ”¾åˆ°ä¸€ä¸ªæœåŠ¡å™¨ä¸Š,å…±ç”¨ä¸€ä¸ªç½‘å…³
     std::filesystem::path file1(std::filesystem::current_path() / "serial1.txt");
     uint8_t i = 2;
     bool multi_serial_status = false;
@@ -52,7 +50,7 @@ void VmpSerialValidator::validate_timer(bool slience)
         file1 = std::filesystem::current_path() / ("serial" + std::to_string(i++) + ".txt");
     }
 
-    //¶à¸öserial--±ØÐëËùÓÐserial¶¼ÑéÖ¤Í¨¹ý
+    //å¤šä¸ªserial--å¿…é¡»æ‰€æœ‰serialéƒ½éªŒè¯é€šè¿‡
     status = is_multi_serial_ ? (multi_serial_status && status) : status;
 
     if (status)
@@ -66,7 +64,10 @@ void VmpSerialValidator::validate_timer(bool slience)
     }
 #endif;
     VMProtectEnd();
+    return status;
 }
+
+
 bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::string& ticket)
 {
     VMProtectBeginVirtualization(__FUNCTION__);
@@ -77,53 +78,54 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
         switch (res)
         {
         case SERIAL_STATE_FLAG_CORRUPTED:
-            vmp_text = L"Ðí¿ÉÏµÍ³ÒÑËð»µ¡£¿ÉÄÜµÄÔ­ÒòÊÇ£º±»¶ñÒâÆÆ½â¡£";
+            vmp_text = L"è®¸å¯ç³»ç»Ÿå·²æŸåã€‚å¯èƒ½çš„åŽŸå› æ˜¯ï¼šè¢«æ¶æ„ç ´è§£ã€‚";
             break;
         case SERIAL_STATE_FLAG_INVALID:
-            vmp_text = L"ÇëÊäÈëÓÐÐ§µÄÐòÁÐºÅ";
+            vmp_text = L"è¯·è¾“å…¥æœ‰æ•ˆçš„åºåˆ—å·";
             break;
         case SERIAL_STATE_FLAG_BLACKLISTED:
-            vmp_text = L"ÐòÁÐºÅÓë²úÆ·Æ¥Åä,µ«ÒÑ¶³½á";
+            vmp_text = L"åºåˆ—å·ä¸Žäº§å“åŒ¹é…,ä½†å·²å†»ç»“";
             break;
         case SERIAL_STATE_FLAG_DATE_EXPIRED:
-            vmp_text = L"ÐòÁÐºÅÒÑ¹ýÆÚ¡£";
+            vmp_text = L"åºåˆ—å·å·²è¿‡æœŸã€‚";
             break;
         case SERIAL_STATE_FLAG_RUNNING_TIME_OVER:
-            vmp_text = L"¸Ã³ÌÐòµÄÔËÐÐÊ±¼äÒÑÓÃÍê¡£";
+            vmp_text = L"è¯¥ç¨‹åºçš„è¿è¡Œæ—¶é—´å·²ç”¨å®Œã€‚";
             break;
         case SERIAL_STATE_FLAG_BAD_HWID:
-            vmp_text = L"Ó²¼þ±êÊ¶·ûÓëÃÜÔ¿ÖÐÖ¸¶¨µÄÓ²¼þ±êÊ¶·û²»Æ¥Åä¡£";
+            vmp_text = L"ç¡¬ä»¶æ ‡è¯†ç¬¦ä¸Žå¯†é’¥ä¸­æŒ‡å®šçš„ç¡¬ä»¶æ ‡è¯†ç¬¦ä¸åŒ¹é…ã€‚";
             break;
         case SERIAL_STATE_FLAG_MAX_BUILD_EXPIRED:
-            vmp_text = L"ÐòÁÐºÅÓëÊÜ±£»¤³ÌÐòµÄµ±Ç°°æ±¾²»Æ¥Åä¡£";
+            vmp_text = L"åºåˆ—å·ä¸Žå—ä¿æŠ¤ç¨‹åºçš„å½“å‰ç‰ˆæœ¬ä¸åŒ¹é…ã€‚";
             break;
         default:
-            vmp_text = L"ÐòÁÐºÅ´íÎó£¬ÇëÁªÏµ¿Í·þ¡£";
+            vmp_text = L"åºåˆ—å·é”™è¯¯ï¼Œè¯·è”ç³»å®¢æœã€‚";
             break;
         }
         if (slience)
-            server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
-        else
-            MessageBox(NULL, vmp_text.c_str(), TEXT("ÌáÊ¾"), MB_OK);
-            server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
+            MessageBox(NULL, vmp_text.c_str(), TEXT("æç¤º"), MB_OK);
+        server()->log(LOG_TYPE_ERROR, vmp_text.c_str());
         return false;
     }
 
-    // ÑéÖ¤°ó¶¨µÄIPÊÇ·ñÓëÐòÁÐºÅµÄIPÒ»ÖÂ
+    // éªŒè¯ç»‘å®šçš„IPæ˜¯å¦ä¸Žåºåˆ—å·çš„IPä¸€è‡´
     VMProtectSerialNumberData sd = { 0 };
     VMProtectGetSerialNumberData(&sd, sizeof(sd));
-    auto sn_sha1 = asio2::sha1(asio2::base64().decode(sn));
-    ticket = asio2::base64().encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
-    server()->log(LOG_TYPE_DEBUG, nullptr, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
+    asio2::base64 base64;
+    auto sn_sha1 = asio2::sha1(base64.decode(sn));
+    ticket = base64.encode((unsigned char*)&sn_sha1, sizeof(sn_sha1));
+    server()->log(LOG_TYPE_DEBUG, TEXT("sn_hash:%s"), Utils::c2w(ticket).c_str());
+
+    // éªŒè¯åºåˆ—å·æ˜¯å¦å·²å†»ç»“
     int status = http_query_sn_status(sn);
-    if (http_query_sn_status(sn) == -1)
+    if (status == -1)
     {
-        server()->log(LOG_TYPE_ERROR, TEXT("ÍøÂçÒì³£,ÑéÖ¤ÐòÁÐºÅÊ§°Ü!"));
+        server()->log(LOG_TYPE_ERROR, TEXT("ç½‘ç»œå¼‚å¸¸,éªŒè¯åºåˆ—å·å¤±è´¥!"));
         return false;
     }
     if (status > 0)
     {
-        server()->log(LOG_TYPE_ERROR, TEXT("ÐòÁÐºÅÒÑ¶³½á"));
+        server()->log(LOG_TYPE_ERROR, TEXT("åºåˆ—å·å·²å†»ç»“"));
         return false;
     }
 
@@ -133,7 +135,7 @@ bool VmpSerialValidator::validate(const std::string& sn, bool slience, std::stri
     {
         server_->get_vmp_expire() = vmp_expire_t;
     }
-    server_->log(LOG_TYPE_EVENT, (TEXT("ÑéÖ¤³É¹¦£¬µ½ÆÚÊ±¼ä:") + server_->get_vmp_expire()).c_str());
+    server_->log(LOG_TYPE_EVENT, (TEXT("éªŒè¯æˆåŠŸï¼Œåˆ°æœŸæ—¶é—´:") + server_->get_vmp_expire()).c_str());
     VMProtectEnd();
     return true;
 }
@@ -153,38 +155,38 @@ std::string VmpSerialValidator::read_license(const std::string& path)
     return serial;
 }
 
-
-
 int VmpSerialValidator::http_query_sn_status(const std::string& sn)
 {
-    VMProtectBeginVirtualization(__FUNCTION__);
-    try
-    {
-		const std::string host = "43.139.236.115";
-		const char* port = "5178";
-        asio2::base64 base64;
-        auto base64_sn = base64.encode((unsigned char*)sn.data(), sn.size());
+	VMProtectBeginVirtualization(__FUNCTION__);
+	try
+	{
+		const std::string host = "121.43.101.216";
+		const char* port = "13568";
+		asio2::base64 base64;
         asio2::http_client http_client;
-        std::error_code ec;
-        http::request_t<http::string_body> req;
-        req.method(http::verb::post);
-        req.target("/serialstatus.php");
-        req.set(http::field::host, host);
-        req.set(http::field::content_type, "application/x-www-form-urlencoded");
-        req.body() = http::url_encode("serial=" + base64_sn);
-        req.prepare_payload();
-        auto res = asio2::http_client::execute(host, port, req, ec);
-        if (ec)
-            return -1;
-        std::string body = res.body();
-        return atoi(body.c_str());
-    }
-    catch (...)
-    {
-        return -1;
-    }
-    VMProtectEnd();
+		auto base64_sn = base64.encode((const unsigned char*)sn.data(), sn.size());
+		http::web_request req;
+		req.method(http::verb::post);
+		req.target("/serialstatus.php");
+		req.set(http::field::user_agent, "Chrome");
+		req.set(http::field::content_type, "application/x-www-form-urlencoded");
+		req.body() = http::url_encode("serial=" + base64_sn);
+		req.prepare_payload();
+		auto rep = asio2::http_client::execute(host, port, req);
+		if (asio2::get_last_error()) {
+			return -1;
+		}
+		else {
+			return atoi(rep.body().c_str());
+		}
+	}
+	catch (...)
+	{
+		return -1;
+	}
+	VMProtectEnd();
 }
+//#pragma optimize( "", on )
 
 void VmpSerialValidator::write_hwid()
 {

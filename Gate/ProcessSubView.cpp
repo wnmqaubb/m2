@@ -1,4 +1,4 @@
-
+ï»¿
 #include "pch.h"
 #include "framework.h"
 
@@ -27,6 +27,11 @@ CProcessSubViewWnd::~CProcessSubViewWnd()
 BEGIN_MESSAGE_MAP(CProcessSubViewWnd, CDockablePane)
     ON_WM_CREATE()
     ON_WM_SIZE()
+	ON_WM_CONTEXTMENU()
+	ON_COMMAND(ID_COPY_MODULE_NAME , &CProcessSubViewWnd::OnCopyValue)
+	ON_COMMAND(ID_COPY_THREAD_ENTRY, &CProcessSubViewWnd::OnCopyValue)
+	ON_COMMAND(ID_COPY_FILE_NAME   , &CProcessSubViewWnd::OnCopyValue)
+	ON_COMMAND(ID_COPY_MODULE_PATH, &CProcessSubViewWnd::OnCopyModulePath)
 END_MESSAGE_MAP()
 
 int CProcessSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
@@ -37,21 +42,21 @@ int CProcessSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
     CRect rectDummy;
     rectDummy.SetRectEmpty();
 
-    // ´´½¨Ñ¡Ïî¿¨´°¿Ú: 
+    // åˆ›å»ºé€‰é¡¹å¡çª—å£: 
     if (!m_wndTabs.Create(CMFCTabCtrl::STYLE_3D, rectDummy, this, 1))
     {
-        TRACE0("Î´ÄÜ´´½¨Êä³öÑ¡Ïî¿¨´°¿Ú\n");
-        return -1;      // Î´ÄÜ´´½¨
+        TRACE0("æœªèƒ½åˆ›å»ºè¾“å‡ºé€‰é¡¹å¡çª—å£\n");
+        return -1;      // æœªèƒ½åˆ›å»º
     }
 
-    // ´´½¨Êä³ö´°¸ñ: 
+    // åˆ›å»ºè¾“å‡ºçª—æ ¼: 
     const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 
     if (!m_wndModuleInfo.Create(dwViewStyle, rectDummy, &m_wndTabs, 2) ||
         !m_wndThreadInfo.Create(dwViewStyle, rectDummy, &m_wndTabs, 3) ||
         !m_wndDirectoryInfo.Create(dwViewStyle, rectDummy, &m_wndTabs, 4))
     {
-        TRACE0("Î´ÄÜ´´½¨ÁĞ±íÊÓÍ¼\n");
+        TRACE0("æœªèƒ½åˆ›å»ºåˆ—è¡¨è§†å›¾\n");
         return -1;
     }
 
@@ -60,9 +65,9 @@ int CProcessSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
     CString strTabName;
     BOOL bNameValid;
 
-    m_wndTabs.AddTab(&m_wndModuleInfo, _T("Ä£¿é"), (UINT)0);
-    m_wndTabs.AddTab(&m_wndThreadInfo, _T("Ïß³Ì"), (UINT)1);
-    m_wndTabs.AddTab(&m_wndDirectoryInfo, _T("½ø³ÌÄ¿Â¼"), (UINT)2);
+    m_wndTabs.AddTab(&m_wndModuleInfo, _T("æ¨¡å—"), (UINT)0);
+    m_wndTabs.AddTab(&m_wndThreadInfo, _T("çº¿ç¨‹"), (UINT)1);
+    m_wndTabs.AddTab(&m_wndDirectoryInfo, _T("è¿›ç¨‹ç›®å½•"), (UINT)2);
 
     InitModuleWindowView();
     InitThreadWindowView();
@@ -82,11 +87,11 @@ void CProcessSubViewWnd::InitModuleWindowView()
     m_wndModuleInfo.SetRedraw(FALSE);
     int colIndex = 0;
     m_wndModuleInfo.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
-    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("ĞòºÅ"), LVCFMT_LEFT, 38);
-    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("Ä£¿é»ùÖ·"), LVCFMT_LEFT, 80);
-    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("Ä£¿é´óĞ¡"), LVCFMT_LEFT, 80);
-    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("Ä£¿éÃû"), LVCFMT_LEFT, 150);
-    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("Ä£¿éÂ·¾¶"), LVCFMT_LEFT, 530);
+    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("åºå·"), LVCFMT_LEFT, 38);
+    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("æ¨¡å—åŸºå€"), LVCFMT_LEFT, 80);
+    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("æ¨¡å—å¤§å°"), LVCFMT_LEFT, 80);
+    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("æ¨¡å—å"), LVCFMT_LEFT, 150);
+    m_wndModuleInfo.InsertColumn(colIndex++, TEXT("æ¨¡å—è·¯å¾„"), LVCFMT_LEFT, 530);
 
     m_wndModuleInfo.SetRedraw(TRUE);
 }
@@ -98,11 +103,11 @@ void CProcessSubViewWnd::InitThreadWindowView()
     int colIndex = 0;
     m_wndThreadInfo.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     colIndex = 0;
-    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("ĞòºÅ"), LVCFMT_LEFT, 38);
-    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("Ïß³ÌID"), LVCFMT_LEFT, 50);
-    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("Ïß³ÌÈë¿Ú"), LVCFMT_LEFT, 120);
-    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("Ö÷Ïß³Ì"), LVCFMT_LEFT, 50);
-    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("Ä£¿éÂ·¾¶"), LVCFMT_LEFT, 530);
+    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("åºå·"), LVCFMT_LEFT, 38);
+    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("çº¿ç¨‹ID"), LVCFMT_LEFT, 50);
+    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("çº¿ç¨‹å…¥å£"), LVCFMT_LEFT, 120);
+    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("ä¸»çº¿ç¨‹"), LVCFMT_LEFT, 50);
+    m_wndThreadInfo.InsertColumn(colIndex++, TEXT("æ¨¡å—è·¯å¾„"), LVCFMT_LEFT, 530);
     m_wndThreadInfo.SetRedraw(TRUE);
 }
 
@@ -113,9 +118,9 @@ void CProcessSubViewWnd::InitDirectoryWindowView()
     int colIndex = 0;
     m_wndDirectoryInfo.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     colIndex = 0;
-    m_wndDirectoryInfo.InsertColumn(colIndex++, TEXT("ĞòºÅ"), LVCFMT_LEFT, 38);
-    m_wndDirectoryInfo.InsertColumn(colIndex++, TEXT("ÀàĞÍ"), LVCFMT_LEFT, 50);
-    m_wndDirectoryInfo.InsertColumn(colIndex++, TEXT("ÎÄ¼şÃû"), LVCFMT_LEFT, 530);
+    m_wndDirectoryInfo.InsertColumn(colIndex++, TEXT("åºå·"), LVCFMT_LEFT, 38);
+    m_wndDirectoryInfo.InsertColumn(colIndex++, TEXT("ç±»å‹"), LVCFMT_LEFT, 50);
+    m_wndDirectoryInfo.InsertColumn(colIndex++, TEXT("æ–‡ä»¶å"), LVCFMT_LEFT, 530);
     m_wndDirectoryInfo.SetRedraw(TRUE);
 }
 
@@ -197,7 +202,7 @@ void CProcessSubViewWnd::FillDirectoryWindow(const std::vector<ProtocolDirectory
         id.Format(format_d, rowNum + 1);
         m_wndDirectoryInfo.InsertItem(rowNum, empty_wstr);
         m_wndDirectoryInfo.SetItemText(rowNum, colIndex++, id);
-        m_wndDirectoryInfo.SetItemText(rowNum, colIndex++, dir.is_directory ? TEXT("[Ä¿Â¼]") : TEXT("[ÎÄ¼ş]"));
+        m_wndDirectoryInfo.SetItemText(rowNum, colIndex++, dir.is_directory ? TEXT("[ç›®å½•]") : TEXT("[æ–‡ä»¶]"));
         m_wndDirectoryInfo.SetItemText(rowNum, colIndex++, dir.path.c_str());
         rowNum++;
     }
@@ -228,4 +233,118 @@ void CProcessSubViewWnd::UpdateFonts()
     m_wndThreadInfo.SetFont(&afxGlobalData.fontRegular);
     m_wndModuleInfo.SetFont(&afxGlobalData.fontRegular);
     m_wndDirectoryInfo.SetFont(&afxGlobalData.fontRegular);
+}
+
+void CProcessSubViewWnd::OnCopyValue()
+{
+	CString cell_value;
+    int selectedRow;
+	if (m_wndTabs.GetActiveTab() == 0)
+	{
+		selectedRow = (int)m_wndModuleInfo.GetFirstSelectedItemPosition() - 1;
+        if (selectedRow != -1)
+        {
+            cell_value = m_wndModuleInfo.GetItemText(selectedRow, 3);
+        }
+	}
+	else if (m_wndTabs.GetActiveTab() == 1)
+	{
+		selectedRow = (int)m_wndThreadInfo.GetFirstSelectedItemPosition() - 1;
+		if (selectedRow != -1)
+		{
+			cell_value = m_wndThreadInfo.GetItemText(selectedRow, 2);
+		}
+	}
+	else if (m_wndTabs.GetActiveTab() == 2)
+	{
+		selectedRow = (int)m_wndDirectoryInfo.GetFirstSelectedItemPosition() - 1;
+		if (selectedRow != -1)
+		{
+			cell_value = m_wndDirectoryInfo.GetItemText(selectedRow, 2);
+		}
+	}
+    theApp.GetMainFrame()->CopyToClipboard(cell_value);
+}
+
+void CProcessSubViewWnd::OnCopyModulePath()
+{
+	CString cell_value;
+    int selectedRow;
+	if (m_wndTabs.GetActiveTab() == 0)
+	{
+		selectedRow = (int)m_wndModuleInfo.GetFirstSelectedItemPosition() - 1;
+        if (selectedRow != -1)
+        {
+            cell_value = m_wndModuleInfo.GetItemText(selectedRow, 4);
+        }
+	}
+	else if (m_wndTabs.GetActiveTab() == 1)
+	{
+		selectedRow = (int)m_wndThreadInfo.GetFirstSelectedItemPosition() - 1;
+		if (selectedRow != -1)
+		{
+			cell_value = m_wndThreadInfo.GetItemText(selectedRow, 4);
+		}
+	}
+	cell_value.Replace(_T("\\"), _T("\\\\"));
+    theApp.GetMainFrame()->CopyToClipboard(cell_value);
+}
+
+void CProcessSubViewWnd::OnContextMenu(CWnd* pWnd, CPoint point)
+{
+#ifdef GATE_ADMIN
+	CTreeCtrl* pWndTree = (CTreeCtrl*)&m_wndTabs;
+
+	ASSERT_VALID(pWndTree);
+
+	if (pWnd != pWndTree)
+	{
+		CDockablePane::OnContextMenu(pWnd, point);
+		return;
+	}
+
+	if (point != CPoint(-1, -1))
+	{
+		// é€‰æ‹©å·²å•å‡»çš„é¡¹: 
+		CPoint ptTree = point;
+		pWndTree->ScreenToClient(&ptTree);
+
+		UINT flags = 0;
+		HTREEITEM hTreeItem = pWndTree->HitTest(ptTree, &flags);
+		if (hTreeItem != nullptr)
+		{
+			pWndTree->SelectItem(hTreeItem);
+		}
+	}
+
+	pWndTree->SetFocus();
+	CMenu menu;
+	menu.CreatePopupMenu();
+
+	if (m_wndTabs.GetActiveTab() == 0)
+	{
+		menu.AppendMenu(MF_STRING, ID_COPY_MODULE_NAME, TEXT("å¤åˆ¶æ¨¡å—å"));
+		menu.AppendMenu(MF_STRING, ID_COPY_MODULE_PATH, TEXT("å¤åˆ¶æ¨¡å—è·¯å¾„"));
+	}
+	else if(m_wndTabs.GetActiveTab() == 1)
+	{
+		menu.AppendMenu(MF_STRING, ID_COPY_THREAD_ENTRY, TEXT("å¤åˆ¶çº¿ç¨‹å…¥å£"));
+		menu.AppendMenu(MF_STRING, ID_COPY_MODULE_PATH, TEXT("å¤åˆ¶æ¨¡å—è·¯å¾„"));
+	}
+    else if (m_wndTabs.GetActiveTab() == 2)
+	{
+        menu.AppendMenu(MF_STRING, ID_COPY_FILE_NAME, TEXT("å¤åˆ¶æ–‡ä»¶å"));
+	}
+
+	if (AfxGetMainWnd()->IsKindOf(RUNTIME_CLASS(CMDIFrameWndEx)))
+	{
+		CMFCPopupMenu* pPopupMenu = new CMFCPopupMenu;
+
+		if (!pPopupMenu->Create(this, point.x, point.y, (HMENU)menu.m_hMenu, FALSE, TRUE))
+			return;
+
+		((CMDIFrameWndEx*)AfxGetMainWnd())->OnShowPopupMenu(pPopupMenu);
+		UpdateDialogControls(this, FALSE);
+	}
+#endif
 }

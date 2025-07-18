@@ -12,25 +12,20 @@ VMProtect_Con.exe %ReleaseDir%\Service.exe %OutputDir%\gm_server\Service.exe -pf
 VMProtect_Con.exe %ReleaseDir%\LogicServer.exe %OutputDir%\gm_server\LogicServer.exe -pf LogicRelease.vmp
 VMProtect_Con.exe %ReleaseDir%\Gate.exe %OutputDir%\gm_server\Gate.exe -pf GateRelease.vmp
 
-echo D|xcopy %ReleaseDir%\plugin\* %OutputDir%\gm_server\plugin\ /y
 echo F|xcopy %ReleaseDir%\AdminGate.exe %OutputDir%\admin_server\AdminGate.exe /y
-echo F|xcopy %ReleaseDir%\packer.exe %OutputDir%\admin_server\packer.exe /y
-echo F|xcopy %ReleaseDir%\packer_tool.exe %OutputDir%\admin_server\packer_tool.exe /y
 echo F|xcopy %ReleaseDir%\NewClient.dll %OutputDir%\admin_server\NewClient.dll /y
-echo F|xcopy %ReleaseDir%\stage_1_payload.bin %OutputDir%\admin_server\stage_1_payload.bin /y
-echo F|xcopy %ReleaseDir%\stage_2_payload.bin %OutputDir%\admin_server\stage_2_payload.bin /y
 
-echo F|xcopy %ReleaseDir%\*.exe %OutputDir%\all\ /y
-echo F|xcopy %ReleaseDir%\*.dll %OutputDir%\all\ /y
-echo F|xcopy %ReleaseDir%\*.bin %OutputDir%\all\ /y
-echo F|xcopy %PdbDir%\*.pdb %OutputDir%\all\ /y
-7z a -tzip %OutputDir%\pdbs.zip %OutputDir%\all\*
-7z a -tzip %OutputDir%\admin_server.zip %OutputDir%\admin_server\*
-7z a -tzip %OutputDir%\gm_server.zip %OutputDir%\gm_server\*
-7z a -tzip %OutputDir%\%1.zip %OutputDir%\admin_server.zip %OutputDir%\gm_server.zip
+::echo F|xcopy %ReleaseDir%\*.exe %OutputDir%\all\ /y
+::echo F|xcopy %ReleaseDir%\*.dll %OutputDir%\all\ /y
+::echo F|xcopy %ReleaseDir%\*.bin %OutputDir%\all\ /y
+::echo F|xcopy %PdbDir%\*.pdb %OutputDir%\all\ /y
+::7z a -tzip %OutputDir%\pdbs.zip %OutputDir%\all\*
+::7z a -tzip %OutputDir%\admin_server.zip %OutputDir%\admin_server\*
+::7z a -tzip %OutputDir%\gm_server.zip %OutputDir%\gm_server\*
+::7z a -tzip %OutputDir%\%1.zip %OutputDir%\admin_server.zip %OutputDir%\gm_server.zip
 
-del %OutputDir%\gm_server.zip
-del %OutputDir%\admin_server.zip
-rmdir /q /s %OutputDir%\all
-rmdir /q /s %OutputDir%\admin_server
-rmdir /q /s %OutputDir%\gm_server
+::del %OutputDir%\gm_server.zip
+::del %OutputDir%\admin_server.zip
+::rmdir /q /s %OutputDir%\all
+::rmdir /q /s %OutputDir%\admin_server
+::rmdir /q /s %OutputDir%\gm_server

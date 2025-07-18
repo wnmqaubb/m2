@@ -1,4 +1,4 @@
-#include "pch.h"
+Ôªø#include "pch.h"
 #include "Gate.h"
 #include "ObserverClientImpl.h"
 
@@ -16,7 +16,7 @@ CString get_current_date_str()
     return tm.Format(_T("%Y-%m-%d"));
 }
 
-CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(io_, auth_key)
+CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::string& auth_key) : super(/*io_,*/ auth_key)
 , user_count_(0)
 {
     std::error_code ec;
@@ -46,7 +46,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
         if (package_id == OBPKG_ID_S2C_SEND)
         {
-            log(LOG_TYPE_ERROR, TEXT("«∂Ã◊◊™∑¢"));
+            log(LOG_TYPE_ERROR, TEXT("ÂµåÂ•óËΩ¨Âèë"));
             return;
         }
         client_pkg_mgr_.dispatch(package_id, req.head.session_id, req, raw_msg);
@@ -54,83 +54,101 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
     package_mgr_.register_handler(LSPKG_ID_S2C_LOG, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         try
         {
-            auto req = raw_msg.get().as<ProtocolLSLCLogPrint>();
+			auto req = raw_msg.get().as<ProtocolLSLCLogPrint>();
+			auto msg = req.text;
+
+			if (req.punish_flag)
+			{
+#ifndef GATE_ADMIN
+				std::time_t now_time = time(0);
+				char time_str[MAX_PATH] = { 0 };
+				tm tm_;
+				localtime_s(&tm_, &now_time);
+				strftime(time_str, sizeof(time_str) / sizeof(time_str[0]) - 1, "%m-%d %H:%M:%S", &tm_);
+				std::string result;
+				result = result + "[‰∫ã‰ª∂]" + time_str + "|";
+                // gm ÁïåÈù¢ÊªöÂä®ÊòæÁ§∫Ë¢´Â§ÑÁΩö‰ø°ÊÅØ
+                theApp.GetMainFrame()->SetScrollText((Utils::c2w(result) + msg).c_str());
+#endif
+                log_to_punish_file(Utils::w2c(msg));
+			}
 #ifdef GATE_ADMIN
             if (!req.silence)
             {
-                LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
+                LogPrint(LogicServerLog, TEXT("%s"), msg.c_str());
             }
             if (!req.identify.empty())
             {
-                log_to_file(req.identify, Utils::w2c(req.text));
+                log_to_file(req.identify, Utils::w2c(msg));
             }
 #else
             if (req.gm_show)
             {
                 if (!req.silence)
                 {
-                    LogPrint(LogicServerLog, TEXT("%s"), req.text.c_str());
+                    LogPrint(LogicServerLog, TEXT("%s"), msg.c_str());
                 }
                 if (!req.identify.empty())
                 {
-                    log_to_file(req.identify, Utils::w2c(req.text));
-                }
+                    log_to_file(req.identify, Utils::w2c(msg));
+				}
             }
 #endif // GATE_ADMIN
         }
         catch (msgpack::v1::type_error)
         {
-            TRACE("Ω‚ŒˆLogic»’÷æ ß∞‹");
+            TRACE("Ëß£ÊûêLogicÊó•ÂøóÂ§±Ë¥•");
         }
     });
     package_mgr_.register_handler(OBPKG_ID_S2C_LOG, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         try
         {
-            auto req = raw_msg.get().as<ProtocolOBS2OBCLogPrint>();
+			auto req = raw_msg.get().as<ProtocolOBS2OBCLogPrint>();
+			auto msg = req.text;
             if (!req.silence)
             {
-                LogPrint(ServiceLog, TEXT("%s"), req.text.c_str());
+                LogPrint(ServiceLog, TEXT("%s"), msg.c_str());
             }
             if (!req.identify.empty())
             {
-                log_to_file(req.identify, Utils::w2c(req.text));
+                log_to_file(req.identify, Utils::w2c(msg));
             }
         }
         catch (msgpack::v1::type_error)
         {
-            TRACE("Ω‚ŒˆService»’÷æ ß∞‹");
+            TRACE("Ëß£ÊûêServiceÊó•ÂøóÂ§±Ë¥•");
         }
     });
-    client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
-        if (msg.plugin_list.empty())
-        {
-            log(LOG_TYPE_DEBUG, _T("Œ¥¿≠∆»Œ∫Œ‘∆¥˙¬Î"));
-            return;
-        }
-        for (auto&[plugin_hash, module_info] : msg.plugin_list)
-        {
-            log(LOG_TYPE_DEBUG, _T("‘∆¥˙¬Î:%08X %s 0x%llX 0x%08X"), plugin_hash,
-                module_info.module_name.c_str(),
-                module_info.base,
-                module_info.size_of_image);
-        }
-    });
-    client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-        auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
-        if (msg.plugin_list.empty())
-        {
-            log(LOG_TYPE_DEBUG, _T("Œ¥¿≠∆»Œ∫Œ‘∆¥˙¬Î"));
-            return;
-        }
-        for (auto&[plugin_hash, module_info] : msg.plugin_list)
-        {
-            log(LOG_TYPE_DEBUG, _T("‘∆¥˙¬Î:%08X %s 0x%llX 0x%08X"), plugin_hash,
-                module_info.module_name.c_str(),
-                module_info.base,
-                module_info.size_of_image);
-        }
-    });
+    //client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+    //    auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
+    //    if (msg.plugin_list.empty())
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("Êú™ÊãâËµ∑‰ªª‰Ωï‰∫ë‰ª£Á†Å"));
+    //        return;
+    //    }
+    //    for (auto&[plugin_hash, module_info] : msg.plugin_list)
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("‰∫ë‰ª£Á†Å:%08X %s 0x%llX 0x%08X"), plugin_hash,
+    //            module_info.module_name.c_str(),
+    //            module_info.base,
+    //            module_info.size_of_image);
+    //    }
+    //});
+    //client_pkg_mgr_.register_handler(SPKG_ID_C2S_CHECK_PLUGIN, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
+    //    auto msg = raw_msg.get().as<ProtocolC2SCheckPlugin>();
+    //    if (msg.plugin_list.empty())
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("Êú™ÊãâËµ∑‰ªª‰Ωï‰∫ë‰ª£Á†Å"));
+    //        return;
+    //    }
+    //    for (auto&[plugin_hash, module_info] : msg.plugin_list)
+    //    {
+    //        log(LOG_TYPE_DEBUG, _T("‰∫ë‰ª£Á†Å:%08X %s 0x%llX 0x%08X"), plugin_hash,
+    //            module_info.module_name.c_str(),
+    //            module_info.base,
+    //            module_info.size_of_image);
+    //    }
+    //});
 
     client_pkg_mgr_.register_handler(SPKG_ID_C2S_QUERY_PROCESS, [this](unsigned int sid, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         wchar_t file_name[255];
@@ -163,7 +181,7 @@ CObserverClientImpl::CObserverClientImpl(asio::io_service& io_, const std::strin
         wchar_t file_name[255];
 		_snwprintf_s(file_name, sizeof(file_name) / sizeof(file_name[0]) - 1, TEXT("%s_%d.jpg"), get_current_time_str().GetBuffer(), SPKG_ID_C2S_QUERY_SCREENSHOT);
 		std::filesystem::path filepath(theApp.m_ExeDir);
-        filepath /= "ÕÊº“ΩÿÕº";
+        filepath /= "Áé©ÂÆ∂Êà™Âõæ";
         if (!std::filesystem::exists(filepath))
         {
             std::filesystem::create_directory(filepath);

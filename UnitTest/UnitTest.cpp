@@ -1,37 +1,24 @@
 ﻿#include "pch.h"
 #include <iostream>
-#include "Lightbone/lighthook.h"
-#include "Lightbone/pointer.hpp"
-#include "Lightbone/utils.h"
+#include "../../yk/Lightbone/lighthook.h"
+#include "../../yk/Lightbone/pointer.hpp"
+#include "../../yk/Lightbone/utils.h"
 #include "NewClient/ClientImpl.h"
+#include "NewClient/shellcode/TaskBasic.h"
 #include "Gate/cmdline.h"
 #include "PEScan.h"
-
-void LoadPlugin(CAntiCheatClient* client);
+#include <../../yk/Lightbone/api_resolver.h>
+#include <NewClient/thread_manager.h>
+#include <Psapi.h>
+#pragma comment(lib, "Psapi.lib")
 void async_execute_javascript(const std::string& sv, uint32_t script_id);
 
-void client_start_routine(std::shared_ptr<CClientImpl> client);
-extern asio::io_service g_io;
-
-class CClientPluginMgrUnitTest : public CClientPluginMgr
-{
-public:
-    CClientPluginMgrUnitTest(fs::path cache_dir_) 
-       : CClientPluginMgr(cache_dir_)
-    {
-    }
-    ~CClientPluginMgrUnitTest(){}
-    bool load_plugin(plugin_hash_t plugin_hash, const std::string& filename) override
-    {
-        auto client = this->instance_;
-        LoadPlugin(client);
-        client->package_mgr().replace_handler(SPKG_ID_S2C_PUNISH, [client](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
-            std::cout << "受到处罚" << std::endl;
-        });
-        return true;
-    }
-};
-
+//extern void __stdcall InitExFunc(std::string guard_gate_ip) noexcept;
+//typedef void(__stdcall* InitExFunc)(const void* AppFunc, const char* server_ip, const wchar_t* mutex_anti_cheat_module_name);
+//extern void __stdcall DoUnInit();
+//using client_entry_t = decltype(&InitEx);
+//using uninit_t = decltype(&DoUnInit);
+//client_entry_t pfnAntiCheatInit = nullptr;
 
 void hook_calc_pe_ico_hash()
 {
@@ -56,25 +43,12 @@ void dump_all_scripts()
 
 void test_connect()
 {
-    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-    client->plugin_mgr_ = std::make_unique<CClientPluginMgrUnitTest>(".\\cache");
-    client->plugin_mgr_->set_client_instance(client.get());
-    client->cfg() = std::make_unique<ProtocolCFGLoader>();
-    client->cfg()->set_field<std::string>(ip_field_id, "1.15.118.83");
-    client->cfg()->set_field<uint32_t>(port_field_id, kDefaultServicePort);
-    client_start_routine(std::move(client));
+    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
 }
 //
-CAntiCheatClient* test_javascript()
+void test_javascript()
 {
-    CAntiCheatClient* instance;
-    std::shared_ptr<CClientImpl> client(std::make_shared<CClientImpl>(g_io));
-    client->cfg() = std::make_unique<ProtocolCFGLoader>();
-    client->cfg()->set_field<std::string>(ip_field_id, "127.0.0.1");
-    client->cfg()->set_field<uint32_t>(port_field_id, kDefaultServicePort);
-    instance = client.get();
-    client_start_routine(std::move(client));
-    return instance;
+    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
 }
 
 std::vector<std::string> split(const std::string &str, const std::string &pattern)
@@ -98,19 +72,34 @@ std::vector<std::string> split(const std::string &str, const std::string &patter
     return res;
 }
 
-void InitJavaScript(CAntiCheatClient* client);
-
 void InitUnitTest()
 {
-    hook_calc_pe_ico_hash();
+    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
+    //hook_calc_pe_ico_hash();
+}
+
+void init_client_entry_dll() {
+    //auto hmodule = LoadLibraryA("NewClient_f.dll");
+    //client_entry_t pfnAntiCheatInit = (client_entry_t)ApiResolver::get_proc_address(hmodule, CT_HASH("InitEx"));
+    ////uninit_t uninit = (uninit_t)ApiResolver::get_proc_address(hmodule, CT_HASH("DoUnInit"));
+    ////entry("43.139.236.115");
+    //if  (!pfnAntiCheatInit)
+    //    std::cout << "pfnAntiCheatInit is null\n";
+    //else
+    //    pfnAntiCheatInit(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
+    ///*Sleep(30000);
+    //uninit();
+    //if (FreeLibrary(hmodule))
+    //    std::cout << "FreeLibrary ok!\n";*/
 }
 
 int main(int argc, char** argv)
 {
     setlocale(LC_CTYPE, "");
-
+    //init_client_entry_dll();
     InitUnitTest();
-    
+   
+    InitJavaScript();
     std::vector<std::string> args;
     for (int i = 1; i < argc; i++) args.push_back(argv[i]);
     
@@ -130,10 +119,12 @@ int main(int argc, char** argv)
 			static bool is_init = false;
 			if (!is_init)
 			{
-				InitJavaScript(test_javascript());
+                //test_javascript();
 				is_init = true;
 			}
+            std::cout << "async_execute_javascript" << std::endl;
             async_execute_javascript(ss.str(), 0);
+            std::cout << "async_execute_javascript end" << std::endl;
         }
         else if (a.get_program_name() == "connect")
         {
@@ -145,11 +136,13 @@ int main(int argc, char** argv)
         }
     };
 
-    cmd_handler(args);
+    //cmd_handler(args);
 
     std::string cmd;
     while (std::getline(std::cin, cmd))
     {
         cmd_handler(split(cmd, " "));
     }
+    getchar();
+    return 0;
 }

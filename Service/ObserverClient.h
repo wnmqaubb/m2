@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "AntiCheatClient.h"
 #include "ObServerPackage.h"
 
@@ -7,8 +7,8 @@ class CObserverClient : public CAntiCheatClient
     using super = CAntiCheatClient;
 public:
     using super::send;
-    CObserverClient(asio::io_service& io_, const std::string& auth_key)
-        : super(io_), auth_key_(auth_key), is_auth_(false)
+    CObserverClient(const std::string& auth_key)
+        : auth_key_(auth_key), is_auth_(false)
     {
         package_mgr_.register_handler(OBPKG_ID_S2C_SET_FIELD, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
             auto req = msg.get().as<ProtocolOBS2OBCSetField>();
@@ -30,26 +30,26 @@ public:
         notify_mgr_.register_handler(CLIENT_DISCONNECT_NOTIFY_ID, [this]() {
             is_auth_ = false;
             get_gate_notify_mgr().dispatch(CLIENT_DISCONNECT_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("Ê§È¥Á¬½Ó:%s:%u"), Utils::c2w(get_address()).c_str(),
+            log(LOG_TYPE_DEBUG, TEXT("å¤±åŽ»è¿žæŽ¥:%s:%u"), Utils::c2w(get_address()).c_str(),
                 get_port());
         });
         notify_mgr_.register_handler(CLIENT_CONNECT_FAILED_NOTIFY_ID, [this]() {
             get_gate_notify_mgr().dispatch(CLIENT_CONNECT_FAILED_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("Á¬½ÓÊ§°Ü:%s:%u"), Utils::c2w(get_address()).c_str(),
+            log(LOG_TYPE_DEBUG, TEXT("è¿žæŽ¥å¤±è´¥:%s:%u"), Utils::c2w(get_address()).c_str(),
                 get_port());
         });
         notify_mgr_.register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
             get_gate_notify_mgr().dispatch(CLIENT_CONNECT_SUCCESS_NOTIFY_ID);
-            log(LOG_TYPE_DEBUG, TEXT("½¨Á¢Á¬½Ó:%s:%u"), Utils::c2w(get_address()).c_str(),
+            log(LOG_TYPE_DEBUG, TEXT("å»ºç«‹è¿žæŽ¥:%s:%u"), Utils::c2w(get_address()).c_str(),
                 get_port());
             ProtocolC2SHandShake handshake;
             memcpy(&handshake.uuid, uuid_.data, sizeof(handshake.uuid));
             super::send(&handshake);
-            start_timer(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration_, [this]() {
-                ProtocolC2SHeartBeat heartbeat;
-                heartbeat.tick = time(0);
-                super::send(&heartbeat);
-            });
+			start_timer<int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration_, [this]() {
+				ProtocolC2SHeartBeat heartbeat;
+				heartbeat.tick = time(0);
+				super::send(&heartbeat);
+				});
         });
         notify_mgr_.register_handler(ON_RECV_HANDSHAKE_NOTIFY_ID, [this]() {
             ProtocolOBC2OBSAuth auth;

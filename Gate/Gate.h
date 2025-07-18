@@ -13,7 +13,17 @@
 #include "MainFrm.h"
 #include "ObserverClientGroupImpl.h"
 #include "CConfig.h"
+#include "ConfigSettingChildFrm.h"
 
+typedef enum _SETTIMEOUT_ID
+{
+    TIMER_ID_RELOAD_GAMER_LIST = 1,
+    TIMER_ID_POLL_WORK_ID,
+    TIMER_ID_CHILD_SERIVCE_ID,
+    TIMER_ID_SYNC_LICENSE,
+}SETTIMEOUT_ID;
+#define GATE_ADMIN_POLICY_ID 689000
+#define GATE_POLICY_ID 688000
 // CGateApp:
 // 有关此类的实现，请参阅 Gate.cpp
 //
@@ -43,6 +53,24 @@ public:
         }
         return (T*)m_DocTemplates[cTemplateName];
     }
+    template <class T = CDocument>
+    T* FindOpenDocument(LPCTSTR lpszPathName)
+    {
+        for (auto& [name, pTemplate] : m_DocTemplates)
+        {
+            CMultiDocTemplate* pDocTemplate = (CMultiDocTemplate*)pTemplate;
+            POSITION pos = pDocTemplate->GetFirstDocPosition();
+            while (pos)
+            {
+                CDocument* pDoc = pDocTemplate->GetNextDoc(pos);
+                if (pDoc->GetPathName().CompareNoCase(lpszPathName) == 0)
+                {
+                    return dynamic_cast<T*>(pDoc);
+                }
+            }
+        }
+        return nullptr;
+    }
 private:
     std::map<std::string, void*> m_DocTemplates;
 };
@@ -55,6 +83,7 @@ public:
     std::string ReadLicense();
     std::string ReadAuthKey();
     void ConnectionLicenses();
+    void ResetConfigDoc() { m_ConfigDoc = nullptr; }
     virtual CDocTemplateMgr& GetDocTemplateMgr() { return m_DocTemplatesMgr; }
 protected:
     CDocTemplateMgr m_DocTemplatesMgr;
@@ -66,13 +95,16 @@ public:
 // 实现
     CHAR  m_ExeDir[MAX_PATH];
     CString m_cCfgPath;
+    CString m_inner_CfgPath;
     UINT  m_nAppLook;
 	BOOL  m_bHiColorIcons;
     CObserverClientGroupImpl m_ObServerClientGroup;
     asio::io_service m_WorkIo;
     CDocument* m_ConfigDoc = nullptr;
+    CConfigSettingChildFrame* m_pConfigFrame; // 保存框架指针
     HANDLE m_childpHandle;
     CConfig m_wndConfig;
+    bool is_parent_gate = true;
 	virtual void PreLoadState();
 	virtual void LoadCustomState();
 	virtual void SaveCustomState();
@@ -82,6 +114,7 @@ public:
 public:
 	afx_msg void OnServiceStart();
 	afx_msg void OnServiceStop();
+	afx_msg void OnServiceStop1();
     afx_msg void OnAppExit();
     afx_msg void OnServiceSettings();
     afx_msg void OnConfig();
@@ -112,13 +145,13 @@ static CString ConvertToString(PunishType type)
 {
     std::map<PunishType, LPCTSTR> mPunishType = {
         {ENM_PUNISH_TYPE_KICK,TEXT("退出游戏")},
-        {ENM_PUNISH_TYPE_BSOD,TEXT("蓝屏")},
         {ENM_PUNISH_TYPE_NO_OPEARATION,TEXT("不处理")},
         {ENM_PUNISH_TYPE_SUPER_WHITE_LIST,TEXT("白名单")},
         {ENM_PUNISH_TYPE_BAN_MACHINE,TEXT("封机器")},
+#ifdef GATE_ADMIN
         {ENM_PUNISH_TYPE_SCREEN_SHOT,TEXT("截图")},
         {ENM_PUNISH_TYPE_SCREEN_SHOT_KICK,TEXT("截图+退出游戏")},
-        {ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD,TEXT("截图+蓝屏")},
+#endif
         {ENM_PUNISH_TYPE_ENABLE,TEXT("启用")},
         {ENM_PUNISH_TYPE_DISABLE,TEXT("禁用")},
     };
@@ -136,13 +169,13 @@ static PunishType ConvertToPunishType(CString punishname)
 {
     std::map<CString, PunishType> mPunishType = {
         { TEXT("退出游戏"), ENM_PUNISH_TYPE_KICK },
-        { TEXT("蓝屏"), ENM_PUNISH_TYPE_BSOD },
         { TEXT("不处理"), ENM_PUNISH_TYPE_NO_OPEARATION },
         { TEXT("白名单"), ENM_PUNISH_TYPE_SUPER_WHITE_LIST },
         { TEXT("封机器"), ENM_PUNISH_TYPE_BAN_MACHINE },
+#ifdef GATE_ADMIN
         { TEXT("截图"), ENM_PUNISH_TYPE_SCREEN_SHOT },
-        { TEXT("截图+退出游戏"), ENM_PUNISH_TYPE_SCREEN_SHOT_KICK },
-        { TEXT("截图+蓝屏"), ENM_PUNISH_TYPE_SCREEN_SHOT_BSOD },
+		{ TEXT("截图+退出游戏"), ENM_PUNISH_TYPE_SCREEN_SHOT_KICK },
+#endif
         { TEXT("启用"), ENM_PUNISH_TYPE_ENABLE },
         { TEXT("禁用"), ENM_PUNISH_TYPE_DISABLE },
     };
@@ -165,7 +198,7 @@ static CString ConvertToString(PolicyType type)
         {ENM_POLICY_TYPE_WINDOW_NAME,TEXT("窗口名")},
         {ENM_POLICY_TYPE_MACHINE,TEXT("机器码")},
         {ENM_POLICY_TYPE_MULTICLIENT,TEXT("多开限制")},
-        {ENM_POLICY_TYPE_SHELLCODE,TEXT("云代码")},
+        /*{ENM_POLICY_TYPE_SHELLCODE,TEXT("云代码")},*/
         {ENM_POLICY_TYPE_SCRIPT,TEXT("脚本")},
         {ENM_POLICY_TYPE_THREAD_START,TEXT("线程特征")},
         {ENM_POLICY_TYPE_BACK_GAME,TEXT("延时小退")},
@@ -193,7 +226,7 @@ static PolicyType ConvertToPolicyType(CString policyname)
         { TEXT("窗口名"), ENM_POLICY_TYPE_WINDOW_NAME },
         { TEXT("机器码"), ENM_POLICY_TYPE_MACHINE },
         { TEXT("多开限制"), ENM_POLICY_TYPE_MULTICLIENT },
-        { TEXT("云代码"), ENM_POLICY_TYPE_SHELLCODE },
+        /*{ TEXT("云代码"), ENM_POLICY_TYPE_SHELLCODE },*/
         { TEXT("脚本"), ENM_POLICY_TYPE_SCRIPT },
         { TEXT("线程特征"), ENM_POLICY_TYPE_THREAD_START },
         { TEXT("延时小退"), ENM_POLICY_TYPE_BACK_GAME },

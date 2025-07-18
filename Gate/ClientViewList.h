@@ -11,5 +11,6 @@ public:
     ~CClientViewList();
     DECLARE_MESSAGE_MAP()
     afx_msg void OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnClientListCtrlDblClick(NMHDR* pNMHDR, LRESULT* pResult);
 };
 

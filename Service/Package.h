@@ -25,6 +25,7 @@ enum SystemVersion
     WINDOWS_8 = 62,
     WINDOWS_8_1 = 63,
     WINDOWS_10 = 100,
+    WINDOWS_11 = 101,
     WINDOWS_NEW = MAXLONG
 };
 

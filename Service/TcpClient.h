@@ -1,5 +1,5 @@
 #pragma once
-#include <asio\asio.hpp>
+#include <asio2\asio2.hpp>
 #include "NetUtils.h"
 
 
@@ -27,8 +27,13 @@ public:
 	{
         if (is_connect_)
         {
-            is_connect_ = false;
-            socket_.close();
+            is_connect_ = false; 
+			if (socket_.is_open()) {
+				socket_.cancel();
+				socket_.shutdown(socket_t::shutdown_both);
+				socket_.close();
+			}
+			//stop_all_timer();
         }
 	}
 	virtual void send(const char* buf, std::size_t size)

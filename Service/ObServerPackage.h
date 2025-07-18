@@ -165,6 +165,7 @@ struct ProtocolLS2LCSend : ProtocolBase<LSPKG_ID_S2C_SEND>
     RawProtocolImpl package;
     MSGPACK_DEFINE(package_id, package.head.desc, package.head.session_id, package.head.sz, package.body.hash, package.body.buffer);
 };
+// Gate to Service
 struct ProtocolOBC2OBSSend : ProtocolBase<OBPKG_ID_C2S_SEND>
 {
     RawProtocolImpl package;
@@ -205,7 +206,8 @@ struct ProtocolLSLCLogPrint : ProtocolBase<LSPKG_ID_S2C_LOG>
     bool silence = false;
     std::string identify;
     bool gm_show = false;
-    MSGPACK_DEFINE(package_id, text, silence, identify, gm_show);
+    bool punish_flag = false;
+    MSGPACK_DEFINE(package_id, text, silence, identify, gm_show, punish_flag);
 };
 struct ProtocolOBS2OBCLogPrint : ProtocolBase<OBPKG_ID_S2C_LOG>
 {

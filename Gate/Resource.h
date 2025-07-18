@@ -50,11 +50,20 @@
 #define IDS_FIND_TAB                    302
 #define IDS_EXPLORER                    305
 #define IDS_EDIT_MENU                   306
+#define IDC_CLIENT_LIST_CTRL            312
 #define IDR_MENU_WINDOW                 319
 #define IDD_OUTPUT_DIALOG               323
 #define IDD_CONFIG_DIALOG               325
 #define IDI_ICON1                       328
 #define IDI_ICON_GUARD                  328
+#define IDI_config                      330
+#define IDR_MENU_USERS_RIGHT            331
+#define IDR_PROCESS_RIGHT_MENU          332
+#define IDR_MODULE_RIGHT_MENU           333
+#define IDR_MENU_HELP                   334
+#define IDR_SETING_RIGHT_MENU           335
+#define IDI_ICON_BLUE                   337
+#define IDI_ICON_RED                    339
 #define IDC_ABOUT_VERSION               1000
 #define IDC_EDIT_POLICY_ID              1001
 #define IDC_EDIT_POLICY_CONFIG          1002
@@ -66,25 +75,24 @@
 #define IDC_BUTTON_SEARCH               1008
 #define IDC_SCREENSHOT_BUTTON           1009
 #define IDC_EDIT_SEARCH                 1010
-#define IDC_LOG_BUTTON                  1010
 #define IDC_EXPDATE_STATIC              1011
 #define IDC_EXPDATE_TEXT_STATIC         1012
 #define IDC_REFRESH_LICENSE_BUTTON      1013
-#define IDC_CHECK_BACK                  1013
-#define IDC_EDIT_BACK                   1014
-#define IDC_REFRESH_LICENSE_BUTTON2     1014
 #define IDC_PROCESS_BUTTON              1014
 #define IDC_CHECK_EXIT                  1015
+#define IDC_RICHEDIT21                  1015
 #define IDC_EDIT_EXIT                   1016
 #define IDC_CHECK_SPEED_WALK            1017
 #define IDC_EDIT_SPEED_WALK             1018
 #define IDC_CHECK_SPEED_HIT             1019
 #define IDC_EDIT_SPEED_HIT              1020
 #define IDC_CHECK_SPEED_SPELL           1021
-#define IDC_EDIT_EXIT3                  1022
 #define IDC_EDIT_SPEED_SPELL            1022
-#define IDC_CHECK_EXIT2                 1023
 #define IDC_CHECK_CAN_BACK_EXIT         1023
+#define IDC_BUTTON_SYNC_LICENSE         1024
+#define IDC_CHECK_BACK                  1025
+#define IDC_LOG_BUTTON                  1026
+#define IDC_EDIT_BACK                   1027
 #define ID_TOOLBAR_START                32771
 #define ID_TOOLBAR_STOP                 32772
 #define ID_SERVICE_START                32775
@@ -93,7 +101,6 @@
 #define ID_WINDOWS_VIEW                 32782
 #define ID_CLOSE_SOCKET                 32783
 #define ID_EXIT_GAME                    32784
-#define ID_BSOD                         32785
 #define ID_MAC_VIEW                     32786
 #define ID_IP_VIEW                      32787
 #define ID_MODULE_NAME                  32788
@@ -134,6 +141,15 @@
 #define ID_WINDOW_BOTH                  32825
 #define ID_SERVICE_ALL_UPLOAD_CFG       32826
 #define ID_TOOLBAR_CONFIG               32827
+#define ID_GM32828                      32828
+#define ID_VIEW                         32829
+#define ID_32830                        32830
+#define ID_GET_GAMEUSER_FILE            32831
+#define ID_COPY_MODULE_NAME             32832
+#define ID_COPY_THREAD_ENTRY            32833
+#define ID_COPY_FILE_NAME               32834
+#define ID_COPY_MODULE_PATH             32835
+#define ID_GET_GAMEUSER_FILE_SIGN       32836
 #define ID_INDICATOR_SERVER_STAUS       59143
 #define ID_INDICATOR_USERS_COUNT        59144
 
@@ -141,9 +157,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        329
-#define _APS_NEXT_COMMAND_VALUE         32828
-#define _APS_NEXT_CONTROL_VALUE         1015
-#define _APS_NEXT_SYMED_VALUE           312
+#define _APS_NEXT_RESOURCE_VALUE        345
+#define _APS_NEXT_COMMAND_VALUE         32832
+#define _APS_NEXT_CONTROL_VALUE         1016
+#define _APS_NEXT_SYMED_VALUE           313
 #endif
 #endif

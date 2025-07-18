@@ -1,18 +1,27 @@
-#pragma once
-#include "TcpServer.h"
+﻿#pragma once
 #include "Protocol.h"
 #include "NetUtils.h"
 
-class CAntiCheatServer : public CTcpServerImpl
+class CAntiCheatServer : public asio2::tcp_server
 {
-private:
+public:
     using self = CAntiCheatServer;
-    using super = CTcpServerImpl;
+    using tcp_session_t = session_type;
+	using error_code_t = asio2::error_code;
+	using super = asio2::tcp_server;
+	using tcp_session_shared_ptr_t = std::shared_ptr<session_type>;
 protected:
     using package_handler_t = std::function<void(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
     using notify_handler_t = std::function<void()>;
     using user_notify_handler_t = std::function<void(tcp_session_shared_ptr_t& session)>;
-    using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify)>;
+    /**
+     * msg: 日志信息
+     * silence: 是否显示到界面日志窗口
+     * gm_show: 是否显示到gm
+     * identify: 玩家uuid标识符
+     * punish_flag: 是否是惩罚log
+     */
+    using log_cb_t = std::function<void(const wchar_t*, bool silence, bool gm_show, const std::string& identify, bool punish_flag)>;
 public:
 	CAntiCheatServer();
     ~CAntiCheatServer();
@@ -22,9 +31,9 @@ public:
     virtual void on_init();
     virtual void on_post_connect(tcp_session_shared_ptr_t& session);
     virtual void on_post_disconnect(tcp_session_shared_ptr_t& session);
-    virtual void on_start(error_code_t ec);
-    virtual void on_stop(error_code_t ec);
-    virtual void on_recv(tcp_session_shared_ptr_t& session, std::string_view sv);
+    virtual void on_start();
+    virtual void on_stop();
+    virtual void on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv);
     virtual void on_recv_handshake(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHandShake& msg);
     virtual void on_recv_heartbeat(tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const ProtocolC2SHeartBeat& msg);
 private:
@@ -43,7 +52,7 @@ protected:
             {
                 package.head.session_id = session->hash_key();
             }
-            session->send(package.release());
+            session->async_send(std::move(package.release()));
         }
     }
 
@@ -54,11 +63,36 @@ protected:
         send(session, raw_package, session_id);
     }
 
+    virtual void async_send(tcp_session_shared_ptr_t& session, RawProtocolImpl& package, std::size_t session_id = 0)
+    {
+        if (session)
+        {
+            if (session_id != 0)
+            {
+                package.head.session_id = session_id;
+            }
+            else
+            {
+                package.head.session_id = session->hash_key();
+            }
+            session->async_send(package.release()); // 在IO线程安全发送数据
+
+        }
+    }
+
+    virtual void async_send(tcp_session_shared_ptr_t& session, msgpack::sbuffer& buffer, std::size_t session_id = 0)
+    {
+        RawProtocolImpl raw_package;
+        raw_package.encode(buffer.data(), buffer.size());
+        async_send(session, raw_package, session_id);
+    }
+
     virtual void start_timer(unsigned int timer_id, std::chrono::system_clock::duration duration, std::function<void()> handler);
     virtual void stop_timer(unsigned int timer_id);
 public:
     virtual void log(int type, LPCTSTR format, ...); 
     virtual void user_log(int type, bool silense, bool gm_show, const std::string& identify, LPCTSTR format, ...);
+    virtual void punish_log(LPCTSTR format, ...);
     virtual bool on_recv(unsigned int package_id, tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle&) { return false; };
 
 	template <typename T>
@@ -75,6 +109,22 @@ public:
     void send(size_t session_id, T* package, unsigned int cur_session_id = 0)
     {
         send(sessions().find(session_id), package, cur_session_id);
+    }
+
+    template <typename T>
+    void async_send(tcp_session_shared_ptr_t& session, T* package, std::size_t session_id = 0)
+    {
+        if (!package)
+            __debugbreak();
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, *package);
+        async_send(session, buffer, session_id);
+    }
+
+    template <typename T>
+    void async_send(size_t session_id, T* package, std::size_t cur_session_id = 0)
+    {
+        async_send(find_session(session_id), package, cur_session_id);
     }
 
     void close(unsigned int session_id);
@@ -105,7 +155,9 @@ protected:
     bool is_logic_server_;
     bool is_auth_success_;
     log_cb_t log_cb_;
-    char log_level_;
+    char log_level_;    
+    std::atomic<bool> auth_lock_{ true }; // 启动时锁定
+    std::shared_mutex mutex_;
 };
 
 struct AntiCheatUserData
@@ -157,16 +209,16 @@ struct AntiCheatUserData
     }
 };
 
-inline AntiCheatUserData* get_user_data(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
+inline AntiCheatUserData* get_user_data_(const CAntiCheatServer::tcp_session_shared_ptr_t& session)
 {
-    auto userdata = session->user_data<AntiCheatUserData*>();
+    auto userdata = session->get_user_data<AntiCheatUserData*>();
     if (userdata == nullptr)
     {
         userdata = new AntiCheatUserData();
 #if ENABLE_PROXY_TUNNEL
         userdata->game_proxy_tunnel = std::make_shared<GameProxyTunnel>(session->io().context());
 #endif
-        session->user_data<AntiCheatUserData*>(std::move(userdata));
+        session->set_user_data<AntiCheatUserData*>(std::move(userdata));
     }
     return userdata;
 }

@@ -1,13 +1,9 @@
-
-#include "pch.h"
+﻿#include "pch.h"
 #include "framework.h"
-
 #include "Gate.h"
 #include "ConfigSettingSubView.h"
 #include "Resource.h"
 #include "MainFrm.h"
-
-#include "ConfigSettingDoc.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -40,35 +36,36 @@ int CConfigSettingSubViewWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
     CRect rectDummy;
     rectDummy.SetRectEmpty();
 
+    // 确保 RichEdit 已初始化
+    if (!AfxInitRichEdit2()) {
+        AfxMessageBox(L"RichEdit 初始化失败");
+        return -1;
+    }    
 
-    // �����������: 
+    // 创建输出窗格: 
     const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE;
-    
+
     m_PropEditForm->Create(NULL, NULL, dwViewStyle, rectDummy, this, NULL, NULL);
 
     UpdateFonts();
 
-    InitPropsWindowView();
     return 0;
 }
 
 void CConfigSettingSubViewWnd::OnSize(UINT nType, int cx, int cy)
 {
     CDockablePane::OnSize(nType, cx, cy);
-    if (GetSafeHwnd() == nullptr)
-    {
+    if (GetSafeHwnd() == nullptr) {
         return;
     }
 
     CRect rectClient;
     GetClientRect(rectClient);
-    m_PropEditForm->SetWindowPos(nullptr, rectClient.left, rectClient.top, rectClient.Width(), rectClient.Height(), SWP_NOACTIVATE | SWP_NOZORDER);
-}
 
-
-void CConfigSettingSubViewWnd::InitPropsWindowView()
-{
-   
+    // 确保窗口已创建
+    if (m_PropEditForm->GetSafeHwnd()) {
+        m_PropEditForm->SetWindowPos(nullptr, rectClient.left, rectClient.top, rectClient.Width(), rectClient.Height(), SWP_NOACTIVATE | SWP_NOZORDER);
+    }
 }
 
 void CConfigSettingSubViewWnd::FillProp(CDocument* pDoc, ProtocolPolicy& Policy)

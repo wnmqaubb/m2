@@ -115,6 +115,9 @@
     <ClInclude Include="CConfig.h">
       <Filter>MFC\ChildFrame</Filter>
     </ClInclude>
+    <ClInclude Include="CScrollingText.h">
+      <Filter>MFC\Widget</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Gate.cpp">
@@ -200,6 +203,9 @@
     </ClCompile>
     <ClCompile Include="CConfig.cpp">
       <Filter>MFC\ChildFrame</Filter>
+    </ClCompile>
+    <ClCompile Include="CScrollingText.cpp">
+      <Filter>MFC\Widget</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -289,13 +295,22 @@
     <Image Include="res\toolbar1.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="C:\Users\wnmqaubb08\Downloads\111.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="..\111.ico">
-      <Filter>资源文件</Filter>
-    </Image>
     <Image Include="..\guard.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\guard.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\config.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\config.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\blue.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\red.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>
@@ -303,5 +318,6 @@
     <None Include="res\Gate.rc2">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -12,6 +12,10 @@
 #include "ConfigSettingChildFrm.h"
 #include "ConfigSettingDoc.h"
 #include "ConfigSettingView.h"
+#include "ClientViewList.h"
+#include <../../yk/Lightbone/xorstr.hpp>
+#include <asio2/http/request.hpp>
+#include <asio2/http/http_client.hpp>
 //////////////////////////////////////////////////////////////////////
 // 构造/析构
 //////////////////////////////////////////////////////////////////////
@@ -26,6 +30,11 @@ CClientView::CClientView() noexcept
 
 CClientView::~CClientView()
 {
+#ifdef GATE_ADMIN
+    KillTimer(TIMER_ID_SYNC_LICENSE);
+#else
+    KillTimer(TIMER_ID_RELOAD_GAMER_LIST);
+#endif   
 }
 
 
@@ -36,39 +45,39 @@ BEGIN_MESSAGE_MAP(CClientView, CDockablePane)
 	ON_WM_PAINT()
     ON_WM_SETFOCUS()
     ON_COMMAND(ID_PROCESS_VIEW, &CClientView::OnQueryProcess)
-    ON_COMMAND(ID_WINDOWS_VIEW, &CClientView::OnQueryWindows)
-    ON_COMMAND(ID_DRIVER_VIEW, &CClientView::OnQueryDrivers)
     ON_COMMAND(ID_REFRESH_USERS, &CClientView::OnRefreshUsers)
     ON_COMMAND(ID_SCREENSHOT_VIEW, &CClientView::OnQueryScreenShot)
-    ON_COMMAND(ID_SHELLCODE_VIEW, &CClientView::OnQueryShellCode)
+    //ON_COMMAND(ID_SHELLCODE_VIEW, &CClientView::OnQueryShellCode)
     ON_COMMAND(IDC_SCREENSHOT_BUTTON, &CClientView::OnQueryScreenShot)
     ON_COMMAND(IDC_BUTTON_SEARCH, &CClientView::OnBnClickedOnlineGamerSearch)
 	ON_COMMAND(IDC_REFRESH_USERS_BUTTON, &CClientView::OnRefreshUsers)
 	ON_COMMAND(IDC_PROCESS_BUTTON, &CClientView::OnQueryProcess)
 #if defined(GATE_ADMIN)
+    ON_COMMAND(ID_WINDOWS_VIEW, &CClientView::OnQueryWindows)
+    ON_COMMAND(ID_DRIVER_VIEW, &CClientView::OnQueryDrivers)
     ON_COMMAND(ID_SERVICE_REFRESH, &CClientView::OnRefreshServices)
     ON_COMMAND(ID_CMD_VIEW, &CClientView::OnCmdView)
     ON_COMMAND(ID_SERVICE_UPDATE_LOGIC, &CClientView::OnUpdateLogic)
     ON_COMMAND(ID_JS_QUERY_DEVICE_ID, &CClientView::OnJsQueryDeviceId)
     ON_COMMAND(ID_JS_EXECUTE, &CClientView::OnJsExecute)
     ON_BN_CLICKED(IDC_REFRESH_LICENSE_BUTTON, &CClientView::OnBnClickedRefreshLicenseButton)
-    ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
-#endif
-    ON_COMMAND(ID_EXIT_GAME, &CClientView::OnExitGame)
-    ON_COMMAND(ID_BSOD, &CClientView::OnBsod)
-    ON_COMMAND(ID_IP_BAN, &CClientView::OnIpBan)
-    ON_COMMAND(ID_MAC_BAN, &CClientView::OnMacBan)
-    ON_COMMAND(ID_IP_WHITE_ADD, &CClientView::OnIpWhiteAdd)
-    ON_COMMAND(ID_MAC_WHITE_ADD, &CClientView::OnMacWhiteAdd)
+    ON_BN_CLICKED(IDC_BUTTON_SYNC_LICENSE, &CClientView::OnBnClickedSyncLicenseButton)
+    //ON_COMMAND(ID_SERVICE_S2C_PLUGIN, &CClientView::OnServiceS2CPlugin)
     ON_COMMAND(ID_SERVICE_REMOVE_CFG, &CClientView::OnServiceRemoveCfg)
     ON_COMMAND(ID_SERVICE_REMOVE_PLUGIN, &CClientView::OnServiceRemovePlugin)
     ON_COMMAND(ID_SERVICE_UPLOAD_CFG, &CClientView::OnServiceUploadCfg)
     ON_COMMAND(ID_SERVICE_ALL_UPLOAD_CFG, &CClientView::OnServiceAllUploadCfg)
     ON_COMMAND(ID_SERVICE_UPLOAD_PLUGIN, &CClientView::OnServiceUploadPlugin)
-    ON_WM_TIMER()
-    ON_BN_CLICKED(IDC_LOG_BUTTON, &CClientView::OnBnClickedLogButton)
     ON_COMMAND(ID_SERVICE_ADD_LIST, &CClientView::OnServiceAddList)
     ON_COMMAND(ID_SERVICE_CLEAR_LIST, &CClientView::OnServiceClearList)
+#endif
+    ON_COMMAND(ID_EXIT_GAME, &CClientView::OnExitGame)
+    ON_COMMAND(ID_IP_BAN, &CClientView::OnIpBan)
+    ON_COMMAND(ID_MAC_BAN, &CClientView::OnMacBan)
+    ON_COMMAND(ID_IP_WHITE_ADD, &CClientView::OnIpWhiteAdd)
+    ON_COMMAND(ID_MAC_WHITE_ADD, &CClientView::OnMacWhiteAdd)
+    ON_WM_TIMER()
+    ON_BN_CLICKED(IDC_LOG_BUTTON, &CClientView::OnBnClickedLogButton)
 END_MESSAGE_MAP()
 
 
@@ -77,14 +86,12 @@ void CClientView::DoDataExchange(CDataExchange* pDX)
 {
     CDockablePane::DoDataExchange(pDX);
 }
-/////////////////////////////////////////////////////////////////////////////
-// CClassView 消息处理程序
 
 int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CDockablePane::OnCreate(lpCreateStruct) == -1)
 		return -1;
-	
+
 	CRect rectDummy;
 	rectDummy.SetRectEmpty();
 
@@ -133,14 +140,15 @@ int CClientView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     {
         TRACE0("未能创建编辑框\n");
         return -1;
-    }
+    }	
 
 	// 填入一些静态树视图数据(此处只需填入虚拟代码，而不是复杂的数据)
 	FillClientView();
 #ifdef GATE_ADMIN
     FillServiceView();
+    SetTimer(TIMER_ID_SYNC_LICENSE, 1000 * 60 * 60 * 1, NULL);
 #else
-    SetTimer(RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
+    SetTimer(TIMER_ID_RELOAD_GAMER_LIST, 1000 * 60 * 10, NULL);
 #endif    
 	return 0;
 }
@@ -150,7 +158,6 @@ void CClientView::OnSize(UINT nType, int cx, int cy)
 	CDockablePane::OnSize(nType, cx, cy);
     AdjustLayout();
 }
-
 
 void CClientView::OnContextMenu(CWnd* pWnd, CPoint point)
 {
@@ -182,13 +189,14 @@ void CClientView::OnContextMenu(CWnd* pWnd, CPoint point)
 	}
 
 	pWndTree->SetFocus();
-    CMenu menu;
-    menu.LoadMenu(IDR_MAINFRAME);
-    CMenu* pSumMenu = menu.GetSubMenu(1);
 
+    CMenu menu;
+	menu.LoadMenu(IDR_MENU_USERS_RIGHT);
+	CMenu* pSumMenu = menu.GetSubMenu(0);
 #ifndef GATE_ADMIN
-    pSumMenu->GetSubMenu(1)->RemoveMenu(ID_DRIVER_VIEW, MF_BYCOMMAND);
-    pSumMenu->GetSubMenu(1)->RemoveMenu(ID_SHELLCODE_VIEW, MF_BYCOMMAND);
+	//去掉无用菜单,简单化界面
+    pSumMenu->DeleteMenu(1, MF_BYPOSITION);
+	
 #endif
 #ifdef GATE_ADMIN
     CMenu ServiceMenu;
@@ -360,29 +368,11 @@ void CClientView::OnQueryProcess()
     SendCurrentSelectedUserCommand(&msg);
 }
 
-void CClientView::OnQueryDrivers()
-{
-    ProtocolS2CQueryDriverInfo msg;
-    SendCurrentSelectedUserCommand(&msg);
-}
-
-void CClientView::OnQueryShellCode()
-{
-    ProtocolS2CCheckPlugin msg;
-    SendCurrentSelectedUserCommand(&msg);
-}
 void CClientView::OnQueryScreenShot()
 {
     ProtocolS2CQueryScreenShot msg;
     SendCurrentSelectedUserCommand(&msg);
 }
-
-void CClientView::OnQueryWindows()
-{
-    ProtocolS2CQueryWindows msg;
-    SendCurrentSelectedUserCommand(&msg);
-}
-
 
 inline CString GetSystemDesc(int SysVer, bool is64bits)
 {
@@ -413,6 +403,9 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
     case WINDOWS_10:
         result = "Win10";
         break;
+    case WINDOWS_11:
+        result = "Win11";
+        break;
     case WINDOWS_NEW:
         result = "New";
         break;
@@ -426,7 +419,7 @@ inline CString GetSystemDesc(int SysVer, bool is64bits)
 
 void CClientView::FillClientView()
 {
-    m_ViewList.SetColumnByIntSort({ 0, 1 });
+    m_ViewList.SetColumnByIntSort({ 0, 1, 10 });
     m_ViewList.SetColumnBySearch({ 2, 3 });
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
     int colIndex = 0;
@@ -455,24 +448,9 @@ void CClientView::FillClientView()
     m_ViewList.InsertColumn(colIndex++, TEXT("服务端IP"), LVCFMT_LEFT, 110);
     m_ViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 60);
     m_ViewList.InsertColumn(colIndex++, TEXT("丢包率"), LVCFMT_LEFT, 60);
+    m_ViewList.InsertColumn(colIndex++, TEXT("client_plug_ver"), LVCFMT_LEFT, 120);
 #endif
     m_ViewList.DeleteAllItems();
-}
-
-void CClientView::FillServiceView()
-{
-    m_ServiceViewList.SetColumnByIntSort({ 0, 1 });
-    m_ServiceViewList.SetColumnBySearch({ 2, 3 });
-    m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
-    int colIndex = 0;
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("IP"), LVCFMT_LEFT, 250);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("是否在线"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("在线人数"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.InsertColumn(colIndex++, TEXT("Logic版本"), LVCFMT_LEFT, 110);
-    m_ServiceViewList.DeleteAllItems();
 }
 
 void CClientView::OnRefreshUsers()
@@ -545,6 +523,9 @@ void CClientView::OnRefreshUsers()
                 int miss_count = json_data.find("miss_count") == json_data.end() ? 0 : json_data["miss_count"];
                 float miss_rate = mins == 0 ? 0 : ((float)miss_count / (float)mins);
                 temp.Format(TEXT("%f"), miss_rate);
+				m_ViewList.SetItemText(rowNum, colIndex++, temp);
+				int client_plug_ver = json_data["rev_ver"];
+				temp.Format(TEXT("%d"), client_plug_ver);
                 m_ViewList.SetItemText(rowNum, colIndex++, temp);
             }
             theApp.GetMainFrame()->SetStatusBar(ID_INDICATOR_USERS_COUNT, std::to_wstring(szUserCount).c_str());
@@ -554,36 +535,6 @@ void CClientView::OnRefreshUsers()
     szUserCount = 0;
     ProtocolOBC2OBSQueryUsers req;
     theApp.m_ObServerClientGroup.send(&req);
-}
-
-void CClientView::OnRefreshServices()
-{
-    m_ServiceViewList.DeleteAllItems();
-    theApp.m_ObServerClientGroup.foreach([this](std::shared_ptr<CObserverClientImpl> client) {
-        int rowNum = m_ServiceViewList.GetItemCount();
-        int colIndex = 0;
-
-        CString temp;
-        temp.Format(_T("%d"), rowNum + 1);
-        m_ServiceViewList.InsertItem(rowNum, _T(""));
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
-        temp.Format(TEXT("%d"), client->get_port());
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth()&&client->is_connected() ? TEXT("是"): TEXT("否"));
-        temp.Format(TEXT("%d"), client->get_user_count());
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
-        std::wstring wstrLogicVersion;
-        try {
-            wstrLogicVersion = std::any_cast<std::wstring>(client->user_data().get_field(NetUtils::hash(TEXT("logic_ver"))));
-        }
-        catch (...)
-        {
-            wstrLogicVersion = TEXT("无");
-        }
-        m_ServiceViewList.SetItemText(rowNum, colIndex++, wstrLogicVersion.c_str());
-    });
 }
 
 void CClientView::OnBnClickedOnlineGamerSearch()
@@ -604,12 +555,22 @@ void CClientView::OnExitGame()
     SendCurrentSelectedUserCommand(&req);
 }
 
-
-void CClientView::OnBsod()
-{
-    ProtocolS2CPunish req;
-    req.type = PunishType::ENM_PUNISH_TYPE_BSOD;
-    SendCurrentSelectedUserCommand(&req);
+uint32_t CClientView::next_policy_id(std::map<uint32_t, ProtocolPolicy>& policies) {
+    uint32_t policy_id;
+#ifdef GATE_ADMIN
+        policy_id = GATE_ADMIN_POLICY_ID + 1;
+#else
+        policy_id = GATE_POLICY_ID + 1;
+#endif
+    while(policies.find(policy_id) != policies.end()) {
+        policy_id++;
+    #ifndef GATE_ADMIN
+		if (policy_id >= GATE_ADMIN_POLICY_ID) {
+			break;
+		}
+    #endif
+    }
+    return policy_id;
 }
 
 void CClientView::OnIpBan()
@@ -632,12 +593,17 @@ void CClientView::OnIpBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
+        unsigned int uiLastPolicyId = next_policy_id(Policies);
+        // 防止重复添加策略
+        for (auto [uiPolicyId, Policy] : Policies)
         {
-            uiLastPolicyId = uiPolicyId;
+            if(Policy.punish_type == ENM_PUNISH_TYPE_BAN_MACHINE && Policy.config == ip)
+            {
+                AfxMessageBox(TEXT("该IP已经存在黑名单中!"));
+                return;
+            }
         }
-        uiLastPolicyId++;
+
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
@@ -664,7 +630,7 @@ void CClientView::OnMacBan()
     else
     {
         return;
-    }
+	}
 
     std::ifstream file(theApp.m_cCfgPath, std::ios::in | std::ios::binary);
     if (file.is_open())
@@ -674,12 +640,17 @@ void CClientView::OnMacBan()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		unsigned int uiLastPolicyId = next_policy_id(Policies);
+		// 防止重复添加策略
+		for (auto [uiPolicyId, Policy] : Policies)
+		{
+			if (Policy.punish_type == ENM_PUNISH_TYPE_BAN_MACHINE && Policy.config == strMac)
+			{
+				AfxMessageBox(TEXT("该机器码已经存在黑名单中!"));
+				return;
+			}
+		}
+
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_BAN_MACHINE;
@@ -717,12 +688,17 @@ void CClientView::OnIpWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		unsigned int uiLastPolicyId = next_policy_id(Policies);
+		// 防止重复添加策略
+		for (auto [uiPolicyId, Policy] : Policies)
+		{
+			if (Policy.punish_type == ENM_PUNISH_TYPE_SUPER_WHITE_LIST && Policy.config == strIP)
+			{
+				AfxMessageBox(TEXT("该IP已经存在白名单中!"));
+				return;
+			}
+		}
+
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;
@@ -760,12 +736,17 @@ void CClientView::OnMacWhiteAdd()
         auto str = ss.str();
         auto Cfg = ProtocolS2CPolicy::load(str.data(), str.size());
         auto& Policies = Cfg->policies;
-        unsigned int uiLastPolicyId = 0;
-        for (auto[uiPolicyId, Policy] : Policies)
-        {
-            uiLastPolicyId = uiPolicyId;
-        }
-        uiLastPolicyId++;
+		unsigned int uiLastPolicyId = next_policy_id(Policies);
+		// 防止重复添加策略
+		for (auto [uiPolicyId, Policy] : Policies)
+		{
+			if (Policy.punish_type == ENM_PUNISH_TYPE_SUPER_WHITE_LIST && Policy.config == strMac)
+			{
+				AfxMessageBox(TEXT("该机器码已经存在白名单中!"));
+				return;
+			}
+		}
+
         ProtocolPolicy Policy;
         Policy.policy_id = uiLastPolicyId;
         Policy.punish_type = ENM_PUNISH_TYPE_SUPER_WHITE_LIST;
@@ -779,6 +760,101 @@ void CClientView::OnMacWhiteAdd()
         output.close();
         theApp.OnServiceSettings();
     }
+}
+
+void CClientView::OnTimer(UINT_PTR nIDEvent)
+{
+    switch (nIDEvent)
+    {
+    #ifdef GATE_ADMIN
+        case TIMER_ID_SYNC_LICENSE:
+        {
+            OnBnClickedSyncLicenseButton();
+            break;
+        }
+    #else
+        case TIMER_ID_RELOAD_GAMER_LIST:
+        {
+            OnRefreshUsers();
+            break;
+        }
+    #endif
+    }
+
+    CDockablePane::OnTimer(nIDEvent);
+}
+
+void CClientView::OnBnClickedLogButton()
+{
+    COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
+
+    outputdlg.CenterWindow();
+    outputdlg.ShowWindow(SW_SHOW);
+}
+
+#ifdef GATE_ADMIN
+void CClientView::OnQueryDrivers()
+{
+    ProtocolS2CQueryDriverInfo msg;
+    SendCurrentSelectedUserCommand(&msg);
+}
+
+//void CClientView::OnQueryShellCode()
+//{
+//    ProtocolS2CCheckPlugin msg;
+//    SendCurrentSelectedUserCommand(&msg);
+//}
+
+void CClientView::OnQueryWindows()
+{
+    ProtocolS2CQueryWindows msg;
+    SendCurrentSelectedUserCommand(&msg);
+}
+
+void CClientView::FillServiceView()
+{
+    m_ServiceViewList.SetColumnByIntSort({ 0, 1 });
+    m_ServiceViewList.SetColumnBySearch({ 2, 3 });
+    m_ServiceViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
+    int colIndex = 0;
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("序号"), LVCFMT_LEFT, 38);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("ID"), LVCFMT_LEFT, 0);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("IP"), LVCFMT_LEFT, 250);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("端口"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("是否在线"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("在线人数"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.InsertColumn(colIndex++, TEXT("Logic版本"), LVCFMT_LEFT, 110);
+    m_ServiceViewList.DeleteAllItems();
+}
+
+void CClientView::OnRefreshServices()
+{
+    m_ServiceViewList.DeleteAllItems();
+    theApp.m_ObServerClientGroup.foreach([this](std::shared_ptr<CObserverClientImpl> client) {
+        int rowNum = m_ServiceViewList.GetItemCount();
+        int colIndex = 0;
+
+        CString temp;
+        temp.Format(_T("%d"), rowNum + 1);
+        m_ServiceViewList.InsertItem(rowNum, _T(""));
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, CA2T(client->get_address().c_str()));
+        temp.Format(TEXT("%d"), client->get_port());
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, client->is_auth() && client->is_started() ? TEXT("是") : TEXT("否"));
+        temp.Format(TEXT("%d"), client->get_user_count());
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
+        std::wstring wstrLogicVersion;
+        try {
+            wstrLogicVersion = std::any_cast<std::wstring>(client->user_data().get_field(NetUtils::hash(TEXT("logic_ver"))));
+        }
+        catch (...)
+        {
+            wstrLogicVersion = TEXT("无");
+        }
+        m_ServiceViewList.SetItemText(rowNum, colIndex++, wstrLogicVersion.c_str());
+    });
 }
 
 void CClientView::OnJsQueryDeviceId()
@@ -871,7 +947,7 @@ void CClientView::OnServiceUploadCfg()
             ss << file.rdbuf();
             auto str = ss.str();
             ProtocolOBC2LSUploadConfig req;
-            req.file_name = "jinyiwei.cfg";
+            req.file_name = CT2A(fileDlg.GetFileName()); //"Config.cfg";
             req.data.resize(str.size());
             std::copy(str.begin(), str.end(), req.data.begin());
             SendCurrentSelectedServiceCommand(&req);
@@ -892,7 +968,7 @@ void CClientView::OnServiceAllUploadCfg()
             ss << file.rdbuf();
             auto str = ss.str();
             ProtocolOBC2LSUploadConfig req;
-            req.file_name = "jinyiwei.cfg";
+            req.file_name = CT2A(fileDlg.GetFileName());//"config.cfg";
             req.data.resize(str.size());
             std::copy(str.begin(), str.end(), req.data.begin());
             std::string ip;
@@ -910,7 +986,7 @@ void CClientView::OnServiceAllUploadCfg()
 void CClientView::OnServiceRemoveCfg()
 {
     ProtocolOBC2LSRemoveConfig req;
-    req.file_name = "jinyiwei.cfg";
+    req.file_name = "Config.cfg";
     SendCurrentSelectedServiceCommand(&req);
 }
 
@@ -943,28 +1019,6 @@ void CClientView::OnServiceUploadPlugin()
     }
 }
 
-void CClientView::OnTimer(UINT_PTR nIDEvent)
-{
-    switch (nIDEvent)
-    {
-        case RELOAD_GAMER_LIST:
-        {
-            OnRefreshUsers();
-            break;
-        }
-    }
-
-    CDockablePane::OnTimer(nIDEvent);
-}
-
-void CClientView::OnBnClickedLogButton()
-{
-    COutputDlg& outputdlg = theApp.GetMainFrame()->GetOutputWindow();
-
-    outputdlg.CenterWindow();
-    outputdlg.ShowWindow(SW_SHOW);
-}
-
 void CClientView::OnBnClickedRefreshLicenseButton()
 {
     theApp.ConnectionLicenses();
@@ -993,62 +1047,76 @@ void CClientView::OnServiceClearList()
     SendCurrentSelectedServiceCommand(&req);
 }
 
-
-void CClientView::OnServiceS2CPlugin()
+void CClientView::OnBnClickedSyncLicenseButton()
 {
-
-	CString gReadFilePathName;
-	CFileDialog fileDlg(true, _T("dll"), _T("*.dll"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("dll Files (*.dll)|*.dll"), NULL);
-	if (fileDlg.DoModal() != IDOK)    //弹出对话框  
-	{
+    auto license_info = http_get_license_info();
+    if (license_info.empty() || !license_info._Starts_with("[{")) {
+        AfxMessageBox(TEXT("获取license信息失败"));
         return;
-	}
-	
-	std::ifstream file(fileDlg.GetPathName(), std::ios::in | std::ios::binary);
-	if (file.is_open() == false)
-	{
+    }
+    std::filesystem::path license_path = theApp.m_ExeDir;
+    license_path = license_path / "license.txt";
+    // 将license信息写入文件
+    std::ofstream output(license_path, std::ios::out | std::ios::binary);
+    if (!output.is_open())
+    {
+        AfxMessageBox(TEXT("license.txt文件打开失败"));
         return;
-		
-	}
-
-	std::stringstream ss;
-	ss << file.rdbuf();
-	std::string buffer = ss.str();
-
-    ProtocolS2CDownloadPlugin package;
-	
-    if (*(uint16_t*)buffer.data() != 0x5A4D)
-    {
-        RawProtocolImpl raw_package;
-        if (!raw_package.decode(buffer))
-        {
-            AfxMessageBox(L"Decode Error");
-            return;
-        }
-
-        auto raw_msg = msgpack::unpack((char*)raw_package.body.buffer.data(), raw_package.body.buffer.size());
-        package = raw_msg.get().as<ProtocolS2CDownloadPlugin>();
     }
-    else
-    {
-		std::copy(buffer.begin(), buffer.end(), std::back_inserter(package.data));
-		xor_buffer(package.data.data(), package.data.size(), kProtocolXorKey);
-		package.is_crypted = 1;
-		package.plugin_hash = NetUtils::aphash((unsigned char*)buffer.data(), buffer.size());
-		package.plugin_name = "TaskBasic.dll";
-    }
+    output.write(license_info.c_str(), license_info.size());
+    output.close();
 
-
-    if (m_wndTabs.GetActiveTab() == 1) {
-		//服务列表
-		BroadCastCurrentSelectedServiceCommand(&package);
-    }
-    else {
-		//用户列表
-        SendCurrentSelectedUserCommand(&package);
-    }
+    OnBnClickedRefreshLicenseButton();
 }
 
+std::string CClientView::http_get_license_info() {
+    VMP_VIRTUALIZATION_BEGIN(__FUNCTION__)
+        // http://121.43.101.216:13568/fetch_all_serials_ip_plugin.php
+        try
+    {
+        asio2::http_client client;
+        const std::string host = xorstr("121.43.101.216");
+        const int port = 13568;
+        // 登录请求
+        http::web_request login_req;
+        login_req.method(http::verb::post);
+        login_req.target(xorstr("/login.php"));
+        login_req.set(http::field::user_agent, "Chrome");
+        login_req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        login_req.set(http::field::cookie, "lang=zh; PHPSESSID=ti0mvftdvlcfhv4bmc23i0mu83");
+        login_req.body() = xorstr("login=4451151&password=4451152");
+
+        // 发送登录请求
+        auto login_rep = client.execute(host, port, login_req, std::chrono::seconds(5));
+
+        if (auto error = asio2::get_last_error()) {
+            return error.message().c_str();
+        }
+
+        // 查询
+        http::web_request req;
+        req.method(http::verb::get);
+        req.target(xorstr("/fetch_all_serials_ip_plugin.php"));
+        req.set(http::field::user_agent, "Chrome");
+        req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        req.set(http::field::cookie, "lang=zh; PHPSESSID=ti0mvftdvlcfhv4bmc23i0mu83");
+        req.prepare_payload();
+        auto rep = client.execute(host, port, req, std::chrono::seconds(5));
+
+        if (auto error = asio2::get_last_error()) {
+            return error.message().c_str();
+        }
+        else {
+            return rep.body().c_str();
+        }
+    }
+    catch (...)
+    {
+        return "";
+    }
+    return "";
+    VMP_VIRTUALIZATION_END();
+}
 
 template<typename T>
 void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
@@ -1074,3 +1142,4 @@ void CClientView::BroadCastCurrentSelectedServiceCommand(T* package)
 		}
 	}
 }
+#endif

@@ -7,6 +7,9 @@
 #include "Gate.h"
 
 #include "MainFrm.h"
+#include <afxmenubar.h>
+#include "CScrollingText.h"
+#include <Psapi.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -15,7 +18,7 @@
 // CMainFrame
 
 IMPLEMENT_DYNAMIC(CMainFrame, CMDIFrameWndEx)
-
+#define PSAPI_VERSION 1
 const int  iMaxUserToolbars = 10;
 const UINT uiFirstUserToolBarId = AFX_IDW_CONTROLBAR_FIRST + 40;
 const UINT uiLastUserToolBarId = uiFirstUserToolBarId + iMaxUserToolbars - 1;
@@ -37,11 +40,14 @@ static UINT indicators[] =
     ID_INDICATOR_USERS_COUNT,
 };
 
-#define TIMER_ID_POLL_WORK_ID 1
 // CMainFrame 构造/析构
 
 CMainFrame::CMainFrame() noexcept
 {
+	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+#ifdef VERSION_RED
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON_RED);
+#endif
 }
 
 CMainFrame::~CMainFrame()
@@ -85,6 +91,14 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
     GetWindowText(m_cstrTitle);
     SetWindowText(m_cstrTitle + TEXT(" - 管理员版"));
 #endif
+#ifdef VERSION_BLUE
+	SetWindowText(TEXT("及时雨定制版"));
+#endif
+#ifdef VERSION_RED
+	SetWindowText(TEXT("及时雨鸿蒙版"));
+#endif
+	SetIcon(m_hIcon, TRUE);
+	SetIcon(m_hIcon, FALSE);
 
 	CString strToolBarName;
 	bNameValid = strToolBarName.LoadString(IDS_TOOLBAR_STANDARD);
@@ -95,6 +109,39 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	DockPane(&m_wndMenuBar);
 	DockPane(&m_wndToolBar);
 
+#ifndef GATE_ADMIN  // 管理员版不显示滚动文本 
+	{
+		// 创建静态文本控件
+		m_scrollingText = new CScrollingText();
+		m_scrollingText->Create(_T(""), WS_CHILD | WS_VISIBLE | SS_LEFT, CRect(0, 0, 100, 30), this);
+
+		//m_scrollingText->SetText(_T("动态创建的大字体静态文本，这是一段较长的文本用于测试滚动效果"));
+		m_scrollingText->StartScrolling();
+
+		//m_textToShow = TEXT("动态创建的大字体静态文本，这是一段较长的文本用于测试滚动效果");
+		// 获取菜单栏（CMFCMenuBar）高度
+		const CMFCMenuBar* pMenuBar = GetMenuBar();
+		int menuBarHeight = 0;
+		if (pMenuBar)
+		{
+			CClientDC dc(this);
+			CRect menuBarRect;
+			pMenuBar->GetClientRect(menuBarRect);
+			menuBarHeight = menuBarRect.Height();
+		}
+
+		// 调整静态文本控件位置使其显示在菜单栏上方
+		CRect clientRect;
+		GetClientRect(&clientRect);
+		m_scrollingText->MoveWindow(200, 0, clientRect.Width()-200, menuBarHeight+35);
+		// 将静态文本控件置于菜单栏之上的 Z 顺序
+		m_scrollingText->BringWindowToTop();
+	}
+
+	if (theApp.is_parent_gate) {
+		SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
+	}
+#endif
 
 	// 启用 Visual Studio 2005 样式停靠窗口行为
 	CDockingManager::SetDockingMode(DT_SMART);
@@ -113,7 +160,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
     /*m_wndOutput.EnableDocking(CBRS_ALIGN_ANY);*/
     //DockPane(&m_wndOutput);
-
+												   
 	/*m_wndClientView.EnableDocking(CBRS_ALIGN_ANY);*/
 	DockPane(&m_wndClientView);
 	
@@ -290,7 +337,75 @@ void CMainFrame::OnTimer(UINT_PTR nIDEvent)
     if (nIDEvent == TIMER_ID_POLL_WORK_ID)
     {
         theApp.m_WorkIo.poll_one();
-    }
+	}
+#ifndef GATE_ADMIN
+	else if (nIDEvent == TIMER_ID_CHILD_SERIVCE_ID)
+	{
+		bool service_stoped = false;
+		bool logic_server_stoped = false;
+
+		// 已停止
+		HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
+		if (existingMutex != NULL) {
+			if (!isProcessRunning("g_Service.exe")) {
+				// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
+				ReleaseMutex(existingMutex);
+			}
+			CloseHandle(existingMutex);
+			
+		}
+		else {
+			service_stoped = true;
+		}
+
+		HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
+		if (existingMutex1 != NULL) {
+			if (!isProcessRunning("g_LogicServer.exe")) {
+				// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
+				ReleaseMutex(existingMutex1);
+			}
+			CloseHandle(existingMutex1);
+		}
+		else {
+			logic_server_stoped = true;
+		}
+
+		if (service_stoped || logic_server_stoped)
+		{
+			KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
+			// 进程已停止，尝试重启		
+			if (service_stoped)
+			{
+				// 尝试关闭所有子进程
+				HANDLE hProcess = find_process("g_LogicServer.exe");
+				if (hProcess) {
+					TerminateProcess(hProcess, 0);
+					CloseHandle(hProcess);
+				}
+				while (existingMutex) {
+					ReleaseMutex(existingMutex);
+					CloseHandle(existingMutex);
+				}
+			}
+			// 进程已停止，尝试重启		
+			if (logic_server_stoped)
+			{
+				HANDLE hProcess = find_process("g_Service.exe");
+				if (hProcess) {
+					TerminateProcess(hProcess, 0);
+					CloseHandle(hProcess);
+				}
+				while (existingMutex1) {
+					ReleaseMutex(existingMutex1);
+					CloseHandle(existingMutex1);
+				}
+			}
+			theApp.OnServiceStop1();
+			theApp.OnServiceStart();
+			SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
+		}
+	}
+#endif
     CMDIFrameWndEx::OnTimer(nIDEvent);
 }
 
@@ -299,6 +414,9 @@ void CMainFrame::OnClose()
 {
     theApp.OnServiceStop();
     KillTimer(TIMER_ID_POLL_WORK_ID);
+	if (theApp.is_parent_gate) {
+		KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
+	}
     CMDIFrameWndEx::OnClose();
 }
 
@@ -306,4 +424,83 @@ void CMainFrame::SetPaneBackgroundColor(UINT nIDResource, COLORREF color)
 {
     int vecIndex = m_wndStatusBar.CommandToIndex(nIDResource);
     m_wndStatusBar.SetPaneBackgroundColor(vecIndex, color);
+}
+
+bool CMainFrame::isProcessRunning(const std::string& processName)
+{
+	DWORD processes[1024], needed;
+	if (!EnumProcesses(processes, sizeof(processes), &needed))
+	{
+		return false;
+	}
+
+	int processCount = needed / sizeof(DWORD);
+	for (int i = 0; i < processCount; i++)
+	{
+		if (processes[i] != 0)
+		{
+			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
+			if (hProcess)
+			{
+				char processNameBuffer[MAX_PATH];
+				DWORD size = sizeof(processNameBuffer);
+				if (QueryFullProcessImageNameA(hProcess, 0, processNameBuffer, &size))
+				{
+					std::string fullProcessName(processNameBuffer);
+					size_t lastSlash = fullProcessName.find_last_of("\\");
+					if (lastSlash != std::string::npos)
+					{
+						std::string exeName = fullProcessName.substr(lastSlash + 1);
+						if (exeName == processName)
+						{
+							CloseHandle(hProcess);
+							return true;
+						}
+					}
+				}
+				CloseHandle(hProcess);
+			}
+		}
+	}
+	return false;
+}
+
+
+HANDLE CMainFrame::find_process(const std::string& processName)
+{
+	DWORD processes[1024], needed;
+	if (!EnumProcesses(processes, sizeof(processes), &needed))
+	{
+		return nullptr;
+	}
+
+	int processCount = needed / sizeof(DWORD);
+	for (int i = 0; i < processCount; i++)
+	{
+		if (processes[i] != 0)
+		{
+			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
+			if (hProcess)
+			{
+				char processNameBuffer[MAX_PATH];
+				DWORD size = sizeof(processNameBuffer);
+				if (QueryFullProcessImageNameA(hProcess, 0, processNameBuffer, &size))
+				{
+					std::string fullProcessName(processNameBuffer);
+					size_t lastSlash = fullProcessName.find_last_of("\\");
+					if (lastSlash != std::string::npos)
+					{
+						std::string exeName = fullProcessName.substr(lastSlash + 1);
+						if (exeName == processName)
+						{
+							CloseHandle(hProcess);
+							return OpenProcess(PROCESS_TERMINATE, FALSE, processes[i]);
+						}
+					}
+				}
+				CloseHandle(hProcess);
+			}
+		}
+	}
+	return nullptr;
 }

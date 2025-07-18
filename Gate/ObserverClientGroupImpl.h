@@ -26,13 +26,17 @@ private:
     asio::io_service io_;
     asio::detail::thread_group thread_group_;
 public:
-
+    void clear_group() {
+        std::unique_lock<std::shared_mutex> lck(mtx_);
+        group_.clear();
+    }
     template <typename T> 
     void send(T* req)
     {
         std::shared_lock<std::shared_mutex> lck(mtx_);
         for (auto[address, client] : group_)
         {
+            if (!client->is_started() || !client->is_auth()) continue;
             client->send(req);
         }
     }
