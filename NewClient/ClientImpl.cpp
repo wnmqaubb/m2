@@ -88,7 +88,7 @@ CClientImpl::CClientImpl() : super()
 		user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
 		user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
 		user_data().set_field(rev_version_field_id, (int)REV_VERSION);
-		user_data().set_field(commited_hash_field_id, std::string(VER2STR(VERSION)));
+		user_data().set_field(commited_hash_field_id, std::string(FILE_VERSION_STR));
 		this->load_uuid();
         init_role_monitor();
 	});
