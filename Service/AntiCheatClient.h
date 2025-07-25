@@ -115,7 +115,7 @@ public:
     }
     virtual void send(const std::string& text)
     {
-        super::send(std::move(text));
+        super::send(text);
     }
     virtual void send(msgpack::sbuffer& buffer, unsigned int session_id)
     {

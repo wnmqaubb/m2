@@ -3,6 +3,7 @@
 #include "version.build"
 #include "TaskBasic.h"
 #include "../../yk/NewClient/window_role_name.h"
+#include <functional>
 
 using namespace Utils;
 extern std::shared_ptr<asio2::timer> g_timer;
@@ -88,7 +89,7 @@ CClientImpl::CClientImpl() : super()
 		user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
 		user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
 		user_data().set_field(rev_version_field_id, (int)REV_VERSION);
-		user_data().set_field(commited_hash_field_id, std::string(VER2STR(VERSION)));
+		user_data().set_field(commited_hash_field_id, std::string(FILE_VERSION_STR));
 		this->load_uuid();
         init_role_monitor();
 	});
@@ -271,7 +272,7 @@ void CClientImpl::init_role_monitor() {
     });
 
     // 设置角色名变化回调
-    set_role_name_callback([this](const std::wstring& roleName) {
+    set_role_name_callback([this](const std::wstring& roleName)-> void {
         // 处理角色名变更
         if (roleName.find(L" - ") != std::wstring::npos)
         {
@@ -279,7 +280,7 @@ void CClientImpl::init_role_monitor() {
             ProtocolC2SUpdateUsername req;
             req.username = roleName;
             async_send(&req);
-            return true;
+            return;
         }
     });
 }

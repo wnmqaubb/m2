@@ -33,7 +33,7 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
 {
     union
     {
-        unsigned char uuid[16];
+        unsigned char uuid[16] = { 0 };
         struct
         {
             unsigned int uuid_1;
@@ -42,11 +42,11 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
             unsigned int uuid_4;
         };
     };
-    int system_version;
-    bool is_64bit_system;
-    std::wstring cpuid;
-    std::wstring mac;
-    std::wstring volume_serial_number;
+    int system_version = 0;
+    bool is_64bit_system = false;
+    std::wstring cpuid = L"";
+    std::wstring mac = L"";
+    std::wstring volume_serial_number = L"";
     int rev_version = 0;
     std::string commited_hash = "";
     unsigned int pid = 0;
@@ -86,7 +86,7 @@ struct ProtocolS2CHandShake : ProtocolBase<PKG_ID_S2C_HANDSHAKE>
 {
     union
     {
-        unsigned char uuid[16];
+        unsigned char uuid[16] = { 0 };
         struct
         {
             unsigned int uuid_1;
@@ -100,12 +100,12 @@ struct ProtocolS2CHandShake : ProtocolBase<PKG_ID_S2C_HANDSHAKE>
 
 struct ProtocolC2SHeartBeat : ProtocolBase<PKG_ID_C2S_HEARTBEAT>
 {
-    time_t tick;
+    time_t tick = 0;
     MSGPACK_DEFINE(package_id, tick);
 };
 
 struct ProtocolS2CHeartBeat : ProtocolBase<PKG_ID_S2C_HEARTBEAT>
 {
-    time_t tick;
+    time_t tick = 0;
     MSGPACK_DEFINE(package_id, tick);
 };

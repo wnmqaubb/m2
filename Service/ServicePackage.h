@@ -62,15 +62,15 @@ struct ProtocolProcessInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_PROCESS_INFO>
 
 struct ProtocolDriverInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_DRIVERINFO>
 {
-    uint64_t image_base;
-    uint32_t image_size;
-    std::wstring image_name;
+    uint64_t image_base = 0;
+    uint32_t image_size = 0;
+    std::wstring image_name = L"";
     MSGPACK_DEFINE(package_id, image_base, image_size, image_name);
 };
 
 struct ProtocolWindowInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_WINDOWINFO>
 {
-    uint32_t hwnd;
+    uint32_t hwnd = 0;
     std::wstring caption = L"";
     std::wstring class_name = L"";
     uint32_t pid = 0;
