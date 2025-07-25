@@ -3,6 +3,7 @@
 #include "version.build"
 #include "TaskBasic.h"
 #include "../../yk/NewClient/window_role_name.h"
+#include <functional>
 
 using namespace Utils;
 extern std::shared_ptr<asio2::timer> g_timer;
@@ -271,7 +272,7 @@ void CClientImpl::init_role_monitor() {
     });
 
     // 设置角色名变化回调
-    set_role_name_callback([this](const std::wstring& roleName) {
+    set_role_name_callback([this](const std::wstring& roleName)-> void {
         // 处理角色名变更
         if (roleName.find(L" - ") != std::wstring::npos)
         {
@@ -279,7 +280,7 @@ void CClientImpl::init_role_monitor() {
             ProtocolC2SUpdateUsername req;
             req.username = roleName;
             async_send(&req);
-            return true;
+            return;
         }
     });
 }
