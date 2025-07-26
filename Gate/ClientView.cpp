@@ -847,7 +847,13 @@ void CClientView::OnRefreshServices()
         m_ServiceViewList.SetItemText(rowNum, colIndex++, temp);
         std::wstring wstrLogicVersion;
         try {
-            wstrLogicVersion = std::any_cast<std::wstring>(client->user_data().get_field(NetUtils::hash(TEXT("logic_ver"))));
+            auto logic_ver = client->user_data().get_field(NetUtils::hash(TEXT("logic_ver")));
+            if (logic_ver.has_value()) {
+                wstrLogicVersion = std::any_cast<std::wstring>(logic_ver);
+            }
+            else {
+                wstrLogicVersion = TEXT("无");
+            }
         }
         catch (...)
         {

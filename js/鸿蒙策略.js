@@ -461,7 +461,9 @@ import * as api from "api";
                 return;
             } else {
                 PolicyReporter.instance.report(this.task_id, false, `»úÆ÷Âë:${machineSignature}|${cpuid}`);
-            } if (this.cpuid_hash.has(hashedCpuId)) {
+            }
+            
+            if (this.cpuid_hash.has(hashedCpuId)) {
                 PolicyReporter.instance.report(this.task_id, true, `ºÚÃûµ¥±àºÅ:${cpuid}`);
                 return
             }
