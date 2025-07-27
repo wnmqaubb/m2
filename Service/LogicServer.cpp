@@ -149,7 +149,7 @@ CLogicServer::CLogicServer()
 			session->post([this, user_data, session]() mutable {
 				send_policy(user_data, session, user_data->session_id);
 				//user_log(LOG_TYPE_EVENT, true, false, user_data->get_uuid().str(), TEXT("延迟发送策略"));
-			}, std::chrono::seconds(std::rand() % 20 + 10));
+			}, std::chrono::seconds(std::rand() % 10 + 5));
 
 			std::wstring json_dump;
 			try

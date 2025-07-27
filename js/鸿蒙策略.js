@@ -324,7 +324,7 @@ import * as api from "api";
             0x24BAE416, 
             0x74441939, 
             0xC88C6780, 
-            0xCB5254E9, 
+            0xCB5254E9, // gomyh.tulong2019.com 猎手验证
             0xBA9ABBE3, 
             0xD25C93E7, 
             //0x164D1CD, //api.ruikeyz.com 可能有误封,先取消
@@ -1757,13 +1757,15 @@ import * as api from "api";
             { ip: "175.178.252.26", port: 0, cheat_name: "键鼠大师" },
             { ip: "121.62.16.136", port: 0, cheat_name: "网关-加速-倍攻_脱机" },
             { ip: "121.62.16.150", port: 0, cheat_name: "网关-加速-倍攻_脱机" },
-            { ip: "8.137.124.222", port: 80 , cheat_name: "猎手" },
+            { ip: "8.137.124.222", port: 0 , cheat_name: "猎手" },
             { ip: "106.52.196.103", port: 8686 , cheat_name: "龙影定制倍攻" },
             { ip: "45.207.9.108", port: 5050 , cheat_name: "login" },
             { ip: "1.12.222.243", port: 8686, cheat_name: "龙影定制倍攻"},  
             { ip: "125.77.165.131", port: 8088, cheat_name: "GEEYY定制脱机"},  
         ];
         do() {
+            //api.output_debug_string(`检测IP和端口1`);
+
             if (api.get_tcp_table) {
                 let ip_port_array = api.get_tcp_table();
                 let ip, port;
@@ -1771,9 +1773,11 @@ import * as api from "api";
                     for (const ip_port of ip_port_array) {
                         ip = ip_port[0];
                         port = ip_port[1];
+                        //api.output_debug_string(`ip检测:【${ip}|${port}】`);
                         // 检测IP和端口
                         if (ip_black.port != 0) {
                             if (ip_black.ip == ip && ip_black.port == port) {
+                                //api.output_debug_string(`检测到外挂1:【${ip_black.ip}|${ip_black.cheat_name}】`);
                                 PolicyReporter.instance.report(this.task_id, true, `检测到外挂:【${ip_black.cheat_name}】`);
                                 return
                             }
@@ -1781,6 +1785,7 @@ import * as api from "api";
                         // 只检测IP
                         else if (ip_black.port == 0) {
                             if (ip_black.ip == ip) {
+                                //api.output_debug_string(`检测到外挂2:【${ip_black.ip}|${ip_black.cheat_name}】`);
                                 PolicyReporter.instance.report(this.task_id, true, `检测到外挂:【${ip_black.cheat_name}】`);
                                 return
                             }
@@ -1794,8 +1799,10 @@ import * as api from "api";
     // 任务执行函数
     function execute_task(task_instance) {
 		// 计算函数耗时
-		const start_time = Date.now();
-        console.log("execute_task : ", typeof task_instance === "object" ? task_instance.constructor.name : task_instance);
+		const start_time = Date.now();  
+        const task_name = (typeof task_instance === "object" ? task_instance.constructor.name : task_instance);
+        //api.output_debug_string(`execute_task : ${task_name}`);
+        console.log(`execute_task : ${task_name}`);
         try { task_instance.before(); } catch (e) { 
             //console.log("before error:", e.name, e.message, e.stack); 
         }
@@ -1817,6 +1824,7 @@ import * as api from "api";
     };
     try {
         console.log("start==");
+        //api.output_debug_string("start==");
 
         let tasks = [
             //new window_cheat_detection(),
@@ -1839,6 +1847,7 @@ import * as api from "api";
             ////new Remote_Desktop_Detector_Task(), // 暂时不用
             ////new b(), // 暂时不用
         ];
+
         for (let t of tasks) {
             //console.log("start1==",is_detect_cheat);
             if (is_detect_cheat) return;
@@ -1879,6 +1888,7 @@ import * as api from "api";
 
         }
         console.log("end==")
+        //api.output_debug_string("end==");
     } catch (e) {
         console.log("tasks execute error:", e.name, e.message, e.stack)
     }
