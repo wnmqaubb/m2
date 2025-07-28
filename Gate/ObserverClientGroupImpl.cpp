@@ -4,18 +4,16 @@
 
 
  
-CObserverClientGroupImpl::CObserverClientGroupImpl()
+CObserverClientGroupImpl::CObserverClientGroupImpl() : work_guard_(asio::make_work_guard(io_))
 {
 
 }
 
 CObserverClientGroupImpl::~CObserverClientGroupImpl()
 {
+    work_guard_.reset(); // 先释放work_guard
     io_.stop();
-    {
-        std::shared_lock<std::shared_mutex> lck(mtx_);
-        group_.clear();
-    }
+    thread_group_.join();
 }
 
 std::shared_ptr<CObserverClientImpl> CObserverClientGroupImpl::operator()(const std::string& ip, unsigned short port)
@@ -23,25 +21,37 @@ std::shared_ptr<CObserverClientImpl> CObserverClientGroupImpl::operator()(const 
     auto address = ip + ":" + std::to_string(port);
     {
         std::shared_lock<std::shared_mutex> lck(mtx_);
-        if (group_.find(address) != group_.end())
-        {
-            return group_[address];
+        if (auto it = group_.find(address); it != group_.end()) {
+            return it->second;
         }
     }
     {
-        std::unique_lock<std::shared_mutex> lck(mtx_);
-        group_[address] = std::make_shared<CObserverClientImpl>(io_, asio2::md5(ip + ",./;").str());
-        return group_[address];
+        std::unique_lock lock(mtx_);
+        auto client = std::make_shared<CObserverClientImpl>(io_, asio2::md5(ip + ",./;").str());
+        group_.emplace(address, client);
+        return client;
     }
 }
 
 
 void CObserverClientGroupImpl::create_threads(int count)
 {
-    thread_group_.create_threads([this]() {
-        auto guard = asio::make_work_guard(io_);
-        io_.run();
-    }, count);
+    // 确保不会重复创建线程
+    if (!thread_group_.empty()) return;
+
+    for (int i = 0; i < count; ++i) {
+        thread_group_.create_thread([this] {
+            while (true) {
+                try {
+                    io_.run();
+                    break; // 正常退出
+                }
+                catch (const std::exception& e) {
+                    // 异常处理
+                }
+            }
+        });
+    }
 }
 
 void CObserverClientGroupImpl::stop()

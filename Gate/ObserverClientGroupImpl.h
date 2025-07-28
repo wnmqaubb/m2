@@ -1,5 +1,6 @@
 #pragma once
 #include "ObserverClientImpl.h"
+#include <asio/io_context.hpp>
 class CObserverClientGroupImpl
 {
     using package_handler_t = std::function<void(std::shared_ptr<CObserverClientImpl> client, const RawProtocolImpl& package, const msgpack::v1::object_handle&)>;
@@ -21,14 +22,23 @@ public:
         }
     }
 private:
-    std::shared_mutex mtx_;
-    std::unordered_map<std::string, std::shared_ptr<CObserverClientImpl>> group_;
     asio::io_service io_;
+    std::shared_mutex mtx_;
+    asio::executor_work_guard<asio::io_context::executor_type> work_guard_;
+    std::unordered_map<std::string, std::shared_ptr<CObserverClientImpl>> group_;
     asio::detail::thread_group thread_group_;
 public:
     void clear_group() {
         std::unique_lock<std::shared_mutex> lck(mtx_);
-        group_.clear();
+        // 清除掉未启动或未认证的连接
+        for (auto it = group_.begin(); it != group_.end(); ) {
+            if (!it->second->is_started()) {
+                it = group_.erase(it);
+            }
+            else {
+                ++it;
+            }
+        }
     }
     template <typename T> 
     void send(T* req)

@@ -1077,8 +1077,8 @@ void CClientView::OnBnClickedSyncLicenseButton()
 
 std::string CClientView::http_get_license_info() {
     VMP_VIRTUALIZATION_BEGIN(__FUNCTION__)
-        // http://121.43.101.216:13568/fetch_all_serials_ip_plugin.php
-        try
+    // http://121.43.101.216:13568/fetch_all_serials_ip_plugin.php
+    try
     {
         asio2::http_client client;
         const std::string host = xorstr("121.43.101.216");
