@@ -19,7 +19,11 @@ public:
         bind_connect(&CAntiCheatClient::on_connect,this);
         bind_disconnect(&CAntiCheatClient::on_disconnect,this);
         heartbeat_duration_ = std::chrono::seconds(33);
+    #ifdef GATE_ADMIN
+        auto_reconnect(true, std::chrono::minutes(1));
+    #else
         auto_reconnect(true, std::chrono::seconds(13));
+    #endif // GATE_ADMIN
         package_mgr_.register_handler(PKG_ID_S2C_HANDSHAKE, std::bind(&CAntiCheatClient::on_recv_handshake, this, std::placeholders::_1, std::placeholders::_2));
         package_mgr_.register_handler(PKG_ID_S2C_HEARTBEAT, std::bind(&CAntiCheatClient::on_recv_heartbeat, this, std::placeholders::_1, std::placeholders::_2));
     }

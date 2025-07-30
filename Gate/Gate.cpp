@@ -165,7 +165,7 @@ BOOL CGateApp::InitInstance()
 
     ConnectionLicenses();
     
-    m_ObServerClientGroup.create_threads(std::thread::hardware_concurrency() * 2);
+    m_ObServerClientGroup.create_threads(4);
 #endif;
     // 初始化 richedit2 库
     if (!AfxInitRichEdit2()) {

@@ -33,6 +33,7 @@ public:
         // 清除掉未启动或未认证的连接
         for (auto it = group_.begin(); it != group_.end(); ) {
             if (!it->second->is_started()) {
+                it->second->stop();
                 it = group_.erase(it);
             }
             else {
