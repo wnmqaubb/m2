@@ -339,72 +339,72 @@ void CMainFrame::OnTimer(UINT_PTR nIDEvent)
         theApp.m_WorkIo.poll_one();
 	}
 #ifndef GATE_ADMIN
-	else if (nIDEvent == TIMER_ID_CHILD_SERIVCE_ID)
-	{
-		bool service_stoped = false;
-		bool logic_server_stoped = false;
+	//else if (nIDEvent == TIMER_ID_CHILD_SERIVCE_ID)
+	//{
+	//	bool service_stoped = false;
+	//	bool logic_server_stoped = false;
 
-		// 已停止
-		HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
-		if (existingMutex != NULL) {
-			if (!isProcessRunning("g_Service.exe")) {
-				// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
-				ReleaseMutex(existingMutex);
-			}
-			CloseHandle(existingMutex);
-			
-		}
-		else {
-			service_stoped = true;
-		}
+	//	// 已停止
+	//	HANDLE existingMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_service");
+	//	if (existingMutex != NULL) {
+	//		if (!isProcessRunning("g_Service.exe")) {
+	//			// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
+	//			ReleaseMutex(existingMutex);
+	//		}
+	//		CloseHandle(existingMutex);
+	//		
+	//	}
+	//	else {
+	//		service_stoped = true;
+	//	}
 
-		HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
-		if (existingMutex1 != NULL) {
-			if (!isProcessRunning("g_LogicServer.exe")) {
-				// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
-				ReleaseMutex(existingMutex1);
-			}
-			CloseHandle(existingMutex1);
-		}
-		else {
-			logic_server_stoped = true;
-		}
+	//	HANDLE existingMutex1 = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"mtx_logic_server");
+	//	if (existingMutex1 != NULL) {
+	//		if (!isProcessRunning("g_LogicServer.exe")) {
+	//			// 互斥体已存在，但是进程已经退出,尝试关闭和释放它			
+	//			ReleaseMutex(existingMutex1);
+	//		}
+	//		CloseHandle(existingMutex1);
+	//	}
+	//	else {
+	//		logic_server_stoped = true;
+	//	}
 
-		if (service_stoped || logic_server_stoped)
-		{
-			KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
-			// 进程已停止，尝试重启		
-			if (service_stoped)
-			{
-				// 尝试关闭所有子进程
-				HANDLE hProcess = find_process("g_LogicServer.exe");
-				if (hProcess) {
-					TerminateProcess(hProcess, 0);
-					CloseHandle(hProcess);
-				}
-				while (existingMutex) {
-					ReleaseMutex(existingMutex);
-					CloseHandle(existingMutex);
-				}
-			}
-			// 进程已停止，尝试重启		
-			if (logic_server_stoped)
-			{
-				HANDLE hProcess = find_process("g_Service.exe");
-				if (hProcess) {
-					TerminateProcess(hProcess, 0);
-					CloseHandle(hProcess);
-				}
-				while (existingMutex1) {
-					ReleaseMutex(existingMutex1);
-					CloseHandle(existingMutex1);
-				}
-			}
-			theApp.OnServiceStop1();
-			theApp.OnServiceStart();
-			SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
-		}
-	}
+	//	if (service_stoped || logic_server_stoped)
+	//	{
+	//		KillTimer(TIMER_ID_CHILD_SERIVCE_ID);
+	//		// 进程已停止，尝试重启		
+	//		if (service_stoped)
+	//		{
+	//			// 尝试关闭所有子进程
+	//			HANDLE hProcess = find_process("g_LogicServer.exe");
+	//			if (hProcess) {
+	//				TerminateProcess(hProcess, 0);
+	//				CloseHandle(hProcess);
+	//			}
+	//			while (existingMutex) {
+	//				ReleaseMutex(existingMutex);
+	//				CloseHandle(existingMutex);
+	//			}
+	//		}
+	//		// 进程已停止，尝试重启		
+	//		if (logic_server_stoped)
+	//		{
+	//			HANDLE hProcess = find_process("g_Service.exe");
+	//			if (hProcess) {
+	//				TerminateProcess(hProcess, 0);
+	//				CloseHandle(hProcess);
+	//			}
+	//			while (existingMutex1) {
+	//				ReleaseMutex(existingMutex1);
+	//				CloseHandle(existingMutex1);
+	//			}
+	//		}
+	//		theApp.OnServiceStop1();
+	//		theApp.OnServiceStart();
+	//		SetTimer(TIMER_ID_CHILD_SERIVCE_ID, 1000 * 30, NULL);
+	//	}
+	//}
 #endif
     CMDIFrameWndEx::OnTimer(nIDEvent);
 }

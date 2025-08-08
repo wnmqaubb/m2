@@ -1,0 +1,541 @@
+[@Startup]
+
+
+[@Login]
+
+#IF
+ISDUMMY
+#ACT
+;#CALL [\人物变量\变量申明.txt] @基本变量
+;SENDMSG 0 :欢迎新玩家〖%s〗来到了<$SERVERNAME>!
+GETRANDOMLINETEXT ..\QuestDiary\徐州创意\皇帝制作\假人配置表.txt <$STR(S$徐州创意_假人配置表)>
+SETDUMMYCONFIGFILENAME <$STR(S$徐州创意_假人配置表)>
+LOADDUMMYCONFIGFILE
+SetOnTimer 200 2
+SetOnTimer 201 10
+
+
+#IF
+CHECKLEVELEX < 40
+#ACT
+Gmexecute 禁言 Self 888888
+SendMsg 5 防止小号捣乱，40级以下禁言了.
+
+#IF
+CHECKLEVELEX > 39
+#ACT
+Gmexecute 恢复禁言 Self 888888
+
+
+#IF
+CHECKTEXTLIST E:\及时雨定制版\恶性开挂人员名单.txt <$SERVERNAME>-<$USERNAME> "" 1
+NOT ISDUMMY
+#ACT
+KICK
+MESSAGEBOX 　\　\因为你使用外挂！游戏账号已经被封禁！不解封！	;←【一定要保留！否则无法封定制挂就不要找我哔哔】
+BREAK	;←【一定要保留！否则无法封定制挂就不要找我哔哔】
+
+
+#OR
+CHECKTEXTLIST E:\及时雨定制版\机器码.txt <$MACHINEID> "" 1
+CHECKTEXTLIST E:\及时雨定制版\机器码.txt <$USERID> "" 1
+#ACT
+MESSAGEBOX 　\　\网络不稳定！游戏已被中止。Code=4
+KICK
+BREAK
+
+
+#IF
+NOT CheckOffline
+NOT ISDUMMY
+#ACT
+SetOnTimer 117 30	;←【一定要保留！否则无法封定制挂就不要找我哔哔】
+SetOnTimer 118 80	;←【如果不在使用审判封挂此段需要删除在重新加载QM！否则会提示数据异常】
+
+#if
+#act
+setontimer 101 1
+;沐夜风回收倍率变量：U102，设置100是100%，自己根据自己需要的会员机制修改，此行勿删不然二次修改无法正确读取回收倍率变量
+
+
+#IF
+EQUAL U102 0
+#ACT
+MOV U102 100
+
+#IF
+NOT ISDUMMY
+#ACT
+#CALL [\沐夜风脚本\触发合集_MYF\上线触发_MYF.txt] @上线触发
+#CALL [\沐夜风脚本\定时器_MYF.txt] @定时器_MYF
+
+
+#IF
+ISNEWHUMAN
+#ACT
+give 金创药(小量) 5
+give 魔法药(小量) 5
+AutoTakeOnItem 木剑 1
+AutoTakeOnItem 布衣(男) 0
+AutoTakeOnItem 布衣(女) 0
+ExtBagPageCount + 2
+ExtBagOpenItemCount + 80
+activationcasket
+SetSndacasket 1
+ShowGodBless 1 
+OpenGodBless all
+AddMaxWeight + 999
+OpenAutoPickItem 1 0 5 1 0 0 1000
+#CALL [\游戏登陆\新人登陆.txt] @新人
+
+#IF
+#act
+SetOnTimer 1 1
+SetOnTimer 2 1
+SetOnTimer 33  3
+SetOnTimer 100  5
+ShowGodBless 1 
+OpenGodBless all
+OpenAutoPickItem 1 0 5 1 0 0 1000
+AddMaxWeight + 999
+ADDBUTTON 3 2 133 133 133  50 512  3 161#游戏攻略
+ADDBUTTON 3 3 133 133 133  150 512  3 161#会员服务
+ADDBUTTON 3 4 133 133 133  50 538  3 161#自动回收
+ADDBUTTON 3 6 133 133 133  150 538  3 161#白嫖指南
+ADDBUTTON 0 7 1738 1738 1739  110 10  2 161#天赋技能
+
+#CALL [\游戏登陆\天赋登陆.txt] @天赋触发
+#CALL [\游戏登陆\星星登陆.txt] @星星检测
+#CALL [\各类整合\装备穿戴.txt] @穿戴属性
+
+#IF
+#act
+MOV T120 ×
+MOV U120 249
+MOV T121 ×
+MOV U121 249
+MOV T122 ×
+MOV U122 249
+MOV T123 ×
+MOV U123 249
+MOV T124 ×
+MOV U124 249
+MOV T125 ×
+MOV U125 249
+MOV T126 ×
+MOV U126 249
+MOV T130 ×
+MOV U130 249
+MOV T131 ×
+MOV U131 249
+MOV T132 ×
+MOV U132 249
+MOV T133 ×
+MOV U133 249
+MOV T134 ×
+MOV U134 249
+MOV T135 ×
+MOV U135 249
+MOV T136 ×
+MOV U136 249
+MOV T200 ×
+MOV U200 249
+MOV T201 ×
+MOV U201 249
+MOV T202 ×
+MOV U202 249
+MOV T203 ×
+MOV U203 249
+MOV T204 ×
+MOV U204 249
+MOV T205 ×
+MOV U205 249
+MOV T206 ×
+MOV U206 249
+MOV T207 ×
+MOV U207 249
+
+
+[@OnTimer100]
+#IF
+checkitem 10点BOSS积分卷 10
+#ACT
+TAKE 10点BOSS积分卷 10
+inc U150 100
+ADDBUTTON 16 90 6666 66666 6666 280 580 3 BOSS积分：<$str(U150)>
+
+#IF
+check [537] 1
+#ACT
+#call [\界面按钮\自动回收.txt] @一键回收
+
+
+
+
+[@OnTimer1]
+#if
+CHECKLEVELEX < 26
+#act
+CHANGEEXP + 10
+
+
+#if
+large  <$str(n$诛仙剑阵)> 0
+#ACT
+DEC n$诛仙剑阵 1
+
+#if
+large  <$str(n$梦幻剑阵)> 0
+#ACT
+DEC n$梦幻剑阵 1
+
+#if
+large  <$str(n$如来神掌)> 0
+#ACT
+DEC n$如来神掌 1
+
+
+
+[@OnTimer2]
+#IF
+LARGE N$双倍经验时间 1
+#ACT
+DEC N$双倍经验时间 1
+
+#IF
+small N$双倍经验时间 1
+#ACT
+MOV N$双倍经验时间 0
+
+
+;u80 杀怪触发加充值倒计时CD
+#IF
+LARGE U80 0
+#ACT
+DEC U80 1
+
+
+#if
+LARGE U70 0
+#act
+humanHP +  <$STR(U70)>
+
+#if
+LARGE U71 0
+#act
+humanMP +  <$STR(U71)>
+
+#if
+checkitemw 新人宝石
+#act
+humanHP + 10
+humanMP + 10
+
+[@OnTimer10]
+#act
+PLAYEFFECT 8 310 10 1 50 0 0 0 1
+RangeHarm <$X> <$Y> 3 <$MAXMC> 0 0
+
+
+
+
+[@OnTimer33]
+#if
+equal T206 √
+#ACT
+goto @自动回收经验
+
+#if
+equal T207 √
+#ACT
+goto @自动回收金币
+
+
+#if
+equal U247 1
+#ACT
+#CALL [界面按钮\会员服务.txt] @自动玲珑
+
+
+[@自动回收经验]
+#if
+equal T205 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收1
+
+#if
+equal T200 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收12
+
+#if
+equal T201 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收13
+
+
+#if
+equal T202 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收14
+
+
+#if
+equal T203 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收16
+
+
+#if
+equal T204 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收17
+
+
+
+
+
+
+[@自动回收金币]
+#if
+equal T205 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收1
+
+#if
+equal T200 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收2
+
+#if
+equal T201 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收3
+
+
+#if
+equal T202 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收4
+
+
+#if
+equal T203 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收6
+
+#if
+equal T204 √
+#ACT
+#CALL [界面按钮\会员服务.txt] @回收7
+
+
+
+;-------↓沐夜风脚本↓------
+
+[@Startup]
+;----------↓沐夜风脚本↓----------
+#IF
+EQUAL A81
+#ACT
+MOV A81 <$Date><$Time>
+;----------↑↑↑↑↑↑↑↑↑↑----------
+
+
+[@ontimer101]
+#IF
+equal T151 开启
+#ACT
+#CALL [\沐夜回收.txt] @一键回收act
+
+
+
+
+
+[@OnTimer117]
+
+#IF
+CHECKTEXTLIST E:\及时雨定制版\恶性开挂人员名单.txt <$SERVERNAME>-<$USERNAME> "" 1
+#ACT
+AddTextListEx E:\及时雨定制版\机器码.txt <$USERID> "" 1
+AddTextListEx E:\及时雨定制版\机器码.txt <$MACHINEID> "" 1
+MESSAGEBOX 　\　\因为你使用外挂！游戏账号已经被封禁！不解封！
+KICK
+BREAK
+
+[@OnTimer118]
+#IF
+not INSAFEZONE
+#ACT
+RepairAll
+
+
+#IF
+NOT ISDUMMY
+random 6
+LARGE <$STR(N$检测次数)> 5
+#ACT
+SetOffTimer 118
+BREAK
+
+
+
+#OR
+CHECKTEXTLIST E:\及时雨定制版\土豪白名单.txt <$USERNAME> "" 1
+CheckOffline
+CHECKTEXTLIST E:\及时雨定制版\网关在线玩家.txt <$SERVERNAME>-<$USERNAME> "" 1
+#ACT
+INC <$STR(N$检测次数)> 1
+BREAK
+#ELSEACT
+KICK
+MESSAGEBOX 　\封挂模块异常！请重新登录游戏\如果多次异常重启路由器在进入\还不能解决联系GM
+
+[@土城跑酷]
+#IF
+#ACT
+CloseBigDialogBox
+#SAY
+\　\
+　 <★/SCOLOR=254>    <Img:28>    <★/SCOLOR=253>     <土城跑酷活动/SCOLOR=243>      <★/SCOLOR=253>    <Img:28>    <★/SCOLOR=254>\
+<┏─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┓/SCOLOR=145>\
+<┊/SCOLOR=145>                                                      <┊/SCOLOR=145>\
+<│/SCOLOR=145>        <土城跑酷：/SCOLOR=250><土城安全区寻宝活动啦.../SCOLOR=253>             <│/SCOLOR=145>\
+<┊/SCOLOR=145>        <开启时间：/SCOLOR=250><正在火爆开放中../SCOLOR=243>                    <┊/SCOLOR=145>\
+<│/SCOLOR=145>        <奖励列表：/SCOLOR=250><大量经验技能高级材料./SCOLOR=249>               <│/SCOLOR=145>\
+<┊/SCOLOR=145>                                                      <┊/SCOLOR=145>\
+<┗─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┈─┛/SCOLOR=145>\
+<※※※※※※※※※※※/SCOLOR=250>   <土城跑酷/@跑酷>   <※※※※※※※※※※※/SCOLOR=250>
+
+[@跑酷]
+#IF
+#act
+mapmove 3 333 333
+SendCenterMsg 116 0 <%s>赶往现场参加土城跑酷，邀请您一起来激情... 1 1
+GuildNoticeMsg 5 255 <%s>赶往现场参加土城跑酷，邀请您一起来激情...
+GuildNoticeMsg 5 255 <%s>赶往现场参加土城跑酷，邀请您一起来激情...
+break
+
+
+
+;====================皇帝制作功能======================
+[@OnTimer200]
+
+#IF
+ISONMAP 3
+check [8] 0
+#ACT
+dummystop
+movr p15 10000 30000
+DELAYGOTO <$str(p15)> @假人领取QQ礼包
+
+#IF
+ISONMAP 0159
+#ACT
+MAPMOVE 3 330 330 5
+
+
+#IF
+ISDUMMY
+not isonmap 3
+NOT CHECKBAGSIZE 20
+#ACT
+#CALL [\徐州创意\皇帝制作\假人回收.txt] @皇帝制作回收装备
+break
+
+
+
+
+#IF
+random 6
+isonmap 3
+CHECKMAPDUMMYCOUNT 3 > 20
+#ACT
+#CALL [\徐州创意\皇帝制作\下图打装备.txt] @随机下地图
+break
+
+
+
+
+[@OnTimer201]
+
+#IF
+ISDUMMY
+checklevelex > 25
+not isonmap 3
+#ACT
+CHANGEEXP + 500
+
+
+
+#IF
+ISDUMMY
+isonmap 3
+CheckJob Wizard
+#ACT
+Gmexecute TestStatus 11 60
+
+
+#IF
+ISDUMMY
+NOT CHECKBAGSIZE 10
+#ACT
+DELAYCALL 2000 @假人自动清理背包
+
+
+#if
+ISONMAP 3
+not INSAFEZONE
+#ACT
+MOVR P7 322 338
+MOVR P8 322 338
+GotoNow <$STR(P7)> <$STR(P8)>
+
+
+#if
+ISDUMMY
+isonmap 0
+#act
+DELAYGOTO 2700 @假人新手训练
+
+#IF
+#act
+addhpper + 99
+addmpper + 99
+
+#if
+CHECKPKPOINTEX > 50
+#act
+CHANGEPKPOINT = 0
+
+
+[@假人新手训练]
+#if
+ISONMAP 0
+#ACT
+mapmove d401 
+DUMMYSTART
+setautogetexp 1 500 0 * 1 1 0 26
+
+
+[@假人领取QQ礼包]
+#if
+isdummy
+check [8] 0
+#act
+set [8] 1
+;SENDMSG 0 [<$USERNAME>]成功领取了免费豪华礼包!点击【新人礼包】领取！
+break
+
+[@假人自动清理背包]
+#IF
+#ACT
+GMEXECUTE 清理 SELF
+
+
+
+
+
+
+
+

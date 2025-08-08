@@ -71,7 +71,7 @@ CObserverServer::CObserverServer()
         connect_to_logic_server(kDefaultLocalhost, kDefaultLogicServicePort);
     });
     package_mgr_.register_handler(OBPKG_ID_C2S_AUTH, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
-#if _DEBUG
+#ifdef _DEBUG
         get_user_data_(session)->set_field("is_observer_client", true);
         log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
             session->remote_port());
@@ -96,15 +96,21 @@ CObserverServer::CObserverServer()
             get_user_data_(session)->set_field("is_observer_client", true);
             log(LOG_TYPE_EVENT, TEXT("observer client auth success:%s:%u"), Utils::c2w(session->remote_address()).c_str(),
                 session->remote_port());
+            ProtocolOBS2OBCQueryVmpExpire resp;
+            resp.vmp_expire = get_vmp_expire();
+            async_send(session, &resp);
             ProtocolLC2LSAddObsSession req;
             req.session_id = session->hash_key();
             logic_client_->async_send(&req);
             ProtocolOBS2OBCAuth auth;
             auth.status = true;
             async_send(session, &auth);
-            ProtocolOBS2OBCQueryVmpExpire resp;
-            resp.vmp_expire = get_vmp_expire();
-            async_send(session, &resp);
+            // 发送有效期日期
+            session->start_timer("query_vmp_expire", 2000, [this, resp, weak_session = std::weak_ptr(session)]() {
+                if (auto session = weak_session.lock()) {
+                    async_send(session, &resp);
+                }
+            });
             if (auth_lock_.load()) {
                 auth_lock_.store(false);
             }
@@ -136,20 +142,32 @@ CObserverServer::CObserverServer()
     // gate to service for freshuserlist
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_QUERY_USERS, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         ProtocolOBS2OBCQueryUsers resp;
-        foreach_session([&resp](tcp_session_shared_ptr_t& session) -> void {
-            ProtocolUserData _userdata;
+        std::vector<std::pair<uint64_t, ProtocolUserData>> user_data_list;
+        foreach_session([this, &user_data_list](tcp_session_shared_ptr_t& session) {
             auto user_data = get_user_data_(session);
-            if (user_data->has_handshake)
-            {
+            if (user_data && user_data->has_handshake) {
+                ProtocolUserData _userdata;
                 _userdata.session_id = session->hash_key();
-                memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+                if (user_data->uuid) {
+                    memcpy(_userdata.uuid, user_data->uuid, sizeof(_userdata.uuid));
+                }
+                else {
+                    memset(_userdata.uuid, 0, sizeof(_userdata.uuid));
+                }
                 _userdata.has_handshake = user_data->has_handshake;
                 _userdata.last_heartbeat_time = user_data->last_heartbeat_time;
                 _userdata.json = user_data->data;
-                resp.data.emplace(std::pair(_userdata.session_id, _userdata));
+                user_data_list.emplace_back(_userdata.session_id, _userdata);
             }
         });
-        send(session, &resp);
+
+        // 在锁外构建响应
+        for (const auto& [session_id, _userdata] : user_data_list) {
+            resp.data.emplace(std::pair(_userdata.session_id, _userdata));
+        }
+
+        // 发送响应
+        async_send(session, &resp);
     });
     ob_pkg_mgr_.register_handler(OBPKG_ID_C2S_UPDATE_LOGIC, [this](tcp_session_shared_ptr_t& session, const RawProtocolImpl& package, const msgpack::v1::object_handle& raw_msg) {
         auto buf = raw_msg.get().as<ProtocolOBC2OBSUpdateLogic>().data;

@@ -360,7 +360,8 @@ void CAntiCheatServer::close(unsigned int session_id)
 void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
 #ifdef _DEBUG
-    _on_recv(session, sv);
+    _on_recv(session, std::move(sv));
+    return;
 #else
     try
     {
@@ -371,15 +372,17 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
             std::shared_lock lock(mutex_);
             if (session->is_stopped()) return; // 检查会话状态
             if (remote_address == kDefaultLocalhost) {
-                _on_recv(session, sv);
+                _on_recv(session, std::move(sv));
                 return;
             }
         }
         else [[likely]] {
-            _on_recv(session, sv);
+            _on_recv(session, std::move(sv));
+            return;
         }
     #else
-        _on_recv(session, sv);
+        _on_recv(session, std::move(sv));
+        return;
     #endif
     }
     catch (...)
@@ -395,52 +398,75 @@ void CAntiCheatServer::on_recv_package(tcp_session_shared_ptr_t& session, std::s
 
 void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_view sv)
 {
-    auto remote_address = session->remote_address();
-	// 黑名单
-	if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
-        return;
-	}
-    if (sv.size() == 0)
-	{
-		//printf("1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-        if(ddos_black_map.find(remote_address)!= ddos_black_map.end()){
-		    //printf("2添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-            if(ddos_black_map[remote_address] >= 10){
-		    //printf("3 >= 50添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-				if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
-					//printf("添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-					ddos_black_List.emplace(remote_address);
-				}
+    try
+    {
+        auto remote_address = session->remote_address();
+	    // 黑名单
+	    if (ddos_black_List.find(session->remote_address()) != ddos_black_List.end()) {
+            return;
+	    }
+        if (sv.size() == 0)
+	    {
+		    //printf("1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+            if(ddos_black_map.find(remote_address)!= ddos_black_map.end()){
+		        //printf("2添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+                if(ddos_black_map[remote_address] >= 10){
+		        //printf("3 >= 50添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+				    if (ddos_black_List.find(remote_address) == ddos_black_List.end()) {
+					    //printf("添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+					    ddos_black_List.emplace(remote_address);
+				    }
+                }
+                else{
+		        //printf("4 += 1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
+                    ddos_black_map[remote_address] += 1;
+                }
             }
             else{
-		    //printf("4 += 1添加ddos攻击黑名单IP:%s\n", session->remote_address().c_str());
-                ddos_black_map[remote_address] += 1;
+                ddos_black_map[remote_address] = 1;
+            }
+
+            log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d ==> %s:%d 长度:%d"),
+                Utils::c2w(remote_address).c_str(),
+                session->remote_port(),
+			    Utils::c2w(session->local_address()).c_str(),
+			    session->local_port(),
+                sv.size());
+            session->socket().close(asio2::get_last_error());
+            return;
+        }
+        if (is_enable_proxy_tunnel())
+        {
+    #if ENABLE_PROXY_TUNNEL
+            get_user_data_(session).game_proxy_tunnel->send(sv);
+    #endif
+        }
+        RawProtocolImpl package;
+    #ifdef _DEBUG
+        if (is_logic_server())
+        {
+		    if (!package.decode(sv))
+            {
+                log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
+                    Utils::c2w(remote_address).c_str(),
+                    session->remote_port(),
+                    sv.size());
+                return;
             }
         }
-        else{
-            ddos_black_map[remote_address] = 1;
+        else
+        {
+		    if (!package.decode(sv))
+            {
+                log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
+                    Utils::c2w(remote_address).c_str(),
+                    session->remote_port(),
+                    sv.size());
+                return;
+            }
         }
-
-        log(LOG_TYPE_ERROR, TEXT("协议底层错误:%s:%d ==> %s:%d 长度:%d"),
-            Utils::c2w(remote_address).c_str(),
-            session->remote_port(),
-			Utils::c2w(session->local_address()).c_str(),
-			session->local_port(),
-            sv.size());
-        session->socket().close(asio2::get_last_error());
-        return;
-    }
-    if (is_enable_proxy_tunnel())
-    {
-#if ENABLE_PROXY_TUNNEL
-        get_user_data_(session).game_proxy_tunnel->send(sv);
-#endif
-    }
-    RawProtocolImpl package;
-#ifdef _DEBUG
-    if (is_logic_server())
-    {
-		if (!package.decode(sv))
+    #else
+        if (!package.decode(sv))
         {
             log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
                 Utils::c2w(remote_address).c_str(),
@@ -448,82 +474,67 @@ void CAntiCheatServer::_on_recv(tcp_session_shared_ptr_t& session, std::string_v
                 sv.size());
             return;
         }
-    }
-    else
-    {
-		if (!package.decode(sv))
+    #endif    
+
+        auto raw_msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
+        if (raw_msg.get().type != msgpack::type::ARRAY) throw msgpack::type_error();
+        if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
+        if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
+        const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
+	    auto user_data = get_user_data_(session);
+        if (package.head.step != user_data->step + 1)
         {
-            log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
+            user_data->set_field("miss_count", user_data->get_field<int>("miss_count") + 1);
+            log(LOG_TYPE_DEBUG, TEXT("[%s:%d] 发现丢包或重放攻击"),
                 Utils::c2w(remote_address).c_str(),
-                session->remote_port(),
-                sv.size());
+                session->remote_port());
+        }
+        user_data->step = package.head.step;
+
+        if (user_data->has_handshake == false && package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
+        {
+            auto msg = raw_msg.get().as<ProtocolC2SHandShake>();
+            on_recv_handshake(session, package, msg);
             return;
         }
-    }
-#else
-    if (!package.decode(sv))
-    {
-        log(LOG_TYPE_DEBUG, TEXT("解包校验失败:%s:%d 长度:%d"),
+
+        if (user_data->has_handshake == false)
+        {
+            log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"),
+                Utils::c2w(remote_address).c_str(),
+                session->remote_port());
+            return;
+        }
+
+        if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
+        {
+            auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
+            on_recv_heartbeat(session, package, msg);
+		    return;
+        }
+    #if 0
+        log(Debug, TEXT("收到数据包:%s:%d 长度:%d"),
             Utils::c2w(remote_address).c_str(),
             session->remote_port(),
             sv.size());
-        return;
+    #endif
+        if (package_mgr_.dispatch(package_id, session, package, raw_msg))
+        {
+            return;
+        }
+        if (!on_recv(package_id, session, package, raw_msg))
+        {
+            log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
+                Utils::c2w(remote_address).c_str(),
+                session->remote_port(),
+                package_id);
+        }
     }
-#endif
-    
-
-    auto raw_msg = msgpack::unpack((char*)package.body.buffer.data(), package.body.buffer.size());
-    if (raw_msg.get().type != msgpack::type::ARRAY) throw msgpack::type_error();
-    if (raw_msg.get().via.array.size < 1) throw msgpack::type_error();
-    if (raw_msg.get().via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER) throw msgpack::type_error();
-    const auto package_id = raw_msg.get().via.array.ptr[0].as<unsigned int>();
-	auto user_data = get_user_data_(session);
-    if (package.head.step != user_data->step + 1)
-    {
-        user_data->set_field("miss_count", user_data->get_field<int>("miss_count") + 1);
-        log(LOG_TYPE_DEBUG, TEXT("[%s:%d] 发现丢包或重放攻击"),
-            Utils::c2w(remote_address).c_str(),
-            session->remote_port());
+    catch (const std::exception& e) {
+        log(LOG_TYPE_ERROR, TEXT("_on_recv异常: %s"), Utils::c2w(e.what()).c_str());
     }
-    user_data->step = package.head.step;
-
-    if (user_data->has_handshake == false && package_id == PackageId::PKG_ID_C2S_HANDSHAKE)
-    {
-        auto msg = raw_msg.get().as<ProtocolC2SHandShake>();
-        on_recv_handshake(session, package, msg);
-        return;
-    }
-
-    if (user_data->has_handshake == false)
-    {
-        log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未握手用户"),
-            Utils::c2w(remote_address).c_str(),
-            session->remote_port());
-        return;
-    }
-
-    if (package_id == PackageId::PKG_ID_C2S_HEARTBEAT)
-    {
-        auto msg = raw_msg.get().as<ProtocolC2SHeartBeat>();
-        on_recv_heartbeat(session, package, msg);
-		return;
-    }
-#if 0
-    log(Debug, TEXT("收到数据包:%s:%d 长度:%d"),
-        Utils::c2w(remote_address).c_str(),
-        session->remote_port(),
-        sv.size());
-#endif
-    if (package_mgr_.dispatch(package_id, session, package, raw_msg))
-    {
-        return;
-    }
-    if (!on_recv(package_id, session, package, raw_msg))
-    {
-        log(LOG_TYPE_ERROR, TEXT("[%s:%d] 未知包id %d"),
-            Utils::c2w(remote_address).c_str(),
-            session->remote_port(),
-            package_id);
+    catch (...) {
+        log(LOG_TYPE_ERROR, TEXT("_on_recv异常"));
     }
 }
 
