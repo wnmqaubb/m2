@@ -144,7 +144,7 @@ BOOL CGateApp::InitInstance()
             AfxMessageBox(TEXT("启动LogicServer失败"));
         }
         pHandles[1] = pi.hProcess;
-        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);OutputDebugStringA("=====gate_ExitProcess");
+        WaitForMultipleObjects(2, pHandles, TRUE, INFINITE);
         ExitProcess(0); 
         return FALSE;
     }
