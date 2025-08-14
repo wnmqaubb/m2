@@ -75,26 +75,32 @@ void COutputDlg::UpdateFonts()
 
 void COutputDlg::LogPrint(int type, LPCTSTR format, ...)
 {
-    CString buf;
     va_list ap;
     va_start(ap, format);
-    buf.FormatV(format, ap);
+    CString originalBuf;
+    originalBuf.FormatV(format, ap);
     va_end(ap);
+
+    // Step 2: 创建带时间戳的日志，使用新缓冲区避免自引用问题
     CTime tm = CTime::GetCurrentTime();
-    buf.Format(_T("[%s]%s"), tm.Format(_T("%H:%M:%S")), buf);
-    theApp.m_WorkIo.post([this, type, buf]() {
+    // 修改时间格式为月-日 时:分:秒
+    CString timeStr = tm.Format(_T("%m-%d %H:%M:%S"));
+    CString finalBuf;
+    finalBuf.Format(_T("[%s] %s"), timeStr.GetString(), originalBuf.GetString());
+
+    theApp.m_WorkIo.post([this, type, finalBuf]() {
         switch (type)
         {
         case ObserverClientLog:
-            m_wndObserverClientLog.AddString(buf);
+            m_wndObserverClientLog.AddString(finalBuf);
             AdjustHorzScroll(m_wndObserverClientLog);
             break;
         case ServiceLog:
-            m_wndServiceLog.AddString(buf);
+            m_wndServiceLog.AddString(finalBuf);
             AdjustHorzScroll(m_wndServiceLog);
             break;
         case LogicServerLog:
-            m_wndLogicServerLog.AddString(buf);
+            m_wndLogicServerLog.AddString(finalBuf);
             AdjustHorzScroll(m_wndLogicServerLog);
             break;
         default:

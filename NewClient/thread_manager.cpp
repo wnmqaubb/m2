@@ -21,7 +21,7 @@
 using namespace lfengine::client;
 
 std::shared_ptr<TAppFuncDef> g_AppFunc;
-std::shared_ptr<HINSTANCE> dll_base;
+HINSTANCE dll_base;
 std::shared_ptr<asio::io_service> g_game_io;
 std::shared_ptr<asio::detail::thread_group> g_thread_group;
 std::shared_ptr<int> g_client_rev_version;
@@ -101,11 +101,11 @@ void AntiCheatSystem::client_entry()
         {
             auto ip = client_->cfg()->get_field<std::string>(ip_field_id);
             auto port = client_->cfg()->get_field<int>(port_field_id);
-            client_->async_start(ip, port);
+            client_->start(ip, port);
             g_thread_group->create_threads([this]() {
                 // 禁用DLL_THREAD_ATTACH/DETACH通知
                 if(dll_base)
-                    DisableThreadLibraryCalls((HMODULE)*dll_base);
+                    DisableThreadLibraryCalls(dll_base);
                 auto work_guard = asio::make_work_guard(*g_game_io);
                 g_game_io->run();
                 LOG("ASIO线程安全退出"); // 确保线程退出时无模块代码
@@ -147,36 +147,38 @@ __declspec(dllexport) void __stdcall InitEx(const PAppFuncDef AppFunc, const cha
     }
     LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
 #ifdef LOG_SHOW
-    LOG("DLL_PROCESS_ATTACH1 dll_base:%p", *dll_base);
+    if (dll_base) {
+        LOG("DLL_PROCESS_ATTACH1 dll_base:%p", dll_base);
 
-    auto now_time = std::time(nullptr);
-    std::tm tm_;
-    localtime_s(&tm_, &now_time);
-    std::stringstream ss;
-    ss << std::put_time(&tm_, "%m-%d %H:%M:%S");
-    std::string time_str = ss.str();
-    time_str += ": 0x";
-    LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
-    std::stringstream ss_hex;
-    ss_hex << std::hex << (uint32_t)*dll_base;  // 转为十六进制
-    time_str += ss_hex.str();
-    // 获取模块大小
-    // 获取DOS头
-    LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
-    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)*dll_base;
-    if (pDosHeader->e_magic == IMAGE_DOS_SIGNATURE) {
-        // 获取NT头
-        PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((BYTE*)*dll_base + pDosHeader->e_lfanew);
-        if (pNtHeader->Signature == IMAGE_NT_SIGNATURE)        
-            time_str += "," + std::to_string(pNtHeader->OptionalHeader.SizeOfImage);
+        auto now_time = std::time(nullptr);
+        std::tm tm_;
+        localtime_s(&tm_, &now_time);
+        std::stringstream ss;
+        ss << std::put_time(&tm_, "%m-%d %H:%M:%S");
+        std::string time_str = ss.str();
+        time_str += ": 0x";
+        LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
+        std::stringstream ss_hex;
+        ss_hex << std::hex << (uint32_t)dll_base;  // 转为十六进制
+        time_str += ss_hex.str();
+        // 获取模块大小
+        // 获取DOS头
+        LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
+        PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)dll_base;
+        if (pDosHeader->e_magic == IMAGE_DOS_SIGNATURE) {
+            // 获取NT头
+            PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((BYTE*)dll_base + pDosHeader->e_lfanew);
+            if (pNtHeader->Signature == IMAGE_NT_SIGNATURE)
+                time_str += "," + std::to_string(pNtHeader->OptionalHeader.SizeOfImage);
+        }
+
+        LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
+        std::filesystem::path file = std::filesystem::current_path() / "jsy.txt";
+        std::ofstream output(file, std::ios::app);
+        output << time_str.data() << std::endl;
+        output.flush();
+        LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
     }
-
-    LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
-    std::filesystem::path file = std::filesystem::current_path() / "jsy.txt";
-    std::ofstream output(file, std::ios::app);
-    output << time_str.data() << std::endl;
-    output.flush();
-    LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
 #endif
     LOG("调试信息==============%s|%d", __FUNCTION__, __LINE__);
     return GetSystem().Init(AppFunc, server_ip);
@@ -192,7 +194,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
     {
         case DLL_PROCESS_ATTACH:
             //LOG("DLL_PROCESS_ATTACH1");
-            dll_base = std::make_shared<HINSTANCE>(hModule);
+            dll_base = hModule;
             break;
         case DLL_THREAD_ATTACH:
             //LOG("DLL_THREAD_ATTACH"); 

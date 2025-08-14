@@ -629,8 +629,8 @@ import * as api from "api";
                 //for (const [module_name, startAddress, size] of moduleEntries) {
                 for (const me of moduleEntries) {
                     const module_name = me[0];
-                    const startAddress = me[1];
-                    const size = me[2];
+                    const startAddress = BigInt(me[1]); // 显式转换为 BigInt
+                    const size = BigInt(me[2]);         // 显式转换为 BigInt
                     if (address >= startAddress && address <= startAddress + size) {
                         return module_name;
                     }
@@ -684,7 +684,7 @@ import * as api from "api";
             0x102E76A, 0x148E76A, 0x4CF7583, 0x1209C67, 0x159A190, 0x42E001, 0x4049C8, 
 			//0x4125730, //asus_framework.exe华硕的程序
 			0x1484ED5, 0x5CA08B, 
-			//0xA78410,/*无界趣连远程*/ 
+			0xA78410,/*无界趣连远程*/ 
 			0xAC6120, 0x2EA000E, 0x9ECBF3, 0x40ACD3, 0xEED8C5, 0x471020, 0x405780, 0x40C503, 0x5747C0, 0x16FA499, 0x30B1F03, 0x446FB2, 0x5B61DC, 0x5B76BC, 0x60E5BC, 0x470D50, 0x70E392E, 0x51CAEB2, 0x707AF6E, 0x442B4F, 0x4CF1CDD, 0x99AAC4, 0x1610DE5, 0x29878F5, 0x49BA3CD, 0xC880FD, 0x4B89892, 0x40117A, 0x273DDD0, 0x1BEC6FC, 0x22CB4CB, 0x494F9FD, 0x407243, 0xCC1F1B, 0x1484ED5, 0xE35C83, 0x176AB35, 0x401220, 0x8600D1A, 0x2DAB502, 0x10675BF, 0x21DDC6D, 0x4D71B10, 0x21A6262, 0x1C70188, 0x1763831, 0x18B2157, 0x49FB338, 0x1E2EC9F, 0x49418B0, 0x2EEBD19, 0x13D99FB, 0x39EA38B, 0x3CB0520, 0x270F9D0, 0x1CDE29F, 0x4C86C83, 0x21CFE23, 0x4D71B10, 0x1E3DE53, 0x1FBB4ED, 0x1763831, 0x9CCECC, 0x36B42D1, 0x2508F0B, 0x78896B8, 0xABA980, 0x482C7C, 0x25A4FF4, 0x5629800, 0x24F66B3, 0x139CE30, 
 			//0x4186C0, /*误封登录器*/
 			0x2517C92, 0x12D6FD1, 0x13796BC, 0x4A2073, 0x99480E, 0xA2E02A, 0x49551C, 0x8CE13C, 0xC176B4, 0xAD38E2, 0x191FD55, 0x1F425AA, 0x523B47, 0x496882, 0x42F0D2, 0x138F004, 0x4FFDA1, 0x4FFFE1, 0x2517C92, 0x40117A, 0x4AF4EA, 0x4053D4, 0x487270, 
@@ -1019,6 +1019,7 @@ import * as api from "api";
                     if (result_msg) break;
                 }
             }
+
             if (!result_msg) {
                 if (this._window_util.processThreads.size === 0) return;
                 for (const thread_process_entry of this._window_util.processThreads) {
@@ -1285,7 +1286,7 @@ import * as api from "api";
         }
         detectSandbox() {
             let IcmpSendEcho2_Fn = api.get_proc_address("Iphlpapi.dll", "IcmpSendEcho2");
-            if (IcmpSendEcho2_Fn && 0xE9 == api.read_bytes(IcmpSendEcho2_Fn, 1)[0]) {
+            if (IcmpSendEcho2_Fn && 0xE9 == api.read_bytes(Number(IcmpSendEcho2_Fn), 1)[0]) {
                 reporter.report(taskId, true, `发现沙盒脱机多倍外挂`, 'IcmpSendEcho2');
                 return
             }
@@ -1547,6 +1548,9 @@ import * as api from "api";
             "hidetoolz", "wujiejiami", "sp_hs", "passkpp_demo", "superspeedx64", "speedhook", "gwken", "yxbsq", "mengwuji", "win7speed", "wwe21wwe", "lonerspeed_v40", "ltqdrv", 
             "umcg_x64", "abc2.0", "3559.sys", "0205.sys", "xy3.sys", "xtest_64.sys"];
         device_list = [];
+        vm_signatures = [
+            "ven_15ad.sys","hvsocket.sys","HyperVideo.sys","vmbus.sys"
+            ];
         pdb_cache = new Map();
         get_pdb_path_cached(driver_path) {
             if (this.pdb_cache.has(driver_path)) {
@@ -1597,10 +1601,15 @@ import * as api from "api";
                         return;
                     }
                 }
-                if (device_path.includes("ven_15ad")) {
-                    PolicyReporter.instance.report(this.task_id, true, `虚拟机设备:${device_path}`, device_path);
-                    return;
-                }
+
+                // 虚拟机驱动检测
+                // for(const keyword of this.vm_signatures){
+                //     if (device_path.includes(keyword)) {
+                //         //PolicyReporter.instance.report(689333, true, `虚拟机设备`, device_path);
+                //         PolicyReporter.instance.report(this.task_id, true, `虚拟机设备`, device_path);
+                //         return;
+                //     }
+                // }
             }
         }
     }

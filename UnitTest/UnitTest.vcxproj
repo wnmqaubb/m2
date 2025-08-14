@@ -97,17 +97,18 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)..\yk\3rdparty\phnt;$(SolutionDir)..\yk\3rdparty\lua-5.4.3;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)..\yk\3rdparty\phnt;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd;$(SolutionDir)..\yk\NewClient\shellcode;$(SolutionDir)NewClient</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)build\intdir\NewClient\$(Configuration)\$(Platform)\*.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\lib\zlib.lib;$(SolutionDir)build\intdir\NewClient\$(Configuration)\$(Platform)\*.obj;$(SolutionDir)..\yk\3rdparty\quickjs\quickjs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -131,6 +132,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\NewClient\qjs.h" />
     <ClInclude Include="PEScan.h" />
   </ItemGroup>
   <ItemGroup>

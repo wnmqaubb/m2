@@ -4,14 +4,14 @@
 #include "../../yk/Lightbone/pointer.hpp"
 #include "../../yk/Lightbone/utils.h"
 #include "NewClient/ClientImpl.h"
-#include "NewClient/shellcode/TaskBasic.h"
+#include "TaskBasic.h"
 #include "Gate/cmdline.h"
 #include "PEScan.h"
 #include <../../yk/Lightbone/api_resolver.h>
 #include <NewClient/thread_manager.h>
 #include <Psapi.h>
 #pragma comment(lib, "Psapi.lib")
-void async_execute_javascript(const std::string& sv, uint32_t script_id);
+//void async_execute_javascript(const std::string& sv, uint32_t script_id);
 
 //extern void __stdcall InitExFunc(std::string guard_gate_ip) noexcept;
 //typedef void(__stdcall* InitExFunc)(const void* AppFunc, const char* server_ip, const wchar_t* mutex_anti_cheat_module_name);
@@ -99,7 +99,7 @@ int main(int argc, char** argv)
     //init_client_entry_dll();
     InitUnitTest();
    
-    InitJavaScript();
+    //InitJavaScript();
     std::vector<std::string> args;
     for (int i = 1; i < argc; i++) args.push_back(argv[i]);
     

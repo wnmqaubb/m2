@@ -14,6 +14,7 @@ public:
     void monitor_main_window();
     void window_monitor_thread();
     void init_role_monitor();
+    void process_title_messages();
     fs::path exe_path_;
     fs::path cache_dir_;
     // 全局变量存储状态

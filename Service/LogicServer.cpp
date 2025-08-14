@@ -79,7 +79,7 @@ void CLogicServer::send_policy(std::shared_ptr<ProtocolUserData>& user_data, tcp
 	}
 #endif
 	send(session, session_id, &policy_mgr_.get_policy());
-	user_data->add_send_policy_count();
+    user_data->add_send_policy_count();
 #if defined(ENABLE_POLICY_TIMEOUT_CHECK)
 	do
 	{

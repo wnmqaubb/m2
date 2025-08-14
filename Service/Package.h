@@ -50,16 +50,31 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
     int rev_version = 0;
     std::string commited_hash = "";
     unsigned int pid = 0;
+    bool is_client = false;
     static std::unique_ptr<ProtocolC2SHandShake> load(const char* buf, size_t len)
     {
         RawProtocolImpl raw_msg;
-        if (raw_msg.decode(std::string_view(buf, len)) == false)
+        if (!raw_msg.decode(std::string_view(buf, len)))
         {
             return nullptr;
         }
-        auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
-        auto res = std::make_unique<ProtocolC2SHandShake>(msg.get().as<ProtocolC2SHandShake>());
-        return std::move(res);
+        try
+        {
+            auto msg = msgpack::unpack((char*)raw_msg.body.buffer.data(), raw_msg.body.buffer.size());
+            return std::make_unique<ProtocolC2SHandShake>(msg.get().as<ProtocolC2SHandShake>());
+        }
+        catch (const msgpack::type_error& e)
+        {
+            return nullptr;
+        }
+        catch (const msgpack::parse_error& e)
+        {
+            return nullptr;
+        }
+        catch (const std::exception& e)
+        {
+            return nullptr;
+        }
     }
 
     std::string dump() const
@@ -72,14 +87,15 @@ struct ProtocolC2SHandShake : ProtocolBase<PKG_ID_C2S_HANDSHAKE>
     }
 
     MSGPACK_DEFINE(package_id, uuid_1, uuid_2, uuid_3, uuid_4,
-        system_version,
-        is_64bit_system,
-        cpuid,
-        mac,
-        volume_serial_number,
-        rev_version,
-        commited_hash,
-        pid);
+                   system_version,
+                   is_64bit_system,
+                   cpuid,
+                   mac,
+                   volume_serial_number,
+                   rev_version,
+                   commited_hash,
+                   pid,
+                   is_client);
 };
 
 struct ProtocolS2CHandShake : ProtocolBase<PKG_ID_S2C_HANDSHAKE>

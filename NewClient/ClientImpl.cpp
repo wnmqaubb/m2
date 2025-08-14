@@ -35,6 +35,16 @@ CClientImpl::CClientImpl() : super()
 	});
 	notify_mgr().register_handler(CLIENT_CONNECT_SUCCESS_NOTIFY_ID, [this]() {
 		LOG("握手");
+        user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
+        user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
+        user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
+        user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
+        user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
+        user_data().set_field(rev_version_field_id, (int)REV_VERSION);
+        user_data().set_field(commited_hash_field_id, std::string(FILE_VERSION_STR));
+        user_data().set_field(is_client_field_id, true);
+        this->load_uuid();
+
 		ProtocolC2SHandShake handshake;
 		memcpy(&handshake.uuid, uuid().data, sizeof(handshake.uuid));
 		handshake.system_version = std::any_cast<int>(user_data().get_field(sysver_field_id));
@@ -45,12 +55,13 @@ CClientImpl::CClientImpl() : super()
 		handshake.rev_version = std::any_cast<int>(user_data().get_field(rev_version_field_id));
 		handshake.commited_hash = std::any_cast<std::string>(user_data().get_field(commited_hash_field_id));
 		handshake.pid = GetCurrentProcessId();
-		this->save_uuid(handshake);
+        handshake.is_client = true;
+        this->save_uuid(handshake);
 		send(&handshake);
-		g_timer->start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
+		start_timer<unsigned int>(CLIENT_HEARTBEAT_TIMER_ID, heartbeat_duration(), [this]() {
             __try {
 			    ProtocolC2SHeartBeat heartbeat;
-			    heartbeat.tick = time(0);
+			    heartbeat.tick = time(nullptr);
 			    send(&heartbeat);
 			    LOG("发送心跳");
             }
@@ -59,23 +70,14 @@ CClientImpl::CClientImpl() : super()
             }
 		});
 		post([this]() {
-			if (!is_loaded_plugin())
-			{
-				LoadPlugin();
-			}
-			}, std::chrono::milliseconds(2000));
+            if (!is_loaded_plugin())
+            {
+                LoadPlugin();
+            }
+		}, std::chrono::seconds(2));
 		// 发送用户名 防止断开后重连时网关用户名为空
 		notify_mgr().dispatch(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID);
 	});
-
-    notify_mgr().register_handler(CLIENT_RECONNECT_SUCCESS_NOTIFY_ID, []() {
-        //防止重启服务器的时候过于集中发包
-        client_->post([]() {
-            ProtocolC2SUpdateUsername req;
-            req.username = client_->cfg()->get_field<std::wstring>(usrname_field_id);
-            client_->send(&req);
-        }, std::chrono::seconds(std::rand() % 10 + 1));
-    });
 
 	notify_mgr().register_handler(ON_RECV_HEARTBEAT_NOTIFY_ID, [this]() {
 		LOG("接收心跳");
@@ -83,14 +85,6 @@ CClientImpl::CClientImpl() : super()
 
 	notify_mgr().register_handler(CLIENT_START_NOTIFY_ID, [this]() {
 		LOG("客户端初始化成功");
-		user_data().set_field(sysver_field_id, (int)CWindows::instance().get_system_version());
-		user_data().set_field(is_64bits_field_id, CWindows::instance().is_64bits_system());
-		user_data().set_field(cpuid_field_id, Utils::HardwareInfo::get_cpuid());
-		user_data().set_field(mac_field_id, Utils::HardwareInfo::get_mac_address());
-		user_data().set_field(vol_field_id, Utils::HardwareInfo::get_volume_serial_number());
-		user_data().set_field(rev_version_field_id, (int)REV_VERSION);
-		user_data().set_field(commited_hash_field_id, std::string(FILE_VERSION_STR));
-		this->load_uuid();
         init_role_monitor();
 	});
 	package_mgr().register_handler(SPKG_ID_S2C_PUNISH, [this](const RawProtocolImpl& package, const msgpack::v1::object_handle& msg) {
@@ -162,13 +156,12 @@ void CClientImpl::monitor_main_window() {
     HWND hCurrentWindow = g_main_window_hwnd.load();
 
     auto& wrn = window_role_name_hook::get_instance();
-    // 1. 检查当前缓存的主窗口是否有效
-    if (hCurrentWindow && IsWindow(hCurrentWindow)) {
-        return;
-    }
 
-    // 双重检查
-    if (g_main_window_hwnd.load() && IsWindow(g_main_window_hwnd.load())) {
+    // 双重检查窗口有效性
+    if (hCurrentWindow && IsWindow(hCurrentWindow)) {
+        if (!wrn.get_is_hook_installed()) {
+            wrn.init(hCurrentWindow);
+        }
         return;
     }
 
@@ -181,106 +174,90 @@ void CClientImpl::monitor_main_window() {
     ::EnumDesktopWindows(nullptr, [](HWND hwnd, LPARAM lParam) -> BOOL {
         auto& ctx = *reinterpret_cast<WindowSearchContext*>(lParam);
 
-        // 检查进程ID匹配
         DWORD windowPid = 0;
         ::GetWindowThreadProcessId(hwnd, &windowPid);
         if (windowPid != ctx.pid) return TRUE;
 
-        // 检查类名匹配
+
         wchar_t classBuf[256] = {};
         ::GetClassName(hwnd, classBuf, ARRAYSIZE(classBuf));
         if (_wcsicmp(classBuf, main_window_class.c_str()) != 0) return TRUE;
 
-        // 检查可见性（主窗口通常可见）
         if (!::IsWindowVisible(hwnd)) return TRUE;
 
-        // 找到目标窗口
         ctx.result = hwnd;
 
-        return FALSE; // 找到后停止枚举
+        return FALSE;
     }, reinterpret_cast<LPARAM>(&ctx));
 
     // 更新缓存
     if (ctx.result) {
         g_main_window_hwnd.store(ctx.result);
 
-        auto& wrn = window_role_name_hook::get_instance();
-
-        if (wrn.init(ctx.result)) {
-            // ✅ 在这里调用 request_title()
-            wrn.request_title();
+        if (window_role_name_hook::get_instance().init(ctx.result)) {
+            window_role_name_hook::get_instance().request_title();
         }
     }
 }
 
-// 窗口监控线程
-void CClientImpl::window_monitor_thread() {
-    // 初始化进程ID
-    g_currentPid = ::GetCurrentProcessId();
-
-    // 获取当前线程 ID
-    DWORD currentThreadId = GetCurrentThreadId();
-
-    // 设置回调和线程ID
-    auto& wrn = window_role_name_hook::get_instance();
-    wrn.set_async_callback([this](const std::wstring& title) {
-
-        if (!title.empty() && title != g_lastKnownTitle) {
-            g_lastKnownTitle = title;
-
-            if (g_roleNameCallback) {
-                g_roleNameCallback(title);
-            }
-        }
-    }, currentThreadId);
-
-    //while (true) {
-        // 每15秒检测一次
-    monitor_main_window();
-    wrn.request_title();
+// 处理消息队列中的标题更新
+void CClientImpl::process_title_messages() {
     MSG msg;
     while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_USER + 100) {
-            std::wstring* pTitle = reinterpret_cast<std::wstring*>(msg.lParam);
-            std::wstring title = *pTitle;
-            delete pTitle; // 释放堆内存
+            std::unique_ptr<std::wstring> pTitle(reinterpret_cast<std::wstring*>(msg.lParam));
 
-            if (!title.empty() && title != g_lastKnownTitle) {
-                g_lastKnownTitle = title;
+            if (!pTitle->empty() && *pTitle != g_lastKnownTitle) {
+                g_lastKnownTitle = *pTitle;
                 if (g_roleNameCallback) {
-                    g_roleNameCallback(title);
+                    g_roleNameCallback(*pTitle);
                 }
             }
         }
     }
-
-    if (is_stop_.load()) return;
-    //Sleep(15000);
-//}
 }
 
-// 在应用程序初始化时调用
-void CClientImpl::init_role_monitor() {
-    // 启动监控线程
-    //monitor_thread_ = std::thread([this]() {
-    //    window_monitor_thread();
-    //});
-    //monitor_thread_.detach();
+// 窗口监控线程（优化版）
+void CClientImpl::window_monitor_thread() {
+    auto& wrn = window_role_name_hook::get_instance();
+    wrn.set_rev_thread_id(GetCurrentThreadId());
 
-    start_timer("window_monitor_thread", std::chrono::seconds(15), [this]() {
+    // 1. 检测主窗口
+    monitor_main_window();
+
+    // 2. 请求标题更新
+    if (g_main_window_hwnd.load() && IsWindow(g_main_window_hwnd.load()))
+    {
+        wrn.request_title();
+    }
+
+    // 3. 处理消息队列
+    process_title_messages();
+}
+
+// 初始化窗口监控
+void CClientImpl::init_role_monitor() {
+    // 一次性初始化（移出定时器循环）
+    g_currentPid = ::GetCurrentProcessId();
+
+    // 启动定时器
+    start_timer("window_monitor_thread", std::chrono::seconds(1), [this]() {
         window_monitor_thread();
     });
 
     // 设置角色名变化回调
-    set_role_name_callback([this](const std::wstring& roleName)-> void {
-        // 处理角色名变更
-        if (roleName.find(L" - ") != std::wstring::npos)
-        {
+    set_role_name_callback([this](const std::wstring& roleName) {
+
+        if (roleName.find(L" - ") != std::wstring::npos) {
+
+            /*if (get_timer_interval("window_monitor_thread") != std::chrono::seconds(30))
+            {
+                set_timer_interval("window_monitor_thread", std::chrono::seconds(30));
+            }*/
             cfg()->set_field<std::wstring>(usrname_field_id, roleName);
             ProtocolC2SUpdateUsername req;
             req.username = roleName;
             async_send(&req);
-            return;
         }
     });
 }

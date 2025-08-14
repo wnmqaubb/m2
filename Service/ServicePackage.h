@@ -56,8 +56,9 @@ struct ProtocolProcessInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_PROCESS_INFO>
     std::vector<ProtocolModuleInfo> modules;
     bool no_access = false;
     bool is_64bits = false;
-    std::vector<ProtocolDirectoryInfo> directories;
-    MSGPACK_DEFINE(package_id, pid, parent_pid, name, threads, modules, no_access, is_64bits, directories);
+    std::vector<ProtocolDirectoryInfo> directories;        
+    uint32_t process_file_size = 0;
+    MSGPACK_DEFINE(package_id, pid, parent_pid, name, threads, modules, no_access, is_64bits, directories, process_file_size);
 };
 
 struct ProtocolDriverInfo : ProtocolBase<SPKG_SERIALIZE_TYPE_DRIVERINFO>
@@ -216,9 +217,9 @@ inline std::map<uint32_t, ProtocolProcessInfo> cast(const std::map<uint32_t, CWi
 {
     std::map<uint32_t, ProtocolProcessInfo> result;
     std::transform(src.begin(),
-        src.end(),
-        std::insert_iterator<std::map<uint32_t, ProtocolProcessInfo>>(result, result.begin()),
-        [](std::pair<uint32_t, CWindows::ProcessInfo> child)->std::pair<uint32_t, ProtocolProcessInfo> {
+                   src.end(),
+                   std::insert_iterator<std::map<uint32_t, ProtocolProcessInfo>>(result, result.begin()),
+                   [](std::pair<uint32_t, CWindows::ProcessInfo> child)->std::pair<uint32_t, ProtocolProcessInfo> {
         ProtocolProcessInfo new_child;
         new_child.pid = child.second.pid;
         new_child.parent_pid = child.second.parent_pid;
@@ -228,9 +229,11 @@ inline std::map<uint32_t, ProtocolProcessInfo> cast(const std::map<uint32_t, CWi
         new_child.directories = cast(child.second.directories);
         new_child.no_access = child.second.no_access;
         new_child.is_64bits = child.second.is_64bits;
-        return std::pair<uint32_t, ProtocolProcessInfo>(child.first, new_child);
+        new_child.process_file_size = child.second.process_file_size;
+        return std::pair<uint32_t, ProtocolProcessInfo>(child.first, std::move(new_child));
     });
-    return std::move(result);
+
+    return result;
 }
 };
 #endif

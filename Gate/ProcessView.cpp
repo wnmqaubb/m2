@@ -132,7 +132,7 @@ int CProcessView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 void CProcessView::FillViewList()
 {
-    m_ViewList.SetColumnByIntSort({ 0, 1, 2 });
+    m_ViewList.SetColumnByIntSort({ 0, 1, 2, 5 });
     auto& processes = GetDocument()->GetProcesses();
     m_ViewList.SetRedraw(FALSE);
     m_ViewList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_GRIDLINES);
@@ -142,6 +142,7 @@ void CProcessView::FillViewList()
     m_ViewList.InsertColumn(colIndex++, TEXT("父PID"), LVCFMT_LEFT, 45);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程名称"), LVCFMT_LEFT, 150);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程路径"), LVCFMT_LEFT, 530);
+    m_ViewList.InsertColumn(colIndex++, TEXT("进程大小"), LVCFMT_LEFT, 70);
     m_ViewList.InsertColumn(colIndex++, TEXT("进程位数"), LVCFMT_LEFT, 70);
     m_ViewList.DeleteAllItems();
     CString connect_id_str, seq;
@@ -169,6 +170,8 @@ void CProcessView::FillViewList()
         m_ViewList.SetItemText(rowNum, colIndex++, process.second.name.c_str());
         m_ViewList.SetItemText(rowNum, colIndex++, process.second.no_access ? no_access_wstr :
             process.second.modules.empty() ? empty_list_wstr : process.second.modules.front().path.c_str());
+        temp.Format(format_d, process.second.process_file_size);
+        m_ViewList.SetItemText(rowNum, colIndex++, temp);
         m_ViewList.SetItemText(rowNum, colIndex++, process.second.is_64bits ? x64_wstr : x32_wstr);
         rowNum++;
     }

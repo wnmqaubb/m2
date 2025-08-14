@@ -110,7 +110,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir);$(ProjectDir);$(SolutionDir)..\yk\3rdparty;$(SolutionDir)..\yk\3rdparty\phnt;$(SolutionDir)..\yk\3rdparty\asio2-2.9\include;$(SolutionDir)..\yk\3rdparty\msgpack\include;$(SolutionDir)..\yk\3rdparty\zlib\$(VCProjectVersion)\$(PlatformTarget)\include;$(SolutionDir)..\yk\NewClient\shellcode;$(SolutionDir)..\yk\3rdparty\asio2-2.9\3rd</AdditionalIncludeDirectories>
-      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ExceptionHandling>Async</ExceptionHandling>

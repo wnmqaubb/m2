@@ -282,6 +282,7 @@ enum FieldId
     DEFINE_FIELD_ID(sec_no_change_field_id),
     DEFINE_FIELD_ID(usrname_field_id),
 	DEFINE_FIELD_ID(hack_type_version_dll_field_id),
+    DEFINE_FIELD_ID(is_client_field_id),
 };
 enum TimerId
 {
