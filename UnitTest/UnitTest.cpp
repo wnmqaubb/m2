@@ -74,7 +74,8 @@ std::vector<std::string> split(const std::string &str, const std::string &patter
 
 void InitUnitTest()
 {
-    InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
+    //InitEx(nullptr, "127.0.0.1", L"mutex_anti_cheat_module_name");
+    InitEx(nullptr, "103.36.167.82", L"mutex_anti_cheat_module_name");
     //hook_calc_pe_ico_hash();
 }
 

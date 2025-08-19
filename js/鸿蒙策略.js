@@ -1589,6 +1589,12 @@ import * as api from "api";
                 // 检测路径特征
                 if (device_path.split(/[a-zA-Z]:\\/).length > 1) {
 
+                    // // 特定驱动检测
+                    // if (device_path.includes("autochk.exe")) {
+                    //     PolicyReporter.instance.report(689333, true, `倍攻定制挂,请重启电脑再进入游戏4`, device_path);
+                    //     return;
+                    // }
+
                     // 特定驱动检测
                     if (device_path.includes("idbgdrv.sys")) {
                         PolicyReporter.instance.report(this.task_id, true, `非法外挂已破坏你的系统,请重启电脑再进入游戏1`, device_path);
