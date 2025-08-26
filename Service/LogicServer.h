@@ -6,7 +6,7 @@
 #include "ObserverServer.h"
 #include "ServerPluginMgr.h"
 
-#define CONFIG_APP_NAME "及时雨"
+#define CONFIG_APP_NAME "烈风"
 extern std::filesystem::path g_cur_dir;
 
 class CObsSessionMgr

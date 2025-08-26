@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Document Version="2">
-    <Protection InputFileName="build\bin\Release\Win32\LogicServer.exe" Options="1021896" LicenseDataFileName="及时雨插件版_-_红图标_鸿蒙版.vmp" OutputFileName="LogicServer.exe">
+    <Protection InputFileName="build\bin\Release\Win32\LogicServer.exe" Options="1021896" LicenseDataFileName="烈风插件版_-_红图标_鸿蒙版.vmp" OutputFileName="LogicServer.exe">
         <Messages />
         <Folders />
         <Procedures>
